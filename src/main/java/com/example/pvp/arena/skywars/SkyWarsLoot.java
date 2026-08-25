@@ -87,6 +87,11 @@ public final class SkyWarsLoot {
         List<ItemStack> drops = new ArrayList<>();
         int stackCount = middle ? 4 + random.nextInt(3) : 3 + random.nextInt(2); // 中间 4~6，出生 3~4
 
+        // 出生箱保底一组搭桥方块（岛间距大，没有方块无法搭桥过岛）
+        if (!middle) {
+            drops.add(bridgeBlocks(random));
+        }
+
         for (int i = 0; i < stackCount; i++) {
             ItemStack stack = middle ? roll(MIDDLE_TABLE, random, 60) : roll(SPAWN_TABLE, random, 35);
             if (!stack.isEmpty()) {
