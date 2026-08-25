@@ -1,6 +1,10 @@
 package com.example.pvp.command;
 
 import com.example.pvp.PvPMod;
+import com.example.pvp.arena.ArenaWorld;
+import com.example.pvp.arena.ArenaWorldManager;
+import com.example.pvp.arena.skywars.SkyWarsLayout;
+import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.config.KitConfig;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.PlayerStats;
@@ -24,6 +28,7 @@ import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
 
 import java.util.Comparator;
 import java.util.List;
@@ -35,7 +40,7 @@ import java.util.UUID;
  */
 public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> MODE_SUGGESTIONS =
-            (ctx, builder) -> CommandSource.suggestMatching(new String[]{"1v1", "2v2", "ffa", "sumo", "1.8"}, builder);
+            (ctx, builder) -> CommandSource.suggestMatching(new String[]{"1v1", "2v2", "ffa", "sumo", "1.8", "skywars"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -54,6 +59,9 @@ public final class PvPCommands {
                         .then(CommandManager.literal("join")
                                 .then(CommandManager.argument("mode", StringArgumentType.word())
                                         .suggests(MODE_SUGGESTIONS)
+                                        // 空岛战争无需套件，可直接加入
+                                        .executes(ctx -> join(ctx,
+                                                StringArgumentType.getString(ctx, "mode"), null))
                                         .then(CommandManager.argument("kit", StringArgumentType.word())
                                                 .suggests(KIT_SUGGESTIONS)
                                                 .executes(ctx -> join(ctx,
@@ -77,6 +85,12 @@ public final class PvPCommands {
                         .then(CommandManager.literal("reload")
                                 .requires(source -> source.hasPermissionLevel(2))
                                 .executes(ctx -> reload(ctx.getSource())))
+                        .then(CommandManager.literal("debug")
+                                .requires(source -> source.hasPermissionLevel(2))
+                                .then(CommandManager.literal("skywars")
+                                        .executes(ctx -> debugSkywars(ctx, 1))
+                                        .then(CommandManager.argument("rounds", StringArgumentType.word())
+                                                .executes(ctx -> debugSkywars(ctx, parseIntSafe(ctx, "rounds", 1))))))
         );
 
         dispatcher.register(
@@ -109,6 +123,7 @@ public final class PvPCommands {
         source.sendFeedback(() -> Messages.gold(
                 "§6§lPvP 匹配 §r命令：\n"
                         + "§e/pvp join <1v1|2v2|ffa|sumo|1.8> <套件>§r 加入匹配队列\n"
+                        + "§e/pvp join skywars§r 加入空岛战争（无需套件）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp queue§r 查看排队状态\n"
                         + "§e/pvp list§r 查看进行中的比赛\n"
@@ -126,13 +141,22 @@ public final class PvPCommands {
 
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
-            player.sendMessage(Messages.error("未知模式: " + modeId + "（可用: 1v1, 2v2, ffa）"), false);
+            player.sendMessage(Messages.error("未知模式: " + modeId + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars）"), false);
             return 0;
         }
-        Kit kit = KitManager.get(kitId);
-        if (kit == null) {
-            player.sendMessage(Messages.error("未知套件: " + kitId + "（用 /pvp kit list 查看）"), false);
-            return 0;
+        Kit kit;
+        if (type == MatchType.SKYWARS) {
+            kit = KitManager.skywarsKit(); // 空岛战争无套件
+        } else {
+            if (kitId == null) {
+                player.sendMessage(Messages.error("该模式需要指定套件（用 /pvp kit list 查看）"), false);
+                return 0;
+            }
+            kit = KitManager.get(kitId);
+            if (kit == null) {
+                player.sendMessage(Messages.error("未知套件: " + kitId + "（用 /pvp kit list 查看）"), false);
+                return 0;
+            }
         }
 
         if (isBusy(player)) {
@@ -144,6 +168,9 @@ public final class PvPCommands {
             if (type == MatchType.FFA) {
                 player.sendMessage(Messages.info("已加入自由乱斗：凑齐 " + PvPConfig.INSTANCE.ffaMinPlayers
                         + " 人后倒计时 " + PvPConfig.INSTANCE.ffaCountdownSeconds + " 秒开赛"), false);
+            } else if (type == MatchType.SKYWARS) {
+                player.sendMessage(Messages.info("已加入空岛战争：凑齐 " + PvPConfig.INSTANCE.skywarsStartPlayers
+                        + " 人开赛，开箱获得装备"), false);
             } else {
                 int count = PvPMod.QUEUE.queuedCount(type, kit);
                 int required = type.requiredPlayers();
@@ -262,6 +289,43 @@ public final class PvPCommands {
         StatsStore.INSTANCE.load();
         source.sendFeedback(() -> Messages.info("配置已重载"), false);
         return 1;
+    }
+
+    /** 调试：在竞技场远区生成随机空岛地图并传送过去查看（不影响正式对局）。 */
+    private static int debugSkywars(CommandContext<ServerCommandSource> ctx, int rounds) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
+        ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
+        if (arena == null) {
+            player.sendMessage(Messages.error("竞技场世界不可用"), false);
+            return 0;
+        }
+        rounds = Math.max(1, Math.min(8, rounds));
+        int baseRegion = 900; // 远离正式对局分配的区域，避免冲突
+        int lastRegion = baseRegion;
+        for (int i = 0; i < rounds; i++) {
+            int region = baseRegion + i;
+            SkyWarsLayout layout = SkyWarsMapGenerator.generate(arena, region, 9000 + i, 4);
+            lastRegion = region;
+            player.sendMessage(Messages.info("测试空岛 #" + (i + 1) + " 已生成："
+                    + layout.spawnIslands().size() + " 个出生岛(每岛 "
+                    + layout.spawnIslands().get(0).chests().size() + " 箱)，中间主岛 "
+                    + layout.middle().chests().size() + " 箱，最大半径 "
+                    + layout.maxRadius()), false);
+        }
+        BlockPos c = SkyWarsMapGenerator.center(lastRegion);
+        player.teleport(arena, c.getX() + 0.5, c.getY() + 12, c.getZ() + 0.5, 0, 90);
+        arenaManager.addVisitor(player, 180); // 3 分钟内不被兜底传回主城
+        player.sendMessage(Messages.gold("已传送到测试空岛上空（约 3 分钟后自动回城），可下落查看岛屿与箱子战利品"), false);
+        return 1;
+    }
+
+    private static int parseIntSafe(CommandContext<ServerCommandSource> ctx, String name, int fallback) {
+        try {
+            return Integer.parseInt(StringArgumentType.getString(ctx, name));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     // ---------- /duel ----------

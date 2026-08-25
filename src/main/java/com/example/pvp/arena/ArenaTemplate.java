@@ -18,7 +18,8 @@ public class ArenaTemplate {
     public enum Layout {
         DUEL_1V1,
         DUEL_2V2,
-        FFA
+        FFA,
+        SKYWARS
     }
 
     private final Layout layout;
@@ -90,6 +91,9 @@ public class ArenaTemplate {
                     int z = cz + (int) Math.round(Math.sin(angle) * d);
                     spawns.add(new BlockPos(x, PLATFORM_Y + 1, z));
                 }
+            }
+            case SKYWARS -> {
+                // 空岛出生点由 SkyWarsLayout 计算（Match 构造时处理），这里返回空避免占位
             }
         }
         return spawns;

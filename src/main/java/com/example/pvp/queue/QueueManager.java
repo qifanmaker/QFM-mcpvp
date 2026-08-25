@@ -3,6 +3,7 @@ package com.example.pvp.queue;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.Kit;
+import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.text.Messages;
@@ -26,6 +27,9 @@ public final class QueueManager {
     private final List<QueueEntry> entries = new ArrayList<>();
     /** 自由乱斗开赛倒计时（tick 数）；null 表示未开始。 */
     private Integer ffaCountdownTicks;
+    /** 空岛战争开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
+    private Integer skywarsCountdownTicks;
+    private Integer skywarsFillTicks;
 
     public QueueManager(MinecraftServer server) {
         this.server = server;
@@ -93,6 +97,7 @@ public final class QueueManager {
         });
 
         this.tickFfa(matchManager);
+        this.tickSkywars(matchManager);
         this.tickInstantMatches(matchManager);
     }
 
@@ -156,11 +161,112 @@ public final class QueueManager {
         // 开赛失败（场地已满）则保留排队，等待下一轮倒计时
     }
 
-    /** 非 FFA（1v1/2v2/相扑）的即时凑齐开赛。 */
+    /**
+     * 空岛战争队列：凑齐 startPlayers 人开始倒计时，达到 maxPlayers 立即开赛；
+     * 2~startPlayers-1 人时进入等待填人计时，超时按当前人数开赛。
+     */
+    private void tickSkywars(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        long count = this.countSkywars();
+
+        if (this.skywarsCountdownTicks != null) {
+            // 倒计时中，满员立即开赛
+            this.skywarsCountdownTicks = count >= config.skywarsMaxPlayers
+                    ? 0 : this.skywarsCountdownTicks - 1;
+            if (this.skywarsCountdownTicks <= 0) {
+                this.skywarsCountdownTicks = null;
+                this.skywarsFillTicks = null;
+                this.startSkywarsMatch(matchManager);
+            }
+            return;
+        }
+
+        if (count >= config.skywarsStartPlayers) {
+            this.skywarsCountdownTicks = config.skywarsCountdownSeconds * 20;
+            this.broadcastSkywars(matchManager, Messages.info(
+                    "§e" + count + "§r 人已就绪，§e" + config.skywarsCountdownSeconds + "§r 秒后开始空岛战争！"));
+            this.skywarsFillTicks = null;
+            return;
+        }
+
+        // 人数在 minPlayers 与 startPlayers 之间：等待填人
+        if (count >= config.skywarsMinPlayers) {
+            if (this.skywarsFillTicks == null) {
+                this.skywarsFillTicks = config.skywarsFillTimeoutSeconds * 20;
+            }
+            if (this.skywarsFillTicks % 40 == 0) {
+                this.broadcastSkywars(matchManager, Messages.info(
+                        "等待更多玩家加入空岛战争（当前 " + count + "/" + config.skywarsStartPlayers + "）..."));
+            }
+            this.skywarsFillTicks--;
+            if (this.skywarsFillTicks <= 0) {
+                this.skywarsFillTicks = null;
+                this.startSkywarsMatch(matchManager);
+            }
+        } else {
+            this.skywarsFillTicks = null;
+        }
+    }
+
+    /** 开一场空岛战争：取队列前 maxPlayers 人，每人发哨兵套件（实际上空手开局）。 */
+    private void startSkywarsMatch(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        List<QueueEntry> toRemove = new ArrayList<>();
+        Kit sentinel = KitManager.skywarsKit();
+        if (sentinel == null) {
+            return;
+        }
+
+        for (QueueEntry entry : List.copyOf(this.entries)) {
+            if (entry.getType() != MatchType.SKYWARS) {
+                continue;
+            }
+            if (players.size() >= config.skywarsMaxPlayers) {
+                break;
+            }
+            toRemove.add(entry);
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                players.add(online);
+            }
+        }
+
+        if (players.size() < config.skywarsMinPlayers) {
+            return; // 人数不足：保留排队，等待下一轮倒计时（离线残留由 tick 自愈清理）
+        }
+
+        Map<UUID, Kit> kits = new HashMap<>();
+        for (ServerPlayerEntity player : players) {
+            kits.put(player.getUuid(), sentinel);
+        }
+        if (matchManager.startMatch(players, MatchType.SKYWARS, kits)) {
+            this.entries.removeAll(toRemove);
+        }
+        // 开赛失败（场地已满）则保留排队，等待下一轮
+    }
+
+    private long countSkywars() {
+        return this.entries.stream().filter(e -> e.getType() == MatchType.SKYWARS).count();
+    }
+
+    private void broadcastSkywars(MatchManager matchManager, Text message) {
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != MatchType.SKYWARS) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                online.sendMessage(message, false);
+            }
+        }
+    }
+
+    /** 非 FFA/SkyWars（1v1/2v2/相扑/1.8）的即时凑齐开赛。 */
     private void tickInstantMatches(MatchManager matchManager) {
         Map<String, List<QueueEntry>> groups = new LinkedHashMap<>();
         for (QueueEntry entry : this.entries) {
-            if (entry.getType() == MatchType.FFA) {
+            if (entry.getType() == MatchType.FFA || entry.getType() == MatchType.SKYWARS) {
                 continue;
             }
             groups.computeIfAbsent(entry.getType().getId() + "|" + entry.getKit().getId(), k -> new ArrayList<>()).add(entry);

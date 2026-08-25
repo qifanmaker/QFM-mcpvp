@@ -1,5 +1,6 @@
 package com.example.pvp.arena;
 
+import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.mixin.MinecraftServerAccess;
 import com.example.pvp.util.PvpDimensionOptions;
 import com.example.pvp.util.RemoveFromRegistry;
@@ -14,6 +15,7 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.SimpleRegistry;
 import net.minecraft.registry.entry.RegistryEntryInfo;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -29,6 +31,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
@@ -45,8 +52,32 @@ public final class ArenaWorldManager {
     private final MinecraftServer server;
     private ArenaWorld world;
 
+    /** 允许停留在竞技场内但不对局的玩家（调试/观览），到期自动移除。 */
+    private final Set<UUID> inspectionVisitors = new HashSet<>();
+    private final Map<UUID, Long> visitorExpiryTick = new HashMap<>();
+
     private ArenaWorldManager(MinecraftServer server) {
         this.server = server;
+    }
+
+    public void addVisitor(ServerPlayerEntity player, int seconds) {
+        this.inspectionVisitors.add(player.getUuid());
+        this.visitorExpiryTick.put(player.getUuid(), this.server.getTicks() + seconds * 20L);
+    }
+
+    public void removeVisitor(UUID uuid) {
+        this.inspectionVisitors.remove(uuid);
+        this.visitorExpiryTick.remove(uuid);
+    }
+
+    public boolean isVisitor(UUID uuid) {
+        return this.inspectionVisitors.contains(uuid);
+    }
+
+    /** 每个服务器 tick 调用：到期自动移除访客。 */
+    public void tickVisitors() {
+        long now = this.server.getTicks();
+        this.visitorExpiryTick.entrySet().removeIf(e -> e.getValue() < now && this.inspectionVisitors.remove(e.getKey()));
     }
 
     public static ArenaWorldManager get(MinecraftServer server) {
@@ -115,9 +146,21 @@ public final class ArenaWorldManager {
         }
     }
 
-    /** 搭建某场比赛的平台地形。 */
-    public void buildArena(int regionIndex, ArenaTemplate template) {
+    /**
+     * 搭建某场比赛的地形。
+     *
+     * @param seed        空岛战争的地图种子（比赛 ID），其他模式忽略
+     * @param playerCount 空岛战争的玩家人数（决定出生岛数量），其他模式忽略
+     */
+    public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount) {
         ArenaWorld arena = this.requireWorld();
+
+        // 空岛战争：随机生成出生岛 + 中间主岛 + 箱子战利品
+        if (template.getLayout() == ArenaTemplate.Layout.SKYWARS) {
+            SkyWarsMapGenerator.generate(arena, regionIndex, seed, playerCount);
+            return;
+        }
+
         BlockPos origin = template.getRegionOrigin(regionIndex);
         int size = template.getSize();
 
@@ -147,6 +190,12 @@ public final class ArenaWorldManager {
     public void clearArena(int regionIndex, ArenaTemplate template) {
         ArenaWorld arena = this.world;
         if (arena == null) {
+            return;
+        }
+
+        // 空岛战争：清空更大更高的地图范围（含立柱与小树）
+        if (template.getLayout() == ArenaTemplate.Layout.SKYWARS) {
+            SkyWarsMapGenerator.clearIslands(arena, regionIndex, template.getSize());
             return;
         }
 

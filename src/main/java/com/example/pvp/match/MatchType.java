@@ -10,7 +10,8 @@ public enum MatchType {
     DUEL_2V2("2v2", "2v2 团队"),
     FFA("ffa", "自由乱斗"),
     SUMO("sumo", "相扑"),
-    PVP_1_8("1.8", "1.8 经典PvP");
+    PVP_1_8("1.8", "1.8 经典PvP"),
+    SKYWARS("skywars", "空岛战争");
 
     private final String id;
     private final String displayName;
@@ -33,6 +34,7 @@ public enum MatchType {
             case DUEL_1V1, SUMO, PVP_1_8 -> 2;
             case DUEL_2V2 -> 4;
             case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
+            case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;
         };
     }
 

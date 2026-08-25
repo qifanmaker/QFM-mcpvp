@@ -217,6 +217,11 @@ public final class PvpGuiManager {
                     "点击选择套件后加入队列"));
             inv.setStack(12, makeButton(Items.STICK, "§b相扑 (Sumo)", "不吃伤害，只吃击退", "落到平台下方 20 格淘汰，末影珍珠可救回", "点击选择套件后加入队列"));
             inv.setStack(13, makeButton(Items.DIAMOND_SWORD, "§b1.8 经典PvP", "无攻击冷却，疯狂点按", "剑可格挡减伤 50%", "点击选择套件后加入队列"));
+            inv.setStack(17, makeButton(Items.END_CRYSTAL, "§b空岛战争 (Beta)", "2~8 人，凑齐 "
+                    + PvPConfig.INSTANCE.skywarsStartPlayers + " 人开赛",
+                    "随机空岛 + 中间主岛，开箱获得装备",
+                    "3 分钟后缩圈，最后存活者获胜",
+                    "点击直接加入"));
             inv.setStack(14, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
             inv.setStack(15, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
             inv.setStack(16, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
@@ -384,6 +389,8 @@ public final class PvpGuiManager {
                 ctx.pendingMode = MatchType.PVP_1_8;
                 this.openKitPage(player);
             }
+            // 空岛战争无套件，直接加入
+            case 17 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
             case 14 -> this.openDuelTargetPage(player);
             case 15 -> this.openStatsPage(player);
             case 16 -> this.openKitInfoPage(player);
@@ -460,6 +467,9 @@ public final class PvpGuiManager {
             if (type == MatchType.FFA) {
                 player.sendMessage(Messages.info("已加入自由乱斗：凑齐 " + PvPConfig.INSTANCE.ffaMinPlayers
                         + " 人后倒计时 " + PvPConfig.INSTANCE.ffaCountdownSeconds + " 秒开赛"), false);
+            } else if (type == MatchType.SKYWARS) {
+                player.sendMessage(Messages.info("已加入空岛战争：凑齐 " + PvPConfig.INSTANCE.skywarsStartPlayers
+                        + " 人开赛，开箱获得装备"), false);
             } else {
                 int count = PvPMod.QUEUE.queuedCount(type, kit);
                 player.sendMessage(Messages.info("已加入匹配队列：模式 " + type.getDisplayName()

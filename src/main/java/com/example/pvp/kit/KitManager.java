@@ -34,6 +34,9 @@ public final class KitManager {
 
     private static final List<Kit> KITS = new ArrayList<>();
 
+    /** 空岛战争哨兵套件：无物品、生存模式。仅作为占位避免空岛战争流程里 Kit 为 null。 */
+    private static Kit skywarsKit;
+
     /** 附魔注册表：服务器启动后才可用，用于给套件物品加附魔。 */
     private static Registry<Enchantment> enchantmentRegistry;
 
@@ -48,6 +51,11 @@ public final class KitManager {
 
     public static void reload() {
         KITS.clear();
+        skywarsKit = new Kit.Builder("skywars", KitType.CUSTOM)
+                .displayName("空岛战争")
+                .food(20, 5f)
+                .gamemode(GameMode.SURVIVAL)
+                .build();
         KITS.add(buildSwordKit());
         KITS.add(buildBowKit());
         KITS.add(buildFullGearKit());
@@ -89,6 +97,11 @@ public final class KitManager {
             ids.add(kit.getId());
         }
         return ids;
+    }
+
+    /** 空岛战争哨兵套件（不入 KITS 列表，避免出现在套件选择页）。 */
+    public static Kit skywarsKit() {
+        return skywarsKit;
     }
 
     private static Kit buildSwordKit() {

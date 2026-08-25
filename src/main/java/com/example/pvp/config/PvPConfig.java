@@ -46,6 +46,27 @@ public final class PvPConfig {
     public int ffaSize = 41;
     public int sumoSize = 11;
 
+    // ---------- 空岛战争 (SkyWars) ----------
+    /** 空岛战争：最少/触发开赛倒计时/最多人数。默认凑齐 4 人开赛，最少 2 人可开。 */
+    public int skywarsMinPlayers = 2;
+    public int skywarsStartPlayers = 4;
+    public int skywarsMaxPlayers = 8;
+    /** 开赛倒计时（秒）；不足开赛人数时等待填充的最长时间（秒）。 */
+    public int skywarsCountdownSeconds = 30;
+    public int skywarsFillTimeoutSeconds = 60;
+    /** 地图覆盖边长（生成/清理边界，需覆盖所有岛屿）。 */
+    public int skywarsSize = 64;
+    public int skywarsIslandRadius = 5;
+    public int skywarsMiddleRadius = 8;
+    public int skywarsChestsPerIsland = 3;
+    public int skywarsMiddleChests = 5;
+    /** 对局超时（秒）与缩圈：开赛多少秒后开始缩圈、每圈间隔多少秒、每圈塌掉几格、最小安全半径。 */
+    public int skywarsTimeoutSeconds = 600;
+    public int skywarsShrinkStartSeconds = 180;
+    public int skywarsShrinkIntervalSeconds = 30;
+    public int skywarsShrinkBlocksPerStage = 4;
+    public int skywarsShrinkMinRadius = 8;
+
     private PvPConfig() {
     }
 

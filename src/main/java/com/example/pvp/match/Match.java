@@ -4,6 +4,8 @@ import com.example.pvp.PvPMod;
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
+import com.example.pvp.arena.skywars.SkyWarsLayout;
+import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
 import com.example.pvp.gui.PvpGuiManager;
@@ -17,6 +19,7 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FireworkExplosionComponent;
 import net.minecraft.component.type.FireworksComponent;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.projectile.FireworkRocketEntity;
@@ -72,6 +75,11 @@ public final class Match {
     private final Set<String> infoLines = new HashSet<>(); // 计分板信息栏行
     private final int initialCountdownTicks;
 
+    /** 空岛战争地图布局（仅在 SKYWARS 模式非空，缩圈用）。 */
+    private final SkyWarsLayout skywarsLayout;
+    private int skywarsShrinkStage; // 已执行的缩圈档数
+    private int skywarsLastKeepRadius = Integer.MAX_VALUE; // 上一档安全半径
+
     private MatchTeam winnerTeam;
     private int celebrationTicks;
     private MatchState state;
@@ -98,8 +106,15 @@ public final class Match {
             this.snapshots.put(player.getUuid(), InventorySnapshot.capture(player));
         }
 
-        // 计算出生点
-        List<BlockPos> spawnPositions = template.computeSpawns(regionIndex, this.players.size());
+        // 计算出生点（空岛战争用同一份确定性布局，保证与地图生成一致）
+        List<BlockPos> spawnPositions;
+        if (type == MatchType.SKYWARS) {
+            this.skywarsLayout = SkyWarsLayout.compute(template.getCenter(regionIndex), id, this.players.size());
+            spawnPositions = this.skywarsLayout.spawns();
+        } else {
+            this.skywarsLayout = null;
+            spawnPositions = template.computeSpawns(regionIndex, this.players.size());
+        }
         for (int i = 0; i < this.players.size(); i++) {
             this.spawns.put(this.players.get(i).getUuid(), spawnPositions.get(i));
         }
@@ -162,14 +177,16 @@ public final class Match {
 
         // 超时保护：防止卡死的对局一直占用场地导致后续无法开赛
         int countdownStuckThreshold = this.initialCountdownTicks + 20 * 10;
-        int activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
+        int activeTimeout = this.type == MatchType.SKYWARS
+                ? Math.max(100, PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20)
+                : Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
         if (this.state == MatchState.COUNTDOWN && this.ticks > countdownStuckThreshold) {
             LOGGER.warn("[PvP] 比赛 #{} 倒计时异常，强制取消", this.id);
             this.cancelMatch("倒计时异常");
             return;
         }
         if (this.state == MatchState.ACTIVE && this.ticks > this.initialCountdownTicks + activeTimeout) {
-            LOGGER.warn("[PvP] 比赛 #{} 超时（{} 秒）强制平局结束", this.id, PvPConfig.INSTANCE.matchTimeoutSeconds);
+            LOGGER.warn("[PvP] 比赛 #{} 超时（{} 秒）强制平局结束", this.id, activeTimeout / 20);
             this.finishMatch(null);
             return;
         }
@@ -188,6 +205,9 @@ public final class Match {
                 if (this.type == MatchType.PVP_1_8) {
                     this.tickLegacyBlocking();
                 }
+                if (this.type == MatchType.SKYWARS) {
+                    this.tickSkywarsShrink();
+                }
                 this.checkWinCondition();
             }
             case CELEBRATING -> this.tickCelebration();
@@ -201,6 +221,57 @@ public final class Match {
         this.celebrationTicks--;
         if (this.celebrationTicks <= 0) {
             this.finalizeMatch();
+        }
+    }
+
+    /** 空岛战争缩圈：开赛一段时间后每隔 N 秒塌一圈，清掉圈外方块并淘汰圈外玩家。 */
+    private void tickSkywarsShrink() {
+        if (this.skywarsLayout == null) {
+            return;
+        }
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int elapsed = this.ticks - this.initialCountdownTicks;
+        int startTick = cfg.skywarsShrinkStartSeconds * 20;
+        if (elapsed < startTick) {
+            return;
+        }
+        int stage = (elapsed - startTick) / (cfg.skywarsShrinkIntervalSeconds * 20) + 1;
+        if (stage == this.skywarsShrinkStage) {
+            return;
+        }
+        this.skywarsShrinkStage = stage;
+        int keepRadius = this.skywarsLayout.maxRadius() - stage * cfg.skywarsShrinkBlocksPerStage;
+        if (keepRadius < cfg.skywarsShrinkMinRadius) {
+            keepRadius = cfg.skywarsShrinkMinRadius;
+        }
+        if (keepRadius >= this.skywarsLastKeepRadius) {
+            return; // 已缩到最小安全半径，不再重复
+        }
+        this.skywarsLastKeepRadius = keepRadius;
+
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena != null) {
+            SkyWarsMapGenerator.removeRing(arena, this.skywarsLayout.mapCenter(),
+                    this.skywarsLayout.maxRadius(), keepRadius);
+        }
+        this.broadcast(Messages.gold("§c§l缩圈！§r 安全区缩小到半径 §e" + keepRadius + "§r 格"));
+
+        if (arena != null) {
+            for (ServerPlayerEntity player : this.players) {
+                if (this.eliminated.contains(player.getUuid())) {
+                    continue;
+                }
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online == null || online.getWorld() != arena) {
+                    continue;
+                }
+                double dist = Math.hypot(online.getX() - this.skywarsLayout.mapCenter().getX(),
+                        online.getZ() - this.skywarsLayout.mapCenter().getZ());
+                if (dist > keepRadius) {
+                    this.eliminate(online, EliminationCause.SHRINK);
+                    online.sendMessage(Messages.error("你被缩圈淘汰了！"), false);
+                }
+            }
         }
     }
 
@@ -250,6 +321,10 @@ public final class Match {
 
         ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
         if (online != null) {
+            // 空岛战争：被淘汰时把装备掉落在地（供击杀者拾取），再转旁观
+            if (this.type == MatchType.SKYWARS) {
+                this.dropSkywarsLoot(online);
+            }
             this.makeSpectator(online);
         }
 
@@ -373,6 +448,28 @@ public final class Match {
         }
         this.manager.cleanupMatch(this);
         LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
+    }
+
+    /** 空岛战争：把玩家背包/护甲/副手物品以掉落物形式丢在原地（死后装备可被拾取）。 */
+    private void dropSkywarsLoot(ServerPlayerEntity player) {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        var inventory = player.getInventory();
+        double x = player.getX();
+        double y = player.getY() + 0.5;
+        double z = player.getZ();
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            ItemEntity item = new ItemEntity(arena, x, y, z, stack.copy());
+            item.setVelocity((Math.random() - 0.5) * 0.3, 0.2, (Math.random() - 0.5) * 0.3);
+            arena.spawnEntity(item);
+        }
+        inventory.clear();
     }
 
     /** 将玩家转为旁观者并传送到观众平台（淘汰/重生兜底），发放观战 UI。 */
@@ -521,9 +618,10 @@ public final class Match {
     }
 
     private void setupPlayers() {
-        this.manager.getArenaManager().buildArena(this.regionIndex, this.template);
+        this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.id, this.players.size());
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
 
+        boolean skywars = this.type == MatchType.SKYWARS;
         for (ServerPlayerEntity player : this.players) {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online == null) {
@@ -532,17 +630,35 @@ public final class Match {
             BlockPos spawn = this.spawns.get(player.getUuid());
             float yaw = this.faceCenter(spawn);
             online.teleport(arena, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, yaw, 0);
-            Kit playerKit = this.playerKits.get(player.getUuid());
-            if (playerKit == null) {
-                playerKit = this.kit;
+            if (skywars) {
+                // 空岛战争：无套件，生存模式空手开局，开箱搜刮装备
+                online.getInventory().clear();
+                online.setHealth(online.getMaxHealth());
+                online.getHungerManager().setFoodLevel(20);
+                online.getHungerManager().setSaturationLevel(5f);
+                online.setAbsorptionAmount(0);
+                online.setFireTicks(0);
+                online.fallDistance = 0;
+                online.clearStatusEffects();
+                online.changeGameMode(GameMode.SURVIVAL);
+                online.currentScreenHandler.sendContentUpdates();
+            } else {
+                Kit playerKit = this.playerKits.get(player.getUuid());
+                if (playerKit == null) {
+                    playerKit = this.kit;
+                }
+                KitApplicator.apply(online, playerKit);
             }
-            KitApplicator.apply(online, playerKit);
             online.setInvulnerable(true);
             online.setNoGravity(false);
         }
 
         this.createScoreboardTeams();
-        this.broadcast(Messages.info("对局开始！模式：" + this.type.getDisplayName() + "，套件：" + this.kit.getDisplayName()));
+        if (skywars) {
+            this.broadcast(Messages.info("空岛战争开始！搜刮空岛，成为最后幸存者！"));
+        } else {
+            this.broadcast(Messages.info("对局开始！模式：" + this.type.getDisplayName() + "，套件：" + this.kit.getDisplayName()));
+        }
     }
 
     private void checkWinCondition() {
@@ -553,7 +669,7 @@ public final class Match {
     }
 
     private MatchTeam computeWinner() {
-        if (this.type == MatchType.FFA) {
+        if (this.type == MatchType.FFA || this.type == MatchType.SKYWARS) {
             List<ServerPlayerEntity> alive = this.teams.get(0).getAlivePlayers();
             return alive.size() <= 1 ? this.teams.get(0) : null;
         }
@@ -567,10 +683,11 @@ public final class Match {
     }
 
     private void announceResult(Set<UUID> winners) {
-        if (this.type == MatchType.FFA) {
+        if (this.type == MatchType.FFA || this.type == MatchType.SKYWARS) {
             ServerPlayerEntity winner = this.getWinnerPlayer(winners);
             if (winner != null) {
-                this.broadcast(Messages.gold("§6" + winner.getGameProfile().getName() + "§r 在自由乱斗中获胜！"));
+                String modeName = this.type == MatchType.SKYWARS ? "空岛战争" : "自由乱斗";
+                this.broadcast(Messages.gold("§6" + winner.getGameProfile().getName() + "§r 在" + modeName + "中获胜！"));
             } else {
                 this.broadcast(Messages.warn("本局平局"));
             }
@@ -685,9 +802,13 @@ public final class Match {
 
         int score = 10;
         this.setInfoLine(scoreboard, objective, "模式: " + this.type.getDisplayName(), score--);
-        Kit displayKit = this.kit;
-        this.setInfoLine(scoreboard, objective, "套件: " + (displayKit == null ? "-" : displayKit.getDisplayName()), score--);
-        if (this.type == MatchType.FFA) {
+        if (this.type == MatchType.SKYWARS) {
+            this.setInfoLine(scoreboard, objective, "装备: 开箱获得", score--);
+        } else {
+            Kit displayKit = this.kit;
+            this.setInfoLine(scoreboard, objective, "套件: " + (displayKit == null ? "-" : displayKit.getDisplayName()), score--);
+        }
+        if (this.type == MatchType.FFA || this.type == MatchType.SKYWARS) {
             int alive = this.teams.isEmpty() ? 0 : this.teams.get(0).aliveCount();
             this.setInfoLine(scoreboard, objective, "存活: " + alive + "/" + this.players.size(), score--);
         } else {

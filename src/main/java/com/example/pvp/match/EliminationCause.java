@@ -7,6 +7,7 @@ public enum EliminationCause {
     DEATH("阵亡"),
     VOID("掉出世界"),
     RING_OUT("出场"),
+    SHRINK("缩圈淘汰"),
     DISCONNECT("中途退出"),
     FORFEIT("弃权");
 

@@ -74,6 +74,7 @@ public final class MatchManager {
         }
 
         this.sweepArenaWorld();
+        this.getArenaManager().tickVisitors();
         this.applyLobbyProtection();
     }
 
@@ -116,6 +117,11 @@ public final class MatchManager {
         }
         if (type == MatchType.FFA) {
             if (players.size() < PvPConfig.INSTANCE.ffaMinPlayers) {
+                return false;
+            }
+        } else if (type == MatchType.SKYWARS) {
+            if (players.size() < PvPConfig.INSTANCE.skywarsMinPlayers
+                    || players.size() > PvPConfig.INSTANCE.skywarsMaxPlayers) {
                 return false;
             }
         } else if (players.size() != type.requiredPlayers()) {
@@ -216,6 +222,7 @@ public final class MatchManager {
 
     /** 玩家断线事件。 */
     public void onPlayerDisconnect(ServerPlayerEntity player) {
+        this.getArenaManager().removeVisitor(player.getUuid());
         Match match = this.getMatchFor(player);
         if (match != null) {
             if (match.getState() == MatchState.COUNTDOWN) {
@@ -262,14 +269,16 @@ public final class MatchManager {
             case DUEL_2V2 -> PvPConfig.INSTANCE.duel2v2Size;
             case FFA -> PvPConfig.INSTANCE.ffaSize;
             case SUMO -> PvPConfig.INSTANCE.sumoSize;
+            case SKYWARS -> PvPConfig.INSTANCE.skywarsSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
             case DUEL_2V2 -> ArenaTemplate.Layout.DUEL_2V2;
             case FFA -> ArenaTemplate.Layout.FFA;
+            case SKYWARS -> ArenaTemplate.Layout.SKYWARS;
         };
-        // 相扑无围墙（要靠被击出平台判负），其余模式保留围墙
-        boolean hasWalls = type != MatchType.SUMO;
+        // 相扑/空岛无围墙；空岛地图本身由 SkyWarsMapGenerator 生成
+        boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS;
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 
@@ -289,7 +298,10 @@ public final class MatchManager {
             boolean inVoid = player.getY() < arena.getBottomY() - 32;
 
             if (match == null) {
-                this.teleportToOverworldSpawn(player);
+                // 调试/观览访客不受兜底影响
+                if (!manager.isVisitor(player.getUuid())) {
+                    this.teleportToOverworldSpawn(player);
+                }
             } else if (inVoid) {
                 if (match.getState() == MatchState.ACTIVE) {
                     match.eliminate(player, EliminationCause.VOID);

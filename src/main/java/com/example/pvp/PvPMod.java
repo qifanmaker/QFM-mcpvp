@@ -2,6 +2,7 @@ package com.example.pvp;
 
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.VoidChunkGenerator;
+import com.example.pvp.arena.skywars.SkyWarsLoot;
 import com.example.pvp.command.PvPCommands;
 import com.example.pvp.config.KitConfig;
 import com.example.pvp.config.PvPConfig;
@@ -61,6 +62,7 @@ public final class PvPMod implements ModInitializer {
             SERVER = server;
             ArenaWorldManager.get(server).createWorld();
             KitManager.onServerStarted(server); // 附魔注册表此时可用，重建套件应用附魔
+            SkyWarsLoot.onServerStarted(server); // 空岛战利品附魔
             MATCH = MatchManager.init(server);
             QUEUE = new QueueManager(server);
             DUEL = new DuelManager(server);
