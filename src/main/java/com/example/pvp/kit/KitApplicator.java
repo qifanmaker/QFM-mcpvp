@@ -24,6 +24,15 @@ public final class KitApplicator {
             slot++;
         }
 
+        // 背包物品放入主背包（9-35 格）
+        for (ItemStack stack : kit.getBackpack()) {
+            if (slot >= 36) {
+                break;
+            }
+            inventory.setStack(slot, stack.copy());
+            slot++;
+        }
+
         ItemStack[] armor = kit.getArmor();
         // armor 槽位：0=脚 1=腿 2=胸 3=头
         inventory.armor.set(0, armor[3] == null ? ItemStack.EMPTY : armor[3].copy());

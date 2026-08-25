@@ -1,5 +1,6 @@
 package com.example.pvp.queue;
 
+import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchType;
@@ -29,11 +30,16 @@ public final class QueueManager {
             return false;
         }
         this.entries.add(new QueueEntry(player, type, kit, this.server.getTicks()));
+        PvpGuiManager.giveQueueItem(player); // 快捷栏第一格放「离开排队」红石
         return true;
     }
 
     public boolean leave(ServerPlayerEntity player) {
-        return this.leave(player.getUuid());
+        boolean removed = this.leave(player.getUuid());
+        if (removed) {
+            PvpGuiManager.removeQueueItem(player);
+        }
+        return removed;
     }
 
     public boolean leave(UUID uuid) {
@@ -74,6 +80,12 @@ public final class QueueManager {
 
     /** 每个服务器 tick 调用：尝试凑齐人数开赛。 */
     public void tick(MatchManager matchManager) {
+        // 自愈：清理已离线或已在比赛中的排队条目（防止残留状态导致无法再次开赛）
+        this.entries.removeIf(e -> {
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(e.getPlayer().getUuid());
+            return online == null || matchManager.isInMatch(e.getPlayer().getUuid());
+        });
+
         Map<String, List<QueueEntry>> groups = new LinkedHashMap<>();
         for (QueueEntry entry : this.entries) {
             groups.computeIfAbsent(entry.getType().getId() + "|" + entry.getKit().getId(), k -> new ArrayList<>()).add(entry);

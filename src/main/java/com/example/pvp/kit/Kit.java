@@ -13,7 +13,8 @@ public final class Kit {
     private final String id;
     private final KitType type;
     private final String displayName;
-    private final List<ItemStack> inventory;
+    private final List<ItemStack> inventory; // 快捷栏（0-8）
+    private final List<ItemStack> backpack;  // 主背包（9-35）
     private final ItemStack[] armor; // [0]头盔 [1]胸甲 [2]护腿 [3]靴子
     private final ItemStack offhand;
     private final List<StatusEffectInstance> effects;
@@ -26,6 +27,7 @@ public final class Kit {
         this.type = builder.type;
         this.displayName = builder.displayName;
         this.inventory = List.copyOf(builder.inventory);
+        this.backpack = List.copyOf(builder.backpack);
         this.armor = builder.armor.clone();
         this.offhand = builder.offhand;
         this.effects = List.copyOf(builder.effects);
@@ -48,6 +50,10 @@ public final class Kit {
 
     public List<ItemStack> getInventory() {
         return this.inventory;
+    }
+
+    public List<ItemStack> getBackpack() {
+        return this.backpack;
     }
 
     public ItemStack[] getArmor() {
@@ -79,6 +85,7 @@ public final class Kit {
         private final KitType type;
         private String displayName;
         private final List<ItemStack> inventory = new java.util.ArrayList<>();
+        private final List<ItemStack> backpack = new java.util.ArrayList<>();
         private final ItemStack[] armor = new ItemStack[4];
         private ItemStack offhand = ItemStack.EMPTY;
         private final List<StatusEffectInstance> effects = new java.util.ArrayList<>();
@@ -99,6 +106,11 @@ public final class Kit {
 
         public Builder addItem(ItemStack stack) {
             this.inventory.add(stack);
+            return this;
+        }
+
+        public Builder addBackpackItem(ItemStack stack) {
+            this.backpack.add(stack);
             return this;
         }
 

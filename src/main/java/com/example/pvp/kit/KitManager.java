@@ -133,9 +133,14 @@ public final class KitManager {
                 .addItem(stack(Items.BOW))
                 .addItem(stack(Items.ARROW, 64))
                 .addItem(stack(Items.GOLDEN_CARROT, 64))
-                .addItem(stack(Items.LAVA_BUCKET, 3))
-                .addItem(stack(Items.WATER_BUCKET, 3))
                 .addItem(rod)
+                // 桶不能堆叠，岩浆/水各 3 个分开放入背包
+                .addBackpackItem(stack(Items.LAVA_BUCKET))
+                .addBackpackItem(stack(Items.LAVA_BUCKET))
+                .addBackpackItem(stack(Items.LAVA_BUCKET))
+                .addBackpackItem(stack(Items.WATER_BUCKET))
+                .addBackpackItem(stack(Items.WATER_BUCKET))
+                .addBackpackItem(stack(Items.WATER_BUCKET))
                 .offhand(stack(Items.SHIELD))
                 .armor(
                         stack(Items.IRON_HELMET),
@@ -173,6 +178,21 @@ public final class KitManager {
             if (++placed >= 9) {
                 break; // 只放入主手与前8格快捷栏
             }
+        }
+
+        for (KitConfig.ItemSpec itemSpec : spec.backpack) {
+            if (itemSpec == null || itemSpec.id == null) {
+                continue;
+            }
+            Item item = Registries.ITEM.get(Identifier.tryParse(itemSpec.id));
+            if (item == Items.AIR) {
+                LOGGER.warn("[PvP] 套件 {} 包含无效物品: {}", spec.name, itemSpec.id);
+                continue;
+            }
+            int count = Math.max(1, Math.min(64, itemSpec.count));
+            ItemStack stack = new ItemStack(item, count);
+            applyEnchantments(stack, itemSpec);
+            builder.addBackpackItem(stack);
         }
 
         if (!spec.armor.isEmpty()) {

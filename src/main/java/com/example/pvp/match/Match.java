@@ -9,6 +9,7 @@ import com.example.pvp.kit.InventorySnapshot;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitApplicator;
 import com.example.pvp.text.Messages;
+import com.mojang.logging.LogUtils;
 import net.minecraft.scoreboard.AbstractTeam;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.Team;
@@ -20,6 +21,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.GameMode;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,6 +36,8 @@ import java.util.UUID;
  * 负责倒计时、传送、淘汰判定、胜负结算、状态恢复与地形清理。
  */
 public final class Match {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private final MatchManager manager;
     private final int id;
     private final MatchType type;
@@ -129,12 +133,37 @@ public final class Match {
             return;
         }
         this.ticks++;
+
+        // 超时保护：防止卡死的对局一直占用场地导致后续无法开赛
+        int countdownStuckThreshold = this.initialCountdownTicks + 20 * 10;
+        int activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
+        if (this.state == MatchState.COUNTDOWN && this.ticks > countdownStuckThreshold) {
+            LOGGER.warn("[PvP] 比赛 #{} 倒计时异常，强制取消", this.id);
+            this.cancelMatch("倒计时异常");
+            return;
+        }
+        if (this.state == MatchState.ACTIVE && this.ticks > this.initialCountdownTicks + activeTimeout) {
+            LOGGER.warn("[PvP] 比赛 #{} 超时（{} 秒）强制平局结束", this.id, PvPConfig.INSTANCE.matchTimeoutSeconds);
+            this.finishMatch(null);
+            return;
+        }
+
         switch (this.state) {
             case COUNTDOWN -> this.tickCountdown();
             case ACTIVE -> this.checkWinCondition();
             default -> {
             }
         }
+    }
+
+    /** 所有参赛玩家是否都已离线。 */
+    public boolean allPlayersOffline() {
+        for (ServerPlayerEntity player : this.players) {
+            if (this.manager.getOnlinePlayer(player.getUuid()) != null) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** 淘汰一名玩家（仅在 ACTIVE 阶段生效）。 */
@@ -165,11 +194,15 @@ public final class Match {
             return;
         }
         this.state = MatchState.ENDED;
-        this.broadcast(Messages.error("比赛取消：" + reason));
-        this.restoreAllPlayers();
-        this.removeScoreboardTeams();
-        this.manager.getArenaManager().clearArena(this.regionIndex, this.template);
-        this.manager.cleanupMatch(this);
+        try {
+            this.broadcast(Messages.error("比赛取消：" + reason));
+            this.restoreAllPlayers();
+            this.removeScoreboardTeams();
+        } catch (Exception e) {
+            LOGGER.error("[PvP] 比赛取消处理出错", e);
+        } finally {
+            this.cleanupArenaAndRelease();
+        }
     }
 
     /** 胜负结算并清理。 */
@@ -186,19 +219,33 @@ public final class Match {
             }
         }
 
-        this.announceResult(winners);
-        this.restoreAllPlayers();
-        this.removeScoreboardTeams();
+        try {
+            this.announceResult(winners);
+            this.restoreAllPlayers();
+            this.removeScoreboardTeams();
 
-        // 统计战绩
-        for (ServerPlayerEntity player : this.players) {
-            boolean won = winners.contains(player.getUuid());
-            StatsStore.INSTANCE.recordResult(player.getUuid(), won);
+            // 统计战绩
+            for (ServerPlayerEntity player : this.players) {
+                boolean won = winners.contains(player.getUuid());
+                StatsStore.INSTANCE.recordResult(player.getUuid(), won);
+            }
+            StatsStore.INSTANCE.save();
+        } catch (Exception e) {
+            LOGGER.error("[PvP] 比赛结束处理出错", e);
+        } finally {
+            this.cleanupArenaAndRelease();
         }
-        StatsStore.INSTANCE.save();
+    }
 
-        this.manager.getArenaManager().clearArena(this.regionIndex, this.template);
+    /** 清理竞技场地形并释放场地（无论结束流程是否出错都必须执行）。 */
+    private void cleanupArenaAndRelease() {
+        try {
+            this.manager.getArenaManager().clearArena(this.regionIndex, this.template);
+        } catch (Exception e) {
+            LOGGER.error("[PvP] 清理竞技场出错", e);
+        }
         this.manager.cleanupMatch(this);
+        LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
     }
 
     /** 将玩家转为旁观者并传送到观众平台（淘汰/重生兜底）。 */

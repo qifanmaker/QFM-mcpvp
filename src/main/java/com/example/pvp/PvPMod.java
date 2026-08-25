@@ -11,6 +11,7 @@ import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.queue.QueueManager;
+import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -82,14 +83,22 @@ public final class PvPMod implements ModInitializer {
                 MATCH.onPlayerJoin(handler.player);
             }
             PvpGuiManager.get().giveMenuItem(handler.player);
+            PvpGuiManager.removeQueueItem(handler.player); // 清理断线残留的排队红石
         });
 
         UseItemCallback.EVENT.register((player, world, hand) -> {
             ItemStack stack = player.getStackInHand(hand);
-            if (player instanceof ServerPlayerEntity serverPlayer
-                    && PvpGuiManager.isMenuItem(stack)) {
-                PvpGuiManager.get().openMainMenu(serverPlayer);
-                return TypedActionResult.success(stack);
+            if (player instanceof ServerPlayerEntity serverPlayer) {
+                if (PvpGuiManager.isMenuItem(stack)) {
+                    PvpGuiManager.get().openMainMenu(serverPlayer);
+                    return TypedActionResult.success(stack);
+                }
+                if (PvpGuiManager.isQueueItem(stack)) {
+                    if (QUEUE.leave(serverPlayer)) {
+                        serverPlayer.sendMessage(Messages.info("已离开匹配队列"), false);
+                    }
+                    return TypedActionResult.success(stack);
+                }
             }
             return TypedActionResult.pass(stack);
         });

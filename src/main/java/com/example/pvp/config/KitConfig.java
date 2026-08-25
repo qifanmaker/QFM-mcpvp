@@ -92,6 +92,8 @@ public final class KitConfig {
     public static class CustomKitSpec {
         public String name = "";
         public List<ItemSpec> items = new ArrayList<>();
+        /** 放入主背包（9-35 格）的物品，适合不堆叠物品如桶。 */
+        public List<ItemSpec> backpack = new ArrayList<>();
         public List<ItemSpec> armor = new ArrayList<>();
         public List<EffectSpec> effects = new ArrayList<>();
         public Integer food;

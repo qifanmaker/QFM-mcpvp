@@ -4,14 +4,18 @@ import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.config.PvPConfig;
+import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.InventorySnapshot;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.text.Messages;
+import com.mojang.logging.LogUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.GameMode;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 比赛管理器：管理所有并发比赛、区域分配、虚空/闯入者兜底、玩家状态恢复。
  */
 public final class MatchManager {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private static MatchManager instance;
 
     private final MinecraftServer server;
@@ -59,10 +65,35 @@ public final class MatchManager {
     /** 每个服务器 tick 调用。 */
     public void tick() {
         for (Match match : List.copyOf(this.matches)) {
+            if (match.getState() != MatchState.ENDED && match.allPlayersOffline()) {
+                match.cancelMatch("所有玩家离线");
+                continue;
+            }
             match.tick();
         }
 
         this.sweepArenaWorld();
+        this.applyLobbyProtection();
+    }
+
+    /** 大厅保护：不在对局中的玩家 → 冒险模式 + 无敌 + 饱食度不掉。 */
+    private void applyLobbyProtection() {
+        if (!PvPConfig.INSTANCE.lobbyProtection) {
+            return;
+        }
+        for (ServerPlayerEntity player : List.copyOf(this.server.getPlayerManager().getPlayerList())) {
+            // 竞技场内由对局逻辑管理，不套用大厅保护
+            if (player.getWorld().getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
+                continue;
+            }
+            GameMode mode = player.interactionManager.getGameMode();
+            if (mode == GameMode.SURVIVAL) {
+                player.changeGameMode(GameMode.ADVENTURE);
+            }
+            player.setInvulnerable(true);
+            player.getHungerManager().setFoodLevel(20);
+            player.getHungerManager().setSaturationLevel(20f);
+        }
     }
 
     /** 尝试开一场比赛，成功返回 true（场地已满/参数错误时返回 false）。 */
@@ -76,6 +107,7 @@ public final class MatchManager {
 
         int maxConcurrent = Math.max(1, PvPConfig.INSTANCE.maxConcurrentMatches);
         if (this.matches.size() >= maxConcurrent) {
+            LOGGER.info("[PvP] 场地已满（{} 场进行中），队列等待", this.matches.size());
             for (ServerPlayerEntity player : players) {
                 player.sendMessage(Messages.error("当前竞技场已满，请稍后再试"), false);
             }
@@ -84,8 +116,14 @@ public final class MatchManager {
 
         for (ServerPlayerEntity player : players) {
             if (this.getMatchFor(player.getUuid()) != null) {
+                LOGGER.warn("[PvP] 玩家 {} 已在比赛中，无法开新赛", player.getGameProfile().getName());
                 return false;
             }
+        }
+
+        // 移除排队红石，使其不进入状态快照（赛后不会残留）
+        for (ServerPlayerEntity player : players) {
+            PvpGuiManager.removeQueueItem(player);
         }
 
         int regionIndex = this.allocateRegion();

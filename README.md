@@ -34,6 +34,10 @@
 - 🚪 **离开队列**（排队中才显示）
 
 > 菜单为服务端实现的原版容器界面（箱子），原版客户端直接可用，无需任何客户端 Mod。
+>
+> **排队时**快捷栏会出现一个红色「§c离开排队§r」红石粉，**右键即可退出排队**（开赛时自动移除）。
+>
+> **大厅保护**：不在对局中的玩家为冒险模式、无敌、饱食度不掉（可在配置中关闭）。
 
 ## 命令
 
@@ -66,6 +70,8 @@
   "countdownSeconds": 5,        // 开战倒计时（秒）
   "maxConcurrentMatches": 4,    // 同时进行的最大场数
   "duelExpirySeconds": 30,      // 决斗挑战过期时间（秒）
+  "lobbyProtection": true,      // 大厅保护：冒险模式 + 无敌 + 饱食度不掉
+  "matchTimeoutSeconds": 600,   // 对局超时（秒），超时强制平局结束
   "floorBlock": "minecraft:polished_deepslate",  // 平台地板方块
   "wallBlock": "minecraft:glass",                // 平台围墙方块
   "duel1v1Size": 21,            // 1v1 平台边长
@@ -106,6 +112,7 @@
 ```
 
 - `items`：按顺序放入主手与快捷栏（最多 9 格）
+- `backpack`：放入主背包的物品（适合不堆叠的物品，如岩浆/水桶）
 - `armor`：顺序为 头盔/胸甲/护腿/靴子
 - `effects`：战斗中的状态效果
 - 修改后执行 `/pvp reload` 生效

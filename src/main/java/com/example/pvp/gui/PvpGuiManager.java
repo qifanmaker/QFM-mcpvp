@@ -94,6 +94,51 @@ public final class PvpGuiManager {
         player.currentScreenHandler.sendContentUpdates();
     }
 
+    // ---------- 排队红石 ----------
+
+    public static final String QUEUE_TAG = "pvp.queue";
+
+    public static ItemStack createQueueItem() {
+        ItemStack stack = new ItemStack(Items.REDSTONE);
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§c离开排队 §7(右键)"));
+        NbtCompound nbt = new NbtCompound();
+        nbt.putString(QUEUE_TAG, "1");
+        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+        return stack;
+    }
+
+    public static boolean isQueueItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        NbtComponent nbt = stack.get(DataComponentTypes.CUSTOM_DATA);
+        return nbt != null && nbt.copyNbt().contains(QUEUE_TAG);
+    }
+
+    /** 放入快捷栏第一个空格（从第 1 格开始找，不覆盖已有物品）。 */
+    public static void giveQueueItem(ServerPlayerEntity player) {
+        for (int i = 0; i < 36; i++) {
+            if (player.getInventory().getStack(i).isEmpty()) {
+                player.getInventory().setStack(i, createQueueItem());
+                player.currentScreenHandler.sendContentUpdates();
+                return;
+            }
+        }
+    }
+
+    public static void removeQueueItem(ServerPlayerEntity player) {
+        boolean removed = false;
+        for (int i = 0; i < 36; i++) {
+            if (isQueueItem(player.getInventory().getStack(i))) {
+                player.getInventory().setStack(i, ItemStack.EMPTY);
+                removed = true;
+            }
+        }
+        if (removed) {
+            player.currentScreenHandler.sendContentUpdates();
+        }
+    }
+
     // ---------- 页面 ----------
 
     public void openMainMenu(ServerPlayerEntity player) {

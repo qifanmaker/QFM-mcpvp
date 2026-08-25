@@ -12,9 +12,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * 允许在竞技场内（冒险模式下）放置岩浆/水桶：
+ * 允许在竞技场内（冒险模式下）放置/舀取岩浆与水：
  * 冒险模式会通过 {@link PlayerEntity#canPlaceOn} 检查物品 can_place_on 标签，
- * 普通水桶没有该标签因此无法放置。竞技场内对岩浆/水桶放行。
+ * 普通水桶/空桶没有该标签因此无法放置或舀取。竞技场内对岩浆桶、水桶、空桶放行。
  */
 @Mixin(PlayerEntity.class)
 public abstract class PlayerEntityMixin {
@@ -22,7 +22,7 @@ public abstract class PlayerEntityMixin {
     private void pvp$allowBucketsInArena(BlockPos pos, Direction side, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         PlayerEntity self = (PlayerEntity) (Object) this;
         if (self.getWorld().getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY
-                && (stack.isOf(Items.LAVA_BUCKET) || stack.isOf(Items.WATER_BUCKET))) {
+                && (stack.isOf(Items.LAVA_BUCKET) || stack.isOf(Items.WATER_BUCKET) || stack.isOf(Items.BUCKET))) {
             cir.setReturnValue(true);
         }
     }

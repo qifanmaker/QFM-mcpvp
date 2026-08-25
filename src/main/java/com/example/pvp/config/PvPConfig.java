@@ -27,6 +27,10 @@ public final class PvPConfig {
     public int countdownSeconds = 5;
     public int maxConcurrentMatches = 4;
     public int duelExpirySeconds = 30;
+    /** 大厅保护：不在对局的玩家设为冒险模式、无敌、饱食度不掉。 */
+    public boolean lobbyProtection = true;
+    /** 对局超时（秒）：超过后强制平局结束，防止卡死的对局占用场地。 */
+    public int matchTimeoutSeconds = 600;
 
     public String floorBlock = "minecraft:polished_deepslate";
     public String wallBlock = "minecraft:glass";
