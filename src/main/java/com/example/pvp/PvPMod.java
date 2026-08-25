@@ -146,17 +146,6 @@ public final class PvPMod implements ModInitializer {
             }
         });
 
-        // 相扑模式：参赛者不吃伤害（击退仍然生效），靠被击出平台判负
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
-            if (entity instanceof ServerPlayerEntity player && MATCH != null) {
-                Match match = MATCH.getMatchFor(player);
-                if (match != null && match.getType() == MatchType.SUMO) {
-                    return false;
-                }
-            }
-            return true;
-        });
-
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (MATCH != null) {
                 MATCH.onPlayerRespawn(oldPlayer, newPlayer, alive);

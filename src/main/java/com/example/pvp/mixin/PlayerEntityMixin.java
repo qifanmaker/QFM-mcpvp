@@ -58,4 +58,17 @@ public abstract class PlayerEntityMixin {
             }
         }
     }
+
+    /** 相扑：跳过血量扣减（damage() 仍正常返回 true，击退照常生效，只不掉血）。 */
+    @Inject(method = "applyDamage(Lnet/minecraft/entity/damage/DamageSource;F)V", at = @At("HEAD"), cancellable = true)
+    private void pvp$sumoNoHealthLoss(net.minecraft.entity.damage.DamageSource source, float amount, CallbackInfo ci) {
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        MatchManager matchManager = MatchManager.get();
+        if (matchManager != null && self instanceof ServerPlayerEntity sp) {
+            Match match = matchManager.getMatchFor(sp);
+            if (match != null && match.getType() == MatchType.SUMO) {
+                ci.cancel();
+            }
+        }
+    }
 }

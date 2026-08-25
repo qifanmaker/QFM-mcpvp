@@ -204,15 +204,13 @@ public final class Match {
         }
     }
 
-    /** 相扑：出平台边缘即淘汰（不吃伤害，只吃击退）。 */
+    /** 相扑：掉落到平台下方 20 格才淘汰（可用末影珍珠救回；不吃伤害，只吃击退）。 */
     private void checkSumoRingOut() {
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena == null) {
             return;
         }
-        BlockPos origin = this.template.getRegionOrigin(this.regionIndex);
-        int size = this.template.getSize();
-        int margin = 1;
+        double deathY = ArenaTemplate.PLATFORM_Y - 20;
 
         for (ServerPlayerEntity player : this.players) {
             if (this.eliminated.contains(player.getUuid())) {
@@ -222,11 +220,7 @@ public final class Match {
             if (online == null) {
                 continue;
             }
-            double px = online.getX();
-            double pz = online.getZ();
-            boolean out = px < origin.getX() - margin || px > origin.getX() + size + margin
-                    || pz < origin.getZ() - margin || pz > origin.getZ() + size + margin;
-            if (out) {
+            if (online.getY() < deathY) {
                 this.eliminate(online, EliminationCause.RING_OUT);
             }
         }

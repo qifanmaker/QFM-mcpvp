@@ -162,18 +162,19 @@ public final class KitManager {
                 .build();
     }
 
-    /** 相扑专用套件：击退 II 棍 + 速度 II。 */
+    /** 相扑专用套件：击退 I 棍 + 末影珍珠一组 + 速度 II。 */
     private static Kit buildSumoKit() {
         ItemStack stick = new ItemStack(Items.STICK);
         if (enchantmentRegistry != null) {
             RegistryEntry<Enchantment> knockback = enchantmentRegistry.getEntry(Enchantments.KNOCKBACK).orElse(null);
             if (knockback != null) {
-                stick.addEnchantment(knockback, 2);
+                stick.addEnchantment(knockback, 1);
             }
         }
         return new Kit.Builder("sumo", KitType.CUSTOM)
                 .displayName("相扑")
                 .addItem(stick)
+                .addItem(stack(Items.ENDER_PEARL, 16))
                 .addEffect(new StatusEffectInstance(StatusEffects.SPEED, 6000, 1))
                 .food(20, 5f)
                 .gamemode(GameMode.ADVENTURE)

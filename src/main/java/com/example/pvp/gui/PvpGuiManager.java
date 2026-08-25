@@ -215,7 +215,7 @@ public final class PvpGuiManager {
                     PvPConfig.INSTANCE.ffaMinPlayers + " 人起，倒计时 " + PvPConfig.INSTANCE.ffaCountdownSeconds + " 秒",
                     PvPConfig.INSTANCE.ffaEarlyStartPlayers + " 人时加速到 " + PvPConfig.INSTANCE.ffaEarlyStartSeconds + " 秒",
                     "点击选择套件后加入队列"));
-            inv.setStack(12, makeButton(Items.STICK, "§b相扑 (Sumo)", "不吃伤害，只吃击退", "被击出平台即淘汰", "点击选择套件后加入队列"));
+            inv.setStack(12, makeButton(Items.STICK, "§b相扑 (Sumo)", "不吃伤害，只吃击退", "落到平台下方 20 格淘汰，末影珍珠可救回", "点击选择套件后加入队列"));
             inv.setStack(13, makeButton(Items.DIAMOND_SWORD, "§b1.8 经典PvP", "无攻击冷却，疯狂点按", "剑可格挡减伤 50%", "点击选择套件后加入队列"));
             inv.setStack(14, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
             inv.setStack(15, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
