@@ -33,27 +33,27 @@ public abstract class PlayerEntityMixin {
         }
     }
 
-    /** 1.8 模式：无攻击冷却——攻击进度始终为满，满伤害、满击退，支持疯狂点按。 */
+    /** 1.8 战斗模式（1.8 经典PvP / 空岛战争）：无攻击冷却——攻击进度始终为满，满伤害、满击退。 */
     @Inject(method = "getAttackCooldownProgress", at = @At("HEAD"), cancellable = true)
     private void pvp$legacyNoCooldown(float basePeriod, CallbackInfoReturnable<Float> cir) {
         PlayerEntity self = (PlayerEntity) (Object) this;
         MatchManager matchManager = MatchManager.get();
         if (matchManager != null && self instanceof ServerPlayerEntity sp) {
             Match match = matchManager.getMatchFor(sp);
-            if (match != null && match.getType() == MatchType.PVP_1_8) {
+            if (matchManager.isLegacyCombat(match)) {
                 cir.setReturnValue(1.0F);
             }
         }
     }
 
-    /** 1.8 模式：攻击即解除格挡（block-hit 手感）。 */
+    /** 1.8 战斗模式：攻击即解除格挡（block-hit 手感）。 */
     @Inject(method = "attack", at = @At("HEAD"))
     private void pvp$legacyClearBlocking(Entity target, CallbackInfo ci) {
         PlayerEntity self = (PlayerEntity) (Object) this;
         MatchManager matchManager = MatchManager.get();
         if (matchManager != null && self instanceof ServerPlayerEntity sp) {
             Match match = matchManager.getMatchFor(sp);
-            if (match != null && match.getType() == MatchType.PVP_1_8) {
+            if (matchManager.isLegacyCombat(match)) {
                 match.setBlocking(sp, false);
             }
         }

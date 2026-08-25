@@ -220,6 +220,7 @@ public final class PvpGuiManager {
             inv.setStack(17, makeButton(Items.END_CRYSTAL, "§b空岛战争 (Beta)", "2~8 人，凑齐 "
                     + PvPConfig.INSTANCE.skywarsStartPlayers + " 人开赛",
                     "随机空岛 + 中间主岛，开箱获得装备",
+                    "1.8 低版本战斗：无冷却、剑格挡",
                     "3 分钟后缩圈，最后存活者获胜",
                     "点击直接加入"));
             inv.setStack(14, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));

@@ -178,10 +178,15 @@ public final class MatchManager {
         return this.getMatchFor(uuid) != null;
     }
 
-    /** 1.8 模式：玩家是否正在剑格挡（供伤害减免 Mixin 调用）。 */
+    /** 是否为低版本(1.8)战斗模式：1.8 经典PvP 与 空岛战争（无攻击冷却 + 剑格挡）。 */
+    public boolean isLegacyCombat(Match match) {
+        return match != null && (match.getType() == MatchType.PVP_1_8 || match.getType() == MatchType.SKYWARS);
+    }
+
+    /** 1.8 战斗模式：玩家是否正在剑格挡（供伤害减免 Mixin 调用）。 */
     public boolean isLegacyBlocking(ServerPlayerEntity player) {
         Match match = this.getMatchFor(player);
-        return match != null && match.getType() == MatchType.PVP_1_8 && match.isBlocking(player);
+        return match != null && this.isLegacyCombat(match) && match.isBlocking(player);
     }
 
     /** 比赛结束后的清理：从列表移除并释放区域。 */

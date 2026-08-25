@@ -202,7 +202,7 @@ public final class Match {
                 if (this.type == MatchType.SUMO) {
                     this.checkSumoRingOut();
                 }
-                if (this.type == MatchType.PVP_1_8) {
+                if (this.type == MatchType.PVP_1_8 || this.type == MatchType.SKYWARS) {
                     this.tickLegacyBlocking();
                 }
                 if (this.type == MatchType.SKYWARS) {
@@ -655,7 +655,7 @@ public final class Match {
 
         this.createScoreboardTeams();
         if (skywars) {
-            this.broadcast(Messages.info("空岛战争开始！搜刮空岛，成为最后幸存者！"));
+            this.broadcast(Messages.info("空岛战争开始！搜刮空岛，成为最后幸存者！（1.8 低版本战斗）"));
         } else {
             this.broadcast(Messages.info("对局开始！模式：" + this.type.getDisplayName() + "，套件：" + this.kit.getDisplayName()));
         }
