@@ -232,6 +232,12 @@ public final class PvpGuiManager {
                 if (entry != null) {
                     status = "排队中：" + entry.getType().getDisplayName() + " / " + entry.getKit().getDisplayName();
                 }
+                // OP(2级+) 可立即用当前队列人数开赛
+                if (player.hasPermissionLevel(2)) {
+                    inv.setStack(20, makeButton(Items.EMERALD, "§a立即开始",
+                            "OP 专用：立刻用当前队列人数开赛",
+                            "人数不足时无法开始"));
+                }
                 inv.setStack(22, makeButton(Items.BARRIER, "§c离开队列", status));
             }
         });
@@ -394,6 +400,12 @@ public final class PvpGuiManager {
             case 14 -> this.openDuelTargetPage(player);
             case 15 -> this.openStatsPage(player);
             case 16 -> this.openKitInfoPage(player);
+            case 20 -> {
+                if (PvPMod.QUEUE.forceStart(PvPMod.MATCH, player)) {
+                    player.sendMessage(Messages.info("已强制立即开赛！"), false);
+                }
+                this.openMainMenu(player);
+            }
             case 22 -> {
                 if (PvPMod.QUEUE.leave(player)) {
                     player.sendMessage(Messages.info("已离开匹配队列"), false);

@@ -69,6 +69,9 @@ public final class PvPCommands {
                                                         StringArgumentType.getString(ctx, "kit"))))))
                         .then(CommandManager.literal("leave")
                                 .executes(ctx -> leave(ctx)))
+                        .then(CommandManager.literal("start")
+                                .requires(source -> source.hasPermissionLevel(2))
+                                .executes(ctx -> forceStart(ctx)))
                         .then(CommandManager.literal("queue")
                                 .executes(ctx -> queueStatus(ctx)))
                         .then(CommandManager.literal("list")
@@ -125,6 +128,7 @@ public final class PvPCommands {
                         + "§e/pvp join <1v1|2v2|ffa|sumo|1.8> <套件>§r 加入匹配队列\n"
                         + "§e/pvp join skywars§r 加入空岛战争（无需套件）\n"
                         + "§e/pvp leave§r 离开队列\n"
+                        + "§e/pvp start§r OP 专用：立即用当前队列人数开赛\n"
                         + "§e/pvp queue§r 查看排队状态\n"
                         + "§e/pvp list§r 查看进行中的比赛\n"
                         + "§e/pvp stats [玩家]§r 查看战绩\n"
@@ -187,6 +191,19 @@ public final class PvPCommands {
             player.sendMessage(Messages.info("已离开匹配队列"), false);
         } else {
             player.sendMessage(Messages.warn("你不在匹配队列中"), false);
+        }
+        return 1;
+    }
+
+    /** OP：立即用当前队列人数开赛（跳过倒计时/等待填人）。 */
+    private static int forceStart(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        if (PvPMod.MATCH == null || PvPMod.QUEUE == null) {
+            player.sendMessage(Messages.error("服务器尚未就绪"), false);
+            return 0;
+        }
+        if (PvPMod.QUEUE.forceStart(PvPMod.MATCH, player)) {
+            player.sendMessage(Messages.info("已强制立即开赛！"), false);
         }
         return 1;
     }

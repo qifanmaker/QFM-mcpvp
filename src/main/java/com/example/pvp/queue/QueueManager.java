@@ -316,6 +316,82 @@ public final class QueueManager {
         return this.entries.stream().filter(e -> e.getType() == MatchType.FFA).count();
     }
 
+    private long countType(MatchType type) {
+        return this.entries.stream().filter(e -> e.getType() == type).count();
+    }
+
+    /**
+     * OP 强制立即开赛：用当前队列同组玩家直接开赛（跳过倒计时/等待填人）。
+     * 人数不足时发消息并返回 false。
+     */
+    public boolean forceStart(MatchManager matchManager, ServerPlayerEntity player) {
+        QueueEntry entry = this.getEntry(player);
+        if (entry == null) {
+            player.sendMessage(Messages.warn("你不在匹配队列中"), false);
+            return false;
+        }
+        MatchType type = entry.getType();
+
+        // 自由乱斗 / 空岛战争：直接以当前队列所有人开赛
+        if (type == MatchType.FFA || type == MatchType.SKYWARS) {
+            int min = type == MatchType.FFA ? PvPConfig.INSTANCE.ffaMinPlayers : PvPConfig.INSTANCE.skywarsMinPlayers;
+            int count = (int) this.countType(type);
+            if (count < min) {
+                player.sendMessage(Messages.warn("当前 " + type.getDisplayName() + " 队列人数不足（" + count + "/" + min + "），无法立即开始"), false);
+                return false;
+            }
+            this.ffaCountdownTicks = null;
+            this.skywarsCountdownTicks = null;
+            this.skywarsFillTicks = null;
+            if (type == MatchType.FFA) {
+                this.startFfaMatch(matchManager);
+            } else {
+                this.startSkywarsMatch(matchManager);
+            }
+            return true;
+        }
+
+        // 即时匹配模式（1v1/2v2/相扑/1.8）：取同 (模式+套件) 分组，人数够就开
+        List<QueueEntry> group = new ArrayList<>();
+        for (QueueEntry e : this.entries) {
+            if (e.getType() == type && e.getKit().getId().equals(entry.getKit().getId())) {
+                group.add(e);
+            }
+        }
+        int required = type.requiredPlayers();
+        if (group.size() < required) {
+            player.sendMessage(Messages.warn("当前 " + type.getDisplayName() + " 队列人数不足（" + group.size() + "/" + required
+                    + "），无法立即开始"), false);
+            return false;
+        }
+
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        List<QueueEntry> toRemove = new ArrayList<>();
+        for (QueueEntry e : group) {
+            if (players.size() >= required) {
+                break;
+            }
+            toRemove.add(e);
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(e.getPlayer().getUuid());
+            if (online != null) {
+                players.add(online);
+            }
+        }
+        if (players.size() < required) {
+            this.entries.removeAll(toRemove);
+            player.sendMessage(Messages.warn("队列中有玩家离线，无法立即开始"), false);
+            return false;
+        }
+        if (type == MatchType.DUEL_2V2) {
+            Collections.shuffle(players);
+        }
+        if (matchManager.startMatch(players, type, entry.getKit())) {
+            this.entries.removeAll(toRemove);
+            return true;
+        }
+        return false; // 场地已满等情况，保留排队
+    }
+
     private void broadcastFfa(MatchManager matchManager, Text message) {
         for (QueueEntry entry : this.entries) {
             if (entry.getType() != MatchType.FFA) {
