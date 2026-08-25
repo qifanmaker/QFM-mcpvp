@@ -128,15 +128,17 @@ public final class ArenaWorldManager {
             }
         }
 
-        // 四周墙壁
-        for (int h = 1; h <= ArenaTemplate.WALL_HEIGHT; h++) {
-            for (int dx = 0; dx < size; dx++) {
-                arena.setBlockState(origin.add(dx, h, 0), template.getWallBlock().getDefaultState(), 3);
-                arena.setBlockState(origin.add(dx, h, size - 1), template.getWallBlock().getDefaultState(), 3);
-            }
-            for (int dz = 0; dz < size; dz++) {
-                arena.setBlockState(origin.add(0, h, dz), template.getWallBlock().getDefaultState(), 3);
-                arena.setBlockState(origin.add(size - 1, h, dz), template.getWallBlock().getDefaultState(), 3);
+        // 四周墙壁（相扑无墙，靠被击出平台判负）
+        if (template.hasWalls()) {
+            for (int h = 1; h <= ArenaTemplate.WALL_HEIGHT; h++) {
+                for (int dx = 0; dx < size; dx++) {
+                    arena.setBlockState(origin.add(dx, h, 0), template.getWallBlock().getDefaultState(), 3);
+                    arena.setBlockState(origin.add(dx, h, size - 1), template.getWallBlock().getDefaultState(), 3);
+                }
+                for (int dz = 0; dz < size; dz++) {
+                    arena.setBlockState(origin.add(0, h, dz), template.getWallBlock().getDefaultState(), 3);
+                    arena.setBlockState(origin.add(size - 1, h, dz), template.getWallBlock().getDefaultState(), 3);
+                }
             }
         }
     }

@@ -180,11 +180,11 @@ public final class KitManager {
                 .build();
     }
 
-    /** NoDebuff：速度 II + 跳跃 II + 伤害 II 喷溅 + 金苹果（经典药水 PvP）。 */
+    /** NoDebuff：速度 II + 跳跃 II + 治疗 II 喷溅（塞满一叠）+ 金苹果（经典药水 PvP）。 */
     private static Kit buildNoDebuffKit() {
-        ItemStack harming = potion(Items.SPLASH_POTION, Potions.STRONG_HARMING);
-        if (!harming.isEmpty()) {
-            harming.setCount(8);
+        ItemStack healing = potion(Items.SPLASH_POTION, Potions.STRONG_HEALING);
+        if (!healing.isEmpty()) {
+            healing.setCount(16);
         }
         ItemStack speed = potion(Items.POTION, Potions.STRONG_SWIFTNESS);
         ItemStack jump = potion(Items.POTION, Potions.STRONG_LEAPING);
@@ -193,8 +193,8 @@ public final class KitManager {
                 .displayName("NoDebuff")
                 .addItem(stack(Items.IRON_SWORD))
                 .addItem(stack(Items.GOLDEN_APPLE, 8));
-        if (!harming.isEmpty()) {
-            builder.addItem(harming);
+        if (!healing.isEmpty()) {
+            builder.addItem(healing);
         }
         if (!speed.isEmpty()) {
             builder.addItem(speed);

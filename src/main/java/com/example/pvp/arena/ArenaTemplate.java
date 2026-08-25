@@ -25,12 +25,14 @@ public class ArenaTemplate {
     private final int size;
     private final Block floorBlock;
     private final Block wallBlock;
+    private final boolean hasWalls;
 
-    public ArenaTemplate(Layout layout, int size, Block floorBlock, Block wallBlock) {
+    public ArenaTemplate(Layout layout, int size, Block floorBlock, Block wallBlock, boolean hasWalls) {
         this.layout = layout;
         this.size = size;
         this.floorBlock = floorBlock;
         this.wallBlock = wallBlock;
+        this.hasWalls = hasWalls;
     }
 
     public Layout getLayout() {
@@ -47,6 +49,10 @@ public class ArenaTemplate {
 
     public Block getWallBlock() {
         return this.wallBlock;
+    }
+
+    public boolean hasWalls() {
+        return this.hasWalls;
     }
 
     public BlockPos getRegionOrigin(int regionIndex) {

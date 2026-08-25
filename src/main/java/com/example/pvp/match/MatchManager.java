@@ -268,7 +268,9 @@ public final class MatchManager {
             case DUEL_2V2 -> ArenaTemplate.Layout.DUEL_2V2;
             case FFA -> ArenaTemplate.Layout.FFA;
         };
-        return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock());
+        // 相扑无围墙（要靠被击出平台判负），其余模式保留围墙
+        boolean hasWalls = type != MatchType.SUMO;
+        return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 
     /** 兜底：竞技场内掉出虚空或非参赛者一律处理。 */
