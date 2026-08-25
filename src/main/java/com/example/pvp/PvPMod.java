@@ -26,9 +26,12 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.block.entity.DispenserBlockEntity;
+import net.minecraft.entity.TntEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -164,6 +167,24 @@ public final class PvPMod implements ModInitializer {
                         match.setBlocking(serverPlayer, true);
                         return TypedActionResult.success(stack);
                     }
+                }
+                // 竞技场内 TNT：对空中右键可把 TNT 抛射出去（对准方块则交给原版放置）
+                if (stack.isOf(Items.TNT) && world.getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
+                    HitResult hit = serverPlayer.raycast(4.5, 1.0F, false);
+                    if (hit != null && hit.getType() == HitResult.Type.MISS) {
+                        Vec3d look = serverPlayer.getRotationVector();
+                        TntEntity tnt = new TntEntity(world,
+                                serverPlayer.getX() + look.x * 0.5,
+                                serverPlayer.getEyeY() - 0.2,
+                                serverPlayer.getZ() + look.z * 0.5,
+                                serverPlayer);
+                        tnt.setVelocity(look.multiply(1.5));
+                        tnt.setFuse(80);
+                        world.spawnEntity(tnt);
+                        stack.decrement(1);
+                        return TypedActionResult.success(stack);
+                    }
+                    return TypedActionResult.pass(stack);
                 }
             }
             return TypedActionResult.pass(stack);
