@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "pvp",
+  "version": "${version}",
+  "name": "PvP Matchmaking",
+  "description": "服务端 PvP 匹配 Mod：1v1 / 2v2 / 自由乱斗，队列匹配与决斗挑战，自定义套件，运行时竞技场维度。",
+  "authors": [
+    "qifan"
+  ],
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "com.example.pvp.PvPMod"
+    ]
+  },
+  "mixins": [
+    "pvp.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "minecraft": ">=1.21.1 <1.21.2",
+    "fabric-api": "*",
+    "java": ">=21"
+  }
+}

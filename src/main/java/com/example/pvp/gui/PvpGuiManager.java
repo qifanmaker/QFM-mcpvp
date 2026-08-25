@@ -1,0 +1,451 @@
+package com.example.pvp.gui;
+
+import com.example.pvp.PvPMod;
+import com.example.pvp.config.PlayerStats;
+import com.example.pvp.config.PvPConfig;
+import com.example.pvp.config.StatsStore;
+import com.example.pvp.kit.Kit;
+import com.example.pvp.kit.KitManager;
+import com.example.pvp.match.MatchType;
+import com.example.pvp.text.Messages;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.LoreComponent;
+import net.minecraft.component.type.NbtComponent;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.inventory.SimpleInventory;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.screen.NamedScreenHandlerFactory;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Consumer;
+
+/**
+ * 游戏内 GUI 菜单：主菜单 / 套件选择 / 决斗目标 / 战绩 / 套件列表。
+ * 纯服务端实现，使用原版容器界面，原版客户端直接可用。
+ */
+public final class PvpGuiManager {
+    public static final String MENU_TAG = "pvp.menu";
+
+    private static PvpGuiManager instance;
+
+    private final Map<UUID, GuiContext> contexts = new HashMap<>();
+
+    private PvpGuiManager() {
+    }
+
+    public static void init() {
+        if (instance == null) {
+            instance = new PvpGuiManager();
+        }
+    }
+
+    public static PvpGuiManager get() {
+        return instance;
+    }
+
+    // ---------- 菜单物品 ----------
+
+    public static ItemStack createMenuItem() {
+        ItemStack stack = new ItemStack(Items.COMPASS);
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§6PvP 竞技场 §7(右键打开)"));
+        NbtCompound nbt = new NbtCompound();
+        nbt.putString(MENU_TAG, "1");
+        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+        return stack;
+    }
+
+    public static boolean isMenuItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        NbtComponent nbt = stack.get(DataComponentTypes.CUSTOM_DATA);
+        return nbt != null && nbt.copyNbt().contains(MENU_TAG);
+    }
+
+    public void giveMenuItem(ServerPlayerEntity player) {
+        for (ItemStack stack : player.getInventory().main) {
+            if (isMenuItem(stack)) {
+                return;
+            }
+        }
+        ItemStack item = createMenuItem();
+        if (player.getInventory().getStack(8).isEmpty()) {
+            player.getInventory().setStack(8, item);
+        } else {
+            for (int i = 0; i < 36; i++) {
+                if (player.getInventory().getStack(i).isEmpty()) {
+                    player.getInventory().setStack(i, item);
+                    break;
+                }
+            }
+        }
+        player.currentScreenHandler.sendContentUpdates();
+    }
+
+    // ---------- 页面 ----------
+
+    public void openMainMenu(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.MAIN;
+        ctx.pendingMode = null;
+        ctx.duelTargetUuid = null;
+        this.openPage(player, ctx, "§6§lPvP 竞技场", inv -> {
+            inv.setStack(9, makeButton(Items.IRON_SWORD, "§b1v1 决斗匹配", "铁剑互砍，无护甲", "点击选择套件后加入队列"));
+            inv.setStack(10, makeButton(Items.DIAMOND_SWORD, "§b2v2 团队匹配", "4 人随机分队", "点击选择套件后加入队列"));
+            inv.setStack(11, makeButton(Items.GOLDEN_SWORD, "§b自由乱斗 (FFA)", PvPConfig.INSTANCE.ffaPlayerCount + " 人混战", "点击选择套件后加入队列"));
+            inv.setStack(12, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
+            inv.setStack(13, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
+            inv.setStack(14, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
+
+            if (PvPMod.QUEUE.contains(player.getUuid())) {
+                String status = "排队中";
+                var entry = PvPMod.QUEUE.getEntry(player);
+                if (entry != null) {
+                    status = "排队中：" + entry.getType().getDisplayName() + " / " + entry.getKit().getDisplayName();
+                }
+                inv.setStack(22, makeButton(Items.BARRIER, "§c离开队列", status));
+            }
+        });
+    }
+
+    private void openKitPage(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.KIT;
+        boolean duel = ctx.duelTargetUuid != null;
+        String title = duel ? "§6选择套件 - 决斗" : "§6选择套件 - " + ctx.pendingMode.getDisplayName();
+        this.openPage(player, ctx, title, inv -> {
+            int slot = 9;
+            for (Kit kit : KitManager.getKits()) {
+                if (slot >= 26) {
+                    break;
+                }
+                inv.setStack(slot++, kitButton(kit));
+            }
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+        });
+    }
+
+    private void openDuelTargetPage(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.DUEL_TARGET;
+        this.openPage(player, ctx, "§6选择决斗目标", inv -> {
+            List<ServerPlayerEntity> online = getDuelCandidates(player);
+            int page = ctx.duelTargetPage;
+            int perPage = 24;
+            int start = page * perPage;
+
+            int index = 0;
+            for (int i = start; i < online.size() && index < perPage; i++) {
+                ServerPlayerEntity target = online.get(i);
+                inv.setStack(index, makeButton(Items.PAPER, "§e" + target.getGameProfile().getName(), "点击发起 1v1 决斗"));
+                index++;
+            }
+
+            if (page > 0) {
+                inv.setStack(24, makeButton(Items.ARROW, "§7← 上一页"));
+            }
+            if (start + perPage < online.size()) {
+                inv.setStack(25, makeButton(Items.ARROW, "§7下一页 →"));
+            }
+            inv.setStack(26, makeButton(Items.BARRIER, "§c返回"));
+        });
+    }
+
+    private void openStatsPage(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.STATS;
+        this.openPage(player, ctx, "§6我的战绩", inv -> {
+            PlayerStats stats = StatsStore.INSTANCE.getStats(player.getUuid());
+            inv.setStack(11, makeButton(Items.BOOK, "§a我的战绩",
+                    "胜：" + stats.getWins(),
+                    "负：" + stats.getLosses(),
+                    "总场次：" + stats.getMatches()));
+
+            List<Map.Entry<String, PlayerStats>> sorted = StatsStore.INSTANCE.getStatsMap().entrySet().stream()
+                    .sorted(Comparator.comparingInt((Map.Entry<String, PlayerStats> e) -> e.getValue().wins).reversed())
+                    .limit(5)
+                    .toList();
+
+            int slot = 13;
+            int rank = 1;
+            for (Map.Entry<String, PlayerStats> entry : sorted) {
+                if (slot >= 26) {
+                    break;
+                }
+                String name;
+                try {
+                    name = resolveName(UUID.fromString(entry.getKey()));
+                } catch (IllegalArgumentException e) {
+                    continue;
+                }
+                inv.setStack(slot++, makeButton(Items.PAPER, "#" + rank + " §e" + name,
+                        "胜 " + entry.getValue().wins + " | 负 " + entry.getValue().losses + " | 总 " + entry.getValue().matches));
+                rank++;
+            }
+
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+        });
+    }
+
+    private void openKitInfoPage(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.KIT_INFO;
+        this.openPage(player, ctx, "§6套件列表", inv -> {
+            int slot = 9;
+            for (Kit kit : KitManager.getKits()) {
+                if (slot >= 26) {
+                    break;
+                }
+                List<String> lore = new ArrayList<>();
+                lore.add("类型：" + kit.getType().getDisplayName());
+                for (ItemStack stack : kit.getInventory()) {
+                    if (stack.isEmpty()) {
+                        continue;
+                    }
+                    lore.add("· " + stack.getItem().getName().getString() + " x" + stack.getCount());
+                }
+                inv.setStack(slot++, makeButton(iconFor(kit), "§b" + kit.getDisplayName(), lore.toArray(new String[0])));
+            }
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+        });
+    }
+
+    // ---------- 槽位点击 ----------
+
+    public void onMenuSlotClick(ServerPlayerEntity player, int slotIndex) {
+        GuiContext ctx = this.contexts.get(player.getUuid());
+        if (ctx == null) {
+            return;
+        }
+        switch (ctx.page) {
+            case MAIN -> this.onClickMain(player, ctx, slotIndex);
+            case KIT -> this.onClickKit(player, ctx, slotIndex);
+            case DUEL_TARGET -> this.onClickDuelTarget(player, ctx, slotIndex);
+            case STATS, KIT_INFO -> {
+                if (slotIndex == 26) {
+                    this.openMainMenu(player);
+                }
+            }
+        }
+    }
+
+    public void onMenuClosed(UUID uuid) {
+        GuiContext ctx = this.contexts.get(uuid);
+        if (ctx != null && !ctx.navigating) {
+            this.contexts.remove(uuid);
+        }
+    }
+
+    // ---------- 内部：点击逻辑 ----------
+
+    private void onClickMain(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        switch (slot) {
+            case 9 -> {
+                ctx.pendingMode = MatchType.DUEL_1V1;
+                this.openKitPage(player);
+            }
+            case 10 -> {
+                ctx.pendingMode = MatchType.DUEL_2V2;
+                this.openKitPage(player);
+            }
+            case 11 -> {
+                ctx.pendingMode = MatchType.FFA;
+                this.openKitPage(player);
+            }
+            case 12 -> this.openDuelTargetPage(player);
+            case 13 -> this.openStatsPage(player);
+            case 14 -> this.openKitInfoPage(player);
+            case 22 -> {
+                if (PvPMod.QUEUE.leave(player)) {
+                    player.sendMessage(Messages.info("已离开匹配队列"), false);
+                    this.openMainMenu(player);
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void onClickKit(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        int kitIndex = slot - 9;
+        List<Kit> kits = KitManager.getKits();
+        if (kitIndex < 0 || kitIndex >= kits.size()) {
+            return;
+        }
+        Kit kit = kits.get(kitIndex);
+
+        if (ctx.duelTargetUuid != null) {
+            ServerPlayerEntity target = player.getServer().getPlayerManager().getPlayer(ctx.duelTargetUuid);
+            if (target == null) {
+                player.sendMessage(Messages.error("目标玩家已下线"), false);
+                this.openMainMenu(player);
+                return;
+            }
+            this.sendDuelChallenge(player, target, kit);
+        } else {
+            this.joinQueue(player, ctx.pendingMode, kit);
+        }
+    }
+
+    private void onClickDuelTarget(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        if (slot == 24) {
+            if (ctx.duelTargetPage > 0) {
+                ctx.duelTargetPage--;
+                this.openDuelTargetPage(player);
+            }
+            return;
+        }
+        if (slot == 25) {
+            ctx.duelTargetPage++;
+            this.openDuelTargetPage(player);
+            return;
+        }
+
+        List<ServerPlayerEntity> candidates = this.getDuelCandidates(player);
+        int index = ctx.duelTargetPage * 24 + slot;
+        if (index < 0 || index >= candidates.size()) {
+            return;
+        }
+        ctx.duelTargetUuid = candidates.get(index).getUuid();
+        this.openKitPage(player);
+    }
+
+    private void joinQueue(ServerPlayerEntity player, MatchType type, Kit kit) {
+        if (isBusy(player)) {
+            player.sendMessage(Messages.error("你正在比赛或队列中"), false);
+            player.closeHandledScreen();
+            return;
+        }
+        if (PvPMod.QUEUE.join(player, type, kit)) {
+            int count = PvPMod.QUEUE.queuedCount(type, kit);
+            player.sendMessage(Messages.info("已加入匹配队列：模式 " + type.getDisplayName()
+                    + "，套件 " + kit.getDisplayName() + "（当前 " + count + "/" + type.requiredPlayers() + "）"), false);
+        }
+        player.closeHandledScreen();
+    }
+
+    private void sendDuelChallenge(ServerPlayerEntity player, ServerPlayerEntity target, Kit kit) {
+        if (isBusy(player) || isBusy(target)) {
+            player.sendMessage(Messages.error("有人正在比赛或队列中，无法发起决斗"), false);
+            player.closeHandledScreen();
+            return;
+        }
+        PvPMod.DUEL.challenge(player, target, MatchType.DUEL_1V1, kit);
+        player.sendMessage(Messages.info("已向 §e" + target.getGameProfile().getName()
+                + "§r 发起决斗（套件 " + kit.getDisplayName() + "），等待接受..."), false);
+        target.sendMessage(Messages.gold("§e" + player.getGameProfile().getName()
+                + "§r 向你发起 1v1 决斗（套件 " + kit.getDisplayName() + "）！输入 §e/duel accept§r 接受"), false);
+        player.closeHandledScreen();
+    }
+
+    // ---------- 内部：工具 ----------
+
+    private void openPage(ServerPlayerEntity player, GuiContext ctx, String title, Consumer<SimpleInventory> filler) {
+        ctx.navigating = true;
+        NamedScreenHandlerFactory factory = new NamedScreenHandlerFactory() {
+            @Override
+            public Text getDisplayName() {
+                return Text.literal(title);
+            }
+
+            @Override
+            public ScreenHandler createMenu(int syncId, PlayerInventory inv, PlayerEntity p) {
+                PvpScreenHandler handler = new PvpScreenHandler(syncId, inv, PvpGuiManager.this, player.getUuid());
+                filler.accept(handler.getMenu());
+                return handler;
+            }
+        };
+        player.openHandledScreen(factory);
+        ctx.navigating = false;
+    }
+
+    private GuiContext getContext(ServerPlayerEntity player) {
+        return this.contexts.computeIfAbsent(player.getUuid(), u -> new GuiContext());
+    }
+
+    private boolean isBusy(ServerPlayerEntity player) {
+        return PvPMod.MATCH.isInMatch(player.getUuid()) || PvPMod.QUEUE.contains(player.getUuid());
+    }
+
+    private List<ServerPlayerEntity> getDuelCandidates(ServerPlayerEntity player) {
+        List<ServerPlayerEntity> result = new ArrayList<>();
+        for (ServerPlayerEntity p : player.getServer().getPlayerManager().getPlayerList()) {
+            if (p.getUuid().equals(player.getUuid()) || isBusy(p)) {
+                continue;
+            }
+            result.add(p);
+        }
+        return result;
+    }
+
+    private String resolveName(UUID uuid) {
+        ServerPlayerEntity online = PvPMod.SERVER.getPlayerManager().getPlayer(uuid);
+        return online != null ? online.getGameProfile().getName() : "§7(离线)";
+    }
+
+    private static ItemStack makeButton(Item item, String name, String... lore) {
+        ItemStack stack = new ItemStack(item);
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal(name));
+        if (lore.length > 0) {
+            List<Text> lines = new ArrayList<>();
+            for (String line : lore) {
+                lines.add(Text.literal("§7" + line));
+            }
+            stack.set(DataComponentTypes.LORE, new LoreComponent(lines));
+        }
+        return stack;
+    }
+
+    private static ItemStack kitButton(Kit kit) {
+        return makeButton(iconFor(kit), "§b" + kit.getDisplayName() + " §7(" + kit.getId() + ")",
+                "类型：" + kit.getType().getDisplayName(),
+                "点击使用此套件");
+    }
+
+    private static Item iconFor(Kit kit) {
+        if (!kit.getInventory().isEmpty()) {
+            ItemStack first = kit.getInventory().get(0);
+            if (!first.isEmpty()) {
+                return first.getItem();
+            }
+        }
+        if (kit.getArmor()[0] != null && !kit.getArmor()[0].isEmpty()) {
+            return kit.getArmor()[0].getItem();
+        }
+        return Items.CHEST;
+    }
+
+    // ---------- 内部类型 ----------
+
+    private enum Page {
+        MAIN, KIT, DUEL_TARGET, STATS, KIT_INFO
+    }
+
+    private static final class GuiContext {
+        Page page = Page.MAIN;
+        MatchType pendingMode;
+        UUID duelTargetUuid;
+        int duelTargetPage;
+        boolean navigating;
+    }
+}
