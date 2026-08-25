@@ -6,6 +6,7 @@
   "mixins": [
     "MinecraftServerAccess",
     "MinecraftServerMixin",
+    "PlayerEntityMixin",
     "registry.DimensionOptionsMixin",
     "registry.SimpleRegistryMixin",
     "registry.WorldGenSettingsMixin"
