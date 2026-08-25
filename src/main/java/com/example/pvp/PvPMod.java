@@ -20,12 +20,16 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerBlockEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.block.entity.DispenserBlockEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
+import net.minecraft.world.World;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.server.MinecraftServer;
@@ -33,6 +37,10 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.TypedActionResult;
 import org.slf4j.Logger;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * PvP 匹配 Mod 入口：注册虚空生成器、加载配置、挂接生命周期事件。
@@ -45,6 +53,9 @@ public final class PvPMod implements ModInitializer {
     public static MatchManager MATCH;
     public static QueueManager QUEUE;
     public static DuelManager DUEL;
+
+    /** 主城内需自动补 TNT 的发射器（仅主世界，加载/卸载自动增删）。 */
+    private static final Set<DispenserBlockEntity> TNT_DISPENSERS = new HashSet<>();
 
     @Override
     public void onInitialize() {
@@ -78,6 +89,32 @@ public final class PvPMod implements ModInitializer {
                 MATCH.tick();
                 QUEUE.tick(MATCH);
                 DUEL.tick();
+            }
+        });
+
+        // 主城内所有发射器实时自动补满 TNT（仅主城/主世界；加载/卸载自动增删追踪）
+        ServerBlockEntityEvents.BLOCK_ENTITY_LOAD.register((blockEntity, world) -> {
+            if (world.getRegistryKey() == World.OVERWORLD && blockEntity instanceof DispenserBlockEntity dispenser) {
+                TNT_DISPENSERS.add(dispenser);
+            }
+        });
+        ServerBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register((blockEntity, world) -> {
+            if (blockEntity instanceof DispenserBlockEntity) {
+                TNT_DISPENSERS.remove(blockEntity);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            for (DispenserBlockEntity dispenser : List.copyOf(TNT_DISPENSERS)) {
+                if (dispenser.isRemoved() || dispenser.getWorld() != server.getOverworld()) {
+                    TNT_DISPENSERS.remove(dispenser);
+                    continue;
+                }
+                for (int i = 0; i < dispenser.size(); i++) {
+                    ItemStack stack = dispenser.getStack(i);
+                    if (!stack.isOf(Items.TNT) || stack.getCount() < 64) {
+                        dispenser.setStack(i, new ItemStack(Items.TNT, 64));
+                    }
+                }
             }
         });
 
