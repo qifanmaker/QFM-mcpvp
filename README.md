@@ -103,6 +103,7 @@
   "skywarsSize": 80,            // 地图覆盖边长（生成/清理边界）
   "skywarsIslandRadius": 5,     // 出生岛半径
   "skywarsMiddleRadius": 12,    // 中间主岛半径（出生岛间距会自动按两岛半径保证不连片）
+  "skywarsIslandGap": 8,        // 出生岛到中间主岛的空隙（格），越大越远、越难偷袭
   "skywarsChestsPerIsland": 3,  // 每座出生岛箱子数
   "skywarsMiddleChests": 5,     // 中间主岛箱子数
   "skywarsTimeoutSeconds": 600, // 空岛对局超时（秒）

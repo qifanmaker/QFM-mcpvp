@@ -14,8 +14,6 @@ import java.util.Random;
  */
 public final class SkyWarsLayout {
 
-    /** 出生岛边缘到中间主岛边缘的安全间距（格），防止岛屿连成一片。 */
-    public static final int ISLAND_GAP = 4;
     /** 地图最大半径额外边距，缩圈从该半径开始。 */
     public static final int MAX_RADIUS_MARGIN = 4;
 
@@ -89,9 +87,9 @@ public final class SkyWarsLayout {
         PvPConfig cfg = PvPConfig.INSTANCE;
         Random random = new Random(seed * 31L + playerCount * 17L);
 
-        // 出生岛与中间岛的距离按两者半径动态算，保证最小有 ISLAND_GAP 格间距、不连片
+        // 出生岛与中间岛的距离按两者半径动态算，保证最小有 skywarsIslandGap 格空隙、不连片
         int maxIslandRadius = Math.max(3, cfg.skywarsIslandRadius) + 1; // 布局随机可到配置+1
-        int spawnDist = cfg.skywarsMiddleRadius + maxIslandRadius + 1 + ISLAND_GAP; // +1 抵消下方 ±1 抖动
+        int spawnDist = cfg.skywarsMiddleRadius + maxIslandRadius + 1 + cfg.skywarsIslandGap; // +1 抵消下方 ±1 抖动
 
         List<Island> spawnIslands = new ArrayList<>();
         List<BlockPos> spawns = new ArrayList<>();

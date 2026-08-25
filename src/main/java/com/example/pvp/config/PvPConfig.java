@@ -58,6 +58,8 @@ public final class PvPConfig {
     public int skywarsSize = 80;
     public int skywarsIslandRadius = 5;
     public int skywarsMiddleRadius = 12;
+    /** 出生岛边缘到中间主岛边缘的空隙（格）：越大出生岛离中间岛越远、越难偷袭。 */
+    public int skywarsIslandGap = 8;
     public int skywarsChestsPerIsland = 3;
     public int skywarsMiddleChests = 5;
     /** 对局超时（秒）与缩圈：开赛多少秒后开始缩圈、每圈间隔多少秒、每圈塌掉几格、最小安全半径。 */
