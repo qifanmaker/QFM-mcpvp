@@ -56,6 +56,7 @@ public final class PvPMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SERVER = server;
             ArenaWorldManager.get(server).createWorld();
+            KitManager.onServerStarted(server); // 附魔注册表此时可用，重建套件应用附魔
             MATCH = MatchManager.init(server);
             QUEUE = new QueueManager(server);
             DUEL = new DuelManager(server);

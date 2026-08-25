@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 自定义套件配置 config/pvp/kits.json（可热重载）。
@@ -23,7 +24,8 @@ import java.util.List;
  *       "items": [
  *         {"id": "minecraft:iron_sword"},
  *         {"id": "minecraft:bow"},
- *         {"id": "minecraft:arrow", "count": 32}
+ *         {"id": "minecraft:arrow", "count": 32},
+ *         {"id": "minecraft:fishing_rod", "components": {"enchantments": {"levels": {"minecraft:unbreaking": 3}}}}
  *       ],
  *       "armor": [
  *         {"id": "minecraft:iron_helmet"},
@@ -100,6 +102,16 @@ public final class KitConfig {
     public static class ItemSpec {
         public String id;
         public int count = 1;
+        public Components components;
+
+        /** 物品组件（目前支持附魔）：{"enchantments": {"levels": {"minecraft:unbreaking": 3}}} */
+        public static class Components {
+            public Enchantments enchantments;
+
+            public static class Enchantments {
+                public Map<String, Integer> levels;
+            }
+        }
     }
 
     public static class EffectSpec {

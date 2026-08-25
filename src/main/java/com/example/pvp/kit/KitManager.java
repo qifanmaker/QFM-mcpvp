@@ -2,19 +2,26 @@ package com.example.pvp.kit;
 
 import com.example.pvp.config.KitConfig;
 import com.mojang.logging.LogUtils;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.Enchantments;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.GameMode;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 套件管理器：内置三种套件 + 从 kits.json 加载的自定义套件，支持热重载。
@@ -24,7 +31,16 @@ public final class KitManager {
 
     private static final List<Kit> KITS = new ArrayList<>();
 
+    /** 附魔注册表：服务器启动后才可用，用于给套件物品加附魔。 */
+    private static Registry<Enchantment> enchantmentRegistry;
+
     private KitManager() {
+    }
+
+    /** 服务器启动后调用：此时附魔注册表可用，重建套件以应用附魔。 */
+    public static void onServerStarted(MinecraftServer server) {
+        enchantmentRegistry = server.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
+        reload();
     }
 
     public static void reload() {
@@ -32,6 +48,7 @@ public final class KitManager {
         KITS.add(buildSwordKit());
         KITS.add(buildBowKit());
         KITS.add(buildFullGearKit());
+        KITS.add(buildIronPvpKit());
 
         for (KitConfig.CustomKitSpec spec : KitConfig.INSTANCE.kits) {
             Kit kit = buildCustomKit(spec);
@@ -99,6 +116,39 @@ public final class KitManager {
                 .build();
     }
 
+    /** 内置「铁套PVP」：铁套 + 剑/斧/盾/弓 + 金胡萝卜 + 岩浆/水 + 耐久III钓鱼竿。 */
+    private static Kit buildIronPvpKit() {
+        ItemStack rod = new ItemStack(Items.FISHING_ROD);
+        if (enchantmentRegistry != null) {
+            RegistryEntry<Enchantment> unbreaking = enchantmentRegistry.getEntry(Enchantments.UNBREAKING).orElse(null);
+            if (unbreaking != null) {
+                rod.addEnchantment(unbreaking, 3);
+            }
+        }
+
+        return new Kit.Builder("iron_pvp", KitType.CUSTOM)
+                .displayName("铁套PVP")
+                .addItem(stack(Items.IRON_SWORD))
+                .addItem(stack(Items.IRON_AXE))
+                .addItem(stack(Items.BOW))
+                .addItem(stack(Items.ARROW, 64))
+                .addItem(stack(Items.GOLDEN_CARROT, 64))
+                .addItem(stack(Items.LAVA_BUCKET, 3))
+                .addItem(stack(Items.WATER_BUCKET, 3))
+                .addItem(rod)
+                .offhand(stack(Items.SHIELD))
+                .armor(
+                        stack(Items.IRON_HELMET),
+                        stack(Items.IRON_CHESTPLATE),
+                        stack(Items.IRON_LEGGINGS),
+                        stack(Items.IRON_BOOTS)
+                )
+                .addEffect(new StatusEffectInstance(StatusEffects.SPEED, 6000, 0))
+                .food(20, 5f)
+                .gamemode(GameMode.ADVENTURE)
+                .build();
+    }
+
     private static Kit buildCustomKit(KitConfig.CustomKitSpec spec) {
         if (spec == null || spec.name == null || spec.name.isBlank()) {
             return null;
@@ -117,7 +167,9 @@ public final class KitManager {
                 continue;
             }
             int count = Math.max(1, Math.min(64, itemSpec.count));
-            builder.addItem(new ItemStack(item, count));
+            ItemStack stack = new ItemStack(item, count);
+            applyEnchantments(stack, itemSpec);
+            builder.addItem(stack);
             if (++placed >= 9) {
                 break; // 只放入主手与前8格快捷栏
             }
@@ -163,6 +215,26 @@ public final class KitManager {
         }
 
         return builder.build();
+    }
+
+    /** 应用物品配置中的附魔（{"components":{"enchantments":{"levels":{...}}}}）。 */
+    private static void applyEnchantments(ItemStack stack, KitConfig.ItemSpec itemSpec) {
+        if (itemSpec == null || itemSpec.components == null || itemSpec.components.enchantments == null
+                || itemSpec.components.enchantments.levels == null) {
+            return;
+        }
+        for (Map.Entry<String, Integer> entry : itemSpec.components.enchantments.levels.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null || entry.getValue() <= 0) {
+                continue;
+            }
+            RegistryKey<Enchantment> key = RegistryKey.of(RegistryKeys.ENCHANTMENT, Identifier.tryParse(entry.getKey()));
+            RegistryEntry<Enchantment> enchantment = enchantmentRegistry == null ? null : enchantmentRegistry.getEntry(key).orElse(null);
+            if (enchantment != null) {
+                stack.addEnchantment(enchantment, entry.getValue());
+            } else {
+                LOGGER.warn("[PvP] 忽略无效附魔: {}", entry.getKey());
+            }
+        }
     }
 
     private static ItemStack stack(Item item) {
