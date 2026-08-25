@@ -9,7 +9,9 @@ import com.example.pvp.config.StatsStore;
 import com.example.pvp.duel.DuelManager;
 import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.KitManager;
+import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchManager;
+import com.example.pvp.match.MatchType;
 import com.example.pvp.queue.QueueManager;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
@@ -22,6 +24,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.SwordItem;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.server.MinecraftServer;
@@ -79,6 +82,8 @@ public final class PvPMod implements ModInitializer {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> PvPCommands.register(dispatcher));
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            // 先清空物品再发 UI 工具，避免背包挤满
+            handler.player.getInventory().clear();
             if (MATCH != null) {
                 MATCH.onPlayerJoin(handler.player);
             }
@@ -89,6 +94,20 @@ public final class PvPMod implements ModInitializer {
         UseItemCallback.EVENT.register((player, world, hand) -> {
             ItemStack stack = player.getStackInHand(hand);
             if (player instanceof ServerPlayerEntity serverPlayer) {
+                // 旁观者 UI：指南针切换观战 / 绿宝石下一把 / 红石退出
+                if (PvpGuiManager.isSpectatorUiItem(stack)) {
+                    Match match = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
+                    if (match != null) {
+                        switch (PvpGuiManager.getSpectatorTag(stack)) {
+                            case "spectate" -> match.cycleSpectate(serverPlayer);
+                            case "requeue" -> match.spectatorLeave(serverPlayer, true);
+                            case "exit" -> match.spectatorLeave(serverPlayer, false);
+                            default -> {
+                            }
+                        }
+                    }
+                    return TypedActionResult.success(stack);
+                }
                 if (PvpGuiManager.isMenuItem(stack)) {
                     PvpGuiManager.get().openMainMenu(serverPlayer);
                     return TypedActionResult.success(stack);
@@ -98,6 +117,14 @@ public final class PvPMod implements ModInitializer {
                         serverPlayer.sendMessage(Messages.info("已离开匹配队列"), false);
                     }
                     return TypedActionResult.success(stack);
+                }
+                // 1.8 模式：右键剑进入格挡
+                if (stack.getItem() instanceof SwordItem) {
+                    Match match = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
+                    if (match != null && match.getType() == MatchType.PVP_1_8) {
+                        match.setBlocking(serverPlayer, true);
+                        return TypedActionResult.success(stack);
+                    }
                 }
             }
             return TypedActionResult.pass(stack);
@@ -117,6 +144,17 @@ public final class PvPMod implements ModInitializer {
             if (entity instanceof ServerPlayerEntity player && MATCH != null) {
                 MATCH.onPlayerDeath(player);
             }
+        });
+
+        // 相扑模式：参赛者不吃伤害（击退仍然生效），靠被击出平台判负
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            if (entity instanceof ServerPlayerEntity player && MATCH != null) {
+                Match match = MATCH.getMatchFor(player);
+                if (match != null && match.getType() == MatchType.SUMO) {
+                    return false;
+                }
+            }
+            return true;
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {

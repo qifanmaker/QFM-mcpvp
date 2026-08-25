@@ -6,6 +6,7 @@ package com.example.pvp.match;
 public enum EliminationCause {
     DEATH("阵亡"),
     VOID("掉出世界"),
+    RING_OUT("出场"),
     DISCONNECT("中途退出"),
     FORFEIT("弃权");
 

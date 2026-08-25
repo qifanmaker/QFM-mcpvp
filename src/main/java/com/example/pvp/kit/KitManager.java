@@ -2,10 +2,13 @@ package com.example.pvp.kit;
 
 import com.example.pvp.config.KitConfig;
 import com.mojang.logging.LogUtils;
+import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.Potions;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -49,6 +52,11 @@ public final class KitManager {
         KITS.add(buildBowKit());
         KITS.add(buildFullGearKit());
         KITS.add(buildIronPvpKit());
+        KITS.add(buildSumoKit());
+        KITS.add(buildNoDebuffKit());
+        KITS.add(buildGappleKit());
+        KITS.add(buildAxeKit());
+        KITS.add(buildLegacy18Kit());
 
         for (KitConfig.CustomKitSpec spec : KitConfig.INSTANCE.kits) {
             Kit kit = buildCustomKit(spec);
@@ -149,6 +157,92 @@ public final class KitManager {
                         stack(Items.IRON_BOOTS)
                 )
                 .addEffect(new StatusEffectInstance(StatusEffects.SPEED, 6000, 0))
+                .food(20, 5f)
+                .gamemode(GameMode.ADVENTURE)
+                .build();
+    }
+
+    /** 相扑专用套件：击退 II 棍 + 速度 II。 */
+    private static Kit buildSumoKit() {
+        ItemStack stick = new ItemStack(Items.STICK);
+        if (enchantmentRegistry != null) {
+            RegistryEntry<Enchantment> knockback = enchantmentRegistry.getEntry(Enchantments.KNOCKBACK).orElse(null);
+            if (knockback != null) {
+                stick.addEnchantment(knockback, 2);
+            }
+        }
+        return new Kit.Builder("sumo", KitType.CUSTOM)
+                .displayName("相扑")
+                .addItem(stick)
+                .addEffect(new StatusEffectInstance(StatusEffects.SPEED, 6000, 1))
+                .food(20, 5f)
+                .gamemode(GameMode.ADVENTURE)
+                .build();
+    }
+
+    /** NoDebuff：速度 II + 跳跃 II + 伤害 II 喷溅 + 金苹果（经典药水 PvP）。 */
+    private static Kit buildNoDebuffKit() {
+        ItemStack harming = potion(Items.SPLASH_POTION, Potions.STRONG_HARMING);
+        if (!harming.isEmpty()) {
+            harming.setCount(8);
+        }
+        ItemStack speed = potion(Items.POTION, Potions.STRONG_SWIFTNESS);
+        ItemStack jump = potion(Items.POTION, Potions.STRONG_LEAPING);
+
+        Kit.Builder builder = new Kit.Builder("no_debuff", KitType.CUSTOM)
+                .displayName("NoDebuff")
+                .addItem(stack(Items.IRON_SWORD))
+                .addItem(stack(Items.GOLDEN_APPLE, 8));
+        if (!harming.isEmpty()) {
+            builder.addItem(harming);
+        }
+        if (!speed.isEmpty()) {
+            builder.addItem(speed);
+        }
+        if (!jump.isEmpty()) {
+            builder.addItem(jump);
+        }
+        return builder.food(20, 5f).gamemode(GameMode.ADVENTURE).build();
+    }
+
+    /** 创建药水物品（药水注册表未就绪时返回空栈，避免崩溃）。 */
+    private static ItemStack potion(Item item, RegistryEntry<Potion> potion) {
+        if (potion == null) {
+            return ItemStack.EMPTY;
+        }
+        return PotionContentsComponent.createStack(item, potion);
+    }
+
+    /** 金苹果：剑 + 金苹果。 */
+    private static Kit buildGappleKit() {
+        return new Kit.Builder("gapple", KitType.CUSTOM)
+                .displayName("金苹果")
+                .addItem(stack(Items.IRON_SWORD))
+                .addItem(stack(Items.GOLDEN_APPLE, 8))
+                .food(20, 5f)
+                .gamemode(GameMode.ADVENTURE)
+                .build();
+    }
+
+    /** 1.8 经典：钻石剑 + 速度 II + 金苹果（配合 1.8 无冷却模式）。 */
+    private static Kit buildLegacy18Kit() {
+        return new Kit.Builder("legacy_1_8", KitType.CUSTOM)
+                .displayName("1.8 经典")
+                .addItem(stack(Items.DIAMOND_SWORD))
+                .addItem(stack(Items.GOLDEN_APPLE, 8))
+                .addEffect(new StatusEffectInstance(StatusEffects.SPEED, 6000, 1))
+                .food(20, 5f)
+                .gamemode(GameMode.ADVENTURE)
+                .build();
+    }
+
+    /** 斧战：斧 + 盾 + 金苹果。 */
+    private static Kit buildAxeKit() {
+        return new Kit.Builder("axe", KitType.CUSTOM)
+                .displayName("斧战")
+                .addItem(stack(Items.IRON_AXE))
+                .addItem(stack(Items.GOLDEN_APPLE, 8))
+                .offhand(stack(Items.SHIELD))
                 .food(20, 5f)
                 .gamemode(GameMode.ADVENTURE)
                 .build();

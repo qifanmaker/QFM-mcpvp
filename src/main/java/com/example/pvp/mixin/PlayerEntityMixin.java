@@ -1,14 +1,20 @@
 package com.example.pvp.mixin;
 
 import com.example.pvp.arena.ArenaWorldManager;
+import com.example.pvp.match.Match;
+import com.example.pvp.match.MatchManager;
+import com.example.pvp.match.MatchType;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
@@ -24,6 +30,32 @@ public abstract class PlayerEntityMixin {
         if (self.getWorld().getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY
                 && (stack.isOf(Items.LAVA_BUCKET) || stack.isOf(Items.WATER_BUCKET) || stack.isOf(Items.BUCKET))) {
             cir.setReturnValue(true);
+        }
+    }
+
+    /** 1.8 模式：无攻击冷却——攻击进度始终为满，满伤害、满击退，支持疯狂点按。 */
+    @Inject(method = "getAttackCooldownProgress", at = @At("HEAD"), cancellable = true)
+    private void pvp$legacyNoCooldown(float basePeriod, CallbackInfoReturnable<Float> cir) {
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        MatchManager matchManager = MatchManager.get();
+        if (matchManager != null && self instanceof ServerPlayerEntity sp) {
+            Match match = matchManager.getMatchFor(sp);
+            if (match != null && match.getType() == MatchType.PVP_1_8) {
+                cir.setReturnValue(1.0F);
+            }
+        }
+    }
+
+    /** 1.8 模式：攻击即解除格挡（block-hit 手感）。 */
+    @Inject(method = "attack", at = @At("HEAD"))
+    private void pvp$legacyClearBlocking(Entity target, CallbackInfo ci) {
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        MatchManager matchManager = MatchManager.get();
+        if (matchManager != null && self instanceof ServerPlayerEntity sp) {
+            Match match = matchManager.getMatchFor(sp);
+            if (match != null && match.getType() == MatchType.PVP_1_8) {
+                match.setBlocking(sp, false);
+            }
         }
     }
 }

@@ -7,5 +7,6 @@ public enum MatchState {
     FORMING,
     COUNTDOWN,
     ACTIVE,
+    CELEBRATING,
     ENDED
 }

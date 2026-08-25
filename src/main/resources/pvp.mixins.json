@@ -7,6 +7,8 @@
     "MinecraftServerAccess",
     "MinecraftServerMixin",
     "PlayerEntityMixin",
+    "LivingEntityMixin",
+    "ServerPlayerEntityMixin",
     "registry.DimensionOptionsMixin",
     "registry.SimpleRegistryMixin",
     "registry.WorldGenSettingsMixin"

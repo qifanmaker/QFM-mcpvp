@@ -1,17 +1,34 @@
 package com.example.pvp.match;
 
+import com.example.pvp.PvPMod;
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
+import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.InventorySnapshot;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitApplicator;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
+import it.unimi.dsi.fastutil.ints.IntList;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.FireworkExplosionComponent;
+import net.minecraft.component.type.FireworksComponent;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.projectile.FireworkRocketEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.item.SwordItem;
 import net.minecraft.scoreboard.AbstractTeam;
+import net.minecraft.scoreboard.ScoreHolder;
 import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.scoreboard.ScoreboardCriterion;
+import net.minecraft.scoreboard.ScoreboardDisplaySlot;
+import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -41,7 +58,8 @@ public final class Match {
     private final MatchManager manager;
     private final int id;
     private final MatchType type;
-    private final Kit kit;
+    private final Kit kit; // 代表性套件（取第一名玩家），供展示用
+    private final Map<UUID, Kit> playerKits; // 每名玩家各自的套件（FFA 混套件）
     private final List<ServerPlayerEntity> players;
     private final Map<UUID, InventorySnapshot> snapshots = new HashMap<>();
     private final Map<UUID, BlockPos> spawns = new HashMap<>();
@@ -49,18 +67,25 @@ public final class Match {
     private final ArenaTemplate template;
     private final int regionIndex;
     private final Set<UUID> eliminated = new HashSet<>();
+    private final Set<UUID> blocking = new HashSet<>(); // 1.8 模式剑格挡
+    private final Set<UUID> leftEarly = new HashSet<>(); // 旁观者提前离场
+    private final Set<String> infoLines = new HashSet<>(); // 计分板信息栏行
     private final int initialCountdownTicks;
 
+    private MatchTeam winnerTeam;
+    private int celebrationTicks;
     private MatchState state;
     private int countdownTicks;
     private int ticks;
 
-    private Match(MatchManager manager, int id, MatchType type, Kit kit,
-                  List<ServerPlayerEntity> players, int regionIndex, ArenaTemplate template) {
+    private Match(MatchManager manager, int id, MatchType type,
+                  List<ServerPlayerEntity> players, int regionIndex, ArenaTemplate template,
+                  Map<UUID, Kit> kits) {
         this.manager = manager;
         this.id = id;
         this.type = type;
-        this.kit = kit;
+        this.playerKits = new HashMap<>(kits);
+        this.kit = kits.get(players.get(0).getUuid());
         this.players = List.copyOf(players);
         this.teams = buildTeams(type, this.players);
         this.template = template;
@@ -82,14 +107,15 @@ public final class Match {
         this.state = MatchState.COUNTDOWN;
     }
 
-    public static Match create(MatchManager manager, int id, MatchType type, Kit kit,
-                               List<ServerPlayerEntity> players, int regionIndex, ArenaTemplate template) {
-        return new Match(manager, id, type, kit, players, regionIndex, template);
+    public static Match create(MatchManager manager, int id, MatchType type,
+                               List<ServerPlayerEntity> players, int regionIndex, ArenaTemplate template,
+                               Map<UUID, Kit> kits) {
+        return new Match(manager, id, type, players, regionIndex, template, kits);
     }
 
     private static List<MatchTeam> buildTeams(MatchType type, List<ServerPlayerEntity> players) {
         List<MatchTeam> teams = new ArrayList<>();
-        if (type == MatchType.DUEL_1V1) {
+        if (type == MatchType.DUEL_1V1 || type == MatchType.SUMO || type == MatchType.PVP_1_8) {
             teams.add(new MatchTeam("红队", Formatting.RED, List.of(players.get(0))));
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));
         } else if (type == MatchType.DUEL_2V2) {
@@ -148,10 +174,60 @@ public final class Match {
             return;
         }
 
+        // 每 20 tick 更新右侧信息栏
+        if (this.ticks % 20 == 0) {
+            this.updateInfoScoreboard();
+        }
+
         switch (this.state) {
             case COUNTDOWN -> this.tickCountdown();
-            case ACTIVE -> this.checkWinCondition();
+            case ACTIVE -> {
+                if (this.type == MatchType.SUMO) {
+                    this.checkSumoRingOut();
+                }
+                if (this.type == MatchType.PVP_1_8) {
+                    this.tickLegacyBlocking();
+                }
+                this.checkWinCondition();
+            }
+            case CELEBRATING -> this.tickCelebration();
             default -> {
+            }
+        }
+    }
+
+    /** 胜利庆祝倒计时，结束后结算。 */
+    private void tickCelebration() {
+        this.celebrationTicks--;
+        if (this.celebrationTicks <= 0) {
+            this.finalizeMatch();
+        }
+    }
+
+    /** 相扑：出平台边缘即淘汰（不吃伤害，只吃击退）。 */
+    private void checkSumoRingOut() {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        BlockPos origin = this.template.getRegionOrigin(this.regionIndex);
+        int size = this.template.getSize();
+        int margin = 1;
+
+        for (ServerPlayerEntity player : this.players) {
+            if (this.eliminated.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null) {
+                continue;
+            }
+            double px = online.getX();
+            double pz = online.getZ();
+            boolean out = px < origin.getX() - margin || px > origin.getX() + size + margin
+                    || pz < origin.getZ() - margin || pz > origin.getZ() + size + margin;
+            if (out) {
+                this.eliminate(online, EliminationCause.RING_OUT);
             }
         }
     }
@@ -198,6 +274,7 @@ public final class Match {
             this.broadcast(Messages.error("比赛取消：" + reason));
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
+            this.removeInfoScoreboard();
         } catch (Exception e) {
             LOGGER.error("[PvP] 比赛取消处理出错", e);
         } finally {
@@ -205,26 +282,53 @@ public final class Match {
         }
     }
 
-    /** 胜负结算并清理。 */
+    /** 胜负结算：进入 5 秒庆祝（烟花 + 大字），随后恢复状态并清理。 */
     public void finishMatch(MatchTeam winnerTeam) {
-        if (this.state == MatchState.ENDED) {
+        if (this.state == MatchState.ENDED || this.state == MatchState.CELEBRATING) {
             return;
         }
-        this.state = MatchState.ENDED;
+        this.winnerTeam = winnerTeam;
+        this.celebrationTicks = 100; // 5 秒庆祝
+        this.state = MatchState.CELEBRATING;
+        this.startCelebration(winnerTeam);
+    }
 
+    private void startCelebration(MatchTeam winnerTeam) {
         Set<UUID> winners = new HashSet<>();
         if (winnerTeam != null) {
             for (ServerPlayerEntity player : winnerTeam.getAlivePlayers()) {
                 winners.add(player.getUuid());
             }
         }
+        this.announceResult(winners);
 
+        // 获胜大字（动作栏）
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null) {
+                if (winners.contains(player.getUuid())) {
+                    online.sendMessage(Text.literal("§6§l你赢了！"), true);
+                } else {
+                    online.sendMessage(Text.literal("§c§l你输了！"), true);
+                }
+            }
+        }
+
+        this.spawnCelebrationFireworks(winners);
+    }
+
+    /** 庆祝结束后的实际结算：恢复、战绩、清场、释放。 */
+    private void finalizeMatch() {
+        Set<UUID> winners = new HashSet<>();
+        if (this.winnerTeam != null) {
+            for (ServerPlayerEntity player : this.winnerTeam.getAlivePlayers()) {
+                winners.add(player.getUuid());
+            }
+        }
         try {
-            this.announceResult(winners);
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
-
-            // 统计战绩
+            this.removeInfoScoreboard();
             for (ServerPlayerEntity player : this.players) {
                 boolean won = winners.contains(player.getUuid());
                 StatsStore.INSTANCE.recordResult(player.getUuid(), won);
@@ -235,6 +339,35 @@ public final class Match {
         } finally {
             this.cleanupArenaAndRelease();
         }
+        this.state = MatchState.ENDED;
+    }
+
+    /** 在胜利玩家头顶生成向上飞行的烟花。 */
+    private void spawnCelebrationFireworks(Set<UUID> winners) {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        for (UUID uuid : winners) {
+            ServerPlayerEntity winner = this.manager.getOnlinePlayer(uuid);
+            if (winner == null || winner.getWorld() != arena) {
+                continue;
+            }
+            this.spawnFirework(arena, winner.getX(), winner.getY() + 2, winner.getZ());
+            this.spawnFirework(arena, winner.getX() + 1, winner.getY() + 3, winner.getZ() + 1);
+            this.spawnFirework(arena, winner.getX() - 1, winner.getY() + 3, winner.getZ() - 1);
+        }
+    }
+
+    private void spawnFirework(ArenaWorld world, double x, double y, double z) {
+        IntList colors = IntList.of(0xFFD700, 0xFF0000, 0x00FF00);
+        FireworkExplosionComponent explosion = new FireworkExplosionComponent(
+                FireworkExplosionComponent.Type.BURST, colors, IntList.of(), false, true);
+        FireworksComponent fireworks = new FireworksComponent(2, List.of(explosion));
+        ItemStack stack = new ItemStack(Items.FIREWORK_ROCKET);
+        stack.set(DataComponentTypes.FIREWORKS, fireworks);
+        FireworkRocketEntity rocket = new FireworkRocketEntity(world, x, y, z, stack);
+        world.spawnEntity(rocket);
     }
 
     /** 清理竞技场地形并释放场地（无论结束流程是否出错都必须执行）。 */
@@ -248,7 +381,7 @@ public final class Match {
         LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
     }
 
-    /** 将玩家转为旁观者并传送到观众平台（淘汰/重生兜底）。 */
+    /** 将玩家转为旁观者并传送到观众平台（淘汰/重生兜底），发放观战 UI。 */
     public void makeSpectator(ServerPlayerEntity player) {
         player.changeGameMode(GameMode.SPECTATOR);
         player.setInvulnerable(false);
@@ -258,6 +391,100 @@ public final class Match {
         if (arena != null) {
             BlockPos center = this.template.getCenter(this.regionIndex);
             player.teleport(arena, center.getX(), center.getY() + ArenaTemplate.WALL_HEIGHT + 5, center.getZ(), 0, 0);
+        }
+        this.giveSpectatorItems(player);
+    }
+
+    /** 给旁观者发放观战 UI：左指南针 / 中绿宝石 / 右红石。 */
+    public void giveSpectatorItems(ServerPlayerEntity player) {
+        var inventory = player.getInventory();
+        inventory.clear();
+        inventory.setStack(0, PvpGuiManager.spectatorCompass());
+        inventory.setStack(4, PvpGuiManager.spectatorEmerald());
+        inventory.setStack(8, PvpGuiManager.spectatorRedstone());
+        player.currentScreenHandler.sendContentUpdates();
+    }
+
+    /** 旁观者：切换到下一个存活玩家观战。 */
+    public void cycleSpectate(ServerPlayerEntity player) {
+        List<ServerPlayerEntity> targets = new ArrayList<>();
+        for (MatchTeam team : this.teams) {
+            for (ServerPlayerEntity p : team.getAlivePlayers()) {
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(p.getUuid());
+                if (online != null) {
+                    targets.add(online);
+                }
+            }
+        }
+        if (targets.isEmpty()) {
+            player.sendMessage(Messages.warn("当前没有可观战的目标"), false);
+            return;
+        }
+        Entity current = player.getCameraEntity();
+        int idx = -1;
+        if (current != null) {
+            for (int i = 0; i < targets.size(); i++) {
+                if (targets.get(i) == current) {
+                    idx = i;
+                    break;
+                }
+            }
+        }
+        ServerPlayerEntity next = targets.get((idx + 1) % targets.size());
+        player.setCameraEntity(next);
+        player.sendMessage(Messages.info("正在观战 §e" + next.getGameProfile().getName()), false);
+    }
+
+    /** 旁观者提前离场：requeue=true 立即重排当前模式，false 回主城。 */
+    public void spectatorLeave(ServerPlayerEntity player, boolean requeue) {
+        if (!this.leftEarly.add(player.getUuid())) {
+            return;
+        }
+        InventorySnapshot snapshot = this.snapshots.get(player.getUuid());
+        if (snapshot != null) {
+            snapshot.restore(player);
+        } else {
+            this.manager.teleportToOverworldSpawn(player);
+        }
+        if (requeue) {
+            Kit kit = this.playerKits.get(player.getUuid());
+            if (kit != null && PvPMod.QUEUE != null) {
+                PvPMod.QUEUE.join(player, this.type, kit);
+                player.sendMessage(Messages.info("已重新进入匹配队列：模式 " + this.type.getDisplayName()), false);
+            }
+        }
+    }
+
+    /** 1.8 模式：玩家是否正在剑格挡。 */
+    public boolean isBlocking(ServerPlayerEntity player) {
+        return this.blocking.contains(player.getUuid());
+    }
+
+    /** 1.8 模式：切换剑格挡状态（格挡时减速）。 */
+    public void setBlocking(ServerPlayerEntity player, boolean block) {
+        if (block) {
+            this.blocking.add(player.getUuid());
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 200, 1));
+        } else {
+            this.blocking.remove(player.getUuid());
+            player.removeStatusEffect(StatusEffects.SLOWNESS);
+        }
+    }
+
+    /** 每帧维护 1.8 格挡：不拿剑则取消，格挡则保持减速。 */
+    private void tickLegacyBlocking() {
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null) {
+                continue;
+            }
+            boolean isBlocking = this.blocking.contains(player.getUuid());
+            boolean holdingSword = online.getMainHandStack().getItem() instanceof SwordItem;
+            if (isBlocking && !holdingSword) {
+                this.setBlocking(online, false);
+            } else if (isBlocking) {
+                online.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 200, 1));
+            }
         }
     }
 
@@ -311,7 +538,11 @@ public final class Match {
             BlockPos spawn = this.spawns.get(player.getUuid());
             float yaw = this.faceCenter(spawn);
             online.teleport(arena, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, yaw, 0);
-            KitApplicator.apply(online, this.kit);
+            Kit playerKit = this.playerKits.get(player.getUuid());
+            if (playerKit == null) {
+                playerKit = this.kit;
+            }
+            KitApplicator.apply(online, playerKit);
             online.setInvulnerable(true);
             online.setNoGravity(false);
         }
@@ -378,6 +609,9 @@ public final class Match {
 
     private void restoreAllPlayers() {
         for (ServerPlayerEntity player : this.players) {
+            if (this.leftEarly.contains(player.getUuid())) {
+                continue; // 旁观者已提前恢复
+            }
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             InventorySnapshot snapshot = this.snapshots.get(player.getUuid());
             if (online != null && snapshot != null) {
@@ -430,6 +664,69 @@ public final class Match {
                 }
                 scoreboard.removeTeam(sbTeam);
             }
+        }
+    }
+
+    // ---------- 右侧信息栏（计分板） ----------
+
+    private static final String INFO_OBJECTIVE = "pvp_info";
+
+    public void updateInfoScoreboard() {
+        MinecraftServer server = this.manager.getServer();
+        if (server == null) {
+            return;
+        }
+        Scoreboard scoreboard = server.getScoreboard();
+        ScoreboardObjective objective = scoreboard.getNullableObjective(INFO_OBJECTIVE);
+        if (objective == null) {
+            objective = scoreboard.addObjective(INFO_OBJECTIVE, ScoreboardCriterion.DUMMY,
+                    Text.literal("§6§lPvP 对局"), ScoreboardCriterion.RenderType.INTEGER, true, null);
+        }
+        scoreboard.setObjectiveSlot(ScoreboardDisplaySlot.SIDEBAR, objective);
+
+        for (String line : this.infoLines) {
+            scoreboard.removeScore(ScoreHolder.fromName(line), objective);
+        }
+        this.infoLines.clear();
+
+        int score = 10;
+        this.setInfoLine(scoreboard, objective, "模式: " + this.type.getDisplayName(), score--);
+        Kit displayKit = this.kit;
+        this.setInfoLine(scoreboard, objective, "套件: " + (displayKit == null ? "-" : displayKit.getDisplayName()), score--);
+        if (this.type == MatchType.FFA) {
+            int alive = this.teams.isEmpty() ? 0 : this.teams.get(0).aliveCount();
+            this.setInfoLine(scoreboard, objective, "存活: " + alive + "/" + this.players.size(), score--);
+        } else {
+            for (MatchTeam team : this.teams) {
+                this.setInfoLine(scoreboard, objective, team.getName() + ": " + team.aliveCount(), score--);
+            }
+        }
+    }
+
+    private void setInfoLine(Scoreboard scoreboard, ScoreboardObjective objective, String text, int score) {
+        scoreboard.getOrCreateScore(ScoreHolder.fromName(text), objective).setScore(score);
+        this.infoLines.add(text);
+    }
+
+    private void removeInfoScoreboard() {
+        MinecraftServer server = this.manager.getServer();
+        if (server == null) {
+            return;
+        }
+        Scoreboard scoreboard = server.getScoreboard();
+        ScoreboardObjective objective = scoreboard.getNullableObjective(INFO_OBJECTIVE);
+        if (objective == null) {
+            return;
+        }
+        for (String line : this.infoLines) {
+            scoreboard.removeScore(ScoreHolder.fromName(line), objective);
+        }
+        this.infoLines.clear();
+        // 若还有其他对局在跑，保留侧边栏供其继续显示
+        boolean otherRunning = this.manager.getMatches().stream()
+                .anyMatch(m -> m != this && m.getState() != MatchState.ENDED);
+        if (!otherRunning && scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR) == objective) {
+            scoreboard.setObjectiveSlot(ScoreboardDisplaySlot.SIDEBAR, null);
         }
     }
 

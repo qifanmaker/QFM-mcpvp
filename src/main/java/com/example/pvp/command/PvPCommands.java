@@ -35,7 +35,7 @@ import java.util.UUID;
  */
 public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> MODE_SUGGESTIONS =
-            (ctx, builder) -> CommandSource.suggestMatching(new String[]{"1v1", "2v2", "ffa"}, builder);
+            (ctx, builder) -> CommandSource.suggestMatching(new String[]{"1v1", "2v2", "ffa", "sumo", "1.8"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -108,7 +108,7 @@ public final class PvPCommands {
     private static int showHelp(ServerCommandSource source) {
         source.sendFeedback(() -> Messages.gold(
                 "§6§lPvP 匹配 §r命令：\n"
-                        + "§e/pvp join <1v1|2v2|ffa> <套件>§r 加入匹配队列\n"
+                        + "§e/pvp join <1v1|2v2|ffa|sumo|1.8> <套件>§r 加入匹配队列\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp queue§r 查看排队状态\n"
                         + "§e/pvp list§r 查看进行中的比赛\n"
@@ -141,10 +141,15 @@ public final class PvPCommands {
         }
 
         if (PvPMod.QUEUE.join(player, type, kit)) {
-            int count = PvPMod.QUEUE.queuedCount(type, kit);
-            int required = type.requiredPlayers();
-            player.sendMessage(Messages.info("已加入匹配队列：模式 " + type.getDisplayName()
-                    + "，套件 " + kit.getDisplayName() + "（当前 " + count + "/" + required + "）"), false);
+            if (type == MatchType.FFA) {
+                player.sendMessage(Messages.info("已加入自由乱斗：凑齐 " + PvPConfig.INSTANCE.ffaMinPlayers
+                        + " 人后倒计时 " + PvPConfig.INSTANCE.ffaCountdownSeconds + " 秒开赛"), false);
+            } else {
+                int count = PvPMod.QUEUE.queuedCount(type, kit);
+                int required = type.requiredPlayers();
+                player.sendMessage(Messages.info("已加入匹配队列：模式 " + type.getDisplayName()
+                        + "，套件 " + kit.getDisplayName() + "（当前 " + count + "/" + required + "）"), false);
+            }
         }
         return 1;
     }
@@ -203,6 +208,7 @@ public final class PvPCommands {
             case FORMING -> "组建中";
             case COUNTDOWN -> "倒计时";
             case ACTIVE -> "进行中";
+            case CELEBRATING -> "庆祝中";
             case ENDED -> "已结束";
         };
     }

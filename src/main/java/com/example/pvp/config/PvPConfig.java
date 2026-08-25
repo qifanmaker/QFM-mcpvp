@@ -23,7 +23,13 @@ public final class PvPConfig {
 
     public static PvPConfig INSTANCE = new PvPConfig();
 
-    public int ffaPlayerCount = 4;
+    /** 自由乱斗：凑齐最少人数后开始倒计时开赛。 */
+    public int ffaMinPlayers = 3;
+    public int ffaCountdownSeconds = 60;
+    public int ffaEarlyStartPlayers = 6;
+    public int ffaEarlyStartSeconds = 10;
+    public int ffaMaxPlayers = 16;
+
     public int countdownSeconds = 5;
     public int maxConcurrentMatches = 4;
     public int duelExpirySeconds = 30;
@@ -38,6 +44,7 @@ public final class PvPConfig {
     public int duel1v1Size = 21;
     public int duel2v2Size = 31;
     public int ffaSize = 41;
+    public int sumoSize = 11;
 
     private PvPConfig() {
     }

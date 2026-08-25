@@ -18,6 +18,7 @@ import net.minecraft.world.GameMode;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -96,12 +97,28 @@ public final class MatchManager {
         }
     }
 
-    /** 尝试开一场比赛，成功返回 true（场地已满/参数错误时返回 false）。 */
+    /** 尝试开一场比赛（所有人同一套件），成功返回 true。 */
     public boolean startMatch(List<ServerPlayerEntity> players, MatchType type, Kit kit) {
+        Map<UUID, Kit> kits = new HashMap<>();
+        for (ServerPlayerEntity player : players) {
+            kits.put(player.getUuid(), kit);
+        }
+        return this.startMatch(players, type, kits);
+    }
+
+    /** 尝试开一场比赛（支持每名玩家各自套件，FFA 混套件用），成功返回 true。 */
+    public boolean startMatch(List<ServerPlayerEntity> players, MatchType type, Map<UUID, Kit> kits) {
         if (this.server == null) {
             return false;
         }
-        if (players == null || players.size() != type.requiredPlayers()) {
+        if (players == null || players.isEmpty()) {
+            return false;
+        }
+        if (type == MatchType.FFA) {
+            if (players.size() < PvPConfig.INSTANCE.ffaMinPlayers) {
+                return false;
+            }
+        } else if (players.size() != type.requiredPlayers()) {
             return false;
         }
 
@@ -128,7 +145,7 @@ public final class MatchManager {
 
         int regionIndex = this.allocateRegion();
         ArenaTemplate template = this.createTemplate(type);
-        Match match = Match.create(this, this.nextMatchId++, type, kit, players, regionIndex, template);
+        Match match = Match.create(this, this.nextMatchId++, type, players, regionIndex, template, kits);
         this.matches.add(match);
         match.tick(); // 立即进入倒计时第一帧
         return true;
@@ -153,6 +170,12 @@ public final class MatchManager {
 
     public boolean isInMatch(UUID uuid) {
         return this.getMatchFor(uuid) != null;
+    }
+
+    /** 1.8 模式：玩家是否正在剑格挡（供伤害减免 Mixin 调用）。 */
+    public boolean isLegacyBlocking(ServerPlayerEntity player) {
+        Match match = this.getMatchFor(player);
+        return match != null && match.getType() == MatchType.PVP_1_8 && match.isBlocking(player);
     }
 
     /** 比赛结束后的清理：从列表移除并释放区域。 */
@@ -235,12 +258,13 @@ public final class MatchManager {
 
     private ArenaTemplate createTemplate(MatchType type) {
         int size = switch (type) {
-            case DUEL_1V1 -> PvPConfig.INSTANCE.duel1v1Size;
+            case DUEL_1V1, PVP_1_8 -> PvPConfig.INSTANCE.duel1v1Size;
             case DUEL_2V2 -> PvPConfig.INSTANCE.duel2v2Size;
             case FFA -> PvPConfig.INSTANCE.ffaSize;
+            case SUMO -> PvPConfig.INSTANCE.sumoSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
-            case DUEL_1V1 -> ArenaTemplate.Layout.DUEL_1V1;
+            case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
             case DUEL_2V2 -> ArenaTemplate.Layout.DUEL_2V2;
             case FFA -> ArenaTemplate.Layout.FFA;
         };

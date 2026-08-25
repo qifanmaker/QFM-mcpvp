@@ -87,9 +87,11 @@ public final class PvpGuiManager {
             for (int i = 0; i < 36; i++) {
                 if (player.getInventory().getStack(i).isEmpty()) {
                     player.getInventory().setStack(i, item);
-                    break;
+                    player.currentScreenHandler.sendContentUpdates();
+                    return;
                 }
             }
+            player.getInventory().setStack(8, item); // 兜底：占用快捷栏第 9 格
         }
         player.currentScreenHandler.sendContentUpdates();
     }
@@ -139,6 +141,66 @@ public final class PvpGuiManager {
         }
     }
 
+    // ---------- 旁观者 UI 物品 ----------
+
+    public static final String SPECTATE_TAG = "pvp.spectate";
+    public static final String REQUEUE_TAG = "pvp.requeue";
+    public static final String EXIT_TAG = "pvp.exit";
+
+    private static ItemStack spectatorItem(Item item, String tag, String name) {
+        ItemStack stack = new ItemStack(item);
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal(name));
+        NbtCompound nbt = new NbtCompound();
+        nbt.putString(tag, "1");
+        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+        return stack;
+    }
+
+    public static ItemStack spectatorCompass() {
+        return spectatorItem(Items.COMPASS, SPECTATE_TAG, "§b观战 §7(右键切换目标)");
+    }
+
+    public static ItemStack spectatorEmerald() {
+        return spectatorItem(Items.EMERALD, REQUEUE_TAG, "§a下一把 §7(立即重新匹配)");
+    }
+
+    public static ItemStack spectatorRedstone() {
+        return spectatorItem(Items.REDSTONE, EXIT_TAG, "§c退出 §7(回主城)");
+    }
+
+    public static boolean isSpectatorUiItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        NbtComponent nbt = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (nbt == null) {
+            return false;
+        }
+        NbtCompound c = nbt.copyNbt();
+        return c.contains(SPECTATE_TAG) || c.contains(REQUEUE_TAG) || c.contains(EXIT_TAG);
+    }
+
+    public static String getSpectatorTag(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return "";
+        }
+        NbtComponent nbt = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (nbt == null) {
+            return "";
+        }
+        NbtCompound c = nbt.copyNbt();
+        if (c.contains(SPECTATE_TAG)) {
+            return "spectate";
+        }
+        if (c.contains(REQUEUE_TAG)) {
+            return "requeue";
+        }
+        if (c.contains(EXIT_TAG)) {
+            return "exit";
+        }
+        return "";
+    }
+
     // ---------- 页面 ----------
 
     public void openMainMenu(ServerPlayerEntity player) {
@@ -149,10 +211,15 @@ public final class PvpGuiManager {
         this.openPage(player, ctx, "§6§lPvP 竞技场", inv -> {
             inv.setStack(9, makeButton(Items.IRON_SWORD, "§b1v1 决斗匹配", "铁剑互砍，无护甲", "点击选择套件后加入队列"));
             inv.setStack(10, makeButton(Items.DIAMOND_SWORD, "§b2v2 团队匹配", "4 人随机分队", "点击选择套件后加入队列"));
-            inv.setStack(11, makeButton(Items.GOLDEN_SWORD, "§b自由乱斗 (FFA)", PvPConfig.INSTANCE.ffaPlayerCount + " 人混战", "点击选择套件后加入队列"));
-            inv.setStack(12, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
-            inv.setStack(13, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
-            inv.setStack(14, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
+            inv.setStack(11, makeButton(Items.GOLDEN_SWORD, "§b自由乱斗 (FFA)",
+                    PvPConfig.INSTANCE.ffaMinPlayers + " 人起，倒计时 " + PvPConfig.INSTANCE.ffaCountdownSeconds + " 秒",
+                    PvPConfig.INSTANCE.ffaEarlyStartPlayers + " 人时加速到 " + PvPConfig.INSTANCE.ffaEarlyStartSeconds + " 秒",
+                    "点击选择套件后加入队列"));
+            inv.setStack(12, makeButton(Items.STICK, "§b相扑 (Sumo)", "不吃伤害，只吃击退", "被击出平台即淘汰", "点击选择套件后加入队列"));
+            inv.setStack(13, makeButton(Items.DIAMOND_SWORD, "§b1.8 经典PvP", "无攻击冷却，疯狂点按", "剑可格挡减伤 50%", "点击选择套件后加入队列"));
+            inv.setStack(14, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
+            inv.setStack(15, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
+            inv.setStack(16, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
 
             if (PvPMod.QUEUE.contains(player.getUuid())) {
                 String status = "排队中";
@@ -309,9 +376,17 @@ public final class PvpGuiManager {
                 ctx.pendingMode = MatchType.FFA;
                 this.openKitPage(player);
             }
-            case 12 -> this.openDuelTargetPage(player);
-            case 13 -> this.openStatsPage(player);
-            case 14 -> this.openKitInfoPage(player);
+            case 12 -> {
+                ctx.pendingMode = MatchType.SUMO;
+                this.openKitPage(player);
+            }
+            case 13 -> {
+                ctx.pendingMode = MatchType.PVP_1_8;
+                this.openKitPage(player);
+            }
+            case 14 -> this.openDuelTargetPage(player);
+            case 15 -> this.openStatsPage(player);
+            case 16 -> this.openKitInfoPage(player);
             case 22 -> {
                 if (PvPMod.QUEUE.leave(player)) {
                     player.sendMessage(Messages.info("已离开匹配队列"), false);
@@ -382,9 +457,14 @@ public final class PvpGuiManager {
             return;
         }
         if (PvPMod.QUEUE.join(player, type, kit)) {
-            int count = PvPMod.QUEUE.queuedCount(type, kit);
-            player.sendMessage(Messages.info("已加入匹配队列：模式 " + type.getDisplayName()
-                    + "，套件 " + kit.getDisplayName() + "（当前 " + count + "/" + type.requiredPlayers() + "）"), false);
+            if (type == MatchType.FFA) {
+                player.sendMessage(Messages.info("已加入自由乱斗：凑齐 " + PvPConfig.INSTANCE.ffaMinPlayers
+                        + " 人后倒计时 " + PvPConfig.INSTANCE.ffaCountdownSeconds + " 秒开赛"), false);
+            } else {
+                int count = PvPMod.QUEUE.queuedCount(type, kit);
+                player.sendMessage(Messages.info("已加入匹配队列：模式 " + type.getDisplayName()
+                        + "，套件 " + kit.getDisplayName() + "（当前 " + count + "/" + type.requiredPlayers() + "）"), false);
+            }
         }
         player.closeHandledScreen();
     }
