@@ -100,9 +100,9 @@
   "skywarsMaxPlayers": 8,       // 最多人数，达到立即开赛
   "skywarsCountdownSeconds": 30,// 开赛倒计时（秒）
   "skywarsFillTimeoutSeconds": 60, // 人数不足时的最长等待填人时间（秒）
-  "skywarsSize": 64,            // 地图覆盖边长（生成/清理边界）
+  "skywarsSize": 80,            // 地图覆盖边长（生成/清理边界）
   "skywarsIslandRadius": 5,     // 出生岛半径
-  "skywarsMiddleRadius": 8,     // 中间主岛半径
+  "skywarsMiddleRadius": 12,    // 中间主岛半径（出生岛间距会自动按两岛半径保证不连片）
   "skywarsChestsPerIsland": 3,  // 每座出生岛箱子数
   "skywarsMiddleChests": 5,     // 中间主岛箱子数
   "skywarsTimeoutSeconds": 600, // 空岛对局超时（秒）

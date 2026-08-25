@@ -14,9 +14,9 @@ import java.util.Random;
  */
 public final class SkyWarsLayout {
 
-    /** 出生岛中心到中间主岛中心的距离（格）。 */
-    public static final int SPAWN_DISTANCE = 14;
-    /** 地图最大半径（含最外圈出生岛的岛缘与安全边距），缩圈从该半径开始。 */
+    /** 出生岛边缘到中间主岛边缘的安全间距（格），防止岛屿连成一片。 */
+    public static final int ISLAND_GAP = 4;
+    /** 地图最大半径额外边距，缩圈从该半径开始。 */
     public static final int MAX_RADIUS_MARGIN = 4;
 
     /** 一座岛：中心、半径、箱子水平位置（Y 由生成器决定）。 */
@@ -89,12 +89,16 @@ public final class SkyWarsLayout {
         PvPConfig cfg = PvPConfig.INSTANCE;
         Random random = new Random(seed * 31L + playerCount * 17L);
 
+        // 出生岛与中间岛的距离按两者半径动态算，保证最小有 ISLAND_GAP 格间距、不连片
+        int maxIslandRadius = Math.max(3, cfg.skywarsIslandRadius) + 1; // 布局随机可到配置+1
+        int spawnDist = cfg.skywarsMiddleRadius + maxIslandRadius + 1 + ISLAND_GAP; // +1 抵消下方 ±1 抖动
+
         List<Island> spawnIslands = new ArrayList<>();
         List<BlockPos> spawns = new ArrayList<>();
         for (int i = 0; i < playerCount; i++) {
-            // 等角分布 + 少量角度抖动，距离中心 13~15 格
+            // 等角分布 + 少量角度抖动，距中心 spawnDist±1 格
             double angle = i * 2.0 * Math.PI / playerCount + (random.nextDouble() - 0.5) * 0.7;
-            int dist = SPAWN_DISTANCE + random.nextInt(3) - 1;
+            int dist = spawnDist + random.nextInt(3) - 1;
             int x = mapCenter.getX() + (int) Math.round(Math.cos(angle) * dist);
             int z = mapCenter.getZ() + (int) Math.round(Math.sin(angle) * dist);
             int islandRadius = Math.max(3, cfg.skywarsIslandRadius + random.nextInt(3) - 1);
@@ -105,7 +109,7 @@ public final class SkyWarsLayout {
 
         Island middle = buildIsland(random, mapCenter, Math.max(4, cfg.skywarsMiddleRadius), cfg.skywarsMiddleChests);
 
-        int maxRadius = SPAWN_DISTANCE + Math.max(3, cfg.skywarsIslandRadius) + MAX_RADIUS_MARGIN;
+        int maxRadius = spawnDist + maxIslandRadius + MAX_RADIUS_MARGIN;
         return new SkyWarsLayout(mapCenter, maxRadius, spawnIslands, middle, spawns);
     }
 

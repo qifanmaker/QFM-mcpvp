@@ -85,9 +85,15 @@ public final class SkyWarsMapGenerator {
             }
         }
 
-        // 出生岛偶发一棵小橡树（增添辨识度与遮挡）
-        if (!middle && random.nextInt(3) == 0) {
-            buildSmallTree(world, random, c);
+        // 出生岛偶发一棵小橡树（放到离岛心 ≥3 格处，避免玩家出生卡进树干/树叶里）
+        if (!middle && r >= 5 && random.nextInt(3) == 0) {
+            int treeDist = 3 + random.nextInt(Math.max(1, r - 4));
+            double ta = random.nextDouble() * 2.0 * Math.PI;
+            BlockPos treeBase = new BlockPos(
+                    c.getX() + (int) Math.round(Math.cos(ta) * treeDist),
+                    c.getY(),
+                    c.getZ() + (int) Math.round(Math.sin(ta) * treeDist));
+            buildSmallTree(world, random, treeBase);
         }
     }
 

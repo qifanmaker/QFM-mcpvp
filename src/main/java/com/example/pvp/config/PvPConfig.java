@@ -55,9 +55,9 @@ public final class PvPConfig {
     public int skywarsCountdownSeconds = 30;
     public int skywarsFillTimeoutSeconds = 60;
     /** 地图覆盖边长（生成/清理边界，需覆盖所有岛屿）。 */
-    public int skywarsSize = 64;
+    public int skywarsSize = 80;
     public int skywarsIslandRadius = 5;
-    public int skywarsMiddleRadius = 8;
+    public int skywarsMiddleRadius = 12;
     public int skywarsChestsPerIsland = 3;
     public int skywarsMiddleChests = 5;
     /** 对局超时（秒）与缩圈：开赛多少秒后开始缩圈、每圈间隔多少秒、每圈塌掉几格、最小安全半径。 */
