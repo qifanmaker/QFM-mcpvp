@@ -145,22 +145,23 @@ public final class SkyWarsMapGenerator {
     public static void clearIslands(ArenaWorld world, int regionIndex, int size) {
         BlockPos origin = new BlockPos(regionIndex * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
 
-        // 清掉落物
-        Box box = new Box(
-                origin.getX(), origin.getY() - ISLAND_DEPTH - 1, origin.getZ(),
-                origin.getX() + size, origin.getY() + 14, origin.getZ() + size
-        );
-        for (ItemEntity entity : world.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
-            entity.discard();
-        }
-
-        // 清方块（Y 从平台下方到立柱顶之上）
+        // 先拆方块：箱子被拆掉时会把里面战利品掉落成实体，
+        // 所以必须先拆块、再清掉落物，否则箱子内容会残留在地上
         for (int dx = 0; dx < size; dx++) {
             for (int dz = 0; dz < size; dz++) {
                 for (int dy = -ISLAND_DEPTH - 1; dy <= 14; dy++) {
                     world.setBlockState(origin.add(dx, dy, dz), Blocks.AIR.getDefaultState(), 3);
                 }
             }
+        }
+
+        // 再清掉落物（含拆箱掉出来的战利品与玩家淘汰时的掉落）
+        Box box = new Box(
+                origin.getX(), origin.getY() - ISLAND_DEPTH - 1, origin.getZ(),
+                origin.getX() + size, origin.getY() + 14, origin.getZ() + size
+        );
+        for (ItemEntity entity : world.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
+            entity.discard();
         }
     }
 

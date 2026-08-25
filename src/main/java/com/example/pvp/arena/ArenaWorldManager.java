@@ -202,22 +202,22 @@ public final class ArenaWorldManager {
         BlockPos origin = template.getRegionOrigin(regionIndex);
         int size = template.getSize();
 
-        // 清空区域内掉落物
-        Box box = new Box(
-                origin.getX(), origin.getY() - 2, origin.getZ(),
-                origin.getX() + size, origin.getY() + ArenaTemplate.WALL_HEIGHT + 2, origin.getZ() + size
-        );
-        for (ItemEntity entity : arena.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
-            entity.discard();
-        }
-
-        // 清空方块
+        // 先清方块再清掉落物：拆掉箱子等容器时内容物会重新掉落成实体
         for (int dx = 0; dx < size; dx++) {
             for (int dz = 0; dz < size; dz++) {
                 for (int dy = -1; dy <= ArenaTemplate.WALL_HEIGHT + 1; dy++) {
                     arena.setBlockState(origin.add(dx, dy, dz), Blocks.AIR.getDefaultState(), 3);
                 }
             }
+        }
+
+        // 再清空区域内掉落物
+        Box box = new Box(
+                origin.getX(), origin.getY() - 2, origin.getZ(),
+                origin.getX() + size, origin.getY() + ArenaTemplate.WALL_HEIGHT + 2, origin.getZ() + size
+        );
+        for (ItemEntity entity : arena.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
+            entity.discard();
         }
     }
 
