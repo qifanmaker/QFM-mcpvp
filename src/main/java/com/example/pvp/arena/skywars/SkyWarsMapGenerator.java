@@ -151,10 +151,14 @@ public final class SkyWarsMapGenerator {
         // 先拆方块：箱子被拆掉时会把里面战利品掉落成实体，
         // 所以必须先拆块、再清掉落物，否则箱子内容会残留在地上
         // 清场高度取平台下方 3 格到上方 6 格（覆盖岛体/立柱/小树顶部）
+        // 大图大部分是虚空空气，跳过空气大幅降低清场耗时
         for (int dx = 0; dx < size; dx++) {
             for (int dz = 0; dz < size; dz++) {
                 for (int dy = -ISLAND_DEPTH - 1; dy <= 6; dy++) {
-                    world.setBlockState(origin.add(dx, dy, dz), Blocks.AIR.getDefaultState(), 3);
+                    BlockPos pos = origin.add(dx, dy, dz);
+                    if (!world.getBlockState(pos).isAir()) {
+                        world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                    }
                 }
             }
         }
