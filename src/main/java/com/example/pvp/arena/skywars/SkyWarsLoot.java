@@ -84,6 +84,7 @@ public final class SkyWarsLoot {
             new LootEntry(6, (r, c) -> stack(Items.SNOWBALL, 16)),
             new LootEntry(2, (r, c) -> stack(Items.SLIME_BALL, 1 + r.nextInt(2))),
             new LootEntry(3, (r, c) -> stack(Items.ANVIL, 1)),
+            new LootEntry(8, (r, c) -> goldenAxe(r)),
             new LootEntry(6, (r, c) -> junkIron(r)),
             new LootEntry(10, (r, c) -> bridgeBlocks(r))
     );
@@ -112,7 +113,8 @@ public final class SkyWarsLoot {
             new LootEntry(6, (r, c) -> trackingCompass()),
             new LootEntry(6, (r, c) -> stack(Items.SNOWBALL, 16)),
             new LootEntry(2, (r, c) -> stack(Items.SLIME_BALL, 1 + r.nextInt(2))),
-            new LootEntry(4, (r, c) -> stack(Items.ANVIL, 1))
+            new LootEntry(4, (r, c) -> stack(Items.ANVIL, 1)),
+            new LootEntry(6, (r, c) -> goldenAxe(r))
     );
 
     /**
@@ -214,6 +216,31 @@ public final class SkyWarsLoot {
         Item[] junk = {Items.IRON_SHOVEL, Items.IRON_HOE, Items.IRON_PICKAXE, Items.IRON_AXE};
         ItemStack stack = new ItemStack(junk[random.nextInt(junk.length)]);
         maybeEnchant(stack, random, 25);
+        return stack;
+    }
+
+    /**
+     * 金斧（中等概率）：普通 / 锋利 I / II / III / VII（VII 约 1/10，稀有）。
+     * 金斧耐久低——高锋利是伤高但易碎的"玻璃大炮"。
+     */
+    private static ItemStack goldenAxe(Random random) {
+        ItemStack stack = new ItemStack(Items.GOLDEN_AXE);
+        int roll = random.nextInt(100);
+        int level;
+        if (roll < 25) {
+            level = 0; // 普通
+        } else if (roll < 50) {
+            level = 1;
+        } else if (roll < 70) {
+            level = 2;
+        } else if (roll < 90) {
+            level = 3;
+        } else {
+            level = 7; // 锋利 VII
+        }
+        if (level > 0) {
+            applyEnchant(stack, Enchantments.SHARPNESS, level);
+        }
         return stack;
     }
 
