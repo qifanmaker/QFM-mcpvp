@@ -53,12 +53,12 @@ public final class SkyWarsLoot {
 
     /** 出生岛箱子战利品：以铁装为主，偶见钻石装，必带桥接方块与基础物资。 */
     private static final List<LootEntry> SPAWN_TABLE = List.of(
-            new LootEntry(14, (r, c) -> weapon(Items.IRON_SWORD, r, c)),
-            new LootEntry(6, (r, c) -> weapon(Items.IRON_AXE, r, c)),
+            new LootEntry(16, (r, c) -> weapon(Items.IRON_SWORD, r, c)),
+            new LootEntry(8, (r, c) -> weapon(Items.IRON_AXE, r, c)),
             new LootEntry(6, (r, c) -> bow(r, c)),
             new LootEntry(10, (r, c) -> arrow(8 + r.nextInt(9))),
-            new LootEntry(8, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
-            new LootEntry(14, (r, c) -> armor(r, c, false)),
+            new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
+            new LootEntry(16, (r, c) -> armor(r, c, false)),
             new LootEntry(6, (r, c) -> armor(r, c, true)),
             new LootEntry(8, (r, c) -> food(r)),
             new LootEntry(6, (r, c) -> stack(Items.GOLDEN_APPLE, 1 + r.nextInt(2))),
@@ -101,9 +101,10 @@ public final class SkyWarsLoot {
         List<ItemStack> drops = new ArrayList<>();
         int stackCount = middle ? 4 + random.nextInt(3) : 3 + random.nextInt(2); // 中间 4~6，出生 3~4
 
-        // 出生箱保底一组搭桥方块（岛间距大，没有方块无法搭桥过岛）
+        // 出生箱保底：一组搭桥方块 + 一件铁质装备（3 箱合计至少 3 件，大概率集齐铁装）
         if (!middle) {
             drops.add(bridgeBlocks(random));
+            drops.add(ironEquipment(random, 35));
         }
 
         for (int i = 0; i < stackCount; i++) {
@@ -148,6 +149,17 @@ public final class SkyWarsLoot {
 
     private static ItemStack weapon(Item item, Random random, int enchantChance) {
         ItemStack stack = new ItemStack(item);
+        maybeEnchant(stack, random, enchantChance);
+        return stack;
+    }
+
+    /** 一件随机铁质装备：铁剑/铁斧/铁护甲（带附魔概率）。 */
+    private static ItemStack ironEquipment(Random random, int enchantChance) {
+        if (random.nextBoolean()) {
+            return weapon(random.nextBoolean() ? Items.IRON_SWORD : Items.IRON_AXE, random, enchantChance);
+        }
+        Item[] pieces = {Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS};
+        ItemStack stack = new ItemStack(pieces[random.nextInt(pieces.length)]);
         maybeEnchant(stack, random, enchantChance);
         return stack;
     }
