@@ -41,9 +41,9 @@ public final class PvPConfig {
     public String floorBlock = "minecraft:polished_deepslate";
     public String wallBlock = "minecraft:glass";
 
-    public int duel1v1Size = 21;
-    public int duel2v2Size = 31;
-    public int ffaSize = 41;
+    public int duel1v1Size = 51;
+    public int duel2v2Size = 71;
+    public int ffaSize = 101;
     public int sumoSize = 11;
 
     // ---------- 空岛战争 (SkyWars) ----------

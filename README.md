@@ -89,9 +89,9 @@
   "matchTimeoutSeconds": 600,   // 对局超时（秒），超时强制平局结束
   "floorBlock": "minecraft:polished_deepslate",  // 平台地板方块
   "wallBlock": "minecraft:glass",                // 平台围墙方块
-  "duel1v1Size": 21,            // 1v1 平台边长
-  "duel2v2Size": 31,            // 2v2 平台边长
-  "ffaSize": 41,                // FFA 平台边长
+  "duel1v1Size": 51,            // 1v1 平台边长
+  "duel2v2Size": 71,            // 2v2 平台边长
+  "ffaSize": 101,               // FFA 平台边长
   "sumoSize": 11,               // 相扑平台边长
 
   // ---- 空岛战争 (SkyWars) ----
