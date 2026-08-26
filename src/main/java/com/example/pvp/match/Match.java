@@ -215,6 +215,45 @@ public final class Match {
             default -> {
             }
         }
+
+        this.tickGhosts();
+    }
+
+    /** 幽灵被动行为兜底：脚下被放方块 / 靠近掉落物（会被吸取）时弹开。 */
+    private void tickGhosts() {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        for (ServerPlayerEntity player : this.players) {
+            if (!this.eliminated.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null || online.getWorld() != arena) {
+                continue;
+            }
+            // 1) 脚下/身体内出现方块（场上玩家往幽灵脚下搭方块）→ 弹开
+            BlockPos feet = online.getBlockPos();
+            boolean solidBelow = !arena.getBlockState(feet).isAir()
+                    || !arena.getBlockState(feet.down()).isAir()
+                    || !arena.getBlockState(feet.down(2)).isAir();
+            // 2) 附近有掉落物（幽灵会吸取）→ 弹开
+            boolean itemsNearby = !arena.getEntitiesByClass(ItemEntity.class,
+                    online.getBoundingBox().expand(1.0), e -> true).isEmpty();
+            if (solidBelow || itemsNearby) {
+                this.knockGhostAway(online);
+            }
+        }
+    }
+
+    /** 把幽灵向上弹开 3 格（配合飞行能力脱离方块/掉落物范围）。 */
+    private void knockGhostAway(ServerPlayerEntity ghost) {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        ghost.teleport(arena, ghost.getX(), ghost.getY() + 3.0, ghost.getZ(), ghost.getYaw(), ghost.getPitch());
     }
 
     /** 胜利庆祝倒计时，结束后结算。 */
@@ -474,13 +513,17 @@ public final class Match {
         inventory.clear();
     }
 
-    /** 将玩家转为"幽灵"：冒险模式 + 空物品栏 + 无敌 + 漂浮在观战台，无法与对局任何交互。 */
+    /** 将玩家转为"幽灵"：冒险模式 + 空物品栏 + 无敌 + 可自由飞行，无法与对局任何交互。 */
     public void makeGhost(ServerPlayerEntity player) {
         player.changeGameMode(GameMode.ADVENTURE);
         player.getInventory().clear();
         player.setInvulnerable(true);
         player.setHealth(20f);
         player.setNoGravity(true);
+        // 幽灵可任意飞行（赛后由 InventorySnapshot.restore 还原能力）
+        player.getAbilities().allowFlying = true;
+        player.getAbilities().flying = true;
+        player.sendAbilitiesUpdate();
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena != null) {
             BlockPos center = this.template.getCenter(this.regionIndex);
