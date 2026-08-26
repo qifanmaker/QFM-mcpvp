@@ -108,6 +108,7 @@ public final class MatchManager {
                 player.changeGameMode(GameMode.ADVENTURE);
             }
             player.setInvulnerable(true);
+            player.setInvisible(false); // 主城一律显形（防止幽灵隐身状态残留）
             player.getHungerManager().setFoodLevel(20);
             player.getHungerManager().setSaturationLevel(20f);
         }

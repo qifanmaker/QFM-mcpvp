@@ -22,6 +22,7 @@ import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerBlockEntityEvents;
@@ -70,6 +71,14 @@ public final class PvPMod implements ModInitializer {
 
     /** 主城内需自动补 TNT 的发射器（仅主世界，加载/卸载自动增删）。 */
     private static final Set<DispenserBlockEntity> TNT_DISPENSERS = new HashSet<>();
+
+    /** 插件版本号（来自 fabric.mod.json，构建时由 Gradle 填充）。 */
+    public static String version() {
+        return FabricLoader.getInstance()
+                .getModContainer(MOD_ID)
+                .map(c -> c.getMetadata().getVersion().getFriendlyString())
+                .orElse("?");
+    }
 
     @Override
     public void onInitialize() {
@@ -143,6 +152,9 @@ public final class PvPMod implements ModInitializer {
             }
             PvpGuiManager.get().giveMenuItem(handler.player);
             PvpGuiManager.removeQueueItem(handler.player); // 清理断线残留的排队红石
+            // 进服显示插件名 + 版本号，方便确认是否最新版本
+            handler.player.sendMessage(Messages.gold(
+                    "§6PvP 匹配 Mod §fv" + version() + " §r已连接，右键指南针打开菜单"), false);
         });
 
         UseItemCallback.EVENT.register((player, world, hand) -> {
@@ -202,19 +214,15 @@ public final class PvPMod implements ModInitializer {
                     }
                     return TypedActionResult.pass(stack);
                 }
-                // 竞技场内火焰弹（空岛战争）：对空中右键发射，落地/命中把附近玩家弹开
+                // 竞技场内火焰弹（空岛战争）：右键即发射，落地/命中把附近玩家弹开（不再受瞄准方块影响）
                 if (stack.isOf(Items.FIRE_CHARGE) && world.getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
-                    HitResult hit = serverPlayer.raycast(4.5, 1.0F, false);
-                    if (hit != null && hit.getType() == HitResult.Type.MISS) {
-                        Vec3d look = serverPlayer.getRotationVector();
-                        SmallFireballEntity fireball = new SmallFireballEntity(world, serverPlayer, look);
-                        fireball.setPosition(serverPlayer.getX(), serverPlayer.getEyeY() - 0.1, serverPlayer.getZ());
-                        fireball.setVelocity(look.multiply(1.5)); // 覆盖构造时的 0.1 倍速，飞得更快
-                        world.spawnEntity(fireball);
-                        stack.decrement(1);
-                        return TypedActionResult.success(stack);
-                    }
-                    return TypedActionResult.pass(stack); // 对准方块则交给原版点火
+                    Vec3d look = serverPlayer.getRotationVector();
+                    SmallFireballEntity fireball = new SmallFireballEntity(world, serverPlayer, look);
+                    fireball.setPosition(serverPlayer.getX(), serverPlayer.getEyeY() - 0.1, serverPlayer.getZ());
+                    fireball.setVelocity(look.multiply(1.5)); // 覆盖构造时的 0.1 倍速，飞得更快
+                    world.spawnEntity(fireball);
+                    stack.decrement(1);
+                    return TypedActionResult.success(stack);
                 }
             }
             return TypedActionResult.pass(stack);
