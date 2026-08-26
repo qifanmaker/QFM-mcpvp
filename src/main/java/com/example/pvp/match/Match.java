@@ -7,6 +7,7 @@ import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
+import com.example.pvp.arena.skywars.SkyWarsTheme;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
 import com.example.pvp.gui.PvpGuiManager;
@@ -84,6 +85,10 @@ public final class Match {
 
     /** 空岛战争地图布局（仅在 SKYWARS 模式非空，缩圈用）。 */
     private final SkyWarsLayout skywarsLayout;
+    /** 空岛战争地图主题（仅 SKYWARS 模式非空，由比赛种子抽取，图腾救回点/展示用）。 */
+    private final SkyWarsTheme skywarsTheme;
+    /** 空岛战争地图种子：比赛 ID，OP 强制指定主题时会对齐低位使 pick 结果等于指定主题。 */
+    private final int skywarsSeed;
     private int skywarsShrinkStage; // 已执行的缩圈档数
     private int skywarsLastKeepRadius = Integer.MAX_VALUE; // 上一档安全半径
 
@@ -122,11 +127,23 @@ public final class Match {
         // 计算出生点（空岛战争/战桥用同一份确定性布局，保证与地图生成一致）
         List<BlockPos> spawnPositions;
         if (type == MatchType.SKYWARS) {
-            this.skywarsLayout = SkyWarsLayout.compute(template.getCenter(regionIndex), id, this.players.size());
+            // OP 强制开赛可指定主题：消费一次性的强制主题；否则由 seed 随机抽取
+            SkyWarsTheme forced = manager.consumePendingSkywarsTheme();
+            int seed = id;
+            if (forced != null) {
+                this.skywarsTheme = forced;
+                seed = SkyWarsTheme.alignSeed(seed, forced); // 地图布局仍随 id 变化
+            } else {
+                this.skywarsTheme = SkyWarsTheme.pick(seed);
+            }
+            this.skywarsSeed = seed;
+            this.skywarsLayout = SkyWarsLayout.compute(template.getCenter(regionIndex), seed, this.players.size());
             this.bridgeLayout = null;
             spawnPositions = this.skywarsLayout.spawns();
         } else if (type.isBridge()) {
             this.skywarsLayout = null;
+            this.skywarsTheme = null;
+            this.skywarsSeed = id;
             this.bridgeLayout = BridgeLayout.compute(template.getCenter(regionIndex),
                     this.players.size(), type == MatchType.BRIDGE_1V1V1V1);
             // 每人出生点 = 所属队伍（teams 顺序即基地顺序）对应的笼位
@@ -144,6 +161,8 @@ public final class Match {
             }
         } else {
             this.skywarsLayout = null;
+            this.skywarsTheme = null;
+            this.skywarsSeed = id;
             this.bridgeLayout = null;
             spawnPositions = template.computeSpawns(regionIndex, this.players.size());
         }
@@ -390,10 +409,12 @@ public final class Match {
             }
             online.getInventory().getStack(slot).decrement(1); // 消耗一个图腾（背包里任意位置都算）
             online.getWorld().sendEntityStatus(online, (byte) 35); // 播放不死图腾激活动画
-            BlockPos middle = this.skywarsLayout.middle().center();
-            int y = Math.max(middle.getY() + 2, ArenaTemplate.PLATFORM_Y + 1);
-            online.teleport(arena, middle.getX() + 0.5, y, middle.getZ() + 0.5, online.getYaw(), online.getPitch());
-            online.sendMessage(Messages.gold("不死图腾生效！你被传送回中岛中心！"), false);
+            // 救回点：末地主题为中岛环上的安全点（避免掉进空心中央再次坠虚空），其余为中岛中心
+            SkyWarsTheme theme = this.skywarsTheme != null ? this.skywarsTheme : SkyWarsTheme.OVERWORLD;
+            BlockPos rescue = theme.rescuePoint(this.skywarsLayout.middle());
+            int y = Math.max(rescue.getY() + 2, ArenaTemplate.PLATFORM_Y + 1);
+            online.teleport(arena, rescue.getX() + 0.5, y, rescue.getZ() + 0.5, online.getYaw(), online.getPitch());
+            online.sendMessage(Messages.gold("不死图腾生效！你被传送回中岛！"), false);
             this.broadcast(Messages.warn("§e" + online.getGameProfile().getName() + "§r 依靠不死图腾逃离了虚空！"));
         }
     }
@@ -1097,7 +1118,7 @@ public final class Match {
     }
 
     private void setupPlayers() {
-        this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.id, this.players.size(), this.type);
+        this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.skywarsSeed, this.players.size(), this.type);
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
 
         boolean skywars = this.type == MatchType.SKYWARS;
@@ -1141,7 +1162,8 @@ public final class Match {
             this.broadcast(Messages.info("战桥开始！冲进对方球门得分，先得 "
                     + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜！（1.8 低版本战斗）"));
         } else if (skywars) {
-            this.broadcast(Messages.info("空岛战争开始！搜刮空岛，成为最后幸存者！（1.8 低版本战斗）"));
+            String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
+            this.broadcast(Messages.info("空岛战争开始！主题：§e" + themeName + "§r。搜刮空岛，成为最后幸存者！（1.8 低版本战斗）"));
         } else {
             this.broadcast(Messages.info("对局开始！模式：" + this.type.getDisplayName() + "，套件：" + this.kit.getDisplayName()));
         }
@@ -1329,6 +1351,8 @@ public final class Match {
             this.setInfoLine(scoreboard, objective, "§b存活 §f" + alive + "§7/§f" + this.players.size(), score--);
             if (this.type == MatchType.SKYWARS) {
                 this.setInfoLine(scoreboard, objective, this.skywarsShrinkLine(), score--);
+                String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
+                this.setInfoLine(scoreboard, objective, "§7主题: §e" + themeName, score--);
             }
             this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
             for (ServerPlayerEntity player : this.players) {

@@ -4,6 +4,7 @@ import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.config.PvPConfig;
 import com.mojang.logging.LogUtils;
+import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.block.entity.BlockEntity;
@@ -27,60 +28,92 @@ public final class SkyWarsMapGenerator {
     private SkyWarsMapGenerator() {
     }
 
-    /** 生成一整张空岛地图（含战利品），并返回布局（出生点已在 Match 构造时算好）。 */
+    /** 生成一整张空岛地图（含战利品），并返回布局（出生点已在 Match 构造时算好）。主题由 seed 抽取。 */
     public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount) {
         BlockPos mapCenter = center(regionIndex);
         SkyWarsLayout layout = SkyWarsLayout.compute(mapCenter, seed, playerCount);
+        SkyWarsTheme theme = SkyWarsTheme.pick(seed);
 
         for (SkyWarsLayout.Island island : layout.spawnIslands()) {
-            buildIsland(world, island, false);
+            buildIsland(world, island, false, theme);
         }
         for (SkyWarsLayout.Island island : layout.midIslands()) {
-            buildIsland(world, island, false);
+            buildIsland(world, island, false, theme);
         }
-        buildIsland(world, layout.middle(), true);
+        buildIsland(world, layout.middle(), true, theme);
 
-        LOGGER.info("[PvP] 空岛战争地图已生成: {} 个出生岛 + {} 个中途岛 + 中间主岛({} 箱)",
-                layout.spawnIslands().size(), layout.midIslands().size(), layout.middle().chests().size());
+        LOGGER.info("[PvP] 空岛战争地图已生成: {} 个出生岛 + {} 个中途岛 + 中间主岛({} 箱)，主题：{}",
+                layout.spawnIslands().size(), layout.midIslands().size(), layout.middle().chests().size(),
+                theme.getDisplayName());
         return layout;
     }
 
-    /** 铺一座岛（圆台 + 箱子 + 偶发小树）；中间岛前两个箱子放在石砖柱上。 */
-    private static void buildIsland(ArenaWorld world, SkyWarsLayout.Island island, boolean middle) {
+    /** 铺一座岛（按主题选材质 + 箱子 + 偶发装饰）；中间岛前两个箱子放在石砖柱上。 */
+    private static void buildIsland(ArenaWorld world, SkyWarsLayout.Island island, boolean middle, SkyWarsTheme theme) {
         Random random = new Random(island.center.hashCode());
         int r = island.radius;
         BlockPos c = island.center;
+        Block top = theme.topBlock(), sub = theme.subBlock(), deep = theme.deepBlock();
+        boolean ring = theme.ringMiddle() && middle;
+        int innerR = ring ? (int) (r * theme.ringInnerRatio()) : 0;
+        // 地狱岛面随机危害：灵魂沙/岩浆（只放玩家岛，避免中岛太混乱）
+        int soulSandLeft = theme == SkyWarsTheme.NETHER ? 3 + random.nextInt(3) : 0;
+        int lavaLeft = theme == SkyWarsTheme.NETHER ? 1 + random.nextInt(2) : 0;
 
-        // 圆台：顶层草方块，下方泥土/石头
+        // 圆台：按主题铺表层/次层/深层；末地中岛为空心环；地狱岛面随机刷灵魂沙/岩浆
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
                 double dist = Math.sqrt(dx * dx + dz * dz);
                 if (dist > r) {
                     continue;
                 }
-                BlockPos top = new BlockPos(c.getX() + dx, c.getY(), c.getZ() + dz);
-                world.setBlockState(top, Blocks.GRASS_BLOCK.getDefaultState(), 3);
-                world.setBlockState(top.down(), Blocks.DIRT.getDefaultState(), 3);
+                if (ring && dist < innerR) {
+                    continue; // 空心环：中央不铺块
+                }
+                BlockPos topPos = new BlockPos(c.getX() + dx, c.getY(), c.getZ() + dz);
+                Block topBlock = top;
+                if (!middle && theme == SkyWarsTheme.NETHER) {
+                    int roll = random.nextInt(100);
+                    if (roll < 4 && soulSandLeft > 0) {
+                        topBlock = Blocks.SOUL_SAND;
+                        soulSandLeft--;
+                    } else if (roll < 5 && lavaLeft > 0) {
+                        topBlock = Blocks.LAVA;
+                        lavaLeft--;
+                    }
+                }
+                world.setBlockState(topPos, topBlock.getDefaultState(), 3);
+                world.setBlockState(topPos.down(), sub.getDefaultState(), 3);
                 for (int depth = 2; depth <= ISLAND_DEPTH; depth++) {
-                    world.setBlockState(top.down(depth), Blocks.STONE.getDefaultState(), 3);
+                    world.setBlockState(topPos.down(depth), deep.getDefaultState(), 3);
                 }
             }
         }
 
-        // 箱子（中间岛前两个放 3 格高石砖柱上）
+        // 箱子（中间岛前两个放 3 格高石砖柱上；末地环上把落进空心的箱子挪到环内缘，避免浮空）
         java.util.List<BlockPos> chests = island.chests();
         for (int i = 0; i < chests.size(); i++) {
             BlockPos chestPos = chests.get(i);
+            int cx = chestPos.getX();
+            int cz = chestPos.getZ();
+            if (ring) {
+                double d = Math.hypot(cx - c.getX(), cz - c.getZ());
+                if (d < innerR + 1) {
+                    double ang = Math.atan2(cz - c.getZ(), cx - c.getX());
+                    cx = c.getX() + (int) Math.round(Math.cos(ang) * (innerR + 1));
+                    cz = c.getZ() + (int) Math.round(Math.sin(ang) * (innerR + 1));
+                }
+            }
             int y;
             if (middle && i < 2) {
                 // 立柱：Y+1、Y+2 石砖，箱子在 Y+3
-                world.setBlockState(new BlockPos(chestPos.getX(), c.getY() + 1, chestPos.getZ()), Blocks.STONE_BRICKS.getDefaultState(), 3);
-                world.setBlockState(new BlockPos(chestPos.getX(), c.getY() + 2, chestPos.getZ()), Blocks.STONE_BRICKS.getDefaultState(), 3);
+                world.setBlockState(new BlockPos(cx, c.getY() + 1, cz), Blocks.STONE_BRICKS.getDefaultState(), 3);
+                world.setBlockState(new BlockPos(cx, c.getY() + 2, cz), Blocks.STONE_BRICKS.getDefaultState(), 3);
                 y = c.getY() + 3;
             } else {
                 y = chestPos.getY();
             }
-            BlockPos pos = new BlockPos(chestPos.getX(), y, chestPos.getZ());
+            BlockPos pos = new BlockPos(cx, y, cz);
             world.setBlockState(pos, Blocks.CHEST.getDefaultState(), 3);
             BlockEntity be = world.getBlockEntity(pos);
             if (be instanceof ChestBlockEntity chest) {
@@ -88,7 +121,7 @@ public final class SkyWarsMapGenerator {
             }
         }
 
-        // 出生岛偶发一棵小橡树（放到离岛心 ≥3 格处，避免玩家出生卡进树干/树叶里）
+        // 主题装饰/树（放到离岛心 ≥3 格处，避免玩家出生卡进树干/树叶里）
         if (!middle && r >= 5 && random.nextInt(3) == 0) {
             int treeDist = 3 + random.nextInt(Math.max(1, r - 4));
             double ta = random.nextDouble() * 2.0 * Math.PI;
@@ -96,15 +129,20 @@ public final class SkyWarsMapGenerator {
                     c.getX() + (int) Math.round(Math.cos(ta) * treeDist),
                     c.getY(),
                     c.getZ() + (int) Math.round(Math.sin(ta) * treeDist));
-            buildSmallTree(world, random, treeBase);
+            switch (theme) {
+                case NETHER -> placeNetherFungi(world, random, treeBase);
+                case ICE -> buildSmallTree(world, random, treeBase, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES);
+                case END -> buildChorus(world, random, treeBase);
+                default -> buildSmallTree(world, random, treeBase, Blocks.OAK_LOG, Blocks.OAK_LEAVES);
+            }
         }
     }
 
-    /** 铺一棵 2~3 格树干 + 叶团的小橡树。 */
-    private static void buildSmallTree(ArenaWorld world, Random random, BlockPos base) {
+    /** 铺一棵 2~3 格树干 + 叶团的小树（主世界橡树 / 冰原云杉树）。 */
+    private static void buildSmallTree(ArenaWorld world, Random random, BlockPos base, Block log, Block leaves) {
         int trunk = 2 + random.nextInt(2);
         for (int i = 1; i <= trunk; i++) {
-            world.setBlockState(base.up(i), Blocks.OAK_LOG.getDefaultState(), 3);
+            world.setBlockState(base.up(i), log.getDefaultState(), 3);
         }
         int topY = base.getY() + trunk;
         int leafR = 2;
@@ -116,12 +154,32 @@ public final class SkyWarsMapGenerator {
                     }
                     BlockPos p = new BlockPos(base.getX() + dx, topY + dy, base.getZ() + dz);
                     if (world.getBlockState(p).isAir()) {
-                        world.setBlockState(p, Blocks.OAK_LEAVES.getDefaultState(), 3);
+                        world.setBlockState(p, leaves.getDefaultState(), 3);
                     }
                 }
             }
         }
-        world.setBlockState(new BlockPos(base.getX(), topY + 1, base.getZ()), Blocks.OAK_LEAVES.getDefaultState(), 3);
+        world.setBlockState(new BlockPos(base.getX(), topY + 1, base.getZ()), leaves.getDefaultState(), 3);
+    }
+
+    /** 地狱装饰：在地面附近放 1~2 个绯红/诡异菌。 */
+    private static void placeNetherFungi(ArenaWorld world, Random random, BlockPos base) {
+        for (int i = 0; i < 2; i++) {
+            BlockPos p = base.add(random.nextInt(3) - 1, 0, random.nextInt(3) - 1);
+            if (world.getBlockState(p).isAir()) {
+                world.setBlockState(p, random.nextBoolean()
+                        ? Blocks.CRIMSON_FUNGUS.getDefaultState() : Blocks.WARPED_FUNGUS.getDefaultState(), 3);
+            }
+        }
+    }
+
+    /** 末地装饰：一株小紫颂植物。 */
+    private static void buildChorus(ArenaWorld world, Random random, BlockPos base) {
+        int h = 2 + random.nextInt(2);
+        for (int i = 1; i <= h; i++) {
+            world.setBlockState(base.up(i), Blocks.CHORUS_PLANT.getDefaultState(), 3);
+        }
+        world.setBlockState(base.up(h + 1), Blocks.CHORUS_FLOWER.getDefaultState(), 3);
     }
 
     /** 缩圈：把水平距离大于 keepRadius 的所有方块（含岛、立柱、箱子）清为空气。 */

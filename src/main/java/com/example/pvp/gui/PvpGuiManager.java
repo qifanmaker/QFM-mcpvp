@@ -1,12 +1,14 @@
 package com.example.pvp.gui;
 
 import com.example.pvp.PvPMod;
+import com.example.pvp.arena.skywars.SkyWarsTheme;
 import com.example.pvp.config.PlayerStats;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.MatchType;
+import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.text.Messages;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
@@ -334,6 +336,20 @@ public final class PvpGuiManager {
         });
     }
 
+    /** OP 立即开始时的主题选择页（仅排队空岛战争时出现）。 */
+    private void openThemePage(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.THEME;
+        this.openPage(player, ctx, "§6选择空岛主题（立即开始）", inv -> {
+            inv.setStack(10, makeButton(Items.GRASS_BLOCK, "§a主世界", "草方块 + 小橡树"));
+            inv.setStack(11, makeButton(Items.NETHERRACK, "§4地狱", "地狱岩，岛面随机刷灵魂沙/岩浆"));
+            inv.setStack(12, makeButton(Items.PACKED_ICE, "§b冰原", "全部由雪块/浮冰构成"));
+            inv.setStack(13, makeButton(Items.END_STONE, "§d末地", "末地石，中岛为空心环"));
+            inv.setStack(14, makeButton(Items.ENDER_PEARL, "§e随机主题", "不指定，交给运气"));
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+        });
+    }
+
     private void openKitInfoPage(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.KIT_INFO;
@@ -368,6 +384,7 @@ public final class PvpGuiManager {
             case MAIN -> this.onClickMain(player, ctx, slotIndex);
             case KIT -> this.onClickKit(player, ctx, slotIndex);
             case DUEL_TARGET -> this.onClickDuelTarget(player, ctx, slotIndex);
+            case THEME -> this.onClickTheme(player, ctx, slotIndex);
             case STATS, KIT_INFO -> {
                 if (slotIndex == 26) {
                     this.openMainMenu(player);
@@ -418,10 +435,13 @@ public final class PvpGuiManager {
             case 20 -> this.openStatsPage(player);
             case 21 -> this.openKitInfoPage(player);
             case 22 -> {
-                if (PvPMod.QUEUE.forceStart(PvPMod.MATCH, player)) {
-                    player.sendMessage(Messages.info("已强制立即开赛！"), false);
+                // OP 立即开始：排队空岛战争时可先选主题，其余模式直接开
+                QueueEntry entry = PvPMod.QUEUE.getEntry(player);
+                if (entry != null && entry.getType() == MatchType.SKYWARS) {
+                    this.openThemePage(player);
+                } else {
+                    this.doForceStart(player);
                 }
-                this.openMainMenu(player);
             }
             case 23 -> {
                 if (PvPMod.QUEUE.leave(player)) {
@@ -484,6 +504,33 @@ public final class PvpGuiManager {
         }
         ctx.duelTargetUuid = candidates.get(index).getUuid();
         this.openKitPage(player);
+    }
+
+    /** 主题选择页点击：选主题 → 立即开赛；随机 → 不指定主题立即开。 */
+    private void onClickTheme(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        SkyWarsTheme theme = switch (slot) {
+            case 10 -> SkyWarsTheme.OVERWORLD;
+            case 11 -> SkyWarsTheme.NETHER;
+            case 12 -> SkyWarsTheme.ICE;
+            case 13 -> SkyWarsTheme.END;
+            default -> null; // 14=随机，不指定
+        };
+        if (PvPMod.MATCH != null) {
+            PvPMod.MATCH.setNextSkywarsTheme(theme);
+        }
+        this.doForceStart(player);
+    }
+
+    /** OP 立即开赛：用当前队列人数开赛并返回主菜单。 */
+    private void doForceStart(ServerPlayerEntity player) {
+        if (PvPMod.QUEUE.forceStart(PvPMod.MATCH, player)) {
+            player.sendMessage(Messages.info("已强制立即开赛！"), false);
+        }
+        this.openMainMenu(player);
     }
 
     private void joinQueue(ServerPlayerEntity player, MatchType type, Kit kit) {
@@ -611,7 +658,7 @@ public final class PvpGuiManager {
     // ---------- 内部类型 ----------
 
     private enum Page {
-        MAIN, KIT, DUEL_TARGET, STATS, KIT_INFO
+        MAIN, KIT, DUEL_TARGET, STATS, KIT_INFO, THEME
     }
 
     private static final class GuiContext {

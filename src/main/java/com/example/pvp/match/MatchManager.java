@@ -3,6 +3,7 @@ package com.example.pvp.match;
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
+import com.example.pvp.arena.skywars.SkyWarsTheme;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.InventorySnapshot;
@@ -38,6 +39,8 @@ public final class MatchManager {
     private final List<Match> matches = new ArrayList<>();
     private final Set<Integer> allocatedRegions = new HashSet<>();
     private final Map<UUID, InventorySnapshot> pendingRestores = new ConcurrentHashMap<>();
+    /** OP 强制开赛时指定的一次性空岛主题（下一次 SKYWARS 用，用后清除）。 */
+    private SkyWarsTheme pendingSkywarsTheme;
     private int nextMatchId = 0;
 
     private MatchManager(MinecraftServer server) {
@@ -61,6 +64,18 @@ public final class MatchManager {
 
     public ArenaWorldManager getArenaManager() {
         return ArenaWorldManager.get(this.server);
+    }
+
+    /** OP 强制开赛前指定下一次空岛战争的强制主题（null = 随机）。 */
+    public void setNextSkywarsTheme(SkyWarsTheme theme) {
+        this.pendingSkywarsTheme = theme;
+    }
+
+    /** 消费一次性强制主题（Match 构造时调用）。 */
+    public SkyWarsTheme consumePendingSkywarsTheme() {
+        SkyWarsTheme theme = this.pendingSkywarsTheme;
+        this.pendingSkywarsTheme = null;
+        return theme;
     }
 
     /** 每个服务器 tick 调用。 */

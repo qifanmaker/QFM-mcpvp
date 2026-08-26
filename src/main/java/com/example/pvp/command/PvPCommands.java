@@ -8,6 +8,7 @@ import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.bridge.BridgeMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
+import com.example.pvp.arena.skywars.SkyWarsTheme;
 import com.example.pvp.config.KitConfig;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.PlayerStats;
@@ -76,7 +77,9 @@ public final class PvPCommands {
                                 .executes(ctx -> leave(ctx)))
                         .then(CommandManager.literal("start")
                                 .requires(source -> source.hasPermissionLevel(2))
-                                .executes(ctx -> forceStart(ctx)))
+                                .executes(ctx -> forceStart(ctx, null))
+                                .then(CommandManager.argument("theme", StringArgumentType.word())
+                                        .executes(ctx -> forceStart(ctx, StringArgumentType.getString(ctx, "theme")))))
                         .then(CommandManager.literal("queue")
                                 .executes(ctx -> queueStatus(ctx)))
                         .then(CommandManager.literal("list")
@@ -217,12 +220,26 @@ public final class PvPCommands {
         return 1;
     }
 
-    /** OP：立即用当前队列人数开赛（跳过倒计时/等待填人）。 */
-    private static int forceStart(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    /** OP：立即用当前队列人数开赛（跳过倒计时/等待填人）；可选指定空岛主题。 */
+    private static int forceStart(CommandContext<ServerCommandSource> ctx, String themeName) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         if (PvPMod.MATCH == null || PvPMod.QUEUE == null) {
             player.sendMessage(Messages.error("服务器尚未就绪"), false);
             return 0;
+        }
+        if (themeName != null && !themeName.isBlank()) {
+            SkyWarsTheme theme = SkyWarsTheme.byName(themeName);
+            if (theme == null) {
+                player.sendMessage(Messages.error("未知主题: " + themeName + "（可用: 主世界, 地狱, 冰原, 末地）"), false);
+                return 0;
+            }
+            QueueEntry entry = PvPMod.QUEUE.getEntry(player);
+            if (entry == null || entry.getType() != MatchType.SKYWARS) {
+                player.sendMessage(Messages.error("只有排空岛战争才能指定主题"), false);
+                return 0;
+            }
+            PvPMod.MATCH.setNextSkywarsTheme(theme);
+            player.sendMessage(Messages.info("已设置强制主题：§e" + theme.getDisplayName()), false);
         }
         if (PvPMod.QUEUE.forceStart(PvPMod.MATCH, player)) {
             player.sendMessage(Messages.info("已强制立即开赛！"), false);
