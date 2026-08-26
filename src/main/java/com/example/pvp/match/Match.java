@@ -1004,6 +1004,26 @@ public final class Match {
         player.sendMessage(Messages.info("正在观战 §e" + next.getGameProfile().getName()), false);
     }
 
+    /** 玩家主动离开竞技场回主城：幽灵走旁观离开流程；活跃玩家视为弃权淘汰并恢复赛前状态。 */
+    public void leaveMatch(ServerPlayerEntity player) {
+        if (this.eliminated.contains(player.getUuid())) {
+            this.spectatorLeave(player, false);
+            return;
+        }
+        this.eliminate(player, EliminationCause.FORFEIT);
+        // 还原赛前状态（转幽灵后还原为正常玩家）、隐藏侧边栏、标记已提前离场
+        InventorySnapshot snapshot = this.snapshots.get(player.getUuid());
+        if (snapshot != null) {
+            snapshot.restore(player);
+        } else {
+            this.manager.teleportToOverworldSpawn(player);
+        }
+        this.leftEarly.add(player.getUuid());
+        if (player.networkHandler != null) {
+            player.networkHandler.sendPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
+        }
+    }
+
     /** 旁观者提前离场：requeue=true 立即重排当前模式，false 回主城。 */
     public void spectatorLeave(ServerPlayerEntity player, boolean requeue) {
         if (!this.leftEarly.add(player.getUuid())) {

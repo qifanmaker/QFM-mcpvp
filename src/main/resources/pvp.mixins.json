@@ -11,6 +11,7 @@
     "ServerPlayerEntityMixin",
     "FishingBobberEntityMixin",
     "SmallFireballEntityMixin",
+    "TntEntityMixin",
     "registry.DimensionOptionsMixin",
     "registry.SimpleRegistryMixin",
     "registry.WorldGenSettingsMixin"

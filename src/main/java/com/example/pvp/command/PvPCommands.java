@@ -79,6 +79,10 @@ public final class PvPCommands {
                                                         StringArgumentType.getString(ctx, "kit"))))))
                         .then(CommandManager.literal("leave")
                                 .executes(ctx -> leave(ctx)))
+                        .then(CommandManager.literal("tpout")
+                                .executes(ctx -> tpOut(ctx)))
+                        .then(CommandManager.literal("tpin")
+                                .executes(ctx -> tpIn(ctx)))
                         .then(CommandManager.literal("start")
                                 .requires(source -> source.hasPermissionLevel(2))
                                 .executes(ctx -> forceStart(ctx, null))
@@ -119,6 +123,9 @@ public final class PvPCommands {
                                                 .executes(ctx -> debugBridge(ctx, parseIntSafe(ctx, "team", 2))))))
         );
 
+        dispatcher.register(CommandManager.literal("hub").executes(ctx -> tpOut(ctx)));   // 返回主城
+        dispatcher.register(CommandManager.literal("watch").executes(ctx -> tpIn(ctx)));  // 进入竞技场
+
         dispatcher.register(
                 CommandManager.literal("duel")
                         .then(CommandManager.argument("target", EntityArgumentType.player())
@@ -152,7 +159,9 @@ public final class PvPCommands {
                         + "§e/pvp join skywars§r 加入空岛战争（无需套件）\n"
                         + "§e/pvp join bridge1v1|bridge1v1v1v1|bridge2v2|bridge§r 加入战桥（无需套件）\n"
                         + "§e/pvp leave§r 离开队列\n"
-                        + "§e/pvp start§r OP 专用：立即用当前队列人数开赛\n"
+                        + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
+                        + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
+                        + "§e/pvp start [主题]§r OP 专用：立即用当前队列人数开赛（排空岛可指定主题）\n"
                         + "§e/pvp queue§r 查看排队状态\n"
                         + "§e/pvp list§r 查看进行中的比赛\n"
                         + "§e/pvp stats [玩家]§r 查看战绩\n"
@@ -228,6 +237,72 @@ public final class PvPCommands {
         } else {
             player.sendMessage(Messages.warn("你不在匹配队列中"), false);
         }
+        return 1;
+    }
+
+    /** 竞技场 → 主城：幽灵走旁观离开流程；活跃玩家视为弃权退出本场；访客移除访客身份。 */
+    private static int tpOut(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        if (PvPMod.MATCH == null || PvPMod.MATCH.getArenaManager().getWorld() == null) {
+            player.sendMessage(Messages.error("服务器尚未就绪"), false);
+            return 0;
+        }
+        if (player.getWorld().getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) {
+            player.sendMessage(Messages.error("你不在竞技场中（用 /pvp tpin 进入）"), false);
+            return 0;
+        }
+        Match match = PvPMod.MATCH.getMatchFor(player);
+        if (match != null) {
+            match.leaveMatch(player);
+        } else {
+            PvPMod.MATCH.getArenaManager().removeVisitor(player.getUuid());
+            // 访客可能被开启了飞行，返回主城时还原
+            player.getAbilities().allowFlying = false;
+            player.getAbilities().flying = false;
+            player.sendAbilitiesUpdate();
+        }
+        PvPMod.MATCH.teleportToOverworldSpawn(player);
+        player.sendMessage(Messages.info("已回到主城"), false);
+        return 1;
+    }
+
+    /** 主城 → 竞技场：有对局则回到对局（幽灵=观战台，活跃=出生点）；无对局则作为访客传送到竞技场上空。 */
+    private static int tpIn(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        if (PvPMod.MATCH == null) {
+            player.sendMessage(Messages.error("服务器尚未就绪"), false);
+            return 0;
+        }
+        if (player.getWorld().getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
+            player.sendMessage(Messages.error("你已经在竞技场中（用 /pvp tpout 返回主城）"), false);
+            return 0;
+        }
+        ArenaWorld arena = PvPMod.MATCH.getArenaManager().getWorld();
+        if (arena == null) {
+            player.sendMessage(Messages.error("竞技场世界不可用"), false);
+            return 0;
+        }
+        Match match = PvPMod.MATCH.getMatchFor(player);
+        if (match != null) {
+            if (match.getState() != MatchState.ACTIVE) {
+                player.sendMessage(Messages.error("你的对局尚未开始，暂时无法传送"), false);
+                return 0;
+            }
+            if (match.isEliminated(player.getUuid())) {
+                match.makeGhost(player);
+            } else {
+                match.teleportToSpawn(player);
+            }
+            player.sendMessage(Messages.info("已回到竞技场对局"), false);
+            return 1;
+        }
+        // 无对局：作为访客传送到竞技场上空观看（开启飞行防掉落，10 分钟后自动回城）
+        player.teleport(arena, 128, ArenaTemplate.PLATFORM_Y + 30, 128, 0, 90);
+        player.getAbilities().allowFlying = true;
+        player.getAbilities().flying = true;
+        player.sendAbilitiesUpdate();
+        PvPMod.MATCH.getArenaManager().addVisitor(player, 600);
+        player.sendMessage(Messages.info("已传送到竞技场（访客视角），用 /hub 返回主城"), false);
         return 1;
     }
 
