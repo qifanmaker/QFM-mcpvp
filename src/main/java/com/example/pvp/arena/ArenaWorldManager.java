@@ -220,12 +220,18 @@ public final class ArenaWorldManager {
 
         BlockPos origin = template.getRegionOrigin(regionIndex);
         int size = template.getSize();
+        // 清到世界最高可搭建 Y（玩家可能向上搭很高的塔），下方也留出夹方块/搭桥的空间
+        int maxDy = arena.getTopY() - 1 - ArenaTemplate.PLATFORM_Y;
+        int minDy = -16;
 
         // 先清方块再清掉落物：拆掉箱子等容器时内容物会重新掉落成实体
         for (int dx = 0; dx < size; dx++) {
             for (int dz = 0; dz < size; dz++) {
-                for (int dy = -1; dy <= ArenaTemplate.WALL_HEIGHT + 1; dy++) {
-                    arena.setBlockState(origin.add(dx, dy, dz), Blocks.AIR.getDefaultState(), 3);
+                for (int dy = minDy; dy <= maxDy; dy++) {
+                    BlockPos pos = origin.add(dx, dy, dz);
+                    if (!arena.getBlockState(pos).isAir()) {
+                        arena.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                    }
                 }
             }
         }

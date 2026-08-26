@@ -58,9 +58,11 @@ public final class BridgeMapGenerator {
         BlockPos center = layout.mapCenter();
         int maxRadius = layout.maxRadius();
 
+        // 清到世界最高可搭建 Y（玩家可能向上搭很高的塔），下方也留出夹方块/搭桥的空间
+        int maxDy = world.getTopY() - 1 - ArenaTemplate.PLATFORM_Y;
         for (int dx = -maxRadius; dx <= maxRadius; dx++) {
             for (int dz = -maxRadius; dz <= maxRadius; dz++) {
-                for (int dy = -4; dy <= 10; dy++) {
+                for (int dy = -16; dy <= maxDy; dy++) {
                     BlockPos pos = new BlockPos(center.getX() + dx, ArenaTemplate.PLATFORM_Y + dy, center.getZ() + dz);
                     if (!world.getBlockState(pos).isAir()) {
                         world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
@@ -70,8 +72,8 @@ public final class BridgeMapGenerator {
         }
 
         Box box = new Box(
-                center.getX() - maxRadius, ArenaTemplate.PLATFORM_Y - 4, center.getZ() - maxRadius,
-                center.getX() + maxRadius + 1, ArenaTemplate.PLATFORM_Y + 10, center.getZ() + maxRadius + 1
+                center.getX() - maxRadius, ArenaTemplate.PLATFORM_Y - 16, center.getZ() - maxRadius,
+                center.getX() + maxRadius + 1, ArenaTemplate.PLATFORM_Y + maxDy, center.getZ() + maxRadius + 1
         );
         for (ItemEntity entity : world.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
             entity.discard();

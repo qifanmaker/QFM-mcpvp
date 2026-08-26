@@ -159,10 +159,11 @@ public final class SkyWarsMapGenerator {
 
         // 先拆方块：箱子被拆掉时会把里面战利品掉落成实体，
         // 所以必须先拆块、再清掉落物，否则箱子内容会残留在地上
-        // 大图大部分是虚空空气，跳过空气降低耗时
+        // 大图大部分是虚空空气，跳过空气降低耗时；高度清到世界最高可搭建 Y（玩家可能向上搭很高的塔）
+        int maxDy = world.getTopY() - 1 - ArenaTemplate.PLATFORM_Y;
         for (int dx = -maxRadius; dx <= maxRadius; dx++) {
             for (int dz = -maxRadius; dz <= maxRadius; dz++) {
-                for (int dy = -ISLAND_DEPTH - 3; dy <= 9; dy++) {
+                for (int dy = -16; dy <= maxDy; dy++) {
                     BlockPos pos = new BlockPos(center.getX() + dx,
                             ArenaTemplate.PLATFORM_Y + dy, center.getZ() + dz);
                     if (!world.getBlockState(pos).isAir()) {
@@ -174,8 +175,8 @@ public final class SkyWarsMapGenerator {
 
         // 再清掉落物（含拆箱掉出来的战利品与玩家淘汰时的掉落）
         Box box = new Box(
-                center.getX() - maxRadius, ArenaTemplate.PLATFORM_Y - ISLAND_DEPTH - 3, center.getZ() - maxRadius,
-                center.getX() + maxRadius + 1, ArenaTemplate.PLATFORM_Y + 9, center.getZ() + maxRadius + 1
+                center.getX() - maxRadius, ArenaTemplate.PLATFORM_Y - 16, center.getZ() - maxRadius,
+                center.getX() + maxRadius + 1, ArenaTemplate.PLATFORM_Y + maxDy, center.getZ() + maxRadius + 1
         );
         for (ItemEntity entity : world.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
             entity.discard();
