@@ -114,9 +114,11 @@ public final class SkyWarsLoot {
             }
         }
 
-        // 中间岛：极稀有物品（各 ~1%）
+        // 极稀有物品：中间岛出鞘翅/附魔金苹果；玩家岛专属出秒人斧
         if (middle) {
-            rollUltraRare(random, drops);
+            rollMiddleUltraRare(random, drops);
+        } else if (random.nextInt(100) < 1) {
+            drops.add(makeMiaoRenAxe()); // 秒人斧仅玩家岛刷新（~1%）
         }
 
         // 随机槽位放入（不覆盖已有物品）
@@ -268,16 +270,14 @@ public final class SkyWarsLoot {
 
     // ---------- 极稀有物品 ----------
 
-    /** 中间岛每箱额外约 3% 出极稀有物品（鞘翅、妙人斧、附魔金苹果各 ~1%）。 */
-    private static void rollUltraRare(Random random, List<ItemStack> drops) {
+    /** 中间岛每箱极稀有（各 ~1%）：鞘翅+3 烟花火箭、附魔金苹果。秒人斧只刷玩家岛。 */
+    private static void rollMiddleUltraRare(Random random, List<ItemStack> drops) {
         int roll = random.nextInt(100);
         if (roll < 1) {
             // 鞘翅 + 3 根烟花火箭：可以飞掠全图
             drops.add(new ItemStack(Items.ELYTRA));
             drops.add(stack(Items.FIREWORK_ROCKET, 3));
         } else if (roll < 2) {
-            drops.add(makeMiaoRenAxe());
-        } else if (roll < 3) {
             drops.add(new ItemStack(Items.ENCHANTED_GOLDEN_APPLE));
         }
     }
