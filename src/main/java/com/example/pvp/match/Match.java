@@ -33,6 +33,7 @@ import net.minecraft.scoreboard.ScoreboardCriterion;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.scoreboard.Team;
+import net.minecraft.network.packet.s2c.play.ScoreboardDisplayS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -531,6 +532,10 @@ public final class Match {
         if (!this.leftEarly.add(player.getUuid())) {
             return;
         }
+        // 离开本场回到主城：隐藏侧边栏
+        if (player.networkHandler != null) {
+            player.networkHandler.sendPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
+        }
         InventorySnapshot snapshot = this.snapshots.get(player.getUuid());
         if (snapshot != null) {
             snapshot.restore(player);
@@ -795,29 +800,117 @@ public final class Match {
             objective = scoreboard.addObjective(INFO_OBJECTIVE, ScoreboardCriterion.DUMMY,
                     Text.literal("§6§lPvP 对局"), ScoreboardCriterion.RenderType.INTEGER, true, null);
         }
-        scoreboard.setObjectiveSlot(ScoreboardDisplaySlot.SIDEBAR, objective);
 
+        // 清掉上一帧的行（分数存于全局计分板，仅本场重绘）
         for (String line : this.infoLines) {
             scoreboard.removeScore(ScoreHolder.fromName(line), objective);
         }
         this.infoLines.clear();
 
-        int score = 10;
-        this.setInfoLine(scoreboard, objective, "模式: " + this.type.getDisplayName(), score--);
-        if (this.type == MatchType.SKYWARS) {
-            this.setInfoLine(scoreboard, objective, "装备: 开箱获得", score--);
-        } else {
-            Kit displayKit = this.kit;
-            this.setInfoLine(scoreboard, objective, "套件: " + (displayKit == null ? "-" : displayKit.getDisplayName()), score--);
-        }
+        int score = 15;
+        this.setInfoLine(scoreboard, objective, this.modeLine(), score--);
+        this.setInfoLine(scoreboard, objective, this.timeLine(), score--);
+        this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
+
         if (this.type == MatchType.FFA || this.type == MatchType.SKYWARS) {
+            // FFA/空岛战争：存活数 + 存活玩家列表
             int alive = this.teams.isEmpty() ? 0 : this.teams.get(0).aliveCount();
-            this.setInfoLine(scoreboard, objective, "存活: " + alive + "/" + this.players.size(), score--);
+            this.setInfoLine(scoreboard, objective, "§b存活 §f" + alive + "§7/§f" + this.players.size(), score--);
+            if (this.type == MatchType.SKYWARS) {
+                this.setInfoLine(scoreboard, objective, this.skywarsShrinkLine(), score--);
+            }
+            this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
+            for (ServerPlayerEntity player : this.players) {
+                if (score < 0) {
+                    break;
+                }
+                if (this.eliminated.contains(player.getUuid())) {
+                    continue;
+                }
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online == null) {
+                    continue;
+                }
+                this.setInfoLine(scoreboard, objective, " §a● §f" + online.getGameProfile().getName(), score--);
+            }
         } else {
+            // 组队模式：逐队显示队伍与成员（队友/对手，颜色区分）
             for (MatchTeam team : this.teams) {
-                this.setInfoLine(scoreboard, objective, team.getName() + ": " + team.aliveCount(), score--);
+                if (score < 0) {
+                    break;
+                }
+                this.setInfoLine(scoreboard, objective,
+                        team.getColor() + "● " + team.getName() + " §7(" + team.aliveCount() + "/" + team.getPlayers().size() + ")",
+                        score--);
+                for (ServerPlayerEntity player : team.getPlayers()) {
+                    if (score < 0) {
+                        break;
+                    }
+                    ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                    String name = online != null ? online.getGameProfile().getName() : player.getGameProfile().getName();
+                    if (team.isAlive(player)) {
+                        this.setInfoLine(scoreboard, objective, " " + team.getColor() + "● §f" + name, score--);
+                    } else {
+                        this.setInfoLine(scoreboard, objective, " §7✝ §f" + name, score--);
+                    }
+                }
+                this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
             }
         }
+
+        // 只给本场参战玩家显示侧边栏（回主城后自然隐藏）
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null && online.networkHandler != null) {
+                online.networkHandler.sendPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, objective));
+            }
+        }
+    }
+
+    /** 模式行：按模式着色。 */
+    private String modeLine() {
+        String color = switch (this.type) {
+            case DUEL_1V1 -> "§a";
+            case DUEL_2V2 -> "§e";
+            case FFA -> "§d";
+            case SUMO -> "§b";
+            case PVP_1_8 -> "§c";
+            case SKYWARS -> "§6";
+        };
+        return "模式: " + color + this.type.getDisplayName();
+    }
+
+    /** 计时行：倒计时 / 已进行时间 / 结算中。 */
+    private String timeLine() {
+        return switch (this.state) {
+            case COUNTDOWN -> "§e开局倒计时 §c" + ((this.countdownTicks + 19) / 20) + "s";
+            case ACTIVE -> "§a已进行 §f" + formatTime(Math.max(0, (this.ticks - this.initialCountdownTicks) / 20));
+            case CELEBRATING -> "§6结算中...";
+            default -> "§7准备中...";
+        };
+    }
+
+    /** 空岛战争缩圈行：未开始显示剩余时间，进行中显示当前安全半径。 */
+    private String skywarsShrinkLine() {
+        if (this.skywarsLayout == null) {
+            return "§7缩圈: -";
+        }
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int elapsed = Math.max(0, (this.ticks - this.initialCountdownTicks) / 20);
+        int startSec = cfg.skywarsShrinkStartSeconds;
+        if (elapsed < startSec) {
+            return "§c缩圈 §7" + formatTime(startSec - elapsed) + " 后";
+        }
+        int stage = (elapsed - startSec) / cfg.skywarsShrinkIntervalSeconds + 1;
+        int keep = this.skywarsLayout.maxRadius() - stage * cfg.skywarsShrinkBlocksPerStage;
+        if (keep < cfg.skywarsShrinkMinRadius) {
+            keep = cfg.skywarsShrinkMinRadius;
+        }
+        return "§c缩圈中 §e半径 " + keep;
+    }
+
+    private static String formatTime(int seconds) {
+        return String.format("%02d:%02d", seconds / 60, seconds % 60);
     }
 
     private void setInfoLine(Scoreboard scoreboard, ScoreboardObjective objective, String text, int score) {
@@ -839,11 +932,12 @@ public final class Match {
             scoreboard.removeScore(ScoreHolder.fromName(line), objective);
         }
         this.infoLines.clear();
-        // 若还有其他对局在跑，保留侧边栏供其继续显示
-        boolean otherRunning = this.manager.getMatches().stream()
-                .anyMatch(m -> m != this && m.getState() != MatchState.ENDED);
-        if (!otherRunning && scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR) == objective) {
-            scoreboard.setObjectiveSlot(ScoreboardDisplaySlot.SIDEBAR, null);
+        // 本场玩家回到主城后隐藏侧边栏（按玩家发送空显示）
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null && online.networkHandler != null) {
+                online.networkHandler.sendPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
+            }
         }
     }
 
