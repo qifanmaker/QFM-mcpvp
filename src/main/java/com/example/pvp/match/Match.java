@@ -748,6 +748,8 @@ public final class Match {
             }
             sbTeam.setColor(team.getColor());
             sbTeam.setCollisionRule(AbstractTeam.CollisionRule.NEVER);
+            // 组队模式（2v2 等）关闭友伤；FFA/空岛战争全员同一队，必须保留互伤
+            sbTeam.setFriendlyFireAllowed(this.type == MatchType.FFA || this.type == MatchType.SKYWARS);
             for (ServerPlayerEntity player : team.getPlayers()) {
                 ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
                 if (online != null) {
