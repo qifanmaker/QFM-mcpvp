@@ -217,12 +217,18 @@ public final class MatchManager {
         }
     }
 
-    /** 玩家重生事件：若仍在对局中，转为旁观并送回观众平台。 */
+    /** 玩家重生事件：若仍在对局中，转为幽灵（冒险模式、空物品栏、禁止交互）。 */
     public void onPlayerRespawn(ServerPlayerEntity oldPlayer, ServerPlayerEntity newPlayer, boolean alive) {
         Match match = this.getMatchFor(newPlayer.getUuid());
         if (match != null && match.getState() == MatchState.ACTIVE) {
-            match.makeSpectator(newPlayer);
+            match.makeGhost(newPlayer);
         }
+    }
+
+    /** 该玩家是否已在对局中被淘汰（死亡幽灵，禁止一切交互）。 */
+    public boolean isEliminated(UUID uuid) {
+        Match match = this.getMatchFor(uuid);
+        return match != null && match.isEliminated(uuid);
     }
 
     /** 玩家断线事件。 */
@@ -309,7 +315,11 @@ public final class MatchManager {
                 }
             } else if (inVoid) {
                 if (match.getState() == MatchState.ACTIVE) {
-                    match.eliminate(player, EliminationCause.VOID);
+                    if (match.isEliminated(player.getUuid())) {
+                        match.rescueGhost(player); // 幽灵掉出虚空送回观战台
+                    } else {
+                        match.eliminate(player, EliminationCause.VOID);
+                    }
                 } else {
                     match.teleportToSpawn(player);
                 }

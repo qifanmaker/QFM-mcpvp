@@ -322,11 +322,11 @@ public final class Match {
 
         ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
         if (online != null) {
-            // 空岛战争：被淘汰时把装备掉落在地（供击杀者拾取），再转旁观
+            // 空岛战争：被淘汰时把装备掉落在地（供击杀者拾取），再转幽灵
             if (this.type == MatchType.SKYWARS) {
                 this.dropSkywarsLoot(online);
             }
-            this.makeSpectator(online);
+            this.makeGhost(online);
         }
 
         this.broadcast(Messages.warn("§e" + player.getGameProfile().getName() + "§r 被淘汰（" + cause.getDisplayName() + "）"));
@@ -474,10 +474,11 @@ public final class Match {
         inventory.clear();
     }
 
-    /** 将玩家转为旁观者并传送到观众平台（淘汰/重生兜底），发放观战 UI。 */
-    public void makeSpectator(ServerPlayerEntity player) {
-        player.changeGameMode(GameMode.SPECTATOR);
-        player.setInvulnerable(false);
+    /** 将玩家转为"幽灵"：冒险模式 + 空物品栏 + 无敌 + 漂浮在观战台，无法与对局任何交互。 */
+    public void makeGhost(ServerPlayerEntity player) {
+        player.changeGameMode(GameMode.ADVENTURE);
+        player.getInventory().clear();
+        player.setInvulnerable(true);
         player.setHealth(20f);
         player.setNoGravity(true);
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
@@ -485,17 +486,17 @@ public final class Match {
             BlockPos center = this.template.getCenter(this.regionIndex);
             player.teleport(arena, center.getX(), center.getY() + ArenaTemplate.WALL_HEIGHT + 5, center.getZ(), 0, 0);
         }
-        this.giveSpectatorItems(player);
+        player.currentScreenHandler.sendContentUpdates();
     }
 
-    /** 给旁观者发放观战 UI：左指南针 / 中绿宝石 / 右红石。 */
-    public void giveSpectatorItems(ServerPlayerEntity player) {
-        var inventory = player.getInventory();
-        inventory.clear();
-        inventory.setStack(0, PvpGuiManager.spectatorCompass());
-        inventory.setStack(4, PvpGuiManager.spectatorEmerald());
-        inventory.setStack(8, PvpGuiManager.spectatorRedstone());
-        player.currentScreenHandler.sendContentUpdates();
+    /** 幽灵掉出虚空时传送回观战台（sweepArenaWorld 兜底）。 */
+    public void rescueGhost(ServerPlayerEntity player) {
+        this.makeGhost(player);
+    }
+
+    /** 该玩家是否已在本场被淘汰（死亡幽灵，禁止一切交互）。 */
+    public boolean isEliminated(UUID uuid) {
+        return this.eliminated.contains(uuid);
     }
 
     /** 旁观者：切换到下一个存活玩家观战。 */

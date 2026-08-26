@@ -23,6 +23,10 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerBlockEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.block.entity.DispenserBlockEntity;
@@ -37,6 +41,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.TypedActionResult;
 import org.slf4j.Logger;
@@ -136,6 +141,10 @@ public final class PvPMod implements ModInitializer {
         UseItemCallback.EVENT.register((player, world, hand) -> {
             ItemStack stack = player.getStackInHand(hand);
             if (player instanceof ServerPlayerEntity serverPlayer) {
+                // 死亡幽灵：禁止使用任何物品
+                if (MATCH != null && MATCH.isEliminated(serverPlayer.getUuid())) {
+                    return TypedActionResult.fail(stack);
+                }
                 // 旁观者 UI：指南针切换观战 / 绿宝石下一把 / 红石退出
                 if (PvpGuiManager.isSpectatorUiItem(stack)) {
                     Match match = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
@@ -188,6 +197,40 @@ public final class PvPMod implements ModInitializer {
                 }
             }
             return TypedActionResult.pass(stack);
+        });
+
+        // 死亡幽灵（已淘汰玩家）：禁止一切交互（开箱/按键/攻击/使用物品）
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {
+                return ActionResult.FAIL;
+            }
+            return ActionResult.PASS;
+        });
+        UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {
+                return ActionResult.FAIL;
+            }
+            return ActionResult.PASS;
+        });
+        AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {
+                return ActionResult.FAIL;
+            }
+            return ActionResult.PASS;
+        });
+        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+            if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {
+                return ActionResult.FAIL;
+            }
+            return ActionResult.PASS;
+        });
+        // 幽灵造成的伤害全部拦截（含箭/投掷物，源攻击者为幽灵）
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            if (source.getAttacker() instanceof ServerPlayerEntity attacker
+                    && MATCH != null && MATCH.isEliminated(attacker.getUuid())) {
+                return false;
+            }
+            return true;
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
