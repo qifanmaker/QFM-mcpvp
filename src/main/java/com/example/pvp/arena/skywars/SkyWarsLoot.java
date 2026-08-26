@@ -30,7 +30,9 @@ import net.minecraft.text.Text;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.function.BiFunction;
@@ -341,23 +343,41 @@ public final class SkyWarsLoot {
     }
 
     /**
-     * 战绩弱势补偿等级：胜率越低越大（0=正常，1=轻，2=更明显些但整体仍克制）。
-     * 场次太少（<3）不判定，避免新玩家被当成弱者获得优待。
+     * 本局相对弱势补偿：把本局所有玩家按胜率从低到高排名，胜率最低的 1~2 名获得补偿
+     * （最低=2，次低=1，其余=0）。按相对胜率而非绝对胜率，避免与整体水平挂钩的固定阈值。
+     * 返回与 players 等长的数组（同索引即同玩家）。
      */
-    public static int handicapFor(ServerPlayerEntity player) {
+    public static int[] handicapForMatch(List<ServerPlayerEntity> players) {
+        int n = players == null ? 0 : players.size();
+        int[] result = new int[n];
+        if (n == 0) {
+            return result;
+        }
+        double[] rates = new double[n];
+        for (int i = 0; i < n; i++) {
+            rates[i] = winRateOf(players.get(i));
+        }
+        Integer[] order = new Integer[n];
+        for (int i = 0; i < n; i++) {
+            order[i] = i;
+        }
+        Arrays.sort(order, Comparator.comparingDouble(a -> rates[a]));
+        int compensateCount = n <= 2 ? 1 : 2; // 双人局只补偿最低者，其余补偿前两名
+        result[order[0]] = 2; // 本局胜率最低
+        if (compensateCount >= 2 && n >= 2) {
+            result[order[1]] = 1; // 次低
+        }
+        return result;
+    }
+
+    /** 玩家胜率（没打过按 0，视为本局相对最低）。 */
+    private static double winRateOf(ServerPlayerEntity player) {
         if (player == null) {
-            return 0;
+            return 0.0;
         }
         PlayerStats stats = StatsStore.INSTANCE.getStats(player.getUuid());
         int matches = stats.getMatches();
-        if (matches < 3) {
-            return 0;
-        }
-        double winRate = (double) stats.getWins() / matches;
-        if (winRate < 0.2) {
-            return 2;
-        }
-        return winRate < 0.35 ? 1 : 0;
+        return matches > 0 ? (double) stats.getWins() / matches : 0.0;
     }
 
     /** 妙人斧：锋利 666 金斧，耐久 1，一击必杀（梗）。 */

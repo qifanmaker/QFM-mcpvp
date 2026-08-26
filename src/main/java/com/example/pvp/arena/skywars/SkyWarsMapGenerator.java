@@ -37,14 +37,17 @@ public final class SkyWarsMapGenerator {
         SkyWarsLayout layout = SkyWarsLayout.compute(mapCenter, seed, playerCount);
         SkyWarsTheme theme = SkyWarsTheme.pick(seed);
 
-        // 出生岛/中途岛按玩家索引归属，战绩低的玩家获得轻微的装备/神器提升
+        // 出生岛/中途岛按玩家索引归属：本局胜率最低的 1~2 名获得轻微的装备/神器提升
+        int[] handicaps = players == null
+                ? new int[Math.max(0, playerCount)]
+                : SkyWarsLoot.handicapForMatch(players);
         List<SkyWarsLayout.Island> spawnIslands = layout.spawnIslands();
         for (int i = 0; i < spawnIslands.size(); i++) {
-            buildIsland(world, spawnIslands.get(i), false, theme, handicapFor(players, i));
+            buildIsland(world, spawnIslands.get(i), false, theme, handicaps[i]);
         }
         List<SkyWarsLayout.Island> midIslands = layout.midIslands();
         for (int i = 0; i < midIslands.size(); i++) {
-            buildIsland(world, midIslands.get(i), false, theme, handicapFor(players, i));
+            buildIsland(world, midIslands.get(i), false, theme, handicaps[i]);
         }
         buildIsland(world, layout.middle(), true, theme, 0);
 
@@ -52,14 +55,6 @@ public final class SkyWarsMapGenerator {
                 spawnIslands.size(), midIslands.size(), layout.middle().chests().size(),
                 theme.getDisplayName());
         return layout;
-    }
-
-    /** 该玩家岛的弱势补偿等级（玩家列表缺失/越界时按 0）。 */
-    private static int handicapFor(List<ServerPlayerEntity> players, int index) {
-        if (players == null || index >= players.size()) {
-            return 0;
-        }
-        return SkyWarsLoot.handicapFor(players.get(index));
     }
 
     /** 铺一座岛（按主题选材质 + 箱子 + 偶发装饰）；中间岛前两个箱子放在石砖柱上。 */
