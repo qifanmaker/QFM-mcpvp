@@ -5,6 +5,7 @@ import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchType;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -56,6 +57,31 @@ public abstract class PlayerEntityMixin {
             if (matchManager.isLegacyCombat(match)) {
                 match.setBlocking(sp, false);
             }
+        }
+    }
+
+    /** 粘液球（空岛战争击退 III 武器）：左键攻击命中时把目标强力击退。 */
+    @Inject(method = "attack", at = @At("HEAD"))
+    private void pvp$slimeBallKnockback(Entity target, CallbackInfo ci) {
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        if (!(self instanceof ServerPlayerEntity sp)) {
+            return;
+        }
+        if (!self.getMainHandStack().isOf(Items.SLIME_BALL)) {
+            return; // 只有手持粘液球攻击才有击退 III
+        }
+        MatchManager matchManager = MatchManager.get();
+        if (matchManager == null || !matchManager.isInMatch(sp.getUuid())) {
+            return;
+        }
+        if (target instanceof LivingEntity victim && victim != self) {
+            double dx = victim.getX() - self.getX();
+            double dz = victim.getZ() - self.getZ();
+            if (dx * dx + dz * dz < 0.01) {
+                dx = 0.0;
+                dz = 0.01;
+            }
+            victim.takeKnockback(1.6, dx, dz); // 击退 III
         }
     }
 

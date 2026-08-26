@@ -20,6 +20,7 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FireworkExplosionComponent;
 import net.minecraft.component.type.FireworksComponent;
+import net.minecraft.component.type.LodestoneTrackerComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
@@ -43,6 +44,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.GlobalPos;
 import net.minecraft.world.GameMode;
 import org.slf4j.Logger;
 
@@ -51,6 +53,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -251,6 +254,8 @@ public final class Match {
                 }
                 if (this.type == MatchType.SKYWARS) {
                     this.tickSkywarsShrink();
+                    this.tickSkywarsTotem();
+                    this.tickSkywarsCompass();
                 }
                 this.checkWinCondition();
             }
@@ -356,6 +361,115 @@ public final class Match {
                 }
             }
         }
+    }
+
+    /** 空岛战争：掉入虚空且持有不死图腾 → 消耗一个，把玩家传送到中岛中心救回。 */
+    private void tickSkywarsTotem() {
+        if (this.skywarsLayout == null) {
+            return;
+        }
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        double rescueY = ArenaTemplate.PLATFORM_Y - 8; // 岛面下 8 格且不在地面视为掉入虚空
+        for (ServerPlayerEntity player : this.players) {
+            if (this.eliminated.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null || online.getWorld() != arena) {
+                continue;
+            }
+            if (online.getY() >= rescueY || online.isOnGround()) {
+                continue;
+            }
+            int slot = this.findTotemSlot(online);
+            if (slot < 0) {
+                continue;
+            }
+            online.getInventory().getStack(slot).decrement(1); // 消耗一个图腾（背包里任意位置都算）
+            online.getWorld().sendEntityStatus(online, (byte) 35); // 播放不死图腾激活动画
+            BlockPos middle = this.skywarsLayout.middle().center();
+            int y = Math.max(middle.getY() + 2, ArenaTemplate.PLATFORM_Y + 1);
+            online.teleport(arena, middle.getX() + 0.5, y, middle.getZ() + 0.5, online.getYaw(), online.getPitch());
+            online.sendMessage(Messages.gold("不死图腾生效！你被传送回中岛中心！"), false);
+            this.broadcast(Messages.warn("§e" + online.getGameProfile().getName() + "§r 依靠不死图腾逃离了虚空！"));
+        }
+    }
+
+    /** 玩家背包中第一个不死图腾的槽位（主背包+副手），没有则 -1。 */
+    private int findTotemSlot(ServerPlayerEntity player) {
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (stack.isOf(Items.TOTEM_OF_UNDYING) && stack.getCount() > 0) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** 空岛战争：追踪罗盘每秒指向最近的敌人（未持有罗盘的玩家跳过）。 */
+    private void tickSkywarsCompass() {
+        if (this.skywarsLayout == null || this.ticks % 20 != 0) {
+            return;
+        }
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        for (ServerPlayerEntity player : this.players) {
+            if (this.eliminated.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null || online.getWorld() != arena) {
+                continue;
+            }
+            ServerPlayerEntity nearest = this.nearestSkywarsEnemy(online);
+            if (nearest == null) {
+                continue;
+            }
+            boolean updated = false;
+            for (int i = 0; i < online.getInventory().size(); i++) {
+                ItemStack stack = online.getInventory().getStack(i);
+                if (!stack.isOf(Items.COMPASS) || PvpGuiManager.isMenuItem(stack)) {
+                    continue; // 跳过主菜单指南针（竞技场内一般没有）
+                }
+                stack.set(DataComponentTypes.LODESTONE_TRACKER,
+                        new LodestoneTrackerComponent(Optional.of(
+                                GlobalPos.create(ArenaWorldManager.ARENA_WORLD_KEY, nearest.getBlockPos())), true));
+                updated = true;
+            }
+            if (updated) {
+                online.currentScreenHandler.sendContentUpdates();
+            }
+        }
+    }
+
+    /** 距离自己最近的未淘汰在线敌人（FFA 模式下其余玩家全是敌人）。 */
+    private ServerPlayerEntity nearestSkywarsEnemy(ServerPlayerEntity self) {
+        ServerPlayerEntity best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (ServerPlayerEntity player : this.players) {
+            if (player.getUuid().equals(self.getUuid())) {
+                continue;
+            }
+            if (this.eliminated.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null || online.getWorld() != self.getWorld()) {
+                continue;
+            }
+            double dist = online.squaredDistanceTo(self);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = online;
+            }
+        }
+        return best;
     }
 
     /** 相扑：掉落到平台下方 20 格才淘汰（可用末影珍珠救回；不吃伤害，只吃击退）。 */
