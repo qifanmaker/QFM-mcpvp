@@ -43,10 +43,14 @@ public abstract class SmallFireballEntityMixin {
 
         // 弹开周围 5 格玩家（打中地面也能把旁边的人震开）
         for (PlayerEntity player : fireball.getWorld().getPlayers()) {
-            if (player == owner) {
+            if (player.squaredDistanceTo(x, y, z) > 25.0) { // 半径 5 格内
                 continue;
             }
-            if (player.squaredDistanceTo(x, y, z) > 25.0) { // 半径 5 格内
+            if (player == owner) {
+                // 火焰弹跳：往脚底扔火焰弹时把自己弹上天（向上速度）
+                player.setVelocity(player.getVelocity().x,
+                        Math.max(player.getVelocity().y, 1.2), player.getVelocity().z);
+                player.velocityDirty = true;
                 continue;
             }
             double dx = player.getX() - x;
