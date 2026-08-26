@@ -12,6 +12,7 @@ import com.example.pvp.duel.DuelManager;
 import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.BridgeGear;
 import com.example.pvp.kit.KitManager;
+import com.example.pvp.match.EliminationCause;
 import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchState;
@@ -253,12 +254,16 @@ public final class PvPMod implements ModInitializer {
             return true;
         });
 
-        // 战桥：死亡不出现死亡界面——拦截致死伤害，由对局下一 tick 在己方基地原地重生
+        // 对局中拦截致死伤害：不弹死亡界面——战桥由对局下 tick 原地重生；其余模式直接淘汰转隐身幽灵
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
             if (entity instanceof ServerPlayerEntity sp && MATCH != null) {
                 Match match = MATCH.getMatchFor(sp);
-                if (match != null && match.getType().isBridge()) {
-                    match.onBridgeDeath(sp);
+                if (match != null) {
+                    if (match.getType().isBridge()) {
+                        match.onBridgeDeath(sp);
+                    } else if (match.getState() == MatchState.ACTIVE) {
+                        match.eliminate(sp, EliminationCause.DEATH);
+                    }
                     return false;
                 }
             }

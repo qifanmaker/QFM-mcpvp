@@ -145,7 +145,7 @@ public final class SkyWarsLayout {
         }
 
         int middleHeight = random.nextInt(7) - 3;
-        Island middle = buildIsland(random,
+        Island middle = buildMiddleIsland(random,
                 new BlockPos(mapCenter.getX(), mapCenter.getY() + middleHeight, mapCenter.getZ()),
                 Math.max(4, cfg.skywarsMiddleRadius), cfg.skywarsMiddleChests);
 
@@ -158,6 +158,22 @@ public final class SkyWarsLayout {
         for (int i = 0; i < chestCount; i++) {
             double angle = random.nextDouble() * 2.0 * Math.PI;
             int dist = 2 + random.nextInt(Math.max(1, radius - 2));
+            int x = center.getX() + (int) Math.round(Math.cos(angle) * dist);
+            int z = center.getZ() + (int) Math.round(Math.sin(angle) * dist);
+            chests.add(new BlockPos(x, center.getY() + 1, z));
+        }
+        return new Island(center, radius, chests);
+    }
+
+    /** 中间主岛箱子：等角均匀 + 多环半径，散布在整个圆盘上（避免扎堆）。 */
+    private static Island buildMiddleIsland(Random random, BlockPos center, int radius, int chestCount) {
+        List<BlockPos> chests = new ArrayList<>();
+        int rings = Math.min(4, Math.max(1, chestCount / 3)); // 3 个箱子为一环，最多 4 环
+        for (int i = 0; i < chestCount; i++) {
+            double angle = i * 2.0 * Math.PI / chestCount + (random.nextDouble() - 0.5) * 0.4; // 等角 + 轻微抖动
+            int ring = i % rings;
+            double t = rings == 1 ? 0.5 : (double) ring / (rings - 1);
+            int dist = 3 + (int) Math.round(t * Math.max(1, radius - 6)); // 内环→外环覆盖整个圆盘
             int x = center.getX() + (int) Math.round(Math.cos(angle) * dist);
             int z = center.getZ() + (int) Math.round(Math.sin(angle) * dist);
             chests.add(new BlockPos(x, center.getY() + 1, z));

@@ -781,10 +781,7 @@ public final class Match {
 
         ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
         if (online != null) {
-            // 空岛战争：被淘汰时把装备掉落在地（供击杀者拾取），再转幽灵
-            if (this.type == MatchType.SKYWARS) {
-                this.dropSkywarsLoot(online);
-            }
+            this.dropEliminatedLoot(online); // 身上物品爆落在地（供其他玩家拾取），再转幽灵
             this.makeGhost(online);
         }
 
@@ -918,8 +915,8 @@ public final class Match {
         LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
     }
 
-    /** 空岛战争：把玩家背包/护甲/副手物品以掉落物形式丢在原地（死后装备可被拾取）。 */
-    private void dropSkywarsLoot(ServerPlayerEntity player) {
+    /** 把玩家背包/护甲/副手物品以掉落物形式丢在原地（死后装备可被其他玩家拾取）。 */
+    private void dropEliminatedLoot(ServerPlayerEntity player) {
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena == null) {
             return;
@@ -940,14 +937,17 @@ public final class Match {
         inventory.clear();
     }
 
-    /** 将玩家转为"幽灵"：冒险模式 + 空物品栏 + 无敌 + 可自由飞行，无法与对局任何交互。 */
+    /** 将玩家转为"幽灵"：冒险模式 + 空物品栏 + 无敌 + 隐身 + 可自由飞行，无法与对局任何交互。 */
     public void makeGhost(ServerPlayerEntity player) {
         player.changeGameMode(GameMode.ADVENTURE);
         player.getInventory().clear();
         player.setInvulnerable(true);
         player.setHealth(20f);
         player.setNoGravity(true);
-        // 幽灵可任意飞行（赛后由 InventorySnapshot.restore 还原能力）
+        // 幽灵隐身：不显示身体/手持物品，也不会有隐身药水粒子（无效果，纯 setInvisible）
+        player.clearStatusEffects();
+        player.setInvisible(true);
+        // 幽灵可任意飞行（赛后由 InventorySnapshot.restore 还原能力与隐身）
         player.getAbilities().allowFlying = true;
         player.getAbilities().flying = true;
         player.sendAbilitiesUpdate();

@@ -51,6 +51,10 @@ public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
 
+    private static final SuggestionProvider<ServerCommandSource> THEME_SUGGESTIONS =
+            (ctx, builder) -> CommandSource.suggestMatching(
+                    new String[]{"主世界", "地狱", "冰原", "末地", "overworld", "nether", "ice", "end"}, builder);
+
     private PvPCommands() {
     }
 
@@ -99,9 +103,16 @@ public final class PvPCommands {
                         .then(CommandManager.literal("debug")
                                 .requires(source -> source.hasPermissionLevel(2))
                                 .then(CommandManager.literal("skywars")
-                                        .executes(ctx -> debugSkywars(ctx, 1))
+                                        .executes(ctx -> debugSkywars(ctx, 1, null))
                                         .then(CommandManager.argument("rounds", StringArgumentType.word())
-                                                .executes(ctx -> debugSkywars(ctx, parseIntSafe(ctx, "rounds", 1)))))
+                                                .executes(ctx -> debugSkywars(ctx, parseIntSafe(ctx, "rounds", 1), null)))
+                                        .then(CommandManager.literal("theme")
+                                                .then(CommandManager.argument("theme", StringArgumentType.word())
+                                                        .suggests(THEME_SUGGESTIONS)
+                                                        .executes(ctx -> debugSkywars(ctx, 1,
+                                                                StringArgumentType.getString(ctx, "theme")))))
+                                        .then(CommandManager.literal("all")
+                                                .executes(ctx -> debugSkywarsAllThemes(ctx))))
                                 .then(CommandManager.literal("bridge")
                                         .executes(ctx -> debugBridge(ctx, 2))
                                         .then(CommandManager.argument("team", StringArgumentType.word())
@@ -347,9 +358,18 @@ public final class PvPCommands {
         return 1;
     }
 
-    /** 调试：在竞技场远区生成随机空岛地图并传送过去查看（不影响正式对局）。 */
-    private static int debugSkywars(CommandContext<ServerCommandSource> ctx, int rounds) throws CommandSyntaxException {
+    /** 调试：在竞技场远区生成随机（或指定主题）空岛地图并传送过去查看（不影响正式对局）。 */
+    private static int debugSkywars(CommandContext<ServerCommandSource> ctx, int rounds, String themeName)
+            throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        SkyWarsTheme forcedTheme = null;
+        if (themeName != null) {
+            forcedTheme = SkyWarsTheme.byName(themeName);
+            if (forcedTheme == null) {
+                player.sendMessage(Messages.error("未知主题: " + themeName + "（可用: 主世界, 地狱, 冰原, 末地）"), false);
+                return 0;
+            }
+        }
         ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
         ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
         if (arena == null) {
@@ -361,9 +381,14 @@ public final class PvPCommands {
         int lastRegion = baseRegion;
         for (int i = 0; i < rounds; i++) {
             int region = baseRegion + i;
-            SkyWarsLayout layout = SkyWarsMapGenerator.generate(arena, region, 9000 + i, 4, null);
+            int seed = 9000 + i;
+            if (forcedTheme != null) {
+                seed = SkyWarsTheme.alignSeed(seed, forcedTheme); // 指定主题，地图布局仍随 seed 变化
+            }
+            SkyWarsLayout layout = SkyWarsMapGenerator.generate(arena, region, seed, 4, null);
             lastRegion = region;
-            player.sendMessage(Messages.info("测试空岛 #" + (i + 1) + " 已生成："
+            player.sendMessage(Messages.info("测试空岛 #" + (i + 1) + "（主题 "
+                    + SkyWarsTheme.pick(seed).getDisplayName() + "）已生成："
                     + layout.spawnIslands().size() + " 个出生岛(每岛 "
                     + layout.spawnIslands().get(0).chests().size() + " 箱)，中间主岛 "
                     + layout.middle().chests().size() + " 箱，最大半径 "
@@ -373,6 +398,30 @@ public final class PvPCommands {
         player.teleport(arena, c.getX() + 0.5, c.getY() + 12, c.getZ() + 0.5, 0, 90);
         arenaManager.addVisitor(player, 180); // 3 分钟内不被兜底传回主城
         player.sendMessage(Messages.gold("已传送到测试空岛上空（约 3 分钟后自动回城），可下落查看岛屿与箱子战利品"), false);
+        return 1;
+    }
+
+    /** 调试：4 种主题各生成一张空岛地图（区域 900~903），方便对比查看。 */
+    private static int debugSkywarsAllThemes(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
+        ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
+        if (arena == null) {
+            player.sendMessage(Messages.error("竞技场世界不可用"), false);
+            return 0;
+        }
+        int baseRegion = 900;
+        SkyWarsTheme[] themes = SkyWarsTheme.values();
+        for (int i = 0; i < themes.length; i++) {
+            int seed = SkyWarsTheme.alignSeed(9000 + i, themes[i]);
+            SkyWarsMapGenerator.generate(arena, baseRegion + i, seed, 4, null);
+            player.sendMessage(Messages.info("测试空岛 #" + (i + 1) + "（主题 " + themes[i].getDisplayName()
+                    + "）已生成，区域 " + (baseRegion + i)), false);
+        }
+        BlockPos c = SkyWarsMapGenerator.center(baseRegion + themes.length - 1);
+        player.teleport(arena, c.getX() + 0.5, c.getY() + 12, c.getZ() + 0.5, 0, 90);
+        arenaManager.addVisitor(player, 180);
+        player.sendMessage(Messages.gold("已传送到最后一张（末地）测试空岛上空；区域 900~903 依次为 主世界/地狱/冰原/末地，可飞行查看"), false);
         return 1;
     }
 

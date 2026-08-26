@@ -39,6 +39,7 @@ public final class InventorySnapshot {
     private final int fireTicks;
     private final boolean allowFlying;
     private final boolean flying;
+    private final boolean invisible;
 
     private InventorySnapshot(ServerPlayerEntity player) {
         var inventory = player.getInventory();
@@ -73,6 +74,7 @@ public final class InventorySnapshot {
         this.fireTicks = player.getFireTicks();
         this.allowFlying = player.getAbilities().allowFlying;
         this.flying = player.getAbilities().flying;
+        this.invisible = player.isInvisible();
     }
 
     public static InventorySnapshot capture(ServerPlayerEntity player) {
@@ -119,6 +121,7 @@ public final class InventorySnapshot {
         player.fallDistance = 0;
         player.setInvulnerable(false);
         player.setNoGravity(false);
+        player.setInvisible(this.invisible); // 幽灵死亡时隐身，赛后还原
         // 恢复飞行能力（幽灵死亡时会开启飞行，赛后必须还原）
         player.getAbilities().allowFlying = this.allowFlying;
         player.getAbilities().flying = this.flying;
