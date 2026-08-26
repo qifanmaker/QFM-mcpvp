@@ -65,8 +65,8 @@ public final class SkyWarsLoot {
             new LootEntry(6, (r, c) -> bow(r, c)),
             new LootEntry(10, (r, c) -> arrow(8 + r.nextInt(9))),
             new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
-            new LootEntry(20, (r, c) -> armor(r, c, false)),
-            new LootEntry(6, (r, c) -> armor(r, c, true)),
+            new LootEntry(26, (r, c) -> armor(r, c, false)),
+            new LootEntry(8, (r, c) -> armor(r, c, true)),
             new LootEntry(8, (r, c) -> food(r)),
             new LootEntry(8, (r, c) -> stack(Items.GOLDEN_APPLE, 1 + r.nextInt(2))),
             new LootEntry(5, (r, c) -> stack(Items.ENDER_PEARL, 1 + r.nextInt(2))),
@@ -95,8 +95,8 @@ public final class SkyWarsLoot {
             new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_AXE, r, c)),
             new LootEntry(8, (r, c) -> bow(r, c)),
             new LootEntry(12, (r, c) -> arrow(12 + r.nextInt(20))),
-            new LootEntry(18, (r, c) -> armor(r, c, true)),
-            new LootEntry(6, (r, c) -> armor(r, c, false)),
+            new LootEntry(24, (r, c) -> armor(r, c, true)),
+            new LootEntry(8, (r, c) -> armor(r, c, false)),
             new LootEntry(10, (r, c) -> stack(Items.GOLDEN_APPLE, 2 + r.nextInt(3))),
             new LootEntry(8, (r, c) -> stack(Items.ENDER_PEARL, 2 + r.nextInt(3))),
             new LootEntry(6, (r, c) -> food(r)),
@@ -200,15 +200,15 @@ public final class SkyWarsLoot {
         return stack;
     }
 
-    /** 一件随机铁质装备：铁剑/铁斧/铁护甲（带附魔概率）。 */
+    /** 一件随机铁质装备：铁护甲（60%）/ 铁剑·铁斧（40%），带附魔概率。适当偏向防具。 */
     private static ItemStack ironEquipment(Random random, int enchantChance) {
-        if (random.nextBoolean()) {
-            return weapon(random.nextBoolean() ? Items.IRON_SWORD : Items.IRON_AXE, random, enchantChance);
+        if (random.nextInt(10) < 6) {
+            Item[] pieces = {Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS};
+            ItemStack stack = new ItemStack(pieces[random.nextInt(pieces.length)]);
+            maybeEnchant(stack, random, enchantChance);
+            return stack;
         }
-        Item[] pieces = {Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS};
-        ItemStack stack = new ItemStack(pieces[random.nextInt(pieces.length)]);
-        maybeEnchant(stack, random, enchantChance);
-        return stack;
+        return weapon(random.nextBoolean() ? Items.IRON_SWORD : Items.IRON_AXE, random, enchantChance);
     }
 
     /** 铁质杂项：铲子/锄头/镐/斧——大多用处不大，少量会附魔。 */
