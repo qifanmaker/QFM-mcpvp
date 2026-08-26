@@ -187,15 +187,15 @@ public final class ArenaWorldManager {
     }
 
     /** 清理某场比赛的平台地形与区域内掉落物/实体。 */
-    public void clearArena(int regionIndex, ArenaTemplate template) {
+    public void clearArena(int regionIndex, ArenaTemplate template, int skywarsMaxRadius) {
         ArenaWorld arena = this.world;
         if (arena == null) {
             return;
         }
 
-        // 空岛战争：清空更大更高的地图范围（含立柱与小树）
+        // 空岛战争：按该场实际最大半径清空（含立柱与小树），避免箱子/岛屿残留
         if (template.getLayout() == ArenaTemplate.Layout.SKYWARS) {
-            SkyWarsMapGenerator.clearIslands(arena, regionIndex, template.getSize());
+            SkyWarsMapGenerator.clearIslands(arena, regionIndex, skywarsMaxRadius);
             return;
         }
 

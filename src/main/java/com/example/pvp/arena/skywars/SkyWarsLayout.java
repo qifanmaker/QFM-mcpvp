@@ -84,6 +84,14 @@ public final class SkyWarsLayout {
         return this.spawns;
     }
 
+    /** 当前配置下的地图最大半径（生成与清场共用，保证能清到所有岛屿与箱子）。 */
+    public static int computeMaxRadius() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int maxIslandRadius = Math.max(3, cfg.skywarsIslandRadius) + 1;
+        int spawnDist = cfg.skywarsMiddleRadius + maxIslandRadius + 1 + cfg.skywarsIslandGap;
+        return spawnDist + maxIslandRadius + MAX_RADIUS_MARGIN;
+    }
+
     /**
      * 由比赛 ID 与人数计算确定性的空岛布局。
      *
@@ -136,8 +144,7 @@ public final class SkyWarsLayout {
 
         Island middle = buildIsland(random, mapCenter, Math.max(4, cfg.skywarsMiddleRadius), cfg.skywarsMiddleChests);
 
-        int maxRadius = spawnDist + maxIslandRadius + MAX_RADIUS_MARGIN;
-        return new SkyWarsLayout(mapCenter, maxRadius, spawnIslands, midIslands, middle, spawns);
+        return new SkyWarsLayout(mapCenter, computeMaxRadius(), spawnIslands, midIslands, middle, spawns);
     }
 
     /** 计算一座岛的箱子位置（离岛心 2~半径-2 格、随机角度，保证落在岛面上）。 */

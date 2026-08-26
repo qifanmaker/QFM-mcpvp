@@ -144,18 +144,27 @@ public final class SkyWarsMapGenerator {
         }
     }
 
-    /** 清空一场空岛战争的全部地形（方块 + 掉落物），供赛后清理复用。 */
-    public static void clearIslands(ArenaWorld world, int regionIndex, int size) {
-        BlockPos origin = new BlockPos(regionIndex * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
+    /**
+     * 清空一场空岛战争的全部地形（方块 + 掉落物），供赛后清理复用。
+     * 范围按「地图实际最大半径」居中清除，不依赖 skywarsSize 边界——
+     * 即使配置里 size 偏小、岛屿落在 size 框外，也能清干净，避免箱子/岛屿残留。
+     *
+     * @param maxRadius 该场比赛生成时的最大半径（来自 SkyWarsLayout）；<=0 时按当前配置兜底计算
+     */
+    public static void clearIslands(ArenaWorld world, int regionIndex, int maxRadius) {
+        if (maxRadius <= 0) {
+            maxRadius = SkyWarsLayout.computeMaxRadius();
+        }
+        BlockPos center = center(regionIndex); // 与生成时一致的地图中心
 
         // 先拆方块：箱子被拆掉时会把里面战利品掉落成实体，
         // 所以必须先拆块、再清掉落物，否则箱子内容会残留在地上
-        // 清场高度取平台下方 3 格到上方 6 格（覆盖岛体/立柱/小树顶部）
-        // 大图大部分是虚空空气，跳过空气大幅降低清场耗时
-        for (int dx = 0; dx < size; dx++) {
-            for (int dz = 0; dz < size; dz++) {
+        // 大图大部分是虚空空气，跳过空气降低耗时
+        for (int dx = -maxRadius; dx <= maxRadius; dx++) {
+            for (int dz = -maxRadius; dz <= maxRadius; dz++) {
                 for (int dy = -ISLAND_DEPTH - 1; dy <= 6; dy++) {
-                    BlockPos pos = origin.add(dx, dy, dz);
+                    BlockPos pos = new BlockPos(center.getX() + dx,
+                            ArenaTemplate.PLATFORM_Y + dy, center.getZ() + dz);
                     if (!world.getBlockState(pos).isAir()) {
                         world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
                     }
@@ -165,8 +174,8 @@ public final class SkyWarsMapGenerator {
 
         // 再清掉落物（含拆箱掉出来的战利品与玩家淘汰时的掉落）
         Box box = new Box(
-                origin.getX(), origin.getY() - ISLAND_DEPTH - 1, origin.getZ(),
-                origin.getX() + size, origin.getY() + 6, origin.getZ() + size
+                center.getX() - maxRadius, ArenaTemplate.PLATFORM_Y - ISLAND_DEPTH - 1, center.getZ() - maxRadius,
+                center.getX() + maxRadius + 1, ArenaTemplate.PLATFORM_Y + 6, center.getZ() + maxRadius + 1
         );
         for (ItemEntity entity : world.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
             entity.discard();

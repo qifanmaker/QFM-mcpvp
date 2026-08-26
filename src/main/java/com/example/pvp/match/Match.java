@@ -443,7 +443,8 @@ public final class Match {
     /** 清理竞技场地形并释放场地（无论结束流程是否出错都必须执行）。 */
     private void cleanupArenaAndRelease() {
         try {
-            this.manager.getArenaManager().clearArena(this.regionIndex, this.template);
+            int skywarsMaxRadius = this.skywarsLayout == null ? 0 : this.skywarsLayout.maxRadius();
+            this.manager.getArenaManager().clearArena(this.regionIndex, this.template, skywarsMaxRadius);
         } catch (Exception e) {
             LOGGER.error("[PvP] 清理竞技场出错", e);
         }
