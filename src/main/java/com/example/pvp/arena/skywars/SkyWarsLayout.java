@@ -121,7 +121,8 @@ public final class SkyWarsLayout {
             int x = mapCenter.getX() + (int) Math.round(Math.cos(angles[i]) * distances[i]);
             int z = mapCenter.getZ() + (int) Math.round(Math.sin(angles[i]) * distances[i]);
             int islandRadius = Math.max(3, cfg.skywarsIslandRadius + random.nextInt(3) - 1);
-            Island island = buildIsland(random, new BlockPos(x, mapCenter.getY(), z), islandRadius, cfg.skywarsChestsPerIsland);
+            int height = random.nextInt(7) - 3; // 岛屿间 ±3 高低差
+            Island island = buildIsland(random, new BlockPos(x, mapCenter.getY() + height, z), islandRadius, cfg.skywarsChestsPerIsland);
             spawnIslands.add(island);
             spawns.add(island.center.up(1)); // 出生点在岛中心地表
         }
@@ -138,11 +139,15 @@ public final class SkyWarsLayout {
         for (int i = 0; i < playerCount; i++) {
             int x = mapCenter.getX() + (int) Math.round(Math.cos(angles[i]) * midDist);
             int z = mapCenter.getZ() + (int) Math.round(Math.sin(angles[i]) * midDist);
-            Island island = buildIsland(random, new BlockPos(x, mapCenter.getY(), z), midRadius, cfg.skywarsMidIslandChests);
+            int height = random.nextInt(7) - 3; // 岛屿间 ±3 高低差
+            Island island = buildIsland(random, new BlockPos(x, mapCenter.getY() + height, z), midRadius, cfg.skywarsMidIslandChests);
             midIslands.add(island);
         }
 
-        Island middle = buildIsland(random, mapCenter, Math.max(4, cfg.skywarsMiddleRadius), cfg.skywarsMiddleChests);
+        int middleHeight = random.nextInt(7) - 3;
+        Island middle = buildIsland(random,
+                new BlockPos(mapCenter.getX(), mapCenter.getY() + middleHeight, mapCenter.getZ()),
+                Math.max(4, cfg.skywarsMiddleRadius), cfg.skywarsMiddleChests);
 
         return new SkyWarsLayout(mapCenter, computeMaxRadius(), spawnIslands, midIslands, middle, spawns);
     }

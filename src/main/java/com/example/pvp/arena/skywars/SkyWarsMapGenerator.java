@@ -134,7 +134,7 @@ public final class SkyWarsMapGenerator {
                 }
                 int x = center.getX() + dx;
                 int z = center.getZ() + dz;
-                for (int dy = -ISLAND_DEPTH; dy <= 6; dy++) {
+                for (int dy = -ISLAND_DEPTH - 3; dy <= 9; dy++) {
                     BlockPos p = new BlockPos(x, ArenaTemplate.PLATFORM_Y + dy, z);
                     if (!world.getBlockState(p).isAir()) {
                         world.setBlockState(p, Blocks.AIR.getDefaultState(), 3);
@@ -162,7 +162,7 @@ public final class SkyWarsMapGenerator {
         // 大图大部分是虚空空气，跳过空气降低耗时
         for (int dx = -maxRadius; dx <= maxRadius; dx++) {
             for (int dz = -maxRadius; dz <= maxRadius; dz++) {
-                for (int dy = -ISLAND_DEPTH - 1; dy <= 6; dy++) {
+                for (int dy = -ISLAND_DEPTH - 3; dy <= 9; dy++) {
                     BlockPos pos = new BlockPos(center.getX() + dx,
                             ArenaTemplate.PLATFORM_Y + dy, center.getZ() + dz);
                     if (!world.getBlockState(pos).isAir()) {
@@ -174,8 +174,8 @@ public final class SkyWarsMapGenerator {
 
         // 再清掉落物（含拆箱掉出来的战利品与玩家淘汰时的掉落）
         Box box = new Box(
-                center.getX() - maxRadius, ArenaTemplate.PLATFORM_Y - ISLAND_DEPTH - 1, center.getZ() - maxRadius,
-                center.getX() + maxRadius + 1, ArenaTemplate.PLATFORM_Y + 6, center.getZ() + maxRadius + 1
+                center.getX() - maxRadius, ArenaTemplate.PLATFORM_Y - ISLAND_DEPTH - 3, center.getZ() - maxRadius,
+                center.getX() + maxRadius + 1, ArenaTemplate.PLATFORM_Y + 9, center.getZ() + maxRadius + 1
         );
         for (ItemEntity entity : world.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
             entity.discard();

@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
+import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.item.ArmorItem;
@@ -13,6 +14,8 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.Potions;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -61,7 +64,12 @@ public final class SkyWarsLoot {
             new LootEntry(6, (r, c) -> stack(Items.GOLDEN_APPLE, 1 + r.nextInt(2))),
             new LootEntry(5, (r, c) -> stack(Items.ENDER_PEARL, 1 + r.nextInt(2))),
             new LootEntry(3, (r, c) -> stack(Items.WATER_BUCKET, 1)),
+            new LootEntry(3, (r, c) -> stack(Items.LAVA_BUCKET, 1)),
             new LootEntry(6, (r, c) -> stack(Items.TNT, 1 + r.nextInt(2))),
+            new LootEntry(6, (r, c) -> stack(Items.FIRE_CHARGE, 2 + r.nextInt(3))),
+            new LootEntry(5, (r, c) -> stack(Items.COBWEB, 2 + r.nextInt(3))),
+            new LootEntry(4, (r, c) -> stack(Items.WIND_CHARGE, 1 + r.nextInt(2))),
+            new LootEntry(8, (r, c) -> randomPotion(r, false)),
             new LootEntry(14, (r, c) -> bridgeBlocks(r))
     );
 
@@ -79,7 +87,12 @@ public final class SkyWarsLoot {
             new LootEntry(2, (r, c) -> stack(Items.WATER_BUCKET, 1)),
             new LootEntry(2, (r, c) -> stack(Items.LAVA_BUCKET, 1)),
             new LootEntry(6, (r, c) -> bridgeBlocks(r)),
-            new LootEntry(6, (r, c) -> stack(Items.TNT, 2 + r.nextInt(2)))
+            new LootEntry(6, (r, c) -> stack(Items.TNT, 2 + r.nextInt(2))),
+            new LootEntry(8, (r, c) -> weapon(Items.MACE, r, c)),
+            new LootEntry(6, (r, c) -> stack(Items.WIND_CHARGE, 2 + r.nextInt(3))),
+            new LootEntry(6, (r, c) -> stack(Items.FIRE_CHARGE, 3 + r.nextInt(3))),
+            new LootEntry(5, (r, c) -> stack(Items.COBWEB, 3 + r.nextInt(4))),
+            new LootEntry(10, (r, c) -> randomPotion(r, true))
     );
 
     /** 往一个箱子填充随机战利品。 */
@@ -173,6 +186,31 @@ public final class SkyWarsLoot {
 
     private static ItemStack stack(Item item, int count) {
         return new ItemStack(item, count);
+    }
+
+    // ---------- 药水：速度 I/II、跳跃 I/II、力量 I、生命恢复 I/II、瞬间治疗 I/II ----------
+
+    private static final List<RegistryEntry<Potion>> POTIONS = List.of(
+            Potions.SWIFTNESS, Potions.STRONG_SWIFTNESS,          // 速度 I / II
+            Potions.LEAPING, Potions.STRONG_LEAPING,              // 跳跃 I / II
+            Potions.STRENGTH,                                     // 力量 I
+            Potions.REGENERATION, Potions.STRONG_REGENERATION,    // 生命恢复 I / II
+            Potions.HEALING, Potions.STRONG_HEALING               // 瞬间治疗 I / II
+    );
+
+    /** 随机一瓶药水（饮用或喷溅；中间主岛更偏向喷溅）。 */
+    private static ItemStack randomPotion(Random random, boolean splashBiased) {
+        boolean splash = splashBiased ? random.nextInt(3) < 2 : random.nextBoolean();
+        Item item = splash ? Items.SPLASH_POTION : Items.POTION;
+        RegistryEntry<Potion> potion = POTIONS.get(random.nextInt(POTIONS.size()));
+        return potionStack(item, potion);
+    }
+
+    private static ItemStack potionStack(Item item, RegistryEntry<Potion> potion) {
+        if (potion == null) {
+            return ItemStack.EMPTY;
+        }
+        return PotionContentsComponent.createStack(item, potion);
     }
 
     // ---------- 附魔：低等级概率高 ----------
