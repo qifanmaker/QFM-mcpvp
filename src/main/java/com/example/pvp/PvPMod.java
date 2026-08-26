@@ -35,6 +35,7 @@ import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.block.entity.DispenserBlockEntity;
 import net.minecraft.entity.TntEntity;
+import net.minecraft.entity.projectile.SmallFireballEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
@@ -199,6 +200,20 @@ public final class PvPMod implements ModInitializer {
                         return TypedActionResult.success(stack);
                     }
                     return TypedActionResult.pass(stack);
+                }
+                // 竞技场内火焰弹（空岛战争）：对空中右键发射，落地/命中把附近玩家弹开
+                if (stack.isOf(Items.FIRE_CHARGE) && world.getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
+                    HitResult hit = serverPlayer.raycast(4.5, 1.0F, false);
+                    if (hit != null && hit.getType() == HitResult.Type.MISS) {
+                        Vec3d look = serverPlayer.getRotationVector();
+                        SmallFireballEntity fireball = new SmallFireballEntity(world, serverPlayer, look);
+                        fireball.setPosition(serverPlayer.getX(), serverPlayer.getEyeY() - 0.1, serverPlayer.getZ());
+                        fireball.setVelocity(look.multiply(1.5)); // 覆盖构造时的 0.1 倍速，飞得更快
+                        world.spawnEntity(fireball);
+                        stack.decrement(1);
+                        return TypedActionResult.success(stack);
+                    }
+                    return TypedActionResult.pass(stack); // 对准方块则交给原版点火
                 }
             }
             return TypedActionResult.pass(stack);
