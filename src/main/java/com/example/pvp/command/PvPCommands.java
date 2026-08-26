@@ -361,7 +361,7 @@ public final class PvPCommands {
         int lastRegion = baseRegion;
         for (int i = 0; i < rounds; i++) {
             int region = baseRegion + i;
-            SkyWarsLayout layout = SkyWarsMapGenerator.generate(arena, region, 9000 + i, 4);
+            SkyWarsLayout layout = SkyWarsMapGenerator.generate(arena, region, 9000 + i, 4, null);
             lastRegion = region;
             player.sendMessage(Messages.info("测试空岛 #" + (i + 1) + " 已生成："
                     + layout.spawnIslands().size() + " 个出生岛(每岛 "

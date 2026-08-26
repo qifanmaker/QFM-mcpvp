@@ -1,5 +1,7 @@
 package com.example.pvp.arena.skywars;
 
+import com.example.pvp.config.PlayerStats;
+import com.example.pvp.config.StatsStore;
 import com.mojang.logging.LogUtils;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.component.DataComponentTypes;
@@ -23,6 +25,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import org.slf4j.Logger;
 
@@ -110,22 +113,37 @@ public final class SkyWarsLoot {
             new LootEntry(4, (r, c) -> stack(Items.ANVIL, 1))
     );
 
-    /** 往一个箱子填充随机战利品。 */
-    public static void populate(ChestBlockEntity chest, boolean middle) {
+    /**
+     * 往一个箱子填充随机战利品。
+     *
+     * @param handicap 战绩弱势补偿（0=无，1/2=略微提升装备与神器概率，不明显）
+     */
+    public static void populate(ChestBlockEntity chest, boolean middle, int handicap) {
         Random random = new Random();
         List<ItemStack> drops = new ArrayList<>();
         int stackCount = middle ? 4 + random.nextInt(3) : 3 + random.nextInt(2); // 中间 4~6，出生 3~4
+        int enchantBonus = handicap * 8; // 弱势玩家附魔概率略高
 
         // 出生箱保底：两小叠搭桥方块（分散放置）+ 两件铁质装备（3 箱合计至少 6 件，铁装几乎必齐）
         if (!middle) {
             drops.add(bridgeBlocks(random));
             drops.add(bridgeBlocks(random));
-            drops.add(ironEquipment(random, 30));
-            drops.add(ironEquipment(random, 30));
+            for (int k = 0; k < 2; k++) {
+                if (handicap > 0 && random.nextInt(100) < handicap * 12) {
+                    // 战绩低：保底铁装偶有概率换成钻石装（轻微提升）
+                    drops.add(random.nextBoolean()
+                            ? weapon(Items.DIAMOND_SWORD, random, 30 + enchantBonus)
+                            : armor(random, 30 + enchantBonus, true));
+                } else {
+                    drops.add(ironEquipment(random, 30 + enchantBonus));
+                }
+            }
         }
 
         for (int i = 0; i < stackCount; i++) {
-            ItemStack stack = middle ? roll(MIDDLE_TABLE, random, 50) : roll(SPAWN_TABLE, random, 30);
+            ItemStack stack = middle
+                    ? roll(MIDDLE_TABLE, random, 50 + enchantBonus)
+                    : roll(SPAWN_TABLE, random, 30 + enchantBonus);
             if (!stack.isEmpty()) {
                 drops.add(stack);
             }
@@ -133,13 +151,14 @@ public final class SkyWarsLoot {
 
         // 极稀有物品：中间岛出鞘翅/附魔金苹果/不死图腾；玩家岛出秒人斧/不死图腾
         if (middle) {
-            rollMiddleUltraRare(random, drops);
+            rollMiddleUltraRare(random, drops, handicap);
         } else {
             int ultra = random.nextInt(100);
-            if (ultra < 1) {
-                drops.add(makeMiaoRenAxe()); // 秒人斧仅玩家岛刷新（~1%）
-            } else if (ultra < 2) {
-                drops.add(new ItemStack(Items.TOTEM_OF_UNDYING)); // 玩家岛不死图腾（~1%）
+            int boost = handicap * 2; // 弱势玩家神器概率略高
+            if (ultra < 1 + boost) {
+                drops.add(makeMiaoRenAxe()); // 秒人斧仅玩家岛刷新
+            } else if (ultra < 2 + boost) {
+                drops.add(new ItemStack(Items.TOTEM_OF_UNDYING)); // 玩家岛不死图腾
             }
         }
 
@@ -306,18 +325,39 @@ public final class SkyWarsLoot {
         return stack;
     }
 
-    /** 中间岛每箱极稀有（各 ~1%）：鞘翅+3 烟花火箭、附魔金苹果、不死图腾。秒人斧只刷玩家岛。 */
-    private static void rollMiddleUltraRare(Random random, List<ItemStack> drops) {
+    /** 中间岛每箱极稀有：鞘翅+3 烟花火箭、附魔金苹果、不死图腾。秒人斧只刷玩家岛。 */
+    private static void rollMiddleUltraRare(Random random, List<ItemStack> drops, int handicap) {
         int roll = random.nextInt(100);
-        if (roll < 1) {
+        int boost = handicap * 2; // 战绩低：神器概率轻微提升
+        if (roll < 1 + boost) {
             // 鞘翅 + 3 根烟花火箭：可以飞掠全图
             drops.add(new ItemStack(Items.ELYTRA));
             drops.add(stack(Items.FIREWORK_ROCKET, 3));
-        } else if (roll < 2) {
+        } else if (roll < 2 + boost) {
             drops.add(new ItemStack(Items.ENCHANTED_GOLDEN_APPLE));
-        } else if (roll < 3) {
+        } else if (roll < 3 + boost) {
             drops.add(new ItemStack(Items.TOTEM_OF_UNDYING)); // 掉虚空自动救回中岛
         }
+    }
+
+    /**
+     * 战绩弱势补偿等级：胜率越低越大（0=正常，1=轻，2=更明显些但整体仍克制）。
+     * 场次太少（<3）不判定，避免新玩家被当成弱者获得优待。
+     */
+    public static int handicapFor(ServerPlayerEntity player) {
+        if (player == null) {
+            return 0;
+        }
+        PlayerStats stats = StatsStore.INSTANCE.getStats(player.getUuid());
+        int matches = stats.getMatches();
+        if (matches < 3) {
+            return 0;
+        }
+        double winRate = (double) stats.getWins() / matches;
+        if (winRate < 0.2) {
+            return 2;
+        }
+        return winRate < 0.35 ? 1 : 0;
     }
 
     /** 妙人斧：锋利 666 金斧，耐久 1，一击必杀（梗）。 */

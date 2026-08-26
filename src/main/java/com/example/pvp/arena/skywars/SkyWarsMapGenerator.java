@@ -9,10 +9,12 @@ import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import org.slf4j.Logger;
 
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -29,27 +31,39 @@ public final class SkyWarsMapGenerator {
     }
 
     /** 生成一整张空岛地图（含战利品），并返回布局（出生点已在 Match 构造时算好）。主题由 seed 抽取。 */
-    public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount) {
+    public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
+                                         List<ServerPlayerEntity> players) {
         BlockPos mapCenter = center(regionIndex);
         SkyWarsLayout layout = SkyWarsLayout.compute(mapCenter, seed, playerCount);
         SkyWarsTheme theme = SkyWarsTheme.pick(seed);
 
-        for (SkyWarsLayout.Island island : layout.spawnIslands()) {
-            buildIsland(world, island, false, theme);
+        // 出生岛/中途岛按玩家索引归属，战绩低的玩家获得轻微的装备/神器提升
+        List<SkyWarsLayout.Island> spawnIslands = layout.spawnIslands();
+        for (int i = 0; i < spawnIslands.size(); i++) {
+            buildIsland(world, spawnIslands.get(i), false, theme, handicapFor(players, i));
         }
-        for (SkyWarsLayout.Island island : layout.midIslands()) {
-            buildIsland(world, island, false, theme);
+        List<SkyWarsLayout.Island> midIslands = layout.midIslands();
+        for (int i = 0; i < midIslands.size(); i++) {
+            buildIsland(world, midIslands.get(i), false, theme, handicapFor(players, i));
         }
-        buildIsland(world, layout.middle(), true, theme);
+        buildIsland(world, layout.middle(), true, theme, 0);
 
         LOGGER.info("[PvP] 空岛战争地图已生成: {} 个出生岛 + {} 个中途岛 + 中间主岛({} 箱)，主题：{}",
-                layout.spawnIslands().size(), layout.midIslands().size(), layout.middle().chests().size(),
+                spawnIslands.size(), midIslands.size(), layout.middle().chests().size(),
                 theme.getDisplayName());
         return layout;
     }
 
+    /** 该玩家岛的弱势补偿等级（玩家列表缺失/越界时按 0）。 */
+    private static int handicapFor(List<ServerPlayerEntity> players, int index) {
+        if (players == null || index >= players.size()) {
+            return 0;
+        }
+        return SkyWarsLoot.handicapFor(players.get(index));
+    }
+
     /** 铺一座岛（按主题选材质 + 箱子 + 偶发装饰）；中间岛前两个箱子放在石砖柱上。 */
-    private static void buildIsland(ArenaWorld world, SkyWarsLayout.Island island, boolean middle, SkyWarsTheme theme) {
+    private static void buildIsland(ArenaWorld world, SkyWarsLayout.Island island, boolean middle, SkyWarsTheme theme, int handicap) {
         Random random = new Random(island.center.hashCode());
         int r = island.radius;
         BlockPos c = island.center;
@@ -117,7 +131,7 @@ public final class SkyWarsMapGenerator {
             world.setBlockState(pos, Blocks.CHEST.getDefaultState(), 3);
             BlockEntity be = world.getBlockEntity(pos);
             if (be instanceof ChestBlockEntity chest) {
-                SkyWarsLoot.populate(chest, middle);
+                SkyWarsLoot.populate(chest, middle, handicap);
             }
         }
 

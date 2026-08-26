@@ -1118,7 +1118,8 @@ public final class Match {
     }
 
     private void setupPlayers() {
-        this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.skywarsSeed, this.players.size(), this.type);
+        this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.skywarsSeed,
+                this.players.size(), this.type, this.players);
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
 
         boolean skywars = this.type == MatchType.SKYWARS;
