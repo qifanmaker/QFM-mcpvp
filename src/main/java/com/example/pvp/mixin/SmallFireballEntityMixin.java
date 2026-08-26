@@ -41,25 +41,29 @@ public abstract class SmallFireballEntityMixin {
                     SoundCategory.BLOCKS, 4.0F, (1.0F + serverWorld.random.nextFloat() * 0.2F) * 0.7F);
         }
 
-        // 弹开周围 5 格玩家（打中地面也能把旁边的人震开）
+        // 统一径向击退：爆炸点周围 5 格的所有玩家（含投掷者）都沿"爆炸→自身"方向被震开，
+        // 所以往脚底扔时（爆炸在脚下）会被向上弹起——即火焰弹跳，机制与旁人完全一致
         for (PlayerEntity player : fireball.getWorld().getPlayers()) {
-            if (player.squaredDistanceTo(x, y, z) > 25.0) { // 半径 5 格内
-                continue;
-            }
-            if (player == owner) {
-                // 火焰弹跳：往脚底扔火焰弹时把自己弹上天（向上速度）
-                player.setVelocity(player.getVelocity().x,
-                        Math.max(player.getVelocity().y, 1.2), player.getVelocity().z);
-                player.velocityDirty = true;
-                continue;
-            }
             double dx = player.getX() - x;
+            double dy = (player.getY() + player.getHeight() / 2.0) - y; // 用玩家身体中心
             double dz = player.getZ() - z;
-            if (dx * dx + dz * dz < 0.01) {
-                dx = 0.0;
-                dz = 0.01;
+            double distSq = dx * dx + dy * dy + dz * dz;
+            if (distSq > 25.0) { // 半径 5 格内
+                continue;
             }
-            player.takeKnockback(1.8, dx, dz);
+            double dist = Math.sqrt(distSq);
+            if (dist < 0.01) {
+                dx = 0.0;
+                dy = 1.0;
+                dz = 0.0;
+                dist = 1.0;
+            }
+            double strength = 1.8 * Math.max(0.3, 1.0 - dist / 6.0); // 距离越近越强
+            player.setVelocity(
+                    player.getVelocity().x + dx / dist * strength,
+                    player.getVelocity().y + dy / dist * strength,
+                    player.getVelocity().z + dz / dist * strength);
+            player.velocityDirty = true;
         }
     }
 }
