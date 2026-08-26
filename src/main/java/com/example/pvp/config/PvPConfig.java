@@ -55,13 +55,16 @@ public final class PvPConfig {
     public int skywarsCountdownSeconds = 30;
     public int skywarsFillTimeoutSeconds = 60;
     /** 地图覆盖边长（生成/清理边界，需覆盖所有岛屿）。 */
-    public int skywarsSize = 80;
+    public int skywarsSize = 128;
     public int skywarsIslandRadius = 5;
-    public int skywarsMiddleRadius = 12;
+    /** 中间主岛半径（默认 12×2.5≈30）。 */
+    public int skywarsMiddleRadius = 30;
     /** 出生岛边缘到中间主岛边缘的空隙（格）：越大出生岛离中间岛越远、越难偷袭。 */
-    public int skywarsIslandGap = 8;
+    public int skywarsIslandGap = 20;
     public int skywarsChestsPerIsland = 3;
     public int skywarsMiddleChests = 5;
+    /** 中途岛：半径固定为玩家岛×1.5，每个玩家岛对应的中途岛箱数。 */
+    public int skywarsMidIslandChests = 3;
     /** 对局超时（秒）与缩圈：开赛多少秒后开始缩圈、每圈间隔多少秒、每圈塌掉几格、最小安全半径。 */
     public int skywarsTimeoutSeconds = 600;
     public int skywarsShrinkStartSeconds = 180;

@@ -45,13 +45,16 @@ public final class SkyWarsLayout {
     private final BlockPos mapCenter;
     private final int maxRadius;
     private final List<Island> spawnIslands;
+    private final List<Island> midIslands;
     private final Island middle;
     private final List<BlockPos> spawns;
 
-    private SkyWarsLayout(BlockPos mapCenter, int maxRadius, List<Island> spawnIslands, Island middle, List<BlockPos> spawns) {
+    private SkyWarsLayout(BlockPos mapCenter, int maxRadius, List<Island> spawnIslands,
+                          List<Island> midIslands, Island middle, List<BlockPos> spawns) {
         this.mapCenter = mapCenter;
         this.maxRadius = maxRadius;
         this.spawnIslands = List.copyOf(spawnIslands);
+        this.midIslands = List.copyOf(midIslands);
         this.middle = middle;
         this.spawns = List.copyOf(spawns);
     }
@@ -66,6 +69,11 @@ public final class SkyWarsLayout {
 
     public List<Island> spawnIslands() {
         return this.spawnIslands;
+    }
+
+    /** 中途岛：每个玩家岛对应一座，位于玩家岛与中间主岛之间（同角度，作为跳板）。 */
+    public List<Island> midIslands() {
+        return this.midIslands;
     }
 
     public Island middle() {
@@ -91,24 +99,45 @@ public final class SkyWarsLayout {
         int maxIslandRadius = Math.max(3, cfg.skywarsIslandRadius) + 1; // 布局随机可到配置+1
         int spawnDist = cfg.skywarsMiddleRadius + maxIslandRadius + 1 + cfg.skywarsIslandGap; // +1 抵消下方 ±1 抖动
 
+        // 每个玩家的角度与距离（玩家岛与其对应中途岛共用同一角度，形成直达中岛的跳板）
+        double[] angles = new double[playerCount];
+        int[] distances = new int[playerCount];
+        for (int i = 0; i < playerCount; i++) {
+            angles[i] = i * 2.0 * Math.PI / playerCount + (random.nextDouble() - 0.5) * 0.7;
+            distances[i] = spawnDist + random.nextInt(3) - 1;
+        }
+
         List<Island> spawnIslands = new ArrayList<>();
         List<BlockPos> spawns = new ArrayList<>();
         for (int i = 0; i < playerCount; i++) {
-            // 等角分布 + 少量角度抖动，距中心 spawnDist±1 格
-            double angle = i * 2.0 * Math.PI / playerCount + (random.nextDouble() - 0.5) * 0.7;
-            int dist = spawnDist + random.nextInt(3) - 1;
-            int x = mapCenter.getX() + (int) Math.round(Math.cos(angle) * dist);
-            int z = mapCenter.getZ() + (int) Math.round(Math.sin(angle) * dist);
+            int x = mapCenter.getX() + (int) Math.round(Math.cos(angles[i]) * distances[i]);
+            int z = mapCenter.getZ() + (int) Math.round(Math.sin(angles[i]) * distances[i]);
             int islandRadius = Math.max(3, cfg.skywarsIslandRadius + random.nextInt(3) - 1);
             Island island = buildIsland(random, new BlockPos(x, mapCenter.getY(), z), islandRadius, cfg.skywarsChestsPerIsland);
             spawnIslands.add(island);
             spawns.add(island.center.up(1)); // 出生点在岛中心地表
         }
 
+        // 中途岛：半径 1.5×玩家岛、skywarsMidIslandChests 个箱子，位于玩家岛与中岛之间
+        int midRadius = Math.max(3, (int) Math.round(cfg.skywarsIslandRadius * 1.5));
+        int playerInnerEdge = spawnDist - 1 - maxIslandRadius; // 玩家岛离中岛最近的内缘
+        int midDist = (cfg.skywarsMiddleRadius + playerInnerEdge) / 2;
+        int midMin = cfg.skywarsMiddleRadius + midRadius + 1;
+        int midMax = playerInnerEdge - midRadius - 1;
+        midDist = Math.max(midMin, Math.min(midDist, midMax)); // 保证不与中岛/玩家岛重叠
+
+        List<Island> midIslands = new ArrayList<>();
+        for (int i = 0; i < playerCount; i++) {
+            int x = mapCenter.getX() + (int) Math.round(Math.cos(angles[i]) * midDist);
+            int z = mapCenter.getZ() + (int) Math.round(Math.sin(angles[i]) * midDist);
+            Island island = buildIsland(random, new BlockPos(x, mapCenter.getY(), z), midRadius, cfg.skywarsMidIslandChests);
+            midIslands.add(island);
+        }
+
         Island middle = buildIsland(random, mapCenter, Math.max(4, cfg.skywarsMiddleRadius), cfg.skywarsMiddleChests);
 
         int maxRadius = spawnDist + maxIslandRadius + MAX_RADIUS_MARGIN;
-        return new SkyWarsLayout(mapCenter, maxRadius, spawnIslands, middle, spawns);
+        return new SkyWarsLayout(mapCenter, maxRadius, spawnIslands, midIslands, middle, spawns);
     }
 
     /** 计算一座岛的箱子位置（离岛心 2~半径-2 格、随机角度，保证落在岛面上）。 */

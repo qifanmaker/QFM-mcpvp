@@ -242,8 +242,8 @@ public final class Match {
         }
         this.skywarsShrinkStage = stage;
         int keepRadius = this.skywarsLayout.maxRadius() - stage * cfg.skywarsShrinkBlocksPerStage;
-        if (keepRadius < cfg.skywarsShrinkMinRadius) {
-            keepRadius = cfg.skywarsShrinkMinRadius;
+        if (keepRadius < this.skywarsMinShrinkRadius()) {
+            keepRadius = this.skywarsMinShrinkRadius();
         }
         if (keepRadius >= this.skywarsLastKeepRadius) {
             return; // 已缩到最小安全半径，不再重复
@@ -903,10 +903,16 @@ public final class Match {
         }
         int stage = (elapsed - startSec) / cfg.skywarsShrinkIntervalSeconds + 1;
         int keep = this.skywarsLayout.maxRadius() - stage * cfg.skywarsShrinkBlocksPerStage;
-        if (keep < cfg.skywarsShrinkMinRadius) {
-            keep = cfg.skywarsShrinkMinRadius;
+        if (keep < this.skywarsMinShrinkRadius()) {
+            keep = this.skywarsMinShrinkRadius();
         }
         return "§c缩圈中 §e半径 " + keep;
+    }
+
+    /** 缩圈最小安全半径：不低于中间主岛半径+2，避免缩圈拆掉主岛。 */
+    private int skywarsMinShrinkRadius() {
+        return Math.max(PvPConfig.INSTANCE.skywarsShrinkMinRadius,
+                PvPConfig.INSTANCE.skywarsMiddleRadius + 2);
     }
 
     private static String formatTime(int seconds) {

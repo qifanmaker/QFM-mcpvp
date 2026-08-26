@@ -35,10 +35,13 @@ public final class SkyWarsMapGenerator {
         for (SkyWarsLayout.Island island : layout.spawnIslands()) {
             buildIsland(world, island, false);
         }
+        for (SkyWarsLayout.Island island : layout.midIslands()) {
+            buildIsland(world, island, false);
+        }
         buildIsland(world, layout.middle(), true);
 
-        LOGGER.info("[PvP] 空岛战争地图已生成: {} 个出生岛 + 中间主岛({} 箱)",
-                layout.spawnIslands().size(), layout.middle().chests().size());
+        LOGGER.info("[PvP] 空岛战争地图已生成: {} 个出生岛 + {} 个中途岛 + 中间主岛({} 箱)",
+                layout.spawnIslands().size(), layout.midIslands().size(), layout.middle().chests().size());
         return layout;
     }
 
@@ -131,7 +134,7 @@ public final class SkyWarsMapGenerator {
                 }
                 int x = center.getX() + dx;
                 int z = center.getZ() + dz;
-                for (int dy = -ISLAND_DEPTH; dy <= 12; dy++) {
+                for (int dy = -ISLAND_DEPTH; dy <= 6; dy++) {
                     BlockPos p = new BlockPos(x, ArenaTemplate.PLATFORM_Y + dy, z);
                     if (!world.getBlockState(p).isAir()) {
                         world.setBlockState(p, Blocks.AIR.getDefaultState(), 3);
@@ -147,9 +150,10 @@ public final class SkyWarsMapGenerator {
 
         // 先拆方块：箱子被拆掉时会把里面战利品掉落成实体，
         // 所以必须先拆块、再清掉落物，否则箱子内容会残留在地上
+        // 清场高度取平台下方 3 格到上方 6 格（覆盖岛体/立柱/小树顶部）
         for (int dx = 0; dx < size; dx++) {
             for (int dz = 0; dz < size; dz++) {
-                for (int dy = -ISLAND_DEPTH - 1; dy <= 14; dy++) {
+                for (int dy = -ISLAND_DEPTH - 1; dy <= 6; dy++) {
                     world.setBlockState(origin.add(dx, dy, dz), Blocks.AIR.getDefaultState(), 3);
                 }
             }
@@ -158,7 +162,7 @@ public final class SkyWarsMapGenerator {
         // 再清掉落物（含拆箱掉出来的战利品与玩家淘汰时的掉落）
         Box box = new Box(
                 origin.getX(), origin.getY() - ISLAND_DEPTH - 1, origin.getZ(),
-                origin.getX() + size, origin.getY() + 14, origin.getZ() + size
+                origin.getX() + size, origin.getY() + 6, origin.getZ() + size
         );
         for (ItemEntity entity : world.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
             entity.discard();

@@ -61,7 +61,7 @@ public final class SkyWarsLoot {
             new LootEntry(6, (r, c) -> stack(Items.GOLDEN_APPLE, 1 + r.nextInt(2))),
             new LootEntry(5, (r, c) -> stack(Items.ENDER_PEARL, 1 + r.nextInt(2))),
             new LootEntry(3, (r, c) -> stack(Items.WATER_BUCKET, 1)),
-            new LootEntry(12, (r, c) -> stack(Items.TNT, 1 + r.nextInt(4))),
+            new LootEntry(6, (r, c) -> stack(Items.TNT, 1 + r.nextInt(2))),
             new LootEntry(14, (r, c) -> bridgeBlocks(r))
     );
 
@@ -79,7 +79,7 @@ public final class SkyWarsLoot {
             new LootEntry(2, (r, c) -> stack(Items.WATER_BUCKET, 1)),
             new LootEntry(2, (r, c) -> stack(Items.LAVA_BUCKET, 1)),
             new LootEntry(6, (r, c) -> bridgeBlocks(r)),
-            new LootEntry(12, (r, c) -> stack(Items.TNT, 3 + r.nextInt(6)))
+            new LootEntry(6, (r, c) -> stack(Items.TNT, 2 + r.nextInt(2)))
     );
 
     /** 往一个箱子填充随机战利品。 */
