@@ -80,6 +80,15 @@ public final class PvPMod implements ModInitializer {
                 .orElse("?");
     }
 
+    /** 发射一颗火焰弹（空岛战争）：沿视线方向生成小火焰弹，落地/命中会爆炸击退。 */
+    public static void launchFireCharge(ServerPlayerEntity player, World world) {
+        Vec3d look = player.getRotationVector();
+        SmallFireballEntity fireball = new SmallFireballEntity(world, player, look);
+        fireball.setPosition(player.getX(), player.getEyeY() - 0.1, player.getZ());
+        fireball.setVelocity(look.multiply(1.5)); // 覆盖构造时的 0.1 倍速，飞得更快
+        world.spawnEntity(fireball);
+    }
+
     @Override
     public void onInitialize() {
         LOGGER.info("[PvP] 正在初始化 PvP 匹配 Mod...");
@@ -214,13 +223,9 @@ public final class PvPMod implements ModInitializer {
                     }
                     return TypedActionResult.pass(stack);
                 }
-                // 竞技场内火焰弹（空岛战争）：右键即发射，落地/命中把附近玩家弹开（不再受瞄准方块影响）
+                // 竞技场内火焰弹（空岛战争）：对空右键即发射（对方块右键由 FireChargeItemMixin 拦截发射）
                 if (stack.isOf(Items.FIRE_CHARGE) && world.getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
-                    Vec3d look = serverPlayer.getRotationVector();
-                    SmallFireballEntity fireball = new SmallFireballEntity(world, serverPlayer, look);
-                    fireball.setPosition(serverPlayer.getX(), serverPlayer.getEyeY() - 0.1, serverPlayer.getZ());
-                    fireball.setVelocity(look.multiply(1.5)); // 覆盖构造时的 0.1 倍速，飞得更快
-                    world.spawnEntity(fireball);
+                    launchFireCharge(serverPlayer, world);
                     stack.decrement(1);
                     return TypedActionResult.success(stack);
                 }
