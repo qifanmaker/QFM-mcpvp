@@ -37,6 +37,9 @@ public final class KitManager {
     /** 空岛战争哨兵套件：无物品、生存模式。仅作为占位避免空岛战争流程里 Kit 为 null。 */
     private static Kit skywarsKit;
 
+    /** 战桥哨兵套件：实际装备由 {@link BridgeGear} 按队伍色发放，这里仅作队列占位。 */
+    private static Kit bridgeKit;
+
     /** 附魔注册表：服务器启动后才可用，用于给套件物品加附魔。 */
     private static Registry<Enchantment> enchantmentRegistry;
 
@@ -54,6 +57,11 @@ public final class KitManager {
         skywarsKit = new Kit.Builder("skywars", KitType.CUSTOM)
                 .displayName("空岛战争")
                 .food(20, 5f)
+                .gamemode(GameMode.SURVIVAL)
+                .build();
+        bridgeKit = new Kit.Builder("bridge", KitType.CUSTOM)
+                .displayName("战桥")
+                .food(20, 20f)
                 .gamemode(GameMode.SURVIVAL)
                 .build();
         KITS.add(buildSwordKit());
@@ -102,6 +110,11 @@ public final class KitManager {
     /** 空岛战争哨兵套件（不入 KITS 列表，避免出现在套件选择页）。 */
     public static Kit skywarsKit() {
         return skywarsKit;
+    }
+
+    /** 战桥哨兵套件（不入 KITS 列表，装备由 {@link BridgeGear} 按队伍色发放）。 */
+    public static Kit bridgeKit() {
+        return bridgeKit;
     }
 
     private static Kit buildSwordKit() {

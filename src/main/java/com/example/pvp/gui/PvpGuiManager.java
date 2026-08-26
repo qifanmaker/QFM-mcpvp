@@ -217,15 +217,26 @@ public final class PvpGuiManager {
                     "点击选择套件后加入队列"));
             inv.setStack(12, makeButton(Items.STICK, "§b相扑 (Sumo)", "不吃伤害，只吃击退", "落到平台下方 20 格淘汰，末影珍珠可救回", "点击选择套件后加入队列"));
             inv.setStack(13, makeButton(Items.DIAMOND_SWORD, "§b1.8 经典PvP", "无攻击冷却，疯狂点按", "剑可格挡减伤 50%", "点击选择套件后加入队列"));
-            inv.setStack(17, makeButton(Items.END_CRYSTAL, "§b空岛战争 (Beta)", "2~8 人，凑齐 "
+            inv.setStack(14, makeButton(Items.END_CRYSTAL, "§b空岛战争 (Beta)", "2~8 人，凑齐 "
                     + PvPConfig.INSTANCE.skywarsStartPlayers + " 人开赛",
                     "随机空岛 + 中间主岛，开箱获得装备",
                     "1.8 低版本战斗：无冷却、剑格挡",
                     "3 分钟后缩圈，最后存活者获胜",
                     "点击直接加入"));
-            inv.setStack(14, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
-            inv.setStack(15, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
-            inv.setStack(16, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
+
+            int win = PvPConfig.INSTANCE.bridgeWinScore;
+            inv.setStack(15, makeButton(Items.BRICK, "§3战桥 1v1", "2 人，先得 " + win + " 分获胜",
+                    "跳进对方球门洞得分", "1.8 低版本战斗：无冷却、剑格挡", "点击直接加入"));
+            inv.setStack(16, makeButton(Items.IRON_BARS, "§5战桥 1v1v1v1", "4 人四方混战，各自一个球门",
+                    "先得 " + win + " 分获胜", "点击直接加入"));
+            inv.setStack(17, makeButton(Items.RED_TERRACOTTA, "§b战桥 2v2", "4 人随机分队",
+                    "先得 " + win + " 分获胜", "点击直接加入"));
+
+            inv.setStack(18, makeButton(Items.DIAMOND_PICKAXE, "§e战桥 混战", "偶数人数，总人数/2 分两队",
+                    "2v2 / 3v3 / 4v4...", "先得 " + win + " 分获胜", "点击直接加入"));
+            inv.setStack(19, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
+            inv.setStack(20, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
+            inv.setStack(21, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
 
             if (PvPMod.QUEUE.contains(player.getUuid())) {
                 String status = "排队中";
@@ -235,11 +246,11 @@ public final class PvpGuiManager {
                 }
                 // OP(2级+) 可立即用当前队列人数开赛
                 if (player.hasPermissionLevel(2)) {
-                    inv.setStack(20, makeButton(Items.EMERALD, "§a立即开始",
+                    inv.setStack(22, makeButton(Items.EMERALD, "§a立即开始",
                             "OP 专用：立刻用当前队列人数开赛",
                             "人数不足时无法开始"));
                 }
-                inv.setStack(22, makeButton(Items.BARRIER, "§c离开队列", status));
+                inv.setStack(23, makeButton(Items.BARRIER, "§c离开队列", status));
             }
         });
     }
@@ -397,17 +408,22 @@ public final class PvpGuiManager {
                 this.openKitPage(player);
             }
             // 空岛战争无套件，直接加入
-            case 17 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
-            case 14 -> this.openDuelTargetPage(player);
-            case 15 -> this.openStatsPage(player);
-            case 16 -> this.openKitInfoPage(player);
-            case 20 -> {
+            case 14 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
+            // 战桥系列无套件（装备固定），直接加入
+            case 15 -> this.joinQueue(player, MatchType.BRIDGE_1V1, KitManager.bridgeKit());
+            case 16 -> this.joinQueue(player, MatchType.BRIDGE_1V1V1V1, KitManager.bridgeKit());
+            case 17 -> this.joinQueue(player, MatchType.BRIDGE_2V2, KitManager.bridgeKit());
+            case 18 -> this.joinQueue(player, MatchType.BRIDGE_TEAM, KitManager.bridgeKit());
+            case 19 -> this.openDuelTargetPage(player);
+            case 20 -> this.openStatsPage(player);
+            case 21 -> this.openKitInfoPage(player);
+            case 22 -> {
                 if (PvPMod.QUEUE.forceStart(PvPMod.MATCH, player)) {
                     player.sendMessage(Messages.info("已强制立即开赛！"), false);
                 }
                 this.openMainMenu(player);
             }
-            case 22 -> {
+            case 23 -> {
                 if (PvPMod.QUEUE.leave(player)) {
                     player.sendMessage(Messages.info("已离开匹配队列"), false);
                     this.openMainMenu(player);
@@ -483,6 +499,15 @@ public final class PvpGuiManager {
             } else if (type == MatchType.SKYWARS) {
                 player.sendMessage(Messages.info("已加入空岛战争：凑齐 " + PvPConfig.INSTANCE.skywarsStartPlayers
                         + " 人开赛，开箱获得装备"), false);
+            } else if (type.isBridge()) {
+                if (type.isBridgeTeam()) {
+                    player.sendMessage(Messages.info("已加入战桥混战：需要偶数人数（≥ "
+                            + PvPConfig.INSTANCE.bridgeTeamMinPlayers + "），凑够即开赛"), false);
+                } else {
+                    int count = PvPMod.QUEUE.queuedCount(type, kit);
+                    player.sendMessage(Messages.info("已加入战桥匹配：模式 " + type.getDisplayName()
+                            + "（当前 " + count + "/" + type.requiredPlayers() + "）"), false);
+                }
             } else {
                 int count = PvPMod.QUEUE.queuedCount(type, kit);
                 player.sendMessage(Messages.info("已加入匹配队列：模式 " + type.getDisplayName()

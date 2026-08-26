@@ -72,6 +72,22 @@ public final class PvPConfig {
     public int skywarsShrinkBlocksPerStage = 4;
     public int skywarsShrinkMinRadius = 8;
 
+    // ---------- 战桥 (Bridge) ----------
+    /** 区域覆盖边长（生成/清理边界，需覆盖整张地图）。 */
+    public int bridgeSize = 101;
+    /** 基地半宽：基地边长为 2*bridgeBaseRadius+1（默认 13）。 */
+    public int bridgeBaseRadius = 6;
+    /** 两基地内沿（或枢纽外沿到基地内沿）之间的虚空间隔（格），即搭桥区。 */
+    public int bridgeGap = 35;
+    /** 先得 X 分获胜（所有战桥模式通用）。 */
+    public int bridgeWinScore = 5;
+    /** 箭矢回复间隔（秒）：弓每次给 1 支箭，用完后每隔该时长补 1 支。 */
+    public int bridgeArrowRegenSeconds = 4;
+    /** 战桥混战最少人数（需为偶数，总人数/2 分两队）。 */
+    public int bridgeTeamMinPlayers = 4;
+    /** 对局超时（秒）：超过后比分高者获胜，平局结束。 */
+    public int bridgeTimeoutSeconds = 300;
+
     private PvPConfig() {
     }
 
@@ -89,6 +105,45 @@ public final class PvPConfig {
             LOGGER.info("[PvP] 未找到配置文件，生成默认配置 {}", path);
             save();
         }
+        // 兼容旧配置：新版本新增字段在旧 config.json 中缺失时 Gson 会解析为 0，用默认值补齐
+        if (INSTANCE.migrateOldConfig()) {
+            save();
+        }
+    }
+
+    /** 旧配置文件缺少的新字段用默认值补齐（这些字段合法值均 >0，0 即视为缺失）。 */
+    private boolean migrateOldConfig() {
+        PvPConfig defaults = new PvPConfig();
+        boolean changed = false;
+        if (this.bridgeSize <= 0) {
+            this.bridgeSize = defaults.bridgeSize;
+            changed = true;
+        }
+        if (this.bridgeBaseRadius <= 0) {
+            this.bridgeBaseRadius = defaults.bridgeBaseRadius;
+            changed = true;
+        }
+        if (this.bridgeGap <= 0) {
+            this.bridgeGap = defaults.bridgeGap;
+            changed = true;
+        }
+        if (this.bridgeWinScore <= 0) {
+            this.bridgeWinScore = defaults.bridgeWinScore;
+            changed = true;
+        }
+        if (this.bridgeArrowRegenSeconds <= 0) {
+            this.bridgeArrowRegenSeconds = defaults.bridgeArrowRegenSeconds;
+            changed = true;
+        }
+        if (this.bridgeTeamMinPlayers <= 0) {
+            this.bridgeTeamMinPlayers = defaults.bridgeTeamMinPlayers;
+            changed = true;
+        }
+        if (this.bridgeTimeoutSeconds <= 0) {
+            this.bridgeTimeoutSeconds = defaults.bridgeTimeoutSeconds;
+            changed = true;
+        }
+        return changed;
     }
 
     public static void save() {

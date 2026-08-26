@@ -2,6 +2,7 @@ package com.example.pvp;
 
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.VoidChunkGenerator;
+import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.skywars.SkyWarsLoot;
 import com.example.pvp.command.PvPCommands;
 import com.example.pvp.config.KitConfig;
@@ -9,9 +10,11 @@ import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
 import com.example.pvp.duel.DuelManager;
 import com.example.pvp.gui.PvpGuiManager;
+import com.example.pvp.kit.BridgeGear;
 import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchManager;
+import com.example.pvp.match.MatchState;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.queue.QueueManager;
 import com.example.pvp.text.Messages;
@@ -25,6 +28,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -82,6 +86,7 @@ public final class PvPMod implements ModInitializer {
             ArenaWorldManager.get(server).createWorld();
             KitManager.onServerStarted(server); // 附魔注册表此时可用，重建套件应用附魔
             SkyWarsLoot.onServerStarted(server); // 空岛战利品附魔
+            BridgeGear.onServerStarted(server); // 战桥装备附魔（效率 II 镐）
             MATCH = MatchManager.init(server);
             QUEUE = new QueueManager(server);
             DUEL = new DuelManager(server);
@@ -229,6 +234,36 @@ public final class PvPMod implements ModInitializer {
             if (source.getAttacker() instanceof ServerPlayerEntity attacker
                     && MATCH != null && MATCH.isEliminated(attacker.getUuid())) {
                 return false;
+            }
+            return true;
+        });
+
+        // 战桥：死亡不出现死亡界面——拦截致死伤害，由对局下一 tick 在己方基地原地重生
+        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
+            if (entity instanceof ServerPlayerEntity sp && MATCH != null) {
+                Match match = MATCH.getMatchFor(sp);
+                if (match != null && match.getType().isBridge()) {
+                    match.onBridgeDeath(sp);
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        // 战桥：地图方块不可破坏（只能拆自己放置的方块）——用布局的保护方块集合判断
+        PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
+            if (world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) {
+                return true;
+            }
+            if (player instanceof ServerPlayerEntity sp && MATCH != null) {
+                Match match = MATCH.getMatchFor(sp);
+                if (match != null && match.getType().isBridge()) {
+                    if (match.getState() != MatchState.ACTIVE) {
+                        return false; // 倒计时/庆祝中禁止破坏
+                    }
+                    BridgeLayout layout = match.bridgeLayout();
+                    return layout == null || !layout.isProtected(pos);
+                }
             }
             return true;
         });

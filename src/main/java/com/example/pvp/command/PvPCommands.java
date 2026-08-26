@@ -1,8 +1,11 @@
 package com.example.pvp.command;
 
 import com.example.pvp.PvPMod;
+import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
+import com.example.pvp.arena.bridge.BridgeLayout;
+import com.example.pvp.arena.bridge.BridgeMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.config.KitConfig;
@@ -40,7 +43,9 @@ import java.util.UUID;
  */
 public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> MODE_SUGGESTIONS =
-            (ctx, builder) -> CommandSource.suggestMatching(new String[]{"1v1", "2v2", "ffa", "sumo", "1.8", "skywars"}, builder);
+            (ctx, builder) -> CommandSource.suggestMatching(new String[]{
+                    "1v1", "2v2", "ffa", "sumo", "1.8", "skywars",
+                    "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -93,7 +98,11 @@ public final class PvPCommands {
                                 .then(CommandManager.literal("skywars")
                                         .executes(ctx -> debugSkywars(ctx, 1))
                                         .then(CommandManager.argument("rounds", StringArgumentType.word())
-                                                .executes(ctx -> debugSkywars(ctx, parseIntSafe(ctx, "rounds", 1))))))
+                                                .executes(ctx -> debugSkywars(ctx, parseIntSafe(ctx, "rounds", 1)))))
+                                .then(CommandManager.literal("bridge")
+                                        .executes(ctx -> debugBridge(ctx, 2))
+                                        .then(CommandManager.argument("team", StringArgumentType.word())
+                                                .executes(ctx -> debugBridge(ctx, parseIntSafe(ctx, "team", 2))))))
         );
 
         dispatcher.register(
@@ -127,6 +136,7 @@ public final class PvPCommands {
                 "§6§lPvP 匹配 §r命令：\n"
                         + "§e/pvp join <1v1|2v2|ffa|sumo|1.8> <套件>§r 加入匹配队列\n"
                         + "§e/pvp join skywars§r 加入空岛战争（无需套件）\n"
+                        + "§e/pvp join bridge1v1|bridge1v1v1v1|bridge2v2|bridge§r 加入战桥（无需套件）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp start§r OP 专用：立即用当前队列人数开赛\n"
                         + "§e/pvp queue§r 查看排队状态\n"
@@ -145,12 +155,15 @@ public final class PvPCommands {
 
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
-            player.sendMessage(Messages.error("未知模式: " + modeId + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars）"), false);
+            player.sendMessage(Messages.error("未知模式: " + modeId
+                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge）"), false);
             return 0;
         }
         Kit kit;
         if (type == MatchType.SKYWARS) {
             kit = KitManager.skywarsKit(); // 空岛战争无套件
+        } else if (type.isBridge()) {
+            kit = KitManager.bridgeKit(); // 战桥装备固定（按队伍色发放），无套件选择
         } else {
             if (kitId == null) {
                 player.sendMessage(Messages.error("该模式需要指定套件（用 /pvp kit list 查看）"), false);
@@ -175,6 +188,15 @@ public final class PvPCommands {
             } else if (type == MatchType.SKYWARS) {
                 player.sendMessage(Messages.info("已加入空岛战争：凑齐 " + PvPConfig.INSTANCE.skywarsStartPlayers
                         + " 人开赛，开箱获得装备"), false);
+            } else if (type.isBridge()) {
+                if (type.isBridgeTeam()) {
+                    player.sendMessage(Messages.info("已加入战桥混战：需要偶数人数（≥ "
+                            + PvPConfig.INSTANCE.bridgeTeamMinPlayers + "），凑够即开赛"), false);
+                } else {
+                    int count = PvPMod.QUEUE.queuedCount(type, kit);
+                    player.sendMessage(Messages.info("已加入战桥匹配：模式 " + type.getDisplayName()
+                            + "（当前 " + count + "/" + type.requiredPlayers() + "）"), false);
+                }
             } else {
                 int count = PvPMod.QUEUE.queuedCount(type, kit);
                 int required = type.requiredPlayers();
@@ -343,6 +365,31 @@ public final class PvPCommands {
         } catch (NumberFormatException e) {
             return fallback;
         }
+    }
+
+    /** 调试：在竞技场远区生成一张战桥地图（2 队或 4 方）并传送查看（不影响正式对局）。 */
+    private static int debugBridge(CommandContext<ServerCommandSource> ctx, int team) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
+        ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
+        if (arena == null) {
+            player.sendMessage(Messages.error("竞技场世界不可用"), false);
+            return 0;
+        }
+        boolean fourTeam = team != 2;
+        int region = 950; // 远离正式对局分配的区域
+        int size = PvPConfig.INSTANCE.bridgeSize;
+        BlockPos origin = new BlockPos(region * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
+        BlockPos center = new BlockPos(origin.getX() + size / 2, ArenaTemplate.PLATFORM_Y + 1, origin.getZ() + size / 2);
+        BridgeLayout layout = BridgeLayout.compute(center, fourTeam ? 4 : 2, fourTeam);
+        BridgeMapGenerator.generate(arena, layout);
+
+        player.sendMessage(Messages.info("测试战桥地图已生成（" + (fourTeam ? "四方" : "双队") + "，"
+                + layout.bases().size() + " 座基地，最大半径 " + layout.maxRadius() + "）"), false);
+        player.teleport(arena, center.getX() + 0.5, center.getY() + 15, center.getZ() + 0.5, 0, 90);
+        arenaManager.addVisitor(player, 180); // 3 分钟内不被兜底传回主城
+        player.sendMessage(Messages.gold("已传送到战桥地图上空（约 3 分钟后自动回城），可下落查看基地/球门/桥"), false);
+        return 1;
     }
 
     // ---------- /duel ----------

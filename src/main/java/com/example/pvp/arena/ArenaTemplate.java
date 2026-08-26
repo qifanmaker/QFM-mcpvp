@@ -19,7 +19,8 @@ public class ArenaTemplate {
         DUEL_1V1,
         DUEL_2V2,
         FFA,
-        SKYWARS
+        SKYWARS,
+        BRIDGE
     }
 
     private final Layout layout;
@@ -94,6 +95,9 @@ public class ArenaTemplate {
             }
             case SKYWARS -> {
                 // 空岛出生点由 SkyWarsLayout 计算（Match 构造时处理），这里返回空避免占位
+            }
+            case BRIDGE -> {
+                // 战桥出生点由 BridgeLayout 计算（Match 构造时处理），这里返回空避免占位
             }
         }
         return spawns;

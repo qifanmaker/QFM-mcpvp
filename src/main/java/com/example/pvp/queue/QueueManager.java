@@ -277,9 +277,18 @@ public final class QueueManager {
                 continue;
             }
             MatchType type = group.get(0).getType();
-            int required = type.requiredPlayers();
-            if (group.size() < required) {
-                continue;
+            int required;
+            if (type.isBridgeTeam()) {
+                // 战桥混战：需偶数且 ≥ 最少人数，用当前全部人数开赛（总人数/2 分两队）
+                if (group.size() < PvPConfig.INSTANCE.bridgeTeamMinPlayers || group.size() % 2 != 0) {
+                    continue;
+                }
+                required = group.size();
+            } else {
+                required = type.requiredPlayers();
+                if (group.size() < required) {
+                    continue;
+                }
             }
 
             List<ServerPlayerEntity> players = new ArrayList<>();
@@ -300,8 +309,8 @@ public final class QueueManager {
                 continue;
             }
 
-            // 2v2 随机分队
-            if (type == MatchType.DUEL_2V2) {
+            // 2v2 / 战桥组队随机分队（1v1、1v1v1v1 洗牌不影响公平）
+            if (type == MatchType.DUEL_2V2 || type.isBridge()) {
                 Collections.shuffle(players);
             }
 
@@ -351,14 +360,24 @@ public final class QueueManager {
             return true;
         }
 
-        // 即时匹配模式（1v1/2v2/相扑/1.8）：取同 (模式+套件) 分组，人数够就开
+        // 即时匹配模式（1v1/2v2/相扑/1.8/战桥）：取同 (模式+套件) 分组，人数够就开
         List<QueueEntry> group = new ArrayList<>();
         for (QueueEntry e : this.entries) {
             if (e.getType() == type && e.getKit().getId().equals(entry.getKit().getId())) {
                 group.add(e);
             }
         }
-        int required = type.requiredPlayers();
+        int required;
+        if (type.isBridgeTeam()) {
+            if (group.size() < PvPConfig.INSTANCE.bridgeTeamMinPlayers || group.size() % 2 != 0) {
+                player.sendMessage(Messages.warn("当前 " + type.getDisplayName() + " 队列人数为 " + group.size()
+                        + "，需要偶数且 ≥ " + PvPConfig.INSTANCE.bridgeTeamMinPlayers + "，无法立即开始"), false);
+                return false;
+            }
+            required = group.size();
+        } else {
+            required = type.requiredPlayers();
+        }
         if (group.size() < required) {
             player.sendMessage(Messages.warn("当前 " + type.getDisplayName() + " 队列人数不足（" + group.size() + "/" + required
                     + "），无法立即开始"), false);
@@ -382,7 +401,7 @@ public final class QueueManager {
             player.sendMessage(Messages.warn("队列中有玩家离线，无法立即开始"), false);
             return false;
         }
-        if (type == MatchType.DUEL_2V2) {
+        if (type == MatchType.DUEL_2V2 || type.isBridge()) {
             Collections.shuffle(players);
         }
         if (matchManager.startMatch(players, type, entry.getKit())) {

@@ -11,7 +11,11 @@ public enum MatchType {
     FFA("ffa", "自由乱斗"),
     SUMO("sumo", "相扑"),
     PVP_1_8("1.8", "1.8 经典PvP"),
-    SKYWARS("skywars", "空岛战争");
+    SKYWARS("skywars", "空岛战争"),
+    BRIDGE_1V1("bridge1v1", "战桥 1v1"),
+    BRIDGE_1V1V1V1("bridge1v1v1v1", "战桥 1v1v1v1"),
+    BRIDGE_2V2("bridge2v2", "战桥 2v2"),
+    BRIDGE_TEAM("bridge", "战桥 混战");
 
     private final String id;
     private final String displayName;
@@ -31,11 +35,22 @@ public enum MatchType {
 
     public int requiredPlayers() {
         return switch (this) {
-            case DUEL_1V1, SUMO, PVP_1_8 -> 2;
-            case DUEL_2V2 -> 4;
+            case DUEL_1V1, SUMO, PVP_1_8, BRIDGE_1V1 -> 2;
+            case DUEL_2V2, BRIDGE_2V2, BRIDGE_1V1V1V1 -> 4;
             case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
             case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;
+            case BRIDGE_TEAM -> PvPConfig.INSTANCE.bridgeTeamMinPlayers;
         };
+    }
+
+    /** 是否战桥系列玩法（1v1 / 1v1v1v1 / 2v2 / 混战）。 */
+    public boolean isBridge() {
+        return this == BRIDGE_1V1 || this == BRIDGE_1V1V1V1 || this == BRIDGE_2V2 || this == BRIDGE_TEAM;
+    }
+
+    /** 是否战桥混战（总人数/2 分两队，需偶数人数）。 */
+    public boolean isBridgeTeam() {
+        return this == BRIDGE_TEAM;
     }
 
     public static MatchType byId(String id) {

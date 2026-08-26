@@ -124,6 +124,15 @@ public final class MatchManager {
                     || players.size() > PvPConfig.INSTANCE.skywarsMaxPlayers) {
                 return false;
             }
+        } else if (type.isBridge()) {
+            if (type.isBridgeTeam()) {
+                // 混战：总人数/2 分两队，需要偶数且 ≥ 最少人数
+                if (players.size() < PvPConfig.INSTANCE.bridgeTeamMinPlayers || players.size() % 2 != 0) {
+                    return false;
+                }
+            } else if (players.size() != type.requiredPlayers()) {
+                return false;
+            }
         } else if (players.size() != type.requiredPlayers()) {
             return false;
         }
@@ -178,9 +187,10 @@ public final class MatchManager {
         return this.getMatchFor(uuid) != null;
     }
 
-    /** 是否为低版本(1.8)战斗模式：1.8 经典PvP 与 空岛战争（无攻击冷却 + 剑格挡）。 */
+    /** 是否为低版本(1.8)战斗模式：1.8 经典PvP / 空岛战争 / 战桥（无攻击冷却 + 剑格挡）。 */
     public boolean isLegacyCombat(Match match) {
-        return match != null && (match.getType() == MatchType.PVP_1_8 || match.getType() == MatchType.SKYWARS);
+        return match != null && (match.getType() == MatchType.PVP_1_8
+                || match.getType() == MatchType.SKYWARS || match.getType().isBridge());
     }
 
     /** 1.8 战斗模式：玩家是否正在剑格挡（供伤害减免 Mixin 调用）。 */
@@ -213,15 +223,22 @@ public final class MatchManager {
     public void onPlayerDeath(ServerPlayerEntity player) {
         Match match = this.getMatchFor(player);
         if (match != null) {
+            if (match.getType().isBridge()) {
+                return; // 战桥由 ALLOW_DEATH 拦截死亡，这里不做淘汰
+            }
             match.eliminate(player, EliminationCause.DEATH);
         }
     }
 
-    /** 玩家重生事件：若仍在对局中，转为幽灵（冒险模式、空物品栏、禁止交互）。 */
+    /** 玩家重生事件：若仍在对局中，转为幽灵（冒险模式、空物品栏、禁止交互）；战桥则原地重生。 */
     public void onPlayerRespawn(ServerPlayerEntity oldPlayer, ServerPlayerEntity newPlayer, boolean alive) {
         Match match = this.getMatchFor(newPlayer.getUuid());
         if (match != null && match.getState() == MatchState.ACTIVE) {
-            match.makeGhost(newPlayer);
+            if (match.getType().isBridge()) {
+                match.bridgeRespawn(newPlayer);
+            } else {
+                match.makeGhost(newPlayer);
+            }
         }
     }
 
@@ -281,15 +298,17 @@ public final class MatchManager {
             case FFA -> PvPConfig.INSTANCE.ffaSize;
             case SUMO -> PvPConfig.INSTANCE.sumoSize;
             case SKYWARS -> PvPConfig.INSTANCE.skywarsSize;
+            case BRIDGE_1V1, BRIDGE_2V2, BRIDGE_1V1V1V1, BRIDGE_TEAM -> PvPConfig.INSTANCE.bridgeSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
             case DUEL_2V2 -> ArenaTemplate.Layout.DUEL_2V2;
             case FFA -> ArenaTemplate.Layout.FFA;
             case SKYWARS -> ArenaTemplate.Layout.SKYWARS;
+            case BRIDGE_1V1, BRIDGE_2V2, BRIDGE_1V1V1V1, BRIDGE_TEAM -> ArenaTemplate.Layout.BRIDGE;
         };
-        // 相扑/空岛无围墙；空岛地图本身由 SkyWarsMapGenerator 生成
-        boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS;
+        // 相扑/空岛/战桥无围墙；空岛/战桥地图本身由各自生成器铺
+        boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge();
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 
@@ -317,6 +336,8 @@ public final class MatchManager {
                 if (match.getState() == MatchState.ACTIVE) {
                     if (match.isEliminated(player.getUuid())) {
                         match.rescueGhost(player); // 幽灵掉出虚空送回观战台
+                    } else if (match.getType().isBridge()) {
+                        match.bridgeRespawn(player); // 战桥：掉出虚空直接原地重生（兜底）
                     } else {
                         match.eliminate(player, EliminationCause.VOID);
                     }

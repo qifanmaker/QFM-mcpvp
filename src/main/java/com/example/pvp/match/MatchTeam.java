@@ -16,6 +16,7 @@ public final class MatchTeam {
     private final Formatting color;
     private final List<ServerPlayerEntity> players;
     private final Set<UUID> alive;
+    private int score; // 战桥进球得分（先到 bridgeWinScore 获胜）
 
     public MatchTeam(String name, Formatting color, List<ServerPlayerEntity> players) {
         this.name = name;
@@ -66,5 +67,13 @@ public final class MatchTeam {
 
     public int aliveCount() {
         return this.alive.size();
+    }
+
+    public void addScore() {
+        this.score++;
+    }
+
+    public int getScore() {
+        return this.score;
     }
 }

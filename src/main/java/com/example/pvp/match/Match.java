@@ -4,11 +4,13 @@ import com.example.pvp.PvPMod;
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
+import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
 import com.example.pvp.gui.PvpGuiManager;
+import com.example.pvp.kit.BridgeGear;
 import com.example.pvp.kit.InventorySnapshot;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitApplicator;
@@ -81,6 +83,12 @@ public final class Match {
     private int skywarsShrinkStage; // 已执行的缩圈档数
     private int skywarsLastKeepRadius = Integer.MAX_VALUE; // 上一档安全半径
 
+    /** 战桥地图布局（仅战桥模式非空，进球判定/重生/清理用）。 */
+    private final BridgeLayout bridgeLayout;
+    private int bridgeRoundTicks; // 进球后回合间歇倒计时
+    private int bridgeArrowRegenTicks; // 箭矢回复计时
+    private final Set<UUID> bridgePendingRespawns = new HashSet<>(); // ALLOW_DEATH 拦截后延迟重生
+
     private MatchTeam winnerTeam;
     private int celebrationTicks;
     private MatchState state;
@@ -107,13 +115,32 @@ public final class Match {
             this.snapshots.put(player.getUuid(), InventorySnapshot.capture(player));
         }
 
-        // 计算出生点（空岛战争用同一份确定性布局，保证与地图生成一致）
+        // 计算出生点（空岛战争/战桥用同一份确定性布局，保证与地图生成一致）
         List<BlockPos> spawnPositions;
         if (type == MatchType.SKYWARS) {
             this.skywarsLayout = SkyWarsLayout.compute(template.getCenter(regionIndex), id, this.players.size());
+            this.bridgeLayout = null;
             spawnPositions = this.skywarsLayout.spawns();
+        } else if (type.isBridge()) {
+            this.skywarsLayout = null;
+            this.bridgeLayout = BridgeLayout.compute(template.getCenter(regionIndex),
+                    this.players.size(), type == MatchType.BRIDGE_1V1V1V1);
+            // 每人出生点 = 所属队伍（teams 顺序即基地顺序）对应的笼位
+            List<BridgeLayout.BridgeBase> bases = this.bridgeLayout.bases();
+            spawnPositions = new ArrayList<>();
+            for (ServerPlayerEntity player : this.players) {
+                int teamIdx = 0;
+                for (int i = 0; i < this.teams.size(); i++) {
+                    if (this.teams.get(i).contains(player.getUuid())) {
+                        teamIdx = i;
+                        break;
+                    }
+                }
+                spawnPositions.add(bases.get(Math.min(teamIdx, bases.size() - 1)).spawn());
+            }
         } else {
             this.skywarsLayout = null;
+            this.bridgeLayout = null;
             spawnPositions = template.computeSpawns(regionIndex, this.players.size());
         }
         for (int i = 0; i < this.players.size(); i++) {
@@ -131,12 +158,19 @@ public final class Match {
 
     private static List<MatchTeam> buildTeams(MatchType type, List<ServerPlayerEntity> players) {
         List<MatchTeam> teams = new ArrayList<>();
-        if (type == MatchType.DUEL_1V1 || type == MatchType.SUMO || type == MatchType.PVP_1_8) {
+        if (type == MatchType.DUEL_1V1 || type == MatchType.SUMO || type == MatchType.PVP_1_8
+                || type == MatchType.BRIDGE_1V1) {
             teams.add(new MatchTeam("红队", Formatting.RED, List.of(players.get(0))));
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));
-        } else if (type == MatchType.DUEL_2V2) {
-            teams.add(new MatchTeam("红队", Formatting.RED, List.of(players.get(0), players.get(1))));
-            teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(2), players.get(3))));
+        } else if (type == MatchType.DUEL_2V2 || type == MatchType.BRIDGE_2V2 || type == MatchType.BRIDGE_TEAM) {
+            // 战桥 2v2 / 混战：总人数/2 平均分两队（队列已随机洗牌）
+            teams.add(new MatchTeam("红队", Formatting.RED, players.subList(0, players.size() / 2)));
+            teams.add(new MatchTeam("蓝队", Formatting.BLUE, players.subList(players.size() / 2, players.size())));
+        } else if (type == MatchType.BRIDGE_1V1V1V1) {
+            teams.add(new MatchTeam("红队", Formatting.RED, List.of(players.get(0))));
+            teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));
+            teams.add(new MatchTeam("绿队", Formatting.GREEN, List.of(players.get(2))));
+            teams.add(new MatchTeam("黄队", Formatting.YELLOW, List.of(players.get(3))));
         } else {
             teams.add(new MatchTeam("全员", Formatting.WHITE, players));
         }
@@ -178,17 +212,22 @@ public final class Match {
 
         // 超时保护：防止卡死的对局一直占用场地导致后续无法开赛
         int countdownStuckThreshold = this.initialCountdownTicks + 20 * 10;
-        int activeTimeout = this.type == MatchType.SKYWARS
-                ? Math.max(100, PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20)
-                : Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
+        int activeTimeout;
+        if (this.type == MatchType.SKYWARS) {
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20);
+        } else if (this.type.isBridge()) {
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.bridgeTimeoutSeconds * 20);
+        } else {
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
+        }
         if (this.state == MatchState.COUNTDOWN && this.ticks > countdownStuckThreshold) {
             LOGGER.warn("[PvP] 比赛 #{} 倒计时异常，强制取消", this.id);
             this.cancelMatch("倒计时异常");
             return;
         }
         if (this.state == MatchState.ACTIVE && this.ticks > this.initialCountdownTicks + activeTimeout) {
-            LOGGER.warn("[PvP] 比赛 #{} 超时（{} 秒）强制平局结束", this.id, activeTimeout / 20);
-            this.finishMatch(null);
+            LOGGER.warn("[PvP] 比赛 #{} 超时（{} 秒）结束", this.id, activeTimeout / 20);
+            this.finishMatch(this.type.isBridge() ? this.bridgeTimeoutWinner() : null);
             return;
         }
 
@@ -203,7 +242,10 @@ public final class Match {
                 if (this.type == MatchType.SUMO) {
                     this.checkSumoRingOut();
                 }
-                if (this.type == MatchType.PVP_1_8 || this.type == MatchType.SKYWARS) {
+                if (this.type.isBridge()) {
+                    this.tickBridge();
+                }
+                if (this.type == MatchType.PVP_1_8 || this.type == MatchType.SKYWARS || this.type.isBridge()) {
                     this.tickLegacyBlocking();
                 }
                 if (this.type == MatchType.SKYWARS) {
@@ -335,6 +377,248 @@ public final class Match {
                 this.eliminate(online, EliminationCause.RING_OUT);
             }
         }
+    }
+
+    // ---------- 战桥 (Bridge) ----------
+
+    /** 战桥每帧逻辑：延迟重生、箭矢回复、进球/坠落判定、回合间歇倒计时。 */
+    private void tickBridge() {
+        // ALLOW_DEATH 拦截后延迟到下一 tick 重生（避免事件处理中传送）
+        for (UUID uuid : List.copyOf(this.bridgePendingRespawns)) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
+            if (online != null) {
+                this.bridgeRespawn(online);
+            } else {
+                this.bridgePendingRespawns.remove(uuid);
+            }
+        }
+
+        // 箭矢回复：每隔配置秒数，为箭数不足的玩家补 1 支
+        if (++this.bridgeArrowRegenTicks >= PvPConfig.INSTANCE.bridgeArrowRegenSeconds * 20) {
+            this.bridgeArrowRegenTicks = 0;
+            this.refillBridgeArrows();
+        }
+
+        // 进球/坠落判定
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena != null && this.bridgeLayout != null) {
+            for (ServerPlayerEntity player : this.players) {
+                if (this.eliminated.contains(player.getUuid())) {
+                    continue;
+                }
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online == null || online.getWorld() != arena) {
+                    continue;
+                }
+                this.checkBridgeGoalAndFall(online);
+            }
+        }
+
+        // 进球后的回合间歇倒计时
+        if (this.bridgeRoundTicks > 0) {
+            this.bridgeRoundTicks--;
+            if (this.bridgeRoundTicks % 20 == 0) {
+                this.broadcastTitle("回合继续：" + ((this.bridgeRoundTicks + 19) / 20) + "s");
+            }
+            if (this.bridgeRoundTicks <= 0) {
+                this.releaseBridgeRound();
+            }
+        }
+    }
+
+    /** 进球与坠落判定：掉进敌方球门得分、自家球门只重生、掉出地图重生。 */
+    private void checkBridgeGoalAndFall(ServerPlayerEntity player) {
+        if (this.bridgeLayout == null) {
+            return;
+        }
+        double px = player.getX();
+        double pz = player.getZ();
+        double y = player.getY();
+
+        // 回合间歇内不判进球（玩家在笼位等放出），但坠落仍处理
+        if (this.bridgeRoundTicks <= 0 && y < ArenaTemplate.PLATFORM_Y - 1) {
+            for (BridgeLayout.BridgeBase base : this.bridgeLayout.bases()) {
+                if (base.goalContains(px, pz)) {
+                    MatchTeam goalTeam = this.teams.get(base.teamIndex());
+                    MatchTeam scorerTeam = this.teamOf(player);
+                    if (scorerTeam == goalTeam) {
+                        this.bridgeRespawn(player); // 自家球门不算分，仅重生
+                    } else {
+                        this.onBridgeGoal(scorerTeam, goalTeam, player);
+                    }
+                    return;
+                }
+            }
+        }
+
+        // 掉出地图（虚空且不在方块上）→ 立即重生
+        if (y < ArenaTemplate.PLATFORM_Y - 10 && !player.isOnGround()) {
+            this.bridgeRespawn(player);
+        }
+    }
+
+    /** 一次进球：得分 → 广播比分 → 达到目标则获胜，否则开启回合间歇。 */
+    private void onBridgeGoal(MatchTeam scorerTeam, MatchTeam goalTeam, ServerPlayerEntity player) {
+        scorerTeam.addScore();
+        this.broadcast(Messages.gold("§e" + player.getGameProfile().getName() + "§r 进球！ " + this.scoreLine()));
+        if (scorerTeam.getScore() >= PvPConfig.INSTANCE.bridgeWinScore) {
+            this.finishMatch(scorerTeam);
+            return;
+        }
+        this.startBridgeRound();
+    }
+
+    /** 进球后：全员回各自笼位补装备、无敌，开始短倒计时。 */
+    private void startBridgeRound() {
+        this.bridgeRoundTicks = PvPConfig.INSTANCE.countdownSeconds * 20;
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        for (ServerPlayerEntity player : this.players) {
+            if (this.eliminated.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null) {
+                continue;
+            }
+            this.teleportToBridgeSpawn(online);
+            this.applyBridgeGear(online);
+            online.setInvulnerable(true);
+        }
+        this.broadcast(Messages.gold("回合暂停，" + PvPConfig.INSTANCE.countdownSeconds + " 秒后继续！"));
+    }
+
+    /** 回合间歇结束：解除所有存活玩家无敌。 */
+    private void releaseBridgeRound() {
+        this.bridgeRoundTicks = 0;
+        for (ServerPlayerEntity player : this.players) {
+            if (this.eliminated.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null) {
+                online.setInvulnerable(false);
+            }
+        }
+        this.broadcast(Messages.gold("开始！"));
+        this.broadcastTitle("开始！");
+    }
+
+    /** 战桥重生：传回己方笼位 + 补满队伍色装备（回合间歇内保持无敌）。 */
+    public void bridgeRespawn(ServerPlayerEntity player) {
+        if (this.state != MatchState.ACTIVE) {
+            return;
+        }
+        this.bridgePendingRespawns.remove(player.getUuid());
+        this.teleportToBridgeSpawn(player);
+        this.applyBridgeGear(player);
+        player.setInvulnerable(this.bridgeRoundTicks > 0);
+    }
+
+    /** ALLOW_DEATH 拦截回调：只登记，等下一 tick 重生（避免死亡判定途中传送）。 */
+    public void onBridgeDeath(ServerPlayerEntity player) {
+        if (this.state != MatchState.ACTIVE) {
+            return;
+        }
+        this.bridgePendingRespawns.add(player.getUuid());
+    }
+
+    /** 传送到玩家所属队伍的笼位（面朝地图中心）。 */
+    private void teleportToBridgeSpawn(ServerPlayerEntity player) {
+        if (this.bridgeLayout == null) {
+            return;
+        }
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        int teamIndex = this.teamIndex(player);
+        if (teamIndex < 0 || teamIndex >= this.bridgeLayout.bases().size()) {
+            return;
+        }
+        BlockPos spawn = this.bridgeLayout.bases().get(teamIndex).spawn();
+        float yaw = this.faceCenter(spawn);
+        player.teleport(arena, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, yaw, 0);
+    }
+
+    /** 给玩家发放所属队伍颜色的战桥装备（铁剑/弓/镐/陶瓦/金苹果/染甲）。 */
+    private void applyBridgeGear(ServerPlayerEntity player) {
+        MatchTeam team = this.teamOf(player);
+        BridgeGear.apply(player, team != null ? team.getColor() : Formatting.WHITE);
+    }
+
+    /** 玩家所属队伍索引（-1 表示未找到）。 */
+    private int teamIndex(ServerPlayerEntity player) {
+        for (int i = 0; i < this.teams.size(); i++) {
+            if (this.teams.get(i).contains(player.getUuid())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** 玩家所属队伍。 */
+    private MatchTeam teamOf(ServerPlayerEntity player) {
+        int idx = this.teamIndex(player);
+        return idx >= 0 ? this.teams.get(idx) : null;
+    }
+
+    /** 超时结算：比分最高者胜，并列则平局。 */
+    private MatchTeam bridgeTimeoutWinner() {
+        MatchTeam best = null;
+        int bestScore = -1;
+        for (MatchTeam team : this.teams) {
+            if (team.getScore() > bestScore) {
+                bestScore = team.getScore();
+                best = team;
+            } else if (team.getScore() == bestScore) {
+                best = null;
+            }
+        }
+        return best;
+    }
+
+    /** 为箭数不足的玩家补 1 支箭（弓最多保留 1 支可再用）。 */
+    private void refillBridgeArrows() {
+        for (ServerPlayerEntity player : this.players) {
+            if (this.eliminated.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null) {
+                continue;
+            }
+            var inventory = online.getInventory();
+            int arrows = 0;
+            for (ItemStack stack : inventory.main) {
+                if (stack.isOf(Items.ARROW)) {
+                    arrows += stack.getCount();
+                }
+            }
+            if (arrows >= 1) {
+                continue;
+            }
+            ItemStack arrow = new ItemStack(Items.ARROW, 1);
+            if (!inventory.insertStack(arrow)) {
+                online.getWorld().spawnEntity(new ItemEntity(online.getWorld(),
+                        online.getX(), online.getY(), online.getZ(), arrow));
+            }
+        }
+    }
+
+    /** 当前比分展示："红队 3  vs  蓝队 2"。 */
+    private String scoreLine() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < this.teams.size(); i++) {
+            if (i > 0) {
+                sb.append(" §7vs ");
+            }
+            MatchTeam t = this.teams.get(i);
+            sb.append(t.getColor()).append(t.getName()).append(" §f").append(t.getScore());
+        }
+        return sb.toString();
     }
 
     /** 所有参赛玩家是否都已离线。 */
@@ -482,8 +766,15 @@ public final class Match {
     /** 清理竞技场地形并释放场地（无论结束流程是否出错都必须执行）。 */
     private void cleanupArenaAndRelease() {
         try {
-            int skywarsMaxRadius = this.skywarsLayout == null ? 0 : this.skywarsLayout.maxRadius();
-            this.manager.getArenaManager().clearArena(this.regionIndex, this.template, skywarsMaxRadius);
+            int mapMaxRadius;
+            if (this.skywarsLayout != null) {
+                mapMaxRadius = this.skywarsLayout.maxRadius();
+            } else if (this.bridgeLayout != null) {
+                mapMaxRadius = this.bridgeLayout.maxRadius();
+            } else {
+                mapMaxRadius = 0;
+            }
+            this.manager.getArenaManager().clearArena(this.regionIndex, this.template, mapMaxRadius);
         } catch (Exception e) {
             LOGGER.error("[PvP] 清理竞技场出错", e);
         }
@@ -540,6 +831,11 @@ public final class Match {
     /** 该玩家是否已在本场被淘汰（死亡幽灵，禁止一切交互）。 */
     public boolean isEliminated(UUID uuid) {
         return this.eliminated.contains(uuid);
+    }
+
+    /** 战桥地图布局（方块破坏保护用），非战桥模式返回 null。 */
+    public BridgeLayout bridgeLayout() {
+        return this.bridgeLayout;
     }
 
     /** 旁观者：切换到下一个存活玩家观战。 */
@@ -668,10 +964,11 @@ public final class Match {
     }
 
     private void setupPlayers() {
-        this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.id, this.players.size());
+        this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.id, this.players.size(), this.type);
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
 
         boolean skywars = this.type == MatchType.SKYWARS;
+        boolean bridge = this.type.isBridge();
         for (ServerPlayerEntity player : this.players) {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online == null) {
@@ -680,7 +977,10 @@ public final class Match {
             BlockPos spawn = this.spawns.get(player.getUuid());
             float yaw = this.faceCenter(spawn);
             online.teleport(arena, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, yaw, 0);
-            if (skywars) {
+            if (bridge) {
+                // 战桥：队伍色装备 + 生存模式（可放/拆方块）
+                this.applyBridgeGear(online);
+            } else if (skywars) {
                 // 空岛战争：无套件，生存模式空手开局，开箱搜刮装备
                 online.getInventory().clear();
                 online.setHealth(online.getMaxHealth());
@@ -704,7 +1004,10 @@ public final class Match {
         }
 
         this.createScoreboardTeams();
-        if (skywars) {
+        if (bridge) {
+            this.broadcast(Messages.info("战桥开始！冲进对方球门得分，先得 "
+                    + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜！（1.8 低版本战斗）"));
+        } else if (skywars) {
             this.broadcast(Messages.info("空岛战争开始！搜刮空岛，成为最后幸存者！（1.8 低版本战斗）"));
         } else {
             this.broadcast(Messages.info("对局开始！模式：" + this.type.getDisplayName() + "，套件：" + this.kit.getDisplayName()));
@@ -723,6 +1026,15 @@ public final class Match {
             List<ServerPlayerEntity> alive = this.teams.get(0).getAlivePlayers();
             return alive.size() <= 1 ? this.teams.get(0) : null;
         }
+        if (this.type.isBridge()) {
+            // 战桥：先得 bridgeWinScore 分的队伍获胜（目标分由进球逻辑判定）
+            for (MatchTeam team : this.teams) {
+                if (team.getScore() >= PvPConfig.INSTANCE.bridgeWinScore) {
+                    return team;
+                }
+            }
+            return null;
+        }
         List<MatchTeam> aliveTeams = new ArrayList<>();
         for (MatchTeam team : this.teams) {
             if (!team.isDefeated()) {
@@ -733,6 +1045,27 @@ public final class Match {
     }
 
     private void announceResult(Set<UUID> winners) {
+        if (this.type.isBridge()) {
+            // 战桥：比分最高者胜，并列平局
+            MatchTeam winningTeam = null;
+            int best = -1;
+            for (MatchTeam team : this.teams) {
+                if (team.getScore() > best) {
+                    best = team.getScore();
+                    winningTeam = team;
+                } else if (team.getScore() == best) {
+                    winningTeam = null;
+                }
+            }
+            if (winningTeam != null) {
+                MutableText msg = Text.literal(winningTeam.getName()).formatted(winningTeam.getColor())
+                        .append(Text.literal(" 获胜！(" + this.scoreLine() + ")").formatted(Formatting.GOLD));
+                this.broadcast(Messages.prefix(msg));
+            } else {
+                this.broadcast(Messages.warn("本局平局"));
+            }
+            return;
+        }
         if (this.type == MatchType.FFA || this.type == MatchType.SKYWARS) {
             ServerPlayerEntity winner = this.getWinnerPlayer(winners);
             if (winner != null) {
@@ -880,13 +1213,19 @@ public final class Match {
             }
         } else {
             // 组队模式：逐队显示队伍与成员（队友/对手，颜色区分）
+            if (this.type.isBridge()) {
+                this.setInfoLine(scoreboard, objective,
+                        "§7目标：先到 §e" + PvPConfig.INSTANCE.bridgeWinScore + "§7 分获胜", score--);
+                this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
+            }
             for (MatchTeam team : this.teams) {
                 if (score < 0) {
                     break;
                 }
-                this.setInfoLine(scoreboard, objective,
-                        team.getColor() + "● " + team.getName() + " §7(" + team.aliveCount() + "/" + team.getPlayers().size() + ")",
-                        score--);
+                String teamLine = this.type.isBridge()
+                        ? team.getColor() + "● " + team.getName() + " §7(" + team.getScore() + "分)"
+                        : team.getColor() + "● " + team.getName() + " §7(" + team.aliveCount() + "/" + team.getPlayers().size() + ")";
+                this.setInfoLine(scoreboard, objective, teamLine, score--);
                 for (ServerPlayerEntity player : team.getPlayers()) {
                     if (score < 0) {
                         break;
@@ -921,6 +1260,10 @@ public final class Match {
             case SUMO -> "§b";
             case PVP_1_8 -> "§c";
             case SKYWARS -> "§6";
+            case BRIDGE_1V1 -> "§3";
+            case BRIDGE_2V2 -> "§b";
+            case BRIDGE_1V1V1V1 -> "§5";
+            case BRIDGE_TEAM -> "§e";
         };
         return "模式: " + color + this.type.getDisplayName();
     }

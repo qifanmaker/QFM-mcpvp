@@ -1,6 +1,9 @@
 package com.example.pvp.arena;
 
+import com.example.pvp.arena.bridge.BridgeLayout;
+import com.example.pvp.arena.bridge.BridgeMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
+import com.example.pvp.match.MatchType;
 import com.example.pvp.mixin.MinecraftServerAccess;
 import com.example.pvp.util.PvpDimensionOptions;
 import com.example.pvp.util.RemoveFromRegistry;
@@ -150,14 +153,23 @@ public final class ArenaWorldManager {
      * 搭建某场比赛的地形。
      *
      * @param seed        空岛战争的地图种子（比赛 ID），其他模式忽略
-     * @param playerCount 空岛战争的玩家人数（决定出生岛数量），其他模式忽略
+     * @param playerCount 空岛战争/战桥的玩家人数（决定出生岛数量/四方布局），其他模式忽略
+     * @param type        对局模式：战桥用它决定双队/四方布局
      */
-    public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount) {
+    public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount, MatchType type) {
         ArenaWorld arena = this.requireWorld();
 
         // 空岛战争：随机生成出生岛 + 中间主岛 + 箱子战利品
         if (template.getLayout() == ArenaTemplate.Layout.SKYWARS) {
             SkyWarsMapGenerator.generate(arena, regionIndex, seed, playerCount);
+            return;
+        }
+
+        // 战桥：双基地或四方十字 + 中央桥
+        if (template.getLayout() == ArenaTemplate.Layout.BRIDGE) {
+            boolean fourTeam = type == MatchType.BRIDGE_1V1V1V1;
+            BridgeLayout layout = BridgeLayout.compute(template.getCenter(regionIndex), playerCount, fourTeam);
+            BridgeMapGenerator.generate(arena, layout);
             return;
         }
 
@@ -187,7 +199,7 @@ public final class ArenaWorldManager {
     }
 
     /** 清理某场比赛的平台地形与区域内掉落物/实体。 */
-    public void clearArena(int regionIndex, ArenaTemplate template, int skywarsMaxRadius) {
+    public void clearArena(int regionIndex, ArenaTemplate template, int mapMaxRadius) {
         ArenaWorld arena = this.world;
         if (arena == null) {
             return;
@@ -195,7 +207,14 @@ public final class ArenaWorldManager {
 
         // 空岛战争：按该场实际最大半径清空（含立柱与小树），避免箱子/岛屿残留
         if (template.getLayout() == ArenaTemplate.Layout.SKYWARS) {
-            SkyWarsMapGenerator.clearIslands(arena, regionIndex, skywarsMaxRadius);
+            SkyWarsMapGenerator.clearIslands(arena, regionIndex, mapMaxRadius);
+            return;
+        }
+
+        // 战桥：按地图中心 ± 最大半径清空
+        if (template.getLayout() == ArenaTemplate.Layout.BRIDGE) {
+            BridgeLayout layout = BridgeLayout.compute(template.getCenter(regionIndex), 2, false);
+            BridgeMapGenerator.clear(arena, layout);
             return;
         }
 
