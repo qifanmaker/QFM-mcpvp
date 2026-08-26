@@ -74,6 +74,7 @@ public final class Match {
     private final int regionIndex;
     private final Set<UUID> eliminated = new HashSet<>();
     private final Set<UUID> blocking = new HashSet<>(); // 1.8 模式剑格挡
+    private final Map<UUID, Integer> blockingRefresh = new HashMap<>(); // 格挡刷新倒计时
     private final Set<UUID> leftEarly = new HashSet<>(); // 旁观者提前离场
     private final Set<String> infoLines = new HashSet<>(); // 计分板信息栏行
     private final int initialCountdownTicks;
@@ -897,18 +898,27 @@ public final class Match {
         return this.blocking.contains(player.getUuid());
     }
 
-    /** 1.8 模式：切换剑格挡状态（格挡时减速）。 */
+    /**
+     * 1.8 模式：切换剑格挡状态（格挡时减速）。
+     * 右键按住时客户端每 ~4 tick 重触发一次（UseItemCallback），每次都刷新倒计时；
+     * 松开右键后倒计时走完即自动退出格挡，避免"中缓慢 II 效果"永久残留。
+     */
     public void setBlocking(ServerPlayerEntity player, boolean block) {
         if (block) {
             this.blocking.add(player.getUuid());
+            this.blockingRefresh.put(player.getUuid(), BLOCK_REFRESH_TICKS);
             player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 200, 1));
         } else {
             this.blocking.remove(player.getUuid());
+            this.blockingRefresh.remove(player.getUuid());
             player.removeStatusEffect(StatusEffects.SLOWNESS);
         }
     }
 
-    /** 每帧维护 1.8 格挡：不拿剑则取消，格挡则保持减速。 */
+    /** 剑格挡刷新窗口（tick）：右键按住约每 4 tick 重触发，松开后约 0.5s 内退出格挡。 */
+    private static final int BLOCK_REFRESH_TICKS = 10;
+
+    /** 每帧维护 1.8 格挡：不拿剑则取消；格挡倒计时走完（松开右键）则退出；否则保持减速。 */
     private void tickLegacyBlocking() {
         for (ServerPlayerEntity player : this.players) {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
@@ -916,12 +926,21 @@ public final class Match {
                 continue;
             }
             boolean isBlocking = this.blocking.contains(player.getUuid());
-            boolean holdingSword = online.getMainHandStack().getItem() instanceof SwordItem;
-            if (isBlocking && !holdingSword) {
-                this.setBlocking(online, false);
-            } else if (isBlocking) {
-                online.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 200, 1));
+            if (!isBlocking) {
+                continue;
             }
+            boolean holdingSword = online.getMainHandStack().getItem() instanceof SwordItem;
+            if (!holdingSword) {
+                this.setBlocking(online, false);
+                continue;
+            }
+            Integer remaining = this.blockingRefresh.get(player.getUuid());
+            if (remaining == null || remaining <= 0) {
+                this.setBlocking(online, false); // 松开右键：刷新倒计时耗尽
+                continue;
+            }
+            this.blockingRefresh.put(player.getUuid(), remaining - 1);
+            online.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 200, 1));
         }
     }
 
