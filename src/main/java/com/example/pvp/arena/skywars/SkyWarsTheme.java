@@ -12,7 +12,7 @@ public enum SkyWarsTheme {
     OVERWORLD("主世界"),
     /** 地狱：地狱岩，岛面随机刷灵魂沙与岩浆。 */
     NETHER("地狱"),
-    /** 冰原：全部由雪块/浮冰构成，云杉树。 */
+    /** 冰原：第一层冰、下面雪，云杉树。 */
     ICE("冰原"),
     /** 末地：末地石构成，中间主岛为空心环（中间是虚空）。 */
     END("末地");
@@ -52,32 +52,32 @@ public enum SkyWarsTheme {
         return null;
     }
 
-    /** 岛面表层方块。 */
+    /** 岛面表层方块（冰原第一层为冰）。 */
     public Block topBlock() {
         return switch (this) {
             case OVERWORLD -> Blocks.GRASS_BLOCK;
+            case NETHER -> Blocks.NETHERRACK;
+            case ICE -> Blocks.PACKED_ICE;
+            case END -> Blocks.END_STONE;
+        };
+    }
+
+    /** 表层下方第 1 层（冰原为雪）。 */
+    public Block subBlock() {
+        return switch (this) {
+            case OVERWORLD -> Blocks.DIRT;
             case NETHER -> Blocks.NETHERRACK;
             case ICE -> Blocks.SNOW_BLOCK;
             case END -> Blocks.END_STONE;
         };
     }
 
-    /** 表层下方第 1 层。 */
-    public Block subBlock() {
-        return switch (this) {
-            case OVERWORLD -> Blocks.DIRT;
-            case NETHER -> Blocks.NETHERRACK;
-            case ICE -> Blocks.PACKED_ICE;
-            case END -> Blocks.END_STONE;
-        };
-    }
-
-    /** 更深的 2 层。 */
+    /** 更深的 2 层（冰原为雪）。 */
     public Block deepBlock() {
         return switch (this) {
             case OVERWORLD -> Blocks.STONE;
             case NETHER -> Blocks.NETHERRACK;
-            case ICE -> Blocks.PACKED_ICE;
+            case ICE -> Blocks.SNOW_BLOCK;
             case END -> Blocks.END_STONE;
         };
     }
