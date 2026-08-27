@@ -36,6 +36,7 @@ import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.block.entity.DispenserBlockEntity;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.projectile.SmallFireballEntity;
 import net.minecraft.item.ItemStack;
@@ -48,6 +49,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.TypedActionResult;
@@ -148,6 +150,21 @@ public final class PvPMod implements ModInitializer {
                         dispenser.setStack(i, new ItemStack(Items.TNT, 64));
                     }
                 }
+            }
+        });
+
+        // 主城 TNT 实体安全上限：防止大量 TNT 堆积导致服务器卡死/看门狗崩溃
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (server.getTicks() % 40 != 0) {
+                return;
+            }
+            ServerWorld overworld = server.getOverworld();
+            List<? extends TntEntity> tnts = overworld.getEntitiesByType(EntityType.TNT, (TntEntity tnt) -> true);
+            if (tnts.size() > 256) {
+                for (int i = 256; i < tnts.size(); i++) {
+                    tnts.get(i).discard();
+                }
+                LOGGER.warn("[PvP] 主城 TNT 实体过多（{}），已清理超出部分防止卡服", tnts.size());
             }
         });
 
