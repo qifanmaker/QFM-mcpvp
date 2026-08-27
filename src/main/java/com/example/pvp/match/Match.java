@@ -592,10 +592,9 @@ public final class Match {
     private void tickLuckyPillar() {
         PvPConfig cfg = PvPConfig.INSTANCE;
 
-        // 随机物品发放：每隔 N 秒每名存活玩家获得 1 件
+        // 随机物品发放：每隔 N 秒每名存活玩家获得 1 件（动作栏提示，不广播刷屏）
         if (--this.luckyPillarItemTicks <= 0) {
             this.luckyPillarItemTicks = cfg.luckyPillarItemIntervalSeconds * 20;
-            this.broadcast(Messages.gold("§e§l物品发放！§r 全员获得随机物品"));
             for (ServerPlayerEntity online : this.luckyPillarAliveOnline()) {
                 LuckyPillarLoot.giveRandomItem(online, this.random);
             }
@@ -1194,6 +1193,8 @@ public final class Match {
 
     /** 清理竞技场地形并释放场地（无论结束流程是否出错都必须执行）。 */
     private void cleanupArenaAndRelease() {
+        // 幸运之柱一击必杀等全局标记在对局结束时清空，防止残留到下一场（否则下一场开局就全程生效）
+        PvPMod.oneHitKillActive = false;
         try {
             int mapMaxRadius;
             if (this.skywarsLayout != null) {
@@ -1429,8 +1430,8 @@ public final class Match {
         } else {
             this.state = MatchState.ACTIVE;
             if (this.type == MatchType.LUCKY_PILLAR) {
-                // 初始化幸运之柱计时器：第一次物品发放/事件从开赛 N 秒后开始
-                this.luckyPillarItemTicks = PvPConfig.INSTANCE.luckyPillarItemIntervalSeconds * 20;
+                // 物品：开赛立即发一轮，之后每隔 interval 秒发；事件仍从 interval 秒后开始
+                this.luckyPillarItemTicks = 1;
                 this.luckyPillarEventTicks = PvPConfig.INSTANCE.luckyPillarEventIntervalSeconds * 20;
             }
             this.broadcast(Messages.gold("战斗开始！"));

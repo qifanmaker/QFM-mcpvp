@@ -5,7 +5,6 @@ import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout.Pillar;
 import com.example.pvp.config.PvPConfig;
 import com.mojang.logging.LogUtils;
-import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.util.math.BlockPos;
@@ -13,57 +12,26 @@ import net.minecraft.util.math.Box;
 import org.slf4j.Logger;
 
 /**
- * 幸运之柱地图生成：按 {@link LuckyPillarLayout} 铺每根柱子的柱身 + 柱顶平台（16 色羊毛轮换染色）。
+ * 幸运之柱地图生成：按 {@link LuckyPillarLayout} 铺每根 1 格宽的基岩棍子（从柱底通到柱顶）。
  * 同时提供整场清理（方块 + 掉落物）。
  */
 public final class LuckyPillarMapGenerator {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    /** 16 色羊毛轮换染色，便于区分每根柱子。 */
-    private static final Block[] WOOL = {
-            Blocks.WHITE_WOOL, Blocks.ORANGE_WOOL, Blocks.MAGENTA_WOOL, Blocks.LIGHT_BLUE_WOOL,
-            Blocks.YELLOW_WOOL, Blocks.LIME_WOOL, Blocks.PINK_WOOL, Blocks.GRAY_WOOL,
-            Blocks.LIGHT_GRAY_WOOL, Blocks.CYAN_WOOL, Blocks.PURPLE_WOOL, Blocks.BLUE_WOOL,
-            Blocks.BROWN_WOOL, Blocks.GREEN_WOOL, Blocks.RED_WOOL, Blocks.BLACK_WOOL
-    };
-
     private LuckyPillarMapGenerator() {
     }
 
-    /** 生成一整张幸运之柱地图（柱子 + 平台）。 */
+    /** 生成一整张幸运之柱地图（1 格宽基岩柱，柱顶即站立面）。 */
     public static void generate(ArenaWorld world, LuckyPillarLayout layout) {
         java.util.List<Pillar> pillars = layout.pillars();
-        for (int i = 0; i < pillars.size(); i++) {
-            Pillar p = pillars.get(i);
-            Block color = WOOL[i % WOOL.length];
-
-            // 柱身：从柱底到平台下方，圆形半径 COLUMN_RADIUS
-            int cRadius = LuckyPillarLayout.COLUMN_RADIUS;
-            for (int y = p.columnBaseY(); y < p.topY(); y++) {
-                for (int dx = -cRadius; dx <= cRadius; dx++) {
-                    for (int dz = -cRadius; dz <= cRadius; dz++) {
-                        if (dx * dx + dz * dz > cRadius * cRadius) {
-                            continue;
-                        }
-                        world.setBlockState(new BlockPos(p.center().getX() + dx, y, p.center().getZ() + dz),
-                                color.getDefaultState(), 3);
-                    }
-                }
-            }
-
-            // 柱顶平台：圆形（悬挑在柱身上方一圈）
-            int r = p.platformRadius();
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    if (Math.sqrt(dx * dx + dz * dz) > r) {
-                        continue;
-                    }
-                    world.setBlockState(new BlockPos(p.center().getX() + dx, p.topY(), p.center().getZ() + dz),
-                            color.getDefaultState(), 3);
-                }
+        for (Pillar p : pillars) {
+            // 一根基岩棍子：1 格宽，从柱底通到柱顶（顶端为站立面，基岩不可破坏）
+            for (int y = p.columnBaseY(); y <= p.topY(); y++) {
+                world.setBlockState(new BlockPos(p.center().getX(), y, p.center().getZ()),
+                        Blocks.BEDROCK.getDefaultState(), 3);
             }
         }
-        LOGGER.info("[PvP] 幸运之柱地图已生成: {} 根柱子", pillars.size());
+        LOGGER.info("[PvP] 幸运之柱地图已生成: {} 根基岩柱", pillars.size());
     }
 
     /**

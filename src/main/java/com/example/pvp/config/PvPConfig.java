@@ -99,8 +99,8 @@ public final class PvPConfig {
     public int luckyPillarFillTimeoutSeconds = 60;
     /** 地图覆盖边长（生成/清理边界，需覆盖所有柱子）。 */
     public int luckyPillarSize = 101;
-    /** 随机物品发放间隔（秒）：每隔该时长每名存活玩家获得 1 件随机物品。 */
-    public int luckyPillarItemIntervalSeconds = 15;
+    /** 随机物品发放间隔（秒）：每隔该时长每名存活玩家获得 1 件随机物品（开赛立即发一轮）。 */
+    public int luckyPillarItemIntervalSeconds = 1;
     /** 随机事件间隔（秒）：每隔该时长触发一个随机事件。 */
     public int luckyPillarEventIntervalSeconds = 45;
     /** 是否开启随机事件（一击必杀/箭雨/雷击/TNT 雨/位置交换/补给潮）。 */
@@ -109,11 +109,9 @@ public final class PvPConfig {
     public int luckyPillarOneHitSeconds = 10;
     /** 对局超时（秒）：超过后击杀最多的存活者获胜，无人有击杀则平局。 */
     public int luckyPillarTimeoutSeconds = 600;
-    /** 柱顶平台高于地图中心的高度（格）。 */
+    /** 柱顶高于地图中心的高度（格）。 */
     public int luckyPillarHeight = 20;
-    /** 柱顶平台半径（圆形，默认直径 7）。 */
-    public int luckyPillarPlatformRadius = 3;
-    /** 相邻平台边缘的间距（格）：越大越难跨柱，默认 4 格可冲刺跳过。 */
+    /** 相邻柱子的间隙（格）：柱子 1 格宽，默认 4 格可冲刺跳过。 */
     public int luckyPillarGap = 4;
     /** 柱身向下延伸深度（格）：柱身底 = 地图中心 Y - 该值。 */
     public int luckyPillarColumnDepth = 40;
@@ -200,6 +198,10 @@ public final class PvPConfig {
         if (this.luckyPillarItemIntervalSeconds <= 0) {
             this.luckyPillarItemIntervalSeconds = defaults.luckyPillarItemIntervalSeconds;
             changed = true;
+        } else if (this.luckyPillarItemIntervalSeconds == 15) {
+            // 旧默认 15 秒改为新默认（每秒刷 1 件）
+            this.luckyPillarItemIntervalSeconds = defaults.luckyPillarItemIntervalSeconds;
+            changed = true;
         }
         if (this.luckyPillarEventIntervalSeconds <= 0) {
             this.luckyPillarEventIntervalSeconds = defaults.luckyPillarEventIntervalSeconds;
@@ -215,10 +217,6 @@ public final class PvPConfig {
         }
         if (this.luckyPillarHeight <= 0) {
             this.luckyPillarHeight = defaults.luckyPillarHeight;
-            changed = true;
-        }
-        if (this.luckyPillarPlatformRadius <= 0) {
-            this.luckyPillarPlatformRadius = defaults.luckyPillarPlatformRadius;
             changed = true;
         }
         if (this.luckyPillarGap <= 0) {

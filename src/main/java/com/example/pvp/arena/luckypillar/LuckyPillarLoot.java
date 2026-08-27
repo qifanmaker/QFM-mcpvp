@@ -12,7 +12,7 @@ import java.util.Random;
 import java.util.function.BiFunction;
 
 /**
- * 幸运之柱随机物品：加权随机表，每隔一段时间发给存活玩家一件。
+ * 幸运之柱随机物品：加权随机表，每隔一段时间发给存活玩家一件（每件 1 个，不是一组）。
  * 以搭桥方块为主力，武器/防具/食物/捣乱道具梯度随机。
  */
 public final class LuckyPillarLoot {
@@ -32,42 +32,43 @@ public final class LuckyPillarLoot {
             Items.BROWN_WOOL, Items.GREEN_WOOL, Items.RED_WOOL, Items.BLACK_WOOL
     };
 
+    /** 每件只掉 1 个（每秒刷 1 件，不走堆叠）。 */
     private static final List<LootEntry> TABLE = List.of(
-            // 搭桥方块（主力）
-            new LootEntry(20, (r, c) -> stack(WOOL_ITEMS[r.nextInt(WOOL_ITEMS.length)], 32)),
-            new LootEntry(12, (r, c) -> stack(Items.OAK_PLANKS, 16)),
-            new LootEntry(8, (r, c) -> stack(Items.COBBLESTONE, 8)),
+            // 搭桥方块（主力，单块）
+            new LootEntry(20, (r, c) -> stack(WOOL_ITEMS[r.nextInt(WOOL_ITEMS.length)])),
+            new LootEntry(12, (r, c) -> stack(Items.OAK_PLANKS)),
+            new LootEntry(8, (r, c) -> stack(Items.COBBLESTONE)),
             // 武器
-            new LootEntry(10, (r, c) -> stack(Items.WOODEN_SWORD, 1)),
-            new LootEntry(8, (r, c) -> stack(Items.STONE_SWORD, 1)),
-            new LootEntry(6, (r, c) -> stack(Items.IRON_SWORD, 1)),
-            new LootEntry(1, (r, c) -> stack(Items.DIAMOND_SWORD, 1)),
-            new LootEntry(6, (r, c) -> stack(Items.WOODEN_AXE, 1)),
-            new LootEntry(5, (r, c) -> stack(Items.STONE_AXE, 1)),
-            new LootEntry(3, (r, c) -> stack(Items.IRON_AXE, 1)),
-            new LootEntry(6, (r, c) -> stack(Items.BOW, 1)),
+            new LootEntry(10, (r, c) -> stack(Items.WOODEN_SWORD)),
+            new LootEntry(8, (r, c) -> stack(Items.STONE_SWORD)),
+            new LootEntry(6, (r, c) -> stack(Items.IRON_SWORD)),
+            new LootEntry(1, (r, c) -> stack(Items.DIAMOND_SWORD)),
+            new LootEntry(6, (r, c) -> stack(Items.WOODEN_AXE)),
+            new LootEntry(5, (r, c) -> stack(Items.STONE_AXE)),
+            new LootEntry(3, (r, c) -> stack(Items.IRON_AXE)),
+            new LootEntry(6, (r, c) -> stack(Items.BOW)),
             // 防具
             new LootEntry(12, (r, c) -> armor(r, false)),
             new LootEntry(6, (r, c) -> armor(r, true)),
             // 食物
-            new LootEntry(8, (r, c) -> stack(Items.BREAD, 4)),
-            new LootEntry(5, (r, c) -> stack(Items.COOKED_BEEF, 4)),
-            new LootEntry(6, (r, c) -> stack(Items.GOLDEN_APPLE, 1)),
-            new LootEntry(1, (r, c) -> stack(Items.ENCHANTED_GOLDEN_APPLE, 1)),
+            new LootEntry(8, (r, c) -> stack(Items.BREAD)),
+            new LootEntry(5, (r, c) -> stack(Items.COOKED_BEEF)),
+            new LootEntry(6, (r, c) -> stack(Items.GOLDEN_APPLE)),
+            new LootEntry(1, (r, c) -> stack(Items.ENCHANTED_GOLDEN_APPLE)),
             // 捣乱/机动力
-            new LootEntry(3, (r, c) -> stack(Items.TNT, 2)),
-            new LootEntry(3, (r, c) -> stack(Items.FLINT_AND_STEEL, 1)),
-            new LootEntry(3, (r, c) -> stack(Items.FIRE_CHARGE, 4)),
-            new LootEntry(5, (r, c) -> stack(Items.SNOWBALL, 16)),
-            new LootEntry(5, (r, c) -> stack(Items.EGG, 16)),
-            new LootEntry(1, (r, c) -> stack(Items.ENDER_PEARL, 1)),
-            new LootEntry(3, (r, c) -> stack(Items.WATER_BUCKET, 1)),
-            new LootEntry(2, (r, c) -> stack(Items.LAVA_BUCKET, 1)),
-            new LootEntry(3, (r, c) -> stack(Items.COBWEB, 4)),
-            new LootEntry(1, (r, c) -> stack(Items.TOTEM_OF_UNDYING, 1))
+            new LootEntry(3, (r, c) -> stack(Items.TNT)),
+            new LootEntry(3, (r, c) -> stack(Items.FLINT_AND_STEEL)),
+            new LootEntry(3, (r, c) -> stack(Items.FIRE_CHARGE)),
+            new LootEntry(5, (r, c) -> stack(Items.SNOWBALL)),
+            new LootEntry(5, (r, c) -> stack(Items.EGG)),
+            new LootEntry(1, (r, c) -> stack(Items.ENDER_PEARL)),
+            new LootEntry(3, (r, c) -> stack(Items.WATER_BUCKET)),
+            new LootEntry(2, (r, c) -> stack(Items.LAVA_BUCKET)),
+            new LootEntry(3, (r, c) -> stack(Items.COBWEB)),
+            new LootEntry(1, (r, c) -> stack(Items.TOTEM_OF_UNDYING))
     );
 
-    /** 发放 1 件随机物品到玩家背包（背包满则落为实体），并聊天提示。 */
+    /** 发放 1 件随机物品到玩家背包（背包满则落为实体），并动作栏提示。 */
     public static void giveRandomItem(ServerPlayerEntity player, Random random) {
         giveRandomItems(player, random, 1);
     }
@@ -81,8 +82,8 @@ public final class LuckyPillarLoot {
             }
             giveStack(player, stack);
             if (stack.isOf(Items.BOW)) {
-                // 弓配箭：一发随弓补 8 支箭
-                giveStack(player, new ItemStack(Items.ARROW, 8));
+                // 弓配箭：一发随弓补 1 支箭
+                giveStack(player, new ItemStack(Items.ARROW));
             }
         }
     }
@@ -93,7 +94,8 @@ public final class LuckyPillarLoot {
             ItemEntity entity = new ItemEntity(player.getWorld(), player.getX(), player.getEyeY(), player.getZ(), stack);
             player.getWorld().spawnEntity(entity);
         }
-        player.sendMessage(Text.literal("§e[幸运之柱] §f你获得了 §b" + stack.getName().getString()), false);
+        // 每秒发一件，用动作栏提示（不刷屏聊天）
+        player.sendMessage(Text.literal("§e§l+ §b" + stack.getName().getString()), true);
     }
 
     private static ItemStack roll(List<LootEntry> table, Random random) {
@@ -119,7 +121,7 @@ public final class LuckyPillarLoot {
         return new ItemStack(pieces[random.nextInt(pieces.length)]);
     }
 
-    private static ItemStack stack(Item item, int count) {
-        return new ItemStack(item, count);
+    private static ItemStack stack(Item item) {
+        return new ItemStack(item, 1);
     }
 }
