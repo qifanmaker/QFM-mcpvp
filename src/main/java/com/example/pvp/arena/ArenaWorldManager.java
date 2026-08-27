@@ -2,6 +2,8 @@ package com.example.pvp.arena;
 
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.bridge.BridgeMapGenerator;
+import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
+import com.example.pvp.arena.luckypillar.LuckyPillarMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.mixin.MinecraftServerAccess;
@@ -176,6 +178,13 @@ public final class ArenaWorldManager {
             return;
         }
 
+        // 幸运之柱：每位玩家一根高柱（柱身 + 柱顶平台）
+        if (template.getLayout() == ArenaTemplate.Layout.LUCKY_PILLAR) {
+            LuckyPillarLayout layout = LuckyPillarLayout.compute(template.getCenter(regionIndex), seed, playerCount);
+            LuckyPillarMapGenerator.generate(arena, layout);
+            return;
+        }
+
         BlockPos origin = template.getRegionOrigin(regionIndex);
         int size = template.getSize();
 
@@ -218,6 +227,12 @@ public final class ArenaWorldManager {
         if (template.getLayout() == ArenaTemplate.Layout.BRIDGE) {
             BridgeLayout layout = BridgeLayout.compute(template.getCenter(regionIndex), 2, false);
             BridgeMapGenerator.clear(arena, layout);
+            return;
+        }
+
+        // 幸运之柱：按地图中心 ± 实际最大半径清空（含高柱/平台/掉落物）
+        if (template.getLayout() == ArenaTemplate.Layout.LUCKY_PILLAR) {
+            LuckyPillarMapGenerator.clear(arena, regionIndex, mapMaxRadius);
             return;
         }
 

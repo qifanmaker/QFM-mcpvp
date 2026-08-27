@@ -236,6 +236,13 @@ public final class PvpGuiManager {
 
             inv.setStack(18, makeButton(Items.DIAMOND_PICKAXE, "§e战桥 混战", "偶数人数，总人数/2 分两队",
                     "2v2 / 3v3 / 4v4...", "先得 " + win + " 分获胜", "点击直接加入"));
+            inv.setStack(24, makeButton(Items.QUARTZ_PILLAR, "§d幸运之柱", PvPConfig.INSTANCE.luckyPillarMinPlayers + "~"
+                    + PvPConfig.INSTANCE.luckyPillarMaxPlayers + " 人，凑齐 " + PvPConfig.INSTANCE.luckyPillarStartPlayers + " 人开赛",
+                    "每位玩家一根高柱，空手开局",
+                    "每 " + PvPConfig.INSTANCE.luckyPillarItemIntervalSeconds + " 秒全员随机获得物品",
+                    "随机事件：一击必杀/箭雨/雷击/TNT 雨/位置交换/补给潮",
+                    "1.8 低版本战斗，最后存活者获胜",
+                    "点击直接加入"));
             inv.setStack(19, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
             inv.setStack(20, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
             inv.setStack(21, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
@@ -431,6 +438,8 @@ public final class PvpGuiManager {
             case 16 -> this.joinQueue(player, MatchType.BRIDGE_1V1V1V1, KitManager.bridgeKit());
             case 17 -> this.joinQueue(player, MatchType.BRIDGE_2V2, KitManager.bridgeKit());
             case 18 -> this.joinQueue(player, MatchType.BRIDGE_TEAM, KitManager.bridgeKit());
+            // 幸运之柱无套件（空手开局），直接加入
+            case 24 -> this.joinQueue(player, MatchType.LUCKY_PILLAR, KitManager.luckyPillarKit());
             case 19 -> this.openDuelTargetPage(player);
             case 20 -> this.openStatsPage(player);
             case 21 -> this.openKitInfoPage(player);
@@ -546,6 +555,9 @@ public final class PvpGuiManager {
             } else if (type == MatchType.SKYWARS) {
                 player.sendMessage(Messages.info("已加入空岛战争：凑齐 " + PvPConfig.INSTANCE.skywarsStartPlayers
                         + " 人开赛，开箱获得装备"), false);
+            } else if (type == MatchType.LUCKY_PILLAR) {
+                player.sendMessage(Messages.info("已加入幸运之柱：凑齐 " + PvPConfig.INSTANCE.luckyPillarStartPlayers
+                        + " 人开赛，空手开局，随机物品与事件"), false);
             } else if (type.isBridge()) {
                 if (type.isBridgeTeam()) {
                     player.sendMessage(Messages.info("已加入战桥混战：需要偶数人数（≥ "

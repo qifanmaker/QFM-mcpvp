@@ -40,6 +40,9 @@ public final class KitManager {
     /** 战桥哨兵套件：实际装备由 {@link BridgeGear} 按队伍色发放，这里仅作队列占位。 */
     private static Kit bridgeKit;
 
+    /** 幸运之柱哨兵套件：空手开局、生存模式，仅作队列占位。 */
+    private static Kit luckyPillarKit;
+
     /** 附魔注册表：服务器启动后才可用，用于给套件物品加附魔。 */
     private static Registry<Enchantment> enchantmentRegistry;
 
@@ -62,6 +65,11 @@ public final class KitManager {
         bridgeKit = new Kit.Builder("bridge", KitType.CUSTOM)
                 .displayName("战桥")
                 .food(20, 20f)
+                .gamemode(GameMode.SURVIVAL)
+                .build();
+        luckyPillarKit = new Kit.Builder("luckypillar", KitType.CUSTOM)
+                .displayName("幸运之柱")
+                .food(20, 5f)
                 .gamemode(GameMode.SURVIVAL)
                 .build();
         KITS.add(buildSwordKit());
@@ -115,6 +123,11 @@ public final class KitManager {
     /** 战桥哨兵套件（不入 KITS 列表，装备由 {@link BridgeGear} 按队伍色发放）。 */
     public static Kit bridgeKit() {
         return bridgeKit;
+    }
+
+    /** 幸运之柱哨兵套件（不入 KITS 列表，实际空手开局）。 */
+    public static Kit luckyPillarKit() {
+        return luckyPillarKit;
     }
 
     private static Kit buildSwordKit() {

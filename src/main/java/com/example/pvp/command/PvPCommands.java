@@ -6,6 +6,8 @@ import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.bridge.BridgeMapGenerator;
+import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
+import com.example.pvp.arena.luckypillar.LuckyPillarMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
@@ -46,7 +48,7 @@ public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> MODE_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(new String[]{
                     "1v1", "2v2", "ffa", "sumo", "1.8", "skywars",
-                    "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge"}, builder);
+                    "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -120,7 +122,11 @@ public final class PvPCommands {
                                 .then(CommandManager.literal("bridge")
                                         .executes(ctx -> debugBridge(ctx, 2))
                                         .then(CommandManager.argument("team", StringArgumentType.word())
-                                                .executes(ctx -> debugBridge(ctx, parseIntSafe(ctx, "team", 2))))))
+                                                .executes(ctx -> debugBridge(ctx, parseIntSafe(ctx, "team", 2)))))
+                                .then(CommandManager.literal("luckypillar")
+                                        .executes(ctx -> debugLuckyPillar(ctx, 4))
+                                        .then(CommandManager.argument("count", StringArgumentType.word())
+                                                .executes(ctx -> debugLuckyPillar(ctx, parseIntSafe(ctx, "count", 4))))))
         );
 
         dispatcher.register(CommandManager.literal("hub").executes(ctx -> tpOut(ctx)));   // 返回主城
@@ -158,6 +164,7 @@ public final class PvPCommands {
                         + "§e/pvp join <1v1|2v2|ffa|sumo|1.8> <套件>§r 加入匹配队列\n"
                         + "§e/pvp join skywars§r 加入空岛战争（无需套件）\n"
                         + "§e/pvp join bridge1v1|bridge1v1v1v1|bridge2v2|bridge§r 加入战桥（无需套件）\n"
+                        + "§e/pvp join luckypillar§r 加入幸运之柱（无需套件，空手开局）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
@@ -179,7 +186,7 @@ public final class PvPCommands {
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
             player.sendMessage(Messages.error("未知模式: " + modeId
-                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge）"), false);
+                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar）"), false);
             return 0;
         }
         Kit kit;
@@ -187,6 +194,8 @@ public final class PvPCommands {
             kit = KitManager.skywarsKit(); // 空岛战争无套件
         } else if (type.isBridge()) {
             kit = KitManager.bridgeKit(); // 战桥装备固定（按队伍色发放），无套件选择
+        } else if (type == MatchType.LUCKY_PILLAR) {
+            kit = KitManager.luckyPillarKit(); // 幸运之柱空手开局，无套件
         } else {
             if (kitId == null) {
                 player.sendMessage(Messages.error("该模式需要指定套件（用 /pvp kit list 查看）"), false);
@@ -211,6 +220,9 @@ public final class PvPCommands {
             } else if (type == MatchType.SKYWARS) {
                 player.sendMessage(Messages.info("已加入空岛战争：凑齐 " + PvPConfig.INSTANCE.skywarsStartPlayers
                         + " 人开赛，开箱获得装备"), false);
+            } else if (type == MatchType.LUCKY_PILLAR) {
+                player.sendMessage(Messages.info("已加入幸运之柱：凑齐 " + PvPConfig.INSTANCE.luckyPillarStartPlayers
+                        + " 人开赛，空手开局，随机物品与事件"), false);
             } else if (type.isBridge()) {
                 if (type.isBridgeTeam()) {
                     player.sendMessage(Messages.info("已加入战桥混战：需要偶数人数（≥ "
@@ -530,6 +542,32 @@ public final class PvPCommands {
         player.teleport(arena, center.getX() + 0.5, center.getY() + 15, center.getZ() + 0.5, 0, 90);
         arenaManager.addVisitor(player, 180); // 3 分钟内不被兜底传回主城
         player.sendMessage(Messages.gold("已传送到战桥地图上空（约 3 分钟后自动回城），可下落查看基地/球门/桥"), false);
+        return 1;
+    }
+
+    /** 调试：在竞技场远区生成一张幸运之柱地图（指定柱子数）并传送查看（不影响正式对局）。 */
+    private static int debugLuckyPillar(CommandContext<ServerCommandSource> ctx, int count) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
+        ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
+        if (arena == null) {
+            player.sendMessage(Messages.error("竞技场世界不可用"), false);
+            return 0;
+        }
+        int region = 970; // 远离正式对局分配的区域
+        int size = PvPConfig.INSTANCE.luckyPillarSize;
+        BlockPos origin = new BlockPos(region * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
+        BlockPos center = new BlockPos(origin.getX() + size / 2, ArenaTemplate.PLATFORM_Y + 1, origin.getZ() + size / 2);
+        count = Math.max(2, Math.min(8, count));
+        LuckyPillarLayout layout = LuckyPillarLayout.compute(center, 9000, count);
+        LuckyPillarMapGenerator.generate(arena, layout);
+
+        player.sendMessage(Messages.info("测试幸运之柱地图已生成（" + count + " 根柱子，最大半径 "
+                + layout.maxRadius() + "）"), false);
+        player.teleport(arena, center.getX() + 0.5,
+                center.getY() + PvPConfig.INSTANCE.luckyPillarHeight + 15, center.getZ() + 0.5, 0, 90);
+        arenaManager.addVisitor(player, 180); // 3 分钟内不被兜底传回主城
+        player.sendMessage(Messages.gold("已传送到幸运之柱地图上空（约 3 分钟后自动回城），可下落查看柱子"), false);
         return 1;
     }
 

@@ -5,6 +5,8 @@ import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.bridge.BridgeLayout;
+import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
+import com.example.pvp.arena.luckypillar.LuckyPillarLoot;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
@@ -23,9 +25,13 @@ import net.minecraft.component.type.FireworkExplosionComponent;
 import net.minecraft.component.type.FireworksComponent;
 import net.minecraft.component.type.LodestoneTrackerComponent;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.LightningEntity;
+import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.projectile.ArrowEntity;
 import net.minecraft.entity.projectile.FireworkRocketEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -46,6 +52,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.GlobalPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import org.slf4j.Logger;
 
@@ -55,6 +62,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -98,6 +106,15 @@ public final class Match {
     private int bridgeArrowRegenTicks; // 箭矢回复计时
     private final Set<UUID> bridgePendingRespawns = new HashSet<>(); // ALLOW_DEATH 拦截后延迟重生
 
+    /** 幸运之柱地图布局（仅 LUCKY_PILLAR 模式非空，柱子保护/清理用）。 */
+    private final LuckyPillarLayout luckyPillarLayout;
+    private int luckyPillarItemTicks;   // 距下次随机物品发放（tick）
+    private int luckyPillarEventTicks;  // 距下次随机事件（tick）
+    private int luckyPillarOneHitTicks; // 一击必杀剩余时长（>0 表示生效中）
+    private int luckyPillarArrowRainTicks; // 箭雨剩余时长
+    private final Map<UUID, Integer> luckyPillarKills = new HashMap<>(); // 击杀数（超时决胜用）
+    private final Random random = new Random();
+
     private MatchTeam winnerTeam;
     private int celebrationTicks;
     private MatchState state;
@@ -139,11 +156,13 @@ public final class Match {
             this.skywarsSeed = seed;
             this.skywarsLayout = SkyWarsLayout.compute(template.getCenter(regionIndex), seed, this.players.size());
             this.bridgeLayout = null;
+            this.luckyPillarLayout = null;
             spawnPositions = this.skywarsLayout.spawns();
         } else if (type.isBridge()) {
             this.skywarsLayout = null;
             this.skywarsTheme = null;
             this.skywarsSeed = id;
+            this.luckyPillarLayout = null;
             this.bridgeLayout = BridgeLayout.compute(template.getCenter(regionIndex),
                     this.players.size(), type == MatchType.BRIDGE_1V1V1V1);
             // 每人出生点 = 所属队伍（teams 顺序即基地顺序）对应的笼位
@@ -159,11 +178,20 @@ public final class Match {
                 }
                 spawnPositions.add(bases.get(Math.min(teamIdx, bases.size() - 1)).spawn());
             }
+        } else if (type == MatchType.LUCKY_PILLAR) {
+            this.skywarsLayout = null;
+            this.skywarsTheme = null;
+            this.skywarsSeed = id;
+            this.bridgeLayout = null;
+            this.luckyPillarLayout = LuckyPillarLayout.compute(template.getCenter(regionIndex),
+                    id, this.players.size());
+            spawnPositions = this.luckyPillarLayout.spawns();
         } else {
             this.skywarsLayout = null;
             this.skywarsTheme = null;
             this.skywarsSeed = id;
             this.bridgeLayout = null;
+            this.luckyPillarLayout = null;
             spawnPositions = template.computeSpawns(regionIndex, this.players.size());
         }
         for (int i = 0; i < this.players.size(); i++) {
@@ -240,6 +268,8 @@ public final class Match {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20);
         } else if (this.type.isBridge()) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.bridgeTimeoutSeconds * 20);
+        } else if (this.type == MatchType.LUCKY_PILLAR) {
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.luckyPillarTimeoutSeconds * 20);
         } else {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
         }
@@ -250,7 +280,7 @@ public final class Match {
         }
         if (this.state == MatchState.ACTIVE && this.ticks > this.initialCountdownTicks + activeTimeout) {
             LOGGER.warn("[PvP] 比赛 #{} 超时（{} 秒）结束", this.id, activeTimeout / 20);
-            this.finishMatch(this.type.isBridge() ? this.bridgeTimeoutWinner() : null);
+            this.finishMatch(this.timeoutWinner());
             return;
         }
 
@@ -268,13 +298,17 @@ public final class Match {
                 if (this.type.isBridge()) {
                     this.tickBridge();
                 }
-                if (this.type == MatchType.PVP_1_8 || this.type == MatchType.SKYWARS || this.type.isBridge()) {
+                if (this.type == MatchType.PVP_1_8 || this.type == MatchType.SKYWARS || this.type.isBridge()
+                        || this.type == MatchType.LUCKY_PILLAR) {
                     this.tickLegacyBlocking();
                 }
                 if (this.type == MatchType.SKYWARS) {
                     this.tickSkywarsShrink();
                     this.tickSkywarsTotem();
                     this.tickSkywarsCompass();
+                }
+                if (this.type == MatchType.LUCKY_PILLAR) {
+                    this.tickLuckyPillar();
                 }
                 this.checkWinCondition();
             }
@@ -513,6 +547,221 @@ public final class Match {
                 this.eliminate(online, EliminationCause.RING_OUT);
             }
         }
+    }
+
+    // ---------- 幸运之柱 (Lucky Pillar) ----------
+
+    /** 幸运之柱每帧逻辑：随机物品发放、随机事件、一击必杀/箭雨倒计时。 */
+    private void tickLuckyPillar() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+
+        // 随机物品发放：每隔 N 秒每名存活玩家获得 1 件
+        if (--this.luckyPillarItemTicks <= 0) {
+            this.luckyPillarItemTicks = cfg.luckyPillarItemIntervalSeconds * 20;
+            this.broadcast(Messages.gold("§e§l物品发放！§r 全员获得随机物品"));
+            for (ServerPlayerEntity online : this.luckyPillarAliveOnline()) {
+                LuckyPillarLoot.giveRandomItem(online, this.random);
+            }
+        }
+
+        // 随机事件
+        if (cfg.luckyPillarEvents) {
+            if (--this.luckyPillarEventTicks <= 0) {
+                this.luckyPillarEventTicks = cfg.luckyPillarEventIntervalSeconds * 20;
+                this.triggerLuckyPillarEvent();
+            }
+        }
+
+        // 一击必杀倒计时：结束关闭全局标记
+        if (this.luckyPillarOneHitTicks > 0) {
+            this.luckyPillarOneHitTicks--;
+            if (this.luckyPillarOneHitTicks <= 0) {
+                PvPMod.oneHitKillActive = false;
+                this.broadcast(Messages.warn("§c一击必杀结束"));
+            }
+        }
+
+        // 箭雨倒计时：期间每 10 tick 在随机存活玩家头顶落一支箭
+        if (this.luckyPillarArrowRainTicks > 0) {
+            this.luckyPillarArrowRainTicks--;
+            if (this.luckyPillarArrowRainTicks % 10 == 0) {
+                this.spawnRainArrow();
+            }
+        }
+    }
+
+    /** 当前存活的在线玩家列表（幸运之柱通用遍历用，排除幽灵/离线）。 */
+    private List<ServerPlayerEntity> luckyPillarAliveOnline() {
+        List<ServerPlayerEntity> list = new ArrayList<>();
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        for (ServerPlayerEntity player : this.players) {
+            if (this.eliminated.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null || online.getWorld() != arena) {
+                continue;
+            }
+            list.add(online);
+        }
+        return list;
+    }
+
+    /** 触发一个随机事件（广播 + 生效）。 */
+    private void triggerLuckyPillarEvent() {
+        switch (this.random.nextInt(6)) {
+            case 0 -> this.triggerOneHitKill();
+            case 1 -> this.triggerArrowRain();
+            case 2 -> this.triggerLightning();
+            case 3 -> this.triggerTntRain();
+            case 4 -> this.triggerPositionSwap();
+            case 5 -> this.triggerSupplyRush();
+        }
+    }
+
+    /** 一击必杀：持续 N 秒内所有伤害致死（LivingEntityMixin 检查全局标记）。 */
+    private void triggerOneHitKill() {
+        PvPMod.oneHitKillActive = true;
+        this.luckyPillarOneHitTicks = Math.max(20, PvPConfig.INSTANCE.luckyPillarOneHitSeconds * 20);
+        this.broadcast(Messages.error("§4§l一击必杀！！§c " + PvPConfig.INSTANCE.luckyPillarOneHitSeconds
+                + " 秒内所有攻击直接致死！"));
+    }
+
+    /** 箭雨：5 秒内每 10 tick 在随机存活玩家头顶落一支下坠的箭。 */
+    private void triggerArrowRain() {
+        this.luckyPillarArrowRainTicks = 100;
+        this.broadcast(Messages.warn("§e§l箭雨来袭！快躲开！"));
+    }
+
+    private void spawnRainArrow() {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        List<ServerPlayerEntity> alive = this.luckyPillarAliveOnline();
+        if (alive.isEmpty()) {
+            return;
+        }
+        ServerPlayerEntity target = alive.get(this.random.nextInt(alive.size()));
+        double x = target.getX() + (this.random.nextDouble() - 0.5) * 4.0;
+        double y = target.getY() + 14 + this.random.nextInt(5);
+        double z = target.getZ() + (this.random.nextDouble() - 0.5) * 4.0;
+        ArrowEntity arrow = EntityType.ARROW.create(arena);
+        if (arrow != null) {
+            arrow.refreshPositionAndAngles(x, y, z, 0, 0);
+            arrow.setVelocity((this.random.nextDouble() - 0.5) * 0.3, -1.2,
+                    (this.random.nextDouble() - 0.5) * 0.3);
+            arrow.setDamage(2.0 + this.random.nextDouble() * 5.0);
+            arrow.setOwner(null);
+            arena.spawnEntity(arrow);
+        }
+    }
+
+    /** 雷击：3 道闪电劈向随机存活玩家。 */
+    private void triggerLightning() {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena != null) {
+            List<ServerPlayerEntity> alive = this.luckyPillarAliveOnline();
+            for (int i = 0; i < 3 && !alive.isEmpty(); i++) {
+                ServerPlayerEntity target = alive.get(this.random.nextInt(alive.size()));
+                LightningEntity bolt = EntityType.LIGHTNING_BOLT.create(arena);
+                if (bolt != null) {
+                    bolt.setPos(target.getX(), target.getY(), target.getZ());
+                    arena.spawnEntity(bolt);
+                }
+            }
+        }
+        this.broadcast(Messages.warn("§e§l天雷滚滚！！"));
+    }
+
+    /** TNT 雨：随机存活玩家头顶落下 TNT（2 秒爆炸，可把玩家炸落柱子）。 */
+    private void triggerTntRain() {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena != null) {
+            List<ServerPlayerEntity> alive = this.luckyPillarAliveOnline();
+            for (int i = 0; i < 4 && !alive.isEmpty(); i++) {
+                ServerPlayerEntity target = alive.get(this.random.nextInt(alive.size()));
+                for (int k = 0; k < 2; k++) {
+                    TntEntity tnt = new TntEntity(arena,
+                            target.getX() + (this.random.nextDouble() - 0.5) * 2.0,
+                            target.getY() + 10 + this.random.nextInt(3),
+                            target.getZ() + (this.random.nextDouble() - 0.5) * 2.0, null);
+                    tnt.setFuse(40);
+                    arena.spawnEntity(tnt);
+                }
+            }
+        }
+        this.broadcast(Messages.warn("§6§lTNT 雨！！快躲开！"));
+    }
+
+    /** 位置交换：随机两名存活玩家互换位置（清速度，避免互换后飞出柱子）。 */
+    private void triggerPositionSwap() {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        List<ServerPlayerEntity> alive = this.luckyPillarAliveOnline();
+        if (alive.size() < 2) {
+            return;
+        }
+        ServerPlayerEntity a = alive.get(this.random.nextInt(alive.size()));
+        ServerPlayerEntity b = alive.get(this.random.nextInt(alive.size()));
+        if (a == b) {
+            b = alive.get((alive.indexOf(a) + 1) % alive.size());
+        }
+        double ax = a.getX(), ay = a.getY(), az = a.getZ();
+        float ayaw = a.getYaw(), apitch = a.getPitch();
+        a.teleport(arena, b.getX(), b.getY(), b.getZ(), b.getYaw(), b.getPitch());
+        b.teleport(arena, ax, ay, az, ayaw, apitch);
+        a.setVelocity(Vec3d.ZERO);
+        b.setVelocity(Vec3d.ZERO);
+        a.velocityDirty = true;
+        b.velocityDirty = true;
+        this.broadcast(Messages.warn("§d§l位置互换！！"));
+    }
+
+    /** 补给潮：全体存活玩家立即各得 3 件随机物品。 */
+    private void triggerSupplyRush() {
+        for (ServerPlayerEntity online : this.luckyPillarAliveOnline()) {
+            LuckyPillarLoot.giveRandomItems(online, this.random, 3);
+        }
+        this.broadcast(Messages.info("§a§l补给潮！！全员获得 3 件随机物品！"));
+    }
+
+    /** 击杀登记（ALLOW_DEATH 回调），超时决胜用。 */
+    public void registerLuckyPillarKill(ServerPlayerEntity killer) {
+        this.luckyPillarKills.merge(killer.getUuid(), 1, Integer::sum);
+    }
+
+    /** 超时结算：存活者中击杀数最高者获胜；无人有击杀或并列则平局（返回 null）。 */
+    private MatchTeam luckyPillarTimeoutWinner() {
+        MatchTeam team = this.teams.get(0);
+        ServerPlayerEntity best = null;
+        int bestKills = 0;
+        for (ServerPlayerEntity player : team.getAlivePlayers()) {
+            int kills = this.luckyPillarKills.getOrDefault(player.getUuid(), 0);
+            if (kills > bestKills) {
+                bestKills = kills;
+                best = player;
+            } else if (kills == bestKills && kills > 0) {
+                best = null; // 并列有击杀 → 平局
+            }
+        }
+        if (best == null || bestKills == 0) {
+            return null;
+        }
+        return team;
+    }
+
+    /** 超时结算入口：战桥按比分、幸运之柱按击杀、其余平局。 */
+    private MatchTeam timeoutWinner() {
+        if (this.type.isBridge()) {
+            return this.bridgeTimeoutWinner();
+        }
+        if (this.type == MatchType.LUCKY_PILLAR) {
+            return this.luckyPillarTimeoutWinner();
+        }
+        return null;
     }
 
     // ---------- 战桥 (Bridge) ----------
@@ -904,6 +1153,8 @@ public final class Match {
                 mapMaxRadius = this.skywarsLayout.maxRadius();
             } else if (this.bridgeLayout != null) {
                 mapMaxRadius = this.bridgeLayout.maxRadius();
+            } else if (this.luckyPillarLayout != null) {
+                mapMaxRadius = this.luckyPillarLayout.maxRadius();
             } else {
                 mapMaxRadius = 0;
             }
@@ -972,6 +1223,11 @@ public final class Match {
     /** 战桥地图布局（方块破坏保护用），非战桥模式返回 null。 */
     public BridgeLayout bridgeLayout() {
         return this.bridgeLayout;
+    }
+
+    /** 幸运之柱地图布局（方块破坏保护用），非幸运之柱模式返回 null。 */
+    public LuckyPillarLayout luckyPillarLayout() {
+        return this.luckyPillarLayout;
     }
 
     /** 旁观者：切换到下一个存活玩家观战。 */
@@ -1125,6 +1381,11 @@ public final class Match {
             this.countdownTicks--;
         } else {
             this.state = MatchState.ACTIVE;
+            if (this.type == MatchType.LUCKY_PILLAR) {
+                // 初始化幸运之柱计时器：第一次物品发放/事件从开赛 N 秒后开始
+                this.luckyPillarItemTicks = PvPConfig.INSTANCE.luckyPillarItemIntervalSeconds * 20;
+                this.luckyPillarEventTicks = PvPConfig.INSTANCE.luckyPillarEventIntervalSeconds * 20;
+            }
             this.broadcast(Messages.gold("战斗开始！"));
             this.broadcastTitle("开始！");
             for (ServerPlayerEntity player : this.players) {
@@ -1144,6 +1405,7 @@ public final class Match {
 
         boolean skywars = this.type == MatchType.SKYWARS;
         boolean bridge = this.type.isBridge();
+        boolean luckyPillar = this.type == MatchType.LUCKY_PILLAR;
         for (ServerPlayerEntity player : this.players) {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online == null) {
@@ -1157,6 +1419,18 @@ public final class Match {
                 this.applyBridgeGear(online);
             } else if (skywars) {
                 // 空岛战争：无套件，生存模式空手开局，开箱搜刮装备
+                online.getInventory().clear();
+                online.setHealth(online.getMaxHealth());
+                online.getHungerManager().setFoodLevel(20);
+                online.getHungerManager().setSaturationLevel(5f);
+                online.setAbsorptionAmount(0);
+                online.setFireTicks(0);
+                online.fallDistance = 0;
+                online.clearStatusEffects();
+                online.changeGameMode(GameMode.SURVIVAL);
+                online.currentScreenHandler.sendContentUpdates();
+            } else if (luckyPillar) {
+                // 幸运之柱：无套件，生存模式空手开局，等随机物品发放
                 online.getInventory().clear();
                 online.setHealth(online.getMaxHealth());
                 online.getHungerManager().setFoodLevel(20);
@@ -1185,6 +1459,9 @@ public final class Match {
         } else if (skywars) {
             String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
             this.broadcast(Messages.info("空岛战争开始！主题：§e" + themeName + "§r。搜刮空岛，成为最后幸存者！（1.8 低版本战斗）"));
+        } else if (luckyPillar) {
+            this.broadcast(Messages.info("幸运之柱开始！空手站在柱顶，每 §e"
+                    + PvPConfig.INSTANCE.luckyPillarItemIntervalSeconds + "§r 秒获得随机物品，还会触发随机事件！最后的幸存者获胜！（1.8 低版本战斗）"));
         } else {
             this.broadcast(Messages.info("对局开始！模式：" + this.type.getDisplayName() + "，套件：" + this.kit.getDisplayName()));
         }
@@ -1198,7 +1475,7 @@ public final class Match {
     }
 
     private MatchTeam computeWinner() {
-        if (this.type == MatchType.FFA || this.type == MatchType.SKYWARS) {
+        if (this.type.isLastManStanding()) {
             List<ServerPlayerEntity> alive = this.teams.get(0).getAlivePlayers();
             return alive.size() <= 1 ? this.teams.get(0) : null;
         }
@@ -1242,11 +1519,11 @@ public final class Match {
             }
             return;
         }
-        if (this.type == MatchType.FFA || this.type == MatchType.SKYWARS) {
+        if (this.type.isLastManStanding()) {
             ServerPlayerEntity winner = this.getWinnerPlayer(winners);
             if (winner != null) {
-                String modeName = this.type == MatchType.SKYWARS ? "空岛战争" : "自由乱斗";
-                this.broadcast(Messages.gold("§6" + winner.getGameProfile().getName() + "§r 在" + modeName + "中获胜！"));
+                this.broadcast(Messages.gold("§6" + winner.getGameProfile().getName() + "§r 在"
+                        + this.type.getDisplayName() + "中获胜！"));
             } else {
                 this.broadcast(Messages.warn("本局平局"));
             }
@@ -1307,8 +1584,8 @@ public final class Match {
             }
             sbTeam.setColor(team.getColor());
             sbTeam.setCollisionRule(AbstractTeam.CollisionRule.NEVER);
-            // 组队模式（2v2 等）关闭友伤；FFA/空岛战争全员同一队，必须保留互伤
-            sbTeam.setFriendlyFireAllowed(this.type == MatchType.FFA || this.type == MatchType.SKYWARS);
+            // 组队模式（2v2 等）关闭友伤；FFA/空岛战争/幸运之柱全员同一队，必须保留互伤
+            sbTeam.setFriendlyFireAllowed(this.type.isLastManStanding());
             for (ServerPlayerEntity player : team.getPlayers()) {
                 ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
                 if (online != null) {
@@ -1366,14 +1643,22 @@ public final class Match {
         this.setInfoLine(scoreboard, objective, this.timeLine(), score--);
         this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
 
-        if (this.type == MatchType.FFA || this.type == MatchType.SKYWARS) {
-            // FFA/空岛战争：存活数 + 存活玩家列表
+        if (this.type.isLastManStanding()) {
+            // FFA/空岛战争/幸运之柱：存活数 + 存活玩家列表
             int alive = this.teams.isEmpty() ? 0 : this.teams.get(0).aliveCount();
             this.setInfoLine(scoreboard, objective, "§b存活 §f" + alive + "§7/§f" + this.players.size(), score--);
             if (this.type == MatchType.SKYWARS) {
                 this.setInfoLine(scoreboard, objective, this.skywarsShrinkLine(), score--);
                 String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
                 this.setInfoLine(scoreboard, objective, "§7主题: §e" + themeName, score--);
+            }
+            if (this.type == MatchType.LUCKY_PILLAR) {
+                int itemSec = Math.max(0, (this.luckyPillarItemTicks + 19) / 20);
+                this.setInfoLine(scoreboard, objective, "§e下次物品 §f" + itemSec + "s", score--);
+                if (PvPConfig.INSTANCE.luckyPillarEvents) {
+                    int evSec = Math.max(0, (this.luckyPillarEventTicks + 19) / 20);
+                    this.setInfoLine(scoreboard, objective, "§d下次事件 §f" + evSec + "s", score--);
+                }
             }
             this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
             for (ServerPlayerEntity player : this.players) {
@@ -1442,6 +1727,7 @@ public final class Match {
             case BRIDGE_2V2 -> "§b";
             case BRIDGE_1V1V1V1 -> "§5";
             case BRIDGE_TEAM -> "§e";
+            case LUCKY_PILLAR -> "§d";
         };
         return "模式: " + color + this.type.getDisplayName();
     }

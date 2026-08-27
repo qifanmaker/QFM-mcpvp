@@ -20,7 +20,8 @@ public class ArenaTemplate {
         DUEL_2V2,
         FFA,
         SKYWARS,
-        BRIDGE
+        BRIDGE,
+        LUCKY_PILLAR
     }
 
     private final Layout layout;
@@ -98,6 +99,9 @@ public class ArenaTemplate {
             }
             case BRIDGE -> {
                 // 战桥出生点由 BridgeLayout 计算（Match 构造时处理），这里返回空避免占位
+            }
+            case LUCKY_PILLAR -> {
+                // 幸运之柱出生点由 LuckyPillarLayout 计算（Match 构造时处理），这里返回空避免占位
             }
         }
         return spawns;

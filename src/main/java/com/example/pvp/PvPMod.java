@@ -3,6 +3,7 @@ package com.example.pvp;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.VoidChunkGenerator;
 import com.example.pvp.arena.bridge.BridgeLayout;
+import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.skywars.SkyWarsLoot;
 import com.example.pvp.command.PvPCommands;
 import com.example.pvp.config.KitConfig;
@@ -70,6 +71,9 @@ public final class PvPMod implements ModInitializer {
     public static MatchManager MATCH;
     public static QueueManager QUEUE;
     public static DuelManager DUEL;
+
+    /** 幸运之柱"一击必杀"全局标记：开启时对应对局内所有伤害致死（LivingEntityMixin 检查）。 */
+    public static volatile boolean oneHitKillActive = false;
 
     /** 主城内需自动补 TNT 的发射器（仅主世界，加载/卸载自动增删）。 */
     private static final Set<DispenserBlockEntity> TNT_DISPENSERS = new HashSet<>();
@@ -292,6 +296,11 @@ public final class PvPMod implements ModInitializer {
                     if (match.getType().isBridge()) {
                         match.onBridgeDeath(sp);
                     } else if (match.getState() == MatchState.ACTIVE) {
+                        // 幸运之柱：记录击杀（超时决胜用），再淘汰
+                        if (match.getType() == MatchType.LUCKY_PILLAR
+                                && source.getAttacker() instanceof ServerPlayerEntity killer && killer != sp) {
+                            match.registerLuckyPillarKill(killer);
+                        }
                         match.eliminate(sp, EliminationCause.DEATH);
                     }
                     return false;
@@ -313,6 +322,14 @@ public final class PvPMod implements ModInitializer {
                     }
                     BridgeLayout layout = match.bridgeLayout();
                     return layout == null || !layout.isProtected(pos);
+                }
+                // 幸运之柱：柱子（柱身 + 平台）不可破坏，玩家放置的方块可拆
+                if (match != null && match.getType() == MatchType.LUCKY_PILLAR) {
+                    if (match.getState() != MatchState.ACTIVE) {
+                        return false; // 倒计时/庆祝中禁止破坏
+                    }
+                    LuckyPillarLayout layout = match.luckyPillarLayout();
+                    return layout == null || !layout.contains(pos);
                 }
             }
             return true;

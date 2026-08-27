@@ -30,6 +30,9 @@ public final class QueueManager {
     /** 空岛战争开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
     private Integer skywarsCountdownTicks;
     private Integer skywarsFillTicks;
+    /** 幸运之柱开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
+    private Integer luckyPillarCountdownTicks;
+    private Integer luckyPillarFillTicks;
 
     public QueueManager(MinecraftServer server) {
         this.server = server;
@@ -98,6 +101,7 @@ public final class QueueManager {
 
         this.tickFfa(matchManager);
         this.tickSkywars(matchManager);
+        this.tickLuckyPillar(matchManager);
         this.tickInstantMatches(matchManager);
     }
 
@@ -262,11 +266,109 @@ public final class QueueManager {
         }
     }
 
-    /** 非 FFA/SkyWars（1v1/2v2/相扑/1.8）的即时凑齐开赛。 */
+    /** 幸运之柱队列：与空岛战争相同——凑齐 startPlayers 倒计时、满 maxPlayers 立即开、之间等待填人。 */
+    private void tickLuckyPillar(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        long count = this.countLuckyPillar();
+
+        if (this.luckyPillarCountdownTicks != null) {
+            this.luckyPillarCountdownTicks = count >= config.luckyPillarMaxPlayers
+                    ? 0 : this.luckyPillarCountdownTicks - 1;
+            if (this.luckyPillarCountdownTicks <= 0) {
+                this.luckyPillarCountdownTicks = null;
+                this.luckyPillarFillTicks = null;
+                this.startLuckyPillarMatch(matchManager);
+            }
+            return;
+        }
+
+        if (count >= config.luckyPillarStartPlayers) {
+            this.luckyPillarCountdownTicks = config.luckyPillarCountdownSeconds * 20;
+            this.broadcastLuckyPillar(matchManager, Messages.info(
+                    "§e" + count + "§r 人已就绪，§e" + config.luckyPillarCountdownSeconds + "§r 秒后开始幸运之柱！"));
+            this.luckyPillarFillTicks = null;
+            return;
+        }
+
+        // 人数在 minPlayers 与 startPlayers 之间：等待填人
+        if (count >= config.luckyPillarMinPlayers) {
+            if (this.luckyPillarFillTicks == null) {
+                this.luckyPillarFillTicks = config.luckyPillarFillTimeoutSeconds * 20;
+            }
+            if (this.luckyPillarFillTicks % 40 == 0) {
+                this.broadcastLuckyPillar(matchManager, Messages.info(
+                        "等待更多玩家加入幸运之柱（当前 " + count + "/" + config.luckyPillarStartPlayers + "）..."));
+            }
+            this.luckyPillarFillTicks--;
+            if (this.luckyPillarFillTicks <= 0) {
+                this.luckyPillarFillTicks = null;
+                this.startLuckyPillarMatch(matchManager);
+            }
+        } else {
+            this.luckyPillarFillTicks = null;
+        }
+    }
+
+    /** 开一场幸运之柱：取队列前 maxPlayers 人，每人发哨兵套件（实际上空手开局）。 */
+    private void startLuckyPillarMatch(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        List<QueueEntry> toRemove = new ArrayList<>();
+        Kit sentinel = KitManager.luckyPillarKit();
+        if (sentinel == null) {
+            return;
+        }
+
+        for (QueueEntry entry : List.copyOf(this.entries)) {
+            if (entry.getType() != MatchType.LUCKY_PILLAR) {
+                continue;
+            }
+            if (players.size() >= config.luckyPillarMaxPlayers) {
+                break;
+            }
+            toRemove.add(entry);
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                players.add(online);
+            }
+        }
+
+        if (players.size() < config.luckyPillarMinPlayers) {
+            return; // 人数不足：保留排队，等待下一轮倒计时（离线残留由 tick 自愈清理）
+        }
+
+        Map<UUID, Kit> kits = new HashMap<>();
+        for (ServerPlayerEntity player : players) {
+            kits.put(player.getUuid(), sentinel);
+        }
+        if (matchManager.startMatch(players, MatchType.LUCKY_PILLAR, kits)) {
+            this.entries.removeAll(toRemove);
+        }
+        // 开赛失败（场地已满）则保留排队，等待下一轮
+    }
+
+    private long countLuckyPillar() {
+        return this.entries.stream().filter(e -> e.getType() == MatchType.LUCKY_PILLAR).count();
+    }
+
+    private void broadcastLuckyPillar(MatchManager matchManager, Text message) {
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != MatchType.LUCKY_PILLAR) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                online.sendMessage(message, false);
+            }
+        }
+    }
+
+    /** 非 FFA/SkyWars/幸运之柱（1v1/2v2/相扑/1.8）的即时凑齐开赛。 */
     private void tickInstantMatches(MatchManager matchManager) {
         Map<String, List<QueueEntry>> groups = new LinkedHashMap<>();
         for (QueueEntry entry : this.entries) {
-            if (entry.getType() == MatchType.FFA || entry.getType() == MatchType.SKYWARS) {
+            if (entry.getType() == MatchType.FFA || entry.getType() == MatchType.SKYWARS
+                    || entry.getType() == MatchType.LUCKY_PILLAR) {
                 continue;
             }
             groups.computeIfAbsent(entry.getType().getId() + "|" + entry.getKit().getId(), k -> new ArrayList<>()).add(entry);
@@ -341,9 +443,13 @@ public final class QueueManager {
         }
         MatchType type = entry.getType();
 
-        // 自由乱斗 / 空岛战争：直接以当前队列所有人开赛
-        if (type == MatchType.FFA || type == MatchType.SKYWARS) {
-            int min = type == MatchType.FFA ? PvPConfig.INSTANCE.ffaMinPlayers : PvPConfig.INSTANCE.skywarsMinPlayers;
+        // 自由乱斗 / 空岛战争 / 幸运之柱：直接以当前队列所有人开赛
+        if (type == MatchType.FFA || type == MatchType.SKYWARS || type == MatchType.LUCKY_PILLAR) {
+            int min = switch (type) {
+                case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
+                case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;
+                default -> PvPConfig.INSTANCE.luckyPillarMinPlayers;
+            };
             int count = (int) this.countType(type);
             if (count < min) {
                 player.sendMessage(Messages.warn("当前 " + type.getDisplayName() + " 队列人数不足（" + count + "/" + min + "），无法立即开始"), false);
@@ -352,10 +458,12 @@ public final class QueueManager {
             this.ffaCountdownTicks = null;
             this.skywarsCountdownTicks = null;
             this.skywarsFillTicks = null;
-            if (type == MatchType.FFA) {
-                this.startFfaMatch(matchManager);
-            } else {
-                this.startSkywarsMatch(matchManager);
+            this.luckyPillarCountdownTicks = null;
+            this.luckyPillarFillTicks = null;
+            switch (type) {
+                case FFA -> this.startFfaMatch(matchManager);
+                case SKYWARS -> this.startSkywarsMatch(matchManager);
+                default -> this.startLuckyPillarMatch(matchManager);
             }
             return true;
         }

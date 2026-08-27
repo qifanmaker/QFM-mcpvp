@@ -140,6 +140,11 @@ public final class MatchManager {
                     || players.size() > PvPConfig.INSTANCE.skywarsMaxPlayers) {
                 return false;
             }
+        } else if (type == MatchType.LUCKY_PILLAR) {
+            if (players.size() < PvPConfig.INSTANCE.luckyPillarMinPlayers
+                    || players.size() > PvPConfig.INSTANCE.luckyPillarMaxPlayers) {
+                return false;
+            }
         } else if (type.isBridge()) {
             if (type.isBridgeTeam()) {
                 // 混战：总人数/2 分两队，需要偶数且 ≥ 最少人数
@@ -203,10 +208,11 @@ public final class MatchManager {
         return this.getMatchFor(uuid) != null;
     }
 
-    /** 是否为低版本(1.8)战斗模式：1.8 经典PvP / 空岛战争 / 战桥（无攻击冷却 + 剑格挡）。 */
+    /** 是否为低版本(1.8)战斗模式：1.8 经典PvP / 空岛战争 / 战桥 / 幸运之柱（无攻击冷却 + 剑格挡）。 */
     public boolean isLegacyCombat(Match match) {
         return match != null && (match.getType() == MatchType.PVP_1_8
-                || match.getType() == MatchType.SKYWARS || match.getType().isBridge());
+                || match.getType() == MatchType.SKYWARS || match.getType().isBridge()
+                || match.getType() == MatchType.LUCKY_PILLAR);
     }
 
     /** 1.8 战斗模式：玩家是否正在剑格挡（供伤害减免 Mixin 调用）。 */
@@ -315,6 +321,7 @@ public final class MatchManager {
             case SUMO -> PvPConfig.INSTANCE.sumoSize;
             case SKYWARS -> PvPConfig.INSTANCE.skywarsSize;
             case BRIDGE_1V1, BRIDGE_2V2, BRIDGE_1V1V1V1, BRIDGE_TEAM -> PvPConfig.INSTANCE.bridgeSize;
+            case LUCKY_PILLAR -> PvPConfig.INSTANCE.luckyPillarSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
@@ -322,9 +329,11 @@ public final class MatchManager {
             case FFA -> ArenaTemplate.Layout.FFA;
             case SKYWARS -> ArenaTemplate.Layout.SKYWARS;
             case BRIDGE_1V1, BRIDGE_2V2, BRIDGE_1V1V1V1, BRIDGE_TEAM -> ArenaTemplate.Layout.BRIDGE;
+            case LUCKY_PILLAR -> ArenaTemplate.Layout.LUCKY_PILLAR;
         };
-        // 相扑/空岛/战桥无围墙；空岛/战桥地图本身由各自生成器铺
-        boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge();
+        // 相扑/空岛/战桥/幸运之柱无围墙；空岛/战桥/幸运之柱地图本身由各自生成器铺
+        boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
+                && type != MatchType.LUCKY_PILLAR;
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 
