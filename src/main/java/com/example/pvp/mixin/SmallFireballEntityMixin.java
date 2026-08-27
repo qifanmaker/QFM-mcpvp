@@ -58,7 +58,7 @@ public abstract class SmallFireballEntityMixin {
                 dz = 0.0;
                 dist = 1.0;
             }
-            double strength = 2.0 * Math.max(0.6, 1.0 - dist / 8.0); // 距离衰减减少
+            double strength = 3.0 * Math.max(0.6, 1.0 - dist / 8.0); // 距离衰减减少，整体击退 x1.5
             player.setVelocity(
                     player.getVelocity().x + dx / dist * strength,
                     player.getVelocity().y + dy / dist * strength,
