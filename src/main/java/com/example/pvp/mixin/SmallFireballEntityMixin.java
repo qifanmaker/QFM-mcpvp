@@ -42,7 +42,7 @@ public abstract class SmallFireballEntityMixin {
         }
 
         // 统一径向击退：爆炸点周围 5 格的所有玩家（含投掷者）都沿"爆炸→自身"方向被震开，
-        // 水平用 takeKnockback（可靠），垂直按方向加成——往脚底扔时爆炸在脚下 → 向上弹起（火焰弹跳）
+        // 横向与纵向用同一 strength（衰减减少、无纵向封顶）——往脚底扔时爆炸在脚下 → 向上弹起（火焰弹跳）
         for (PlayerEntity player : fireball.getWorld().getPlayers()) {
             double dx = player.getX() - x;
             double dy = (player.getY() + player.getHeight() / 2.0) - y; // 用玩家身体中心
@@ -52,17 +52,18 @@ public abstract class SmallFireballEntityMixin {
                 continue;
             }
             double dist = Math.sqrt(distSq);
-            double strength = 2.4 * Math.max(0.45, 1.0 - dist / 7.0); // 距离越近越强
-            // 水平击退（正上方 dx=dz≈0 时 takeKnockback 自动跳过）
-            player.takeKnockback(strength, dx, dz);
-            // 垂直分量：爆炸在脚下则向上（火焰弹跳，封顶约 1.5 ≈ 7 格高），在上方则向下压
-            double vyAdd = dy / Math.max(0.1, dist) * strength;
-            vyAdd = Math.min(vyAdd, 1.5);
-            if (Math.abs(vyAdd) > 0.01) {
-                player.setVelocity(player.getVelocity().x,
-                        player.getVelocity().y + vyAdd, player.getVelocity().z);
-                player.velocityDirty = true;
+            if (dist < 0.01) {
+                dx = 0.0;
+                dy = 1.0;
+                dz = 0.0;
+                dist = 1.0;
             }
+            double strength = 2.0 * Math.max(0.6, 1.0 - dist / 8.0); // 距离衰减减少
+            player.setVelocity(
+                    player.getVelocity().x + dx / dist * strength,
+                    player.getVelocity().y + dy / dist * strength,
+                    player.getVelocity().z + dz / dist * strength);
+            player.velocityDirty = true;
         }
     }
 }
