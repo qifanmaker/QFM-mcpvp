@@ -15,8 +15,8 @@ import java.util.Random;
 import java.util.Set;
 
 /**
- * 幸运之柱随机物品：纯随机——每件从全物品注册表均匀抽取（不限定制表），每件只掉 1 个。
- * 排除空气/创造专用/刷怪蛋等不能正常使用的物品；弓会顺带补 1 支箭。
+ * 幸运之柱随机物品：纯随机——每件从全物品注册表均匀抽取（不限定制表，含刷怪蛋），每件只掉 1 个。
+ * 仅排除空气/创造专用等不能正常使用的物品；弓和箭不绑定（各算一件独立随机物品）。
  */
 public final class LuckyPillarLoot {
 
@@ -39,7 +39,7 @@ public final class LuckyPillarLoot {
             Identifier.of("minecraft", "spawner")
     );
 
-    /** 候选物品列表（注册表就绪后懒加载缓存，供均匀随机抽取）。 */
+    /** 候选物品列表（注册表就绪后懒加载缓存，供均匀随机抽取；刷怪蛋也算，抽到靠脸）。 */
     private static List<Item> candidates;
 
     private static List<Item> candidates() {
@@ -52,9 +52,6 @@ public final class LuckyPillarLoot {
                 Identifier id = Registries.ITEM.getId(item);
                 if (id == null || BLACKLIST.contains(id)) {
                     continue;
-                }
-                if (id.getPath().endsWith("_spawn_egg")) {
-                    continue; // 刷怪蛋排除：避免竞技场里刷出敌对生物
                 }
                 list.add(item);
             }
@@ -77,10 +74,6 @@ public final class LuckyPillarLoot {
         for (int i = 0; i < count; i++) {
             Item item = pool.get(random.nextInt(pool.size()));
             giveStack(player, new ItemStack(item, 1));
-            if (item == Items.BOW) {
-                // 弓配箭：随弓补 1 支箭，否则拿到弓没箭用
-                giveStack(player, new ItemStack(Items.ARROW, 1));
-            }
         }
     }
 
