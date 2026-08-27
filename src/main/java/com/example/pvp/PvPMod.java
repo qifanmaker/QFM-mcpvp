@@ -233,7 +233,7 @@ public final class PvPMod implements ModInitializer {
                                 serverPlayer.getZ() + look.z * 0.5,
                                 serverPlayer);
                         tnt.setVelocity(look.multiply(1.5));
-                        tnt.setFuse(80);
+                        tnt.setFuse(40); // 引信减短（2 秒爆炸）
                         world.spawnEntity(tnt);
                         stack.decrement(1);
                         return TypedActionResult.success(stack);

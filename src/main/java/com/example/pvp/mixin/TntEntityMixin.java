@@ -28,4 +28,14 @@ public abstract class TntEntityMixin {
         }
         return sourceType;
     }
+
+    /** TNT 引信从 80 减到 40（2 秒爆炸），更快出效果。 */
+    @ModifyArg(
+            method = "initDataTracker",
+            at = @At(value = "INVOKE", target = "Ljava/lang/Integer;valueOf(I)Ljava/lang/Integer;"),
+            index = 0
+    )
+    private int pvp$shorterFuse(int fuse) {
+        return 40;
+    }
 }
