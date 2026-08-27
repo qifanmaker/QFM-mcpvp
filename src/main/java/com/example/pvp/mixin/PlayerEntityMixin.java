@@ -60,7 +60,7 @@ public abstract class PlayerEntityMixin {
         }
     }
 
-    /** 粘液球（空岛战争击退 III 武器）：左键攻击命中时把目标强力击退。 */
+    /** 粘液球（空岛战争/幸运之柱击退 III 武器）：左键攻击命中时把目标强力击退。 */
     @Inject(method = "attack", at = @At("HEAD"))
     private void pvp$slimeBallKnockback(Entity target, CallbackInfo ci) {
         PlayerEntity self = (PlayerEntity) (Object) this;
@@ -75,13 +75,21 @@ public abstract class PlayerEntityMixin {
             return;
         }
         if (target instanceof LivingEntity victim && victim != self) {
-            double dx = victim.getX() - self.getX();
+            double dx = victim.getX() - self.getX(); // 指向目标（远离自己）
             double dz = victim.getZ() - self.getZ();
-            if (dx * dx + dz * dz < 0.01) {
+            double d = Math.sqrt(dx * dx + dz * dz);
+            if (d < 0.01) {
                 dx = 0.0;
                 dz = 0.01;
+                d = 0.01;
             }
-            victim.takeKnockback(1.6, dx, dz); // 击退 III
+            // 直接施加速度：takeKnockback 的方向约定相反（传"指向目标"会把人往攻击者方向拉），这里显式推离
+            double strength = 1.6; // 水平 1.6 ≈ 击退 III，加 0.4 竖直
+            victim.setVelocity(
+                    victim.getVelocity().x + dx / d * strength,
+                    victim.getVelocity().y + 0.4,
+                    victim.getVelocity().z + dz / d * strength);
+            victim.velocityDirty = true;
         }
     }
 

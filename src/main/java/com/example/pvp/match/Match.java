@@ -437,20 +437,57 @@ public final class Match {
             if (online.getY() >= rescueY || online.isOnGround()) {
                 continue;
             }
-            int slot = this.findTotemSlot(online);
-            if (slot < 0) {
-                continue;
-            }
-            online.getInventory().getStack(slot).decrement(1); // 消耗一个图腾（背包里任意位置都算）
-            online.getWorld().sendEntityStatus(online, (byte) 35); // 播放不死图腾激活动画
-            // 救回点：末地主题为中岛环上的安全点（避免掉进空心中央再次坠虚空），其余为中岛中心
-            SkyWarsTheme theme = this.skywarsTheme != null ? this.skywarsTheme : SkyWarsTheme.OVERWORLD;
-            BlockPos rescue = theme.rescuePoint(this.skywarsLayout.middle());
-            int y = Math.max(rescue.getY() + 2, ArenaTemplate.PLATFORM_Y + 1);
-            online.teleport(arena, rescue.getX() + 0.5, y, rescue.getZ() + 0.5, online.getYaw(), online.getPitch());
-            online.sendMessage(Messages.gold("不死图腾生效！你被传送回中岛！"), false);
-            this.broadcast(Messages.warn("§e" + online.getGameProfile().getName() + "§r 依靠不死图腾逃离了虚空！"));
+            this.tryTotemSave(online);
         }
+    }
+
+    /**
+     * 不死图腾救场：消耗背包中任意位置的一个图腾，清状态回满血、给吸收/再生，并传送到救回点。
+     * 空岛/幸运之柱通用——掉入虚空由各模式 tick 调用，受到致死伤害由 PvPMod 的 ALLOW_DEATH 调用。
+     * 返回 true 表示成功消耗并救回（调用方据此取消死亡/淘汰）。
+     */
+    public boolean tryTotemSave(ServerPlayerEntity player) {
+        if (this.type != MatchType.SKYWARS && this.type != MatchType.LUCKY_PILLAR) {
+            return false;
+        }
+        if (this.state != MatchState.ACTIVE || this.eliminated.contains(player.getUuid())) {
+            return false;
+        }
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null || player.getWorld() != arena) {
+            return false;
+        }
+        int slot = this.findTotemSlot(player);
+        if (slot < 0) {
+            return false;
+        }
+        player.getInventory().getStack(slot).decrement(1); // 消耗一个图腾（背包里任意位置都算）
+        player.getWorld().sendEntityStatus(player, (byte) 35); // 播放不死图腾激活动画
+        player.setHealth(player.getMaxHealth());
+        player.setFireTicks(0);
+        player.clearStatusEffects();
+        player.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 100, 1)); // 吸收 II
+        player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 400, 1)); // 再生 II
+        BlockPos rescue = this.totemRescuePoint(player);
+        int y = Math.max(rescue.getY() + 2, ArenaTemplate.PLATFORM_Y + 1);
+        player.teleport(arena, rescue.getX() + 0.5, y, rescue.getZ() + 0.5, player.getYaw(), player.getPitch());
+        player.sendMessage(Messages.gold("不死图腾生效！你被传回安全点！"), false);
+        this.broadcast(Messages.warn("§e" + player.getGameProfile().getName() + "§r 依靠不死图腾死里逃生！"));
+        return true;
+    }
+
+    /** 不死图腾救回点：空岛=中岛（末地主题为中岛环上的安全点，避免掉进空心中央），幸运之柱=自己的柱顶。 */
+    private BlockPos totemRescuePoint(ServerPlayerEntity player) {
+        if (this.type == MatchType.SKYWARS && this.skywarsLayout != null && this.skywarsTheme != null) {
+            return this.skywarsTheme.rescuePoint(this.skywarsLayout.middle());
+        }
+        if (this.type == MatchType.LUCKY_PILLAR) {
+            BlockPos spawn = this.spawns.get(player.getUuid());
+            if (spawn != null) {
+                return spawn;
+            }
+        }
+        return this.template.getCenter(this.regionIndex);
     }
 
     /** 玩家背包中第一个不死图腾的槽位（主背包+副手），没有则 -1。 */
@@ -586,6 +623,16 @@ public final class Match {
             this.luckyPillarArrowRainTicks--;
             if (this.luckyPillarArrowRainTicks % 10 == 0) {
                 this.spawnRainArrow();
+            }
+        }
+
+        // 掉入虚空且持有不死图腾 → 消耗救回自己柱顶
+        if (this.ticks % 10 == 0) {
+            double rescueY = ArenaTemplate.PLATFORM_Y - 8;
+            for (ServerPlayerEntity online : this.luckyPillarAliveOnline()) {
+                if (online.getY() < rescueY && !online.isOnGround()) {
+                    this.tryTotemSave(online);
+                }
             }
         }
     }

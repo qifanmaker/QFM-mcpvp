@@ -296,12 +296,18 @@ public final class PvPMod implements ModInitializer {
                     if (match.getType().isBridge()) {
                         match.onBridgeDeath(sp);
                     } else if (match.getState() == MatchState.ACTIVE) {
-                        // 幸运之柱：记录击杀（超时决胜用），再淘汰
-                        if (match.getType() == MatchType.LUCKY_PILLAR
-                                && source.getAttacker() instanceof ServerPlayerEntity killer && killer != sp) {
-                            match.registerLuckyPillarKill(killer);
+                        // 不死图腾救场：空岛/幸运之柱受到致死伤害时消耗图腾取消死亡
+                        if ((match.getType() == MatchType.SKYWARS || match.getType() == MatchType.LUCKY_PILLAR)
+                                && match.tryTotemSave(sp)) {
+                            // 已救回，不淘汰
+                        } else {
+                            // 幸运之柱：记录击杀（超时决胜用），再淘汰
+                            if (match.getType() == MatchType.LUCKY_PILLAR
+                                    && source.getAttacker() instanceof ServerPlayerEntity killer && killer != sp) {
+                                match.registerLuckyPillarKill(killer);
+                            }
+                            match.eliminate(sp, EliminationCause.DEATH);
                         }
-                        match.eliminate(sp, EliminationCause.DEATH);
                     }
                     return false;
                 }
