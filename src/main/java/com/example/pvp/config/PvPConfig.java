@@ -110,11 +110,11 @@ public final class PvPConfig {
     /** 对局超时（秒）：超过后击杀最多的存活者获胜，无人有击杀则平局。 */
     public int luckyPillarTimeoutSeconds = 600;
     /** 柱顶高于地图中心的高度（格）。 */
-    public int luckyPillarHeight = 20;
+    public int luckyPillarHeight = 40;
     /** 相邻柱子的间隙（格）：柱子 1 格宽，越大越需要搭方块跨柱（默认 8 格）。 */
     public int luckyPillarGap = 8;
-    /** 柱顶下方多少格有一圈大平台（掉落的"安全楼层"；掉出平台下方 20 格死亡）。 */
-    public int luckyPillarPlatformGap = 20;
+    /** 柱顶下方多少格有一圈大平台（即柱高，默认 40 格；掉出平台下方 20 格死亡）。 */
+    public int luckyPillarPlatformGap = 40;
 
     private PvPConfig() {
     }
@@ -219,6 +219,10 @@ public final class PvPConfig {
         if (this.luckyPillarHeight <= 0) {
             this.luckyPillarHeight = defaults.luckyPillarHeight;
             changed = true;
+        } else if (this.luckyPillarHeight == 20) {
+            // 旧默认 20 改为新默认（柱高 40 格）
+            this.luckyPillarHeight = defaults.luckyPillarHeight;
+            changed = true;
         }
         if (this.luckyPillarGap <= 0) {
             this.luckyPillarGap = defaults.luckyPillarGap;
@@ -229,6 +233,10 @@ public final class PvPConfig {
             changed = true;
         }
         if (this.luckyPillarPlatformGap <= 0) {
+            this.luckyPillarPlatformGap = defaults.luckyPillarPlatformGap;
+            changed = true;
+        } else if (this.luckyPillarPlatformGap == 20) {
+            // 旧默认 20 改为新默认（柱高 40 格，平台保持在地图中心高度）
             this.luckyPillarPlatformGap = defaults.luckyPillarPlatformGap;
             changed = true;
         }

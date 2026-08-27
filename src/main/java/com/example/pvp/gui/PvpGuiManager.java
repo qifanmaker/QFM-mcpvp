@@ -238,7 +238,7 @@ public final class PvpGuiManager {
                     "2v2 / 3v3 / 4v4...", "先得 " + win + " 分获胜", "点击直接加入"));
             inv.setStack(24, makeButton(Items.QUARTZ_PILLAR, "§d幸运之柱", PvPConfig.INSTANCE.luckyPillarMinPlayers + "~"
                     + PvPConfig.INSTANCE.luckyPillarMaxPlayers + " 人，凑齐 " + PvPConfig.INSTANCE.luckyPillarStartPlayers + " 人开赛",
-                    "每位玩家一根基岩棍，柱下 20 格有大平台",
+                    "每位玩家一根 40 格基岩棍，柱下有大平台",
                     "每 3 秒随机获得 1 件物品（纯随机，每件 1 个）",
                     "随机事件：一击必杀/箭雨/雷击/TNT 雨/位置交换/补给潮",
                     "掉出平台下方 20 格淘汰，最后存活者获胜",
