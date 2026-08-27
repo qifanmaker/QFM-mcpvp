@@ -157,12 +157,12 @@ public final class SkyWarsLoot {
         if (middle) {
             rollMiddleUltraRare(random, drops, handicap);
         } else {
-            int ultra = random.nextInt(100);
-            int boost = handicap * 2; // 弱势玩家神器概率略高
+            int ultra = random.nextInt(200);
+            int boost = handicap; // 弱势玩家神器概率略高
             if (ultra < 1 + boost) {
-                drops.add(makeMiaoRenAxe()); // 秒人斧仅玩家岛刷新
+                drops.add(makeMiaoRenAxe()); // 秒人斧仅玩家岛刷新（约 0.5%）
             } else if (ultra < 2 + boost) {
-                drops.add(new ItemStack(Items.TOTEM_OF_UNDYING)); // 玩家岛不死图腾
+                drops.add(new ItemStack(Items.TOTEM_OF_UNDYING)); // 玩家岛不死图腾（约 0.5%）
             }
         }
 
@@ -354,10 +354,10 @@ public final class SkyWarsLoot {
         return stack;
     }
 
-    /** 中间岛每箱极稀有：鞘翅+3 烟花火箭、附魔金苹果、不死图腾。秒人斧只刷玩家岛。 */
+    /** 中间岛每箱极稀有（各约 0.5%）：鞘翅+3 烟花火箭、附魔金苹果、不死图腾。秒人斧只刷玩家岛。 */
     private static void rollMiddleUltraRare(Random random, List<ItemStack> drops, int handicap) {
-        int roll = random.nextInt(100);
-        int boost = handicap * 2; // 战绩低：神器概率轻微提升
+        int roll = random.nextInt(200);
+        int boost = handicap; // 战绩低：神器概率轻微提升
         if (roll < 1 + boost) {
             // 鞘翅 + 3 根烟花火箭：可以飞掠全图
             drops.add(new ItemStack(Items.ELYTRA));
