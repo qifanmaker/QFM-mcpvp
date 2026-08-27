@@ -21,17 +21,31 @@ public final class LuckyPillarMapGenerator {
     private LuckyPillarMapGenerator() {
     }
 
-    /** 生成一整张幸运之柱地图（1 格宽基岩柱，柱顶即站立面）。 */
+    /** 生成一整张幸运之柱地图：柱顶下 20 格的大平台圆盘 + 1 格宽基岩棍。 */
     public static void generate(ArenaWorld world, LuckyPillarLayout layout) {
+        // 平台圆盘（柱顶下方 luckyPillarPlatformGap 格）：整片铺上作为掉落的"安全楼层"
+        int py = layout.platformY();
+        int pr = layout.platformRadius();
+        for (int dx = -pr; dx <= pr; dx++) {
+            for (int dz = -pr; dz <= pr; dz++) {
+                if (Math.sqrt(dx * dx + dz * dz) > pr) {
+                    continue;
+                }
+                world.setBlockState(new BlockPos(layout.mapCenter().getX() + dx, py, layout.mapCenter().getZ() + dz),
+                        Blocks.SMOOTH_STONE.getDefaultState(), 3);
+            }
+        }
+
+        // 基岩棍：1 格宽，从平台竖到柱顶（顶端为站立面，基岩不可破坏）
         java.util.List<Pillar> pillars = layout.pillars();
         for (Pillar p : pillars) {
-            // 一根基岩棍子：1 格宽，从柱底通到柱顶（顶端为站立面，基岩不可破坏）
             for (int y = p.columnBaseY(); y <= p.topY(); y++) {
                 world.setBlockState(new BlockPos(p.center().getX(), y, p.center().getZ()),
                         Blocks.BEDROCK.getDefaultState(), 3);
             }
         }
-        LOGGER.info("[PvP] 幸运之柱地图已生成: {} 根基岩柱", pillars.size());
+        LOGGER.info("[PvP] 幸运之柱地图已生成: {} 根基岩柱 + 平台（Y {}，半径 {}）",
+                pillars.size(), py, pr);
     }
 
     /**
@@ -47,7 +61,8 @@ public final class LuckyPillarMapGenerator {
         BlockPos center = center(regionIndex); // 与生成时一致的地图中心
 
         // 先拆方块、再清掉落物（拆箱会重新掉落内容物成实体）
-        int minY = ArenaTemplate.PLATFORM_Y - Math.max(4, PvPConfig.INSTANCE.luckyPillarColumnDepth) - 8;
+        // 平台在柱顶下 20 格（约 PLATFORM_Y 附近），下方无地形，清到平台以下一点即可
+        int minY = ArenaTemplate.PLATFORM_Y - 10;
         int maxDy = world.getTopY() - 1 - ArenaTemplate.PLATFORM_Y;
         for (int dx = -maxRadius; dx <= maxRadius; dx++) {
             for (int dz = -maxRadius; dz <= maxRadius; dz++) {

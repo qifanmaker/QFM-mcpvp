@@ -625,12 +625,20 @@ public final class Match {
             }
         }
 
-        // 掉入虚空且持有不死图腾 → 消耗救回自己柱顶
-        if (this.ticks % 10 == 0) {
-            double rescueY = ArenaTemplate.PLATFORM_Y - 8;
+        // 掉入虚空且持有不死图腾 → 消耗救回自己柱顶（每 tick 检查，先于死亡判定保证必被救到）
+        double rescueY = ArenaTemplate.PLATFORM_Y - 8;
+        for (ServerPlayerEntity online : this.luckyPillarAliveOnline()) {
+            if (online.getY() < rescueY && !online.isOnGround()) {
+                this.tryTotemSave(online);
+            }
+        }
+
+        // 掉出平台下方 20 格 → 淘汰（"掉下平台 20 格死亡"）
+        if (this.luckyPillarLayout != null) {
+            int deathY = this.luckyPillarLayout.platformY() - LuckyPillarLayout.FALL_DEATH_BELOW_PLATFORM;
             for (ServerPlayerEntity online : this.luckyPillarAliveOnline()) {
-                if (online.getY() < rescueY && !online.isOnGround()) {
-                    this.tryTotemSave(online);
+                if (online.getY() < deathY) {
+                    this.eliminate(online, EliminationCause.VOID);
                 }
             }
         }

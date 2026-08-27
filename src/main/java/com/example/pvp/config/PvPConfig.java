@@ -111,10 +111,10 @@ public final class PvPConfig {
     public int luckyPillarTimeoutSeconds = 600;
     /** 柱顶高于地图中心的高度（格）。 */
     public int luckyPillarHeight = 20;
-    /** 相邻柱子的间隙（格）：柱子 1 格宽，默认 4 格可冲刺跳过。 */
-    public int luckyPillarGap = 4;
-    /** 柱身向下延伸深度（格）：柱身底 = 地图中心 Y - 该值。 */
-    public int luckyPillarColumnDepth = 40;
+    /** 相邻柱子的间隙（格）：柱子 1 格宽，越大越需要搭方块跨柱（默认 8 格）。 */
+    public int luckyPillarGap = 8;
+    /** 柱顶下方多少格有一圈大平台（掉落的"安全楼层"；掉出平台下方 20 格死亡）。 */
+    public int luckyPillarPlatformGap = 20;
 
     private PvPConfig() {
     }
@@ -222,9 +222,13 @@ public final class PvPConfig {
         if (this.luckyPillarGap <= 0) {
             this.luckyPillarGap = defaults.luckyPillarGap;
             changed = true;
+        } else if (this.luckyPillarGap == 4) {
+            // 旧默认 4 改为新默认（柱子之间距离拉远）
+            this.luckyPillarGap = defaults.luckyPillarGap;
+            changed = true;
         }
-        if (this.luckyPillarColumnDepth <= 0) {
-            this.luckyPillarColumnDepth = defaults.luckyPillarColumnDepth;
+        if (this.luckyPillarPlatformGap <= 0) {
+            this.luckyPillarPlatformGap = defaults.luckyPillarPlatformGap;
             changed = true;
         }
         return changed;
