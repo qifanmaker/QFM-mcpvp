@@ -126,15 +126,15 @@ public final class SkyWarsLoot {
         Random random = new Random();
         List<ItemStack> drops = new ArrayList<>();
         int stackCount = middle ? 4 + random.nextInt(3) : 3 + random.nextInt(2); // 中间 4~6，出生 3~4
-        int enchantBonus = handicap * 8; // 弱势玩家附魔概率略高
+        int enchantBonus = handicap * 10; // 弱势玩家附魔概率略高
 
         // 出生箱保底：两小叠搭桥方块（分散放置）+ 两件铁质装备（3 箱合计至少 6 件，铁装几乎必齐）
         if (!middle) {
             drops.add(bridgeBlocks(random));
             drops.add(bridgeBlocks(random));
             for (int k = 0; k < 2; k++) {
-                if (handicap > 0 && random.nextInt(100) < handicap * 12) {
-                    // 战绩低：保底铁装偶有概率换成钻石装（轻微提升）
+                if (handicap > 0 && random.nextInt(100) < handicap * 16) {
+                    // 战绩低：保底铁装更大概率换成钻石装（装备补偿加强）
                     drops.add(random.nextBoolean()
                             ? weapon(Items.DIAMOND_SWORD, random, 30 + enchantBonus)
                             : armor(random, 30 + enchantBonus, true));
@@ -155,13 +155,13 @@ public final class SkyWarsLoot {
 
         // 极稀有物品：中间岛出鞘翅/附魔金苹果/不死图腾；玩家岛出秒人斧/不死图腾
         if (middle) {
-            rollMiddleUltraRare(random, drops, handicap);
+            rollMiddleUltraRare(random, drops);
         } else {
+            // 神器概率不受弱势补偿影响（只补偿装备，不补偿神器）
             int ultra = random.nextInt(200);
-            int boost = handicap; // 弱势玩家神器概率略高
-            if (ultra < 1 + boost) {
+            if (ultra < 1) {
                 drops.add(makeMiaoRenAxe()); // 秒人斧仅玩家岛刷新（约 0.5%）
-            } else if (ultra < 2 + boost) {
+            } else if (ultra < 2) {
                 drops.add(new ItemStack(Items.TOTEM_OF_UNDYING)); // 玩家岛不死图腾（约 0.5%）
             }
         }
@@ -355,16 +355,15 @@ public final class SkyWarsLoot {
     }
 
     /** 中间岛每箱极稀有（各约 0.5%）：鞘翅+3 烟花火箭、附魔金苹果、不死图腾。秒人斧只刷玩家岛。 */
-    private static void rollMiddleUltraRare(Random random, List<ItemStack> drops, int handicap) {
+    private static void rollMiddleUltraRare(Random random, List<ItemStack> drops) {
         int roll = random.nextInt(200);
-        int boost = handicap; // 战绩低：神器概率轻微提升
-        if (roll < 1 + boost) {
+        if (roll < 1) {
             // 鞘翅 + 3 根烟花火箭：可以飞掠全图
             drops.add(new ItemStack(Items.ELYTRA));
             drops.add(stack(Items.FIREWORK_ROCKET, 3));
-        } else if (roll < 2 + boost) {
+        } else if (roll < 2) {
             drops.add(new ItemStack(Items.ENCHANTED_GOLDEN_APPLE));
-        } else if (roll < 3 + boost) {
+        } else if (roll < 3) {
             drops.add(new ItemStack(Items.TOTEM_OF_UNDYING)); // 掉虚空自动救回中岛
         }
     }
