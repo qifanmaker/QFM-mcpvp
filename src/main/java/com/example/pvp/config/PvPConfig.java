@@ -99,8 +99,8 @@ public final class PvPConfig {
     public int luckyPillarFillTimeoutSeconds = 60;
     /** 地图覆盖边长（生成/清理边界，需覆盖所有柱子）。 */
     public int luckyPillarSize = 101;
-    /** 随机物品发放间隔（秒）：每隔该时长每名存活玩家获得 1 件随机物品（开赛立即发一轮）。 */
-    public int luckyPillarItemIntervalSeconds = 1;
+    /** 随机物品发放间隔（秒）：每隔该时长每名存活玩家获得 1 件纯随机物品（开赛立即发一轮）。 */
+    public int luckyPillarItemIntervalSeconds = 2;
     /** 随机事件间隔（秒）：每隔该时长触发一个随机事件。 */
     public int luckyPillarEventIntervalSeconds = 45;
     /** 是否开启随机事件（一击必杀/箭雨/雷击/TNT 雨/位置交换/补给潮）。 */
@@ -198,8 +198,8 @@ public final class PvPConfig {
         if (this.luckyPillarItemIntervalSeconds <= 0) {
             this.luckyPillarItemIntervalSeconds = defaults.luckyPillarItemIntervalSeconds;
             changed = true;
-        } else if (this.luckyPillarItemIntervalSeconds == 15) {
-            // 旧默认 15 秒改为新默认（每秒刷 1 件）
+        } else if (this.luckyPillarItemIntervalSeconds == 15 || this.luckyPillarItemIntervalSeconds == 1) {
+            // 旧默认 15 秒 / 1 秒改为新默认（每 2 秒刷 1 件）
             this.luckyPillarItemIntervalSeconds = defaults.luckyPillarItemIntervalSeconds;
             changed = true;
         }

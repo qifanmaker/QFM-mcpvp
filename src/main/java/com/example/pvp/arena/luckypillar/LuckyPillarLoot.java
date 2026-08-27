@@ -4,86 +4,82 @@ import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.function.BiFunction;
+import java.util.Set;
 
 /**
- * 幸运之柱随机物品：加权随机表，每隔一段时间发给存活玩家一件（每件 1 个，不是一组）。
- * 以搭桥方块为主力，武器/防具/食物/捣乱道具梯度随机。
+ * 幸运之柱随机物品：纯随机——每件从全物品注册表均匀抽取（不限定制表），每件只掉 1 个。
+ * 排除空气/创造专用/刷怪蛋等不能正常使用的物品；弓会顺带补 1 支箭。
  */
 public final class LuckyPillarLoot {
 
     private LuckyPillarLoot() {
     }
 
-    /** 一条加权战利品条目：weight 权重，factory(random, _) 生成物品。 */
-    private record LootEntry(int weight, BiFunction<Random, Integer, ItemStack> factory) {
-    }
-
-    /** 随机羊毛（搭桥主力）的 16 色物品。 */
-    private static final Item[] WOOL_ITEMS = {
-            Items.WHITE_WOOL, Items.ORANGE_WOOL, Items.MAGENTA_WOOL, Items.LIGHT_BLUE_WOOL,
-            Items.YELLOW_WOOL, Items.LIME_WOOL, Items.PINK_WOOL, Items.GRAY_WOOL,
-            Items.LIGHT_GRAY_WOOL, Items.CYAN_WOOL, Items.PURPLE_WOOL, Items.BLUE_WOOL,
-            Items.BROWN_WOOL, Items.GREEN_WOOL, Items.RED_WOOL, Items.BLACK_WOOL
-    };
-
-    /** 每件只掉 1 个（每秒刷 1 件，不走堆叠）。 */
-    private static final List<LootEntry> TABLE = List.of(
-            // 搭桥方块（主力，单块）
-            new LootEntry(20, (r, c) -> stack(WOOL_ITEMS[r.nextInt(WOOL_ITEMS.length)])),
-            new LootEntry(12, (r, c) -> stack(Items.OAK_PLANKS)),
-            new LootEntry(8, (r, c) -> stack(Items.COBBLESTONE)),
-            // 武器
-            new LootEntry(10, (r, c) -> stack(Items.WOODEN_SWORD)),
-            new LootEntry(8, (r, c) -> stack(Items.STONE_SWORD)),
-            new LootEntry(6, (r, c) -> stack(Items.IRON_SWORD)),
-            new LootEntry(1, (r, c) -> stack(Items.DIAMOND_SWORD)),
-            new LootEntry(6, (r, c) -> stack(Items.WOODEN_AXE)),
-            new LootEntry(5, (r, c) -> stack(Items.STONE_AXE)),
-            new LootEntry(3, (r, c) -> stack(Items.IRON_AXE)),
-            new LootEntry(6, (r, c) -> stack(Items.BOW)),
-            // 防具
-            new LootEntry(12, (r, c) -> armor(r, false)),
-            new LootEntry(6, (r, c) -> armor(r, true)),
-            // 食物
-            new LootEntry(8, (r, c) -> stack(Items.BREAD)),
-            new LootEntry(5, (r, c) -> stack(Items.COOKED_BEEF)),
-            new LootEntry(6, (r, c) -> stack(Items.GOLDEN_APPLE)),
-            new LootEntry(1, (r, c) -> stack(Items.ENCHANTED_GOLDEN_APPLE)),
-            // 捣乱/机动力
-            new LootEntry(3, (r, c) -> stack(Items.TNT)),
-            new LootEntry(3, (r, c) -> stack(Items.FLINT_AND_STEEL)),
-            new LootEntry(3, (r, c) -> stack(Items.FIRE_CHARGE)),
-            new LootEntry(5, (r, c) -> stack(Items.SNOWBALL)),
-            new LootEntry(5, (r, c) -> stack(Items.EGG)),
-            new LootEntry(1, (r, c) -> stack(Items.ENDER_PEARL)),
-            new LootEntry(3, (r, c) -> stack(Items.WATER_BUCKET)),
-            new LootEntry(2, (r, c) -> stack(Items.LAVA_BUCKET)),
-            new LootEntry(3, (r, c) -> stack(Items.COBWEB)),
-            new LootEntry(1, (r, c) -> stack(Items.TOTEM_OF_UNDYING))
+    /** 不能正常发放的物品（空气/创造专用/无意义方块）。 */
+    private static final Set<Identifier> BLACKLIST = Set.of(
+            Identifier.of("minecraft", "air"),
+            Identifier.of("minecraft", "barrier"),
+            Identifier.of("minecraft", "light"),
+            Identifier.of("minecraft", "structure_block"),
+            Identifier.of("minecraft", "structure_void"),
+            Identifier.of("minecraft", "jigsaw"),
+            Identifier.of("minecraft", "command_block"),
+            Identifier.of("minecraft", "chain_command_block"),
+            Identifier.of("minecraft", "repeating_command_block"),
+            Identifier.of("minecraft", "debug_stick"),
+            Identifier.of("minecraft", "knowledge_book"),
+            Identifier.of("minecraft", "spawner")
     );
 
-    /** 发放 1 件随机物品到玩家背包（背包满则落为实体），并动作栏提示。 */
+    /** 候选物品列表（注册表就绪后懒加载缓存，供均匀随机抽取）。 */
+    private static List<Item> candidates;
+
+    private static List<Item> candidates() {
+        if (candidates == null) {
+            List<Item> list = new ArrayList<>();
+            for (Item item : Registries.ITEM) {
+                if (item == Items.AIR) {
+                    continue;
+                }
+                Identifier id = Registries.ITEM.getId(item);
+                if (id == null || BLACKLIST.contains(id)) {
+                    continue;
+                }
+                if (id.getPath().endsWith("_spawn_egg")) {
+                    continue; // 刷怪蛋排除：避免竞技场里刷出敌对生物
+                }
+                list.add(item);
+            }
+            candidates = List.copyOf(list);
+        }
+        return candidates;
+    }
+
+    /** 发放 1 件纯随机物品（每件 1 个）到玩家背包（背包满则落为实体），并动作栏提示。 */
     public static void giveRandomItem(ServerPlayerEntity player, Random random) {
         giveRandomItems(player, random, 1);
     }
 
-    /** 发放 count 件随机物品（补给潮用）。 */
+    /** 发放 count 件纯随机物品（补给潮用）。 */
     public static void giveRandomItems(ServerPlayerEntity player, Random random, int count) {
+        List<Item> pool = candidates();
+        if (pool.isEmpty()) {
+            return;
+        }
         for (int i = 0; i < count; i++) {
-            ItemStack stack = roll(TABLE, random);
-            if (stack.isEmpty()) {
-                continue;
-            }
-            giveStack(player, stack);
-            if (stack.isOf(Items.BOW)) {
-                // 弓配箭：一发随弓补 1 支箭
-                giveStack(player, new ItemStack(Items.ARROW));
+            Item item = pool.get(random.nextInt(pool.size()));
+            giveStack(player, new ItemStack(item, 1));
+            if (item == Items.BOW) {
+                // 弓配箭：随弓补 1 支箭，否则拿到弓没箭用
+                giveStack(player, new ItemStack(Items.ARROW, 1));
             }
         }
     }
@@ -94,34 +90,7 @@ public final class LuckyPillarLoot {
             ItemEntity entity = new ItemEntity(player.getWorld(), player.getX(), player.getEyeY(), player.getZ(), stack);
             player.getWorld().spawnEntity(entity);
         }
-        // 每秒发一件，用动作栏提示（不刷屏聊天）
+        // 间隔短，用动作栏提示（不刷屏聊天）
         player.sendMessage(Text.literal("§e§l+ §b" + stack.getName().getString()), true);
-    }
-
-    private static ItemStack roll(List<LootEntry> table, Random random) {
-        int total = 0;
-        for (LootEntry entry : table) {
-            total += entry.weight();
-        }
-        int roll = random.nextInt(total);
-        for (LootEntry entry : table) {
-            roll -= entry.weight();
-            if (roll < 0) {
-                return entry.factory().apply(random, 0);
-            }
-        }
-        return ItemStack.EMPTY;
-    }
-
-    /** 随机一件护甲（随机部位）。 */
-    private static ItemStack armor(Random random, boolean diamond) {
-        Item[] pieces = diamond
-                ? new Item[]{Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS}
-                : new Item[]{Items.LEATHER_HELMET, Items.LEATHER_CHESTPLATE, Items.LEATHER_LEGGINGS, Items.LEATHER_BOOTS};
-        return new ItemStack(pieces[random.nextInt(pieces.length)]);
-    }
-
-    private static ItemStack stack(Item item) {
-        return new ItemStack(item, 1);
     }
 }
