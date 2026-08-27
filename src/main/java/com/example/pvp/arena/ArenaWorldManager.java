@@ -12,6 +12,7 @@ import com.example.pvp.util.RemoveFromRegistry;
 import com.mojang.logging.LogUtils;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.entry.RegistryEntry;
@@ -220,46 +221,57 @@ public final class ArenaWorldManager {
         // 空岛战争：按该场实际最大半径清空（含立柱与小树），避免箱子/岛屿残留
         if (template.getLayout() == ArenaTemplate.Layout.SKYWARS) {
             SkyWarsMapGenerator.clearIslands(arena, regionIndex, mapMaxRadius);
-            return;
-        }
-
-        // 战桥：按地图中心 ± 最大半径清空
-        if (template.getLayout() == ArenaTemplate.Layout.BRIDGE) {
+        } else if (template.getLayout() == ArenaTemplate.Layout.BRIDGE) {
+            // 战桥：按地图中心 ± 最大半径清空
             BridgeLayout layout = BridgeLayout.compute(template.getCenter(regionIndex), 2, false);
             BridgeMapGenerator.clear(arena, layout);
-            return;
-        }
-
-        // 幸运之柱：按地图中心 ± 实际最大半径清空（含高柱/平台/掉落物）
-        if (template.getLayout() == ArenaTemplate.Layout.LUCKY_PILLAR) {
+        } else if (template.getLayout() == ArenaTemplate.Layout.LUCKY_PILLAR) {
+            // 幸运之柱：按地图中心 ± 实际最大半径清空（含高柱/平台/掉落物）
             LuckyPillarMapGenerator.clear(arena, regionIndex, mapMaxRadius);
-            return;
-        }
+        } else {
+            BlockPos origin = template.getRegionOrigin(regionIndex);
+            int size = template.getSize();
+            // 清到世界最高可搭建 Y（玩家可能向上搭很高的塔），下方也留出夹方块/搭桥的空间
+            int maxDy = arena.getTopY() - 1 - ArenaTemplate.PLATFORM_Y;
+            int minDy = -16;
 
-        BlockPos origin = template.getRegionOrigin(regionIndex);
-        int size = template.getSize();
-        // 清到世界最高可搭建 Y（玩家可能向上搭很高的塔），下方也留出夹方块/搭桥的空间
-        int maxDy = arena.getTopY() - 1 - ArenaTemplate.PLATFORM_Y;
-        int minDy = -16;
-
-        // 先清方块再清掉落物：拆掉箱子等容器时内容物会重新掉落成实体
-        for (int dx = 0; dx < size; dx++) {
-            for (int dz = 0; dz < size; dz++) {
-                for (int dy = minDy; dy <= maxDy; dy++) {
-                    BlockPos pos = origin.add(dx, dy, dz);
-                    if (!arena.getBlockState(pos).isAir()) {
-                        arena.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+            // 先清方块再清掉落物：拆掉箱子等容器时内容物会重新掉落成实体
+            for (int dx = 0; dx < size; dx++) {
+                for (int dz = 0; dz < size; dz++) {
+                    for (int dy = minDy; dy <= maxDy; dy++) {
+                        BlockPos pos = origin.add(dx, dy, dz);
+                        if (!arena.getBlockState(pos).isAir()) {
+                            arena.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                        }
                     }
                 }
             }
+
+            // 再清空区域内掉落物
+            Box box = new Box(
+                    origin.getX(), origin.getY() - 2, origin.getZ(),
+                    origin.getX() + size, origin.getY() + ArenaTemplate.WALL_HEIGHT + 2, origin.getZ() + size
+            );
+            for (ItemEntity entity : arena.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
+                entity.discard();
+            }
         }
 
-        // 再清空区域内掉落物
+        // 清掉该区域内所有非玩家实体（TNT/箭/火焰弹/刷怪蛋生成的生物/掉落的物品等），
+        // 避免残留到下场比赛（玩家正被传回主城，予以排除）
+        this.clearRegionEntities(arena, template, regionIndex, mapMaxRadius);
+    }
+
+    /** 清掉某场比赛区域内所有非玩家实体（含各模式生成器没清到的 TNT/箭/生物等）。 */
+    private void clearRegionEntities(ArenaWorld arena, ArenaTemplate template, int regionIndex, int mapMaxRadius) {
+        int half = Math.max(template.getSize() / 2, mapMaxRadius) + 16;
+        BlockPos center = template.getCenter(regionIndex);
         Box box = new Box(
-                origin.getX(), origin.getY() - 2, origin.getZ(),
-                origin.getX() + size, origin.getY() + ArenaTemplate.WALL_HEIGHT + 2, origin.getZ() + size
+                center.getX() - half, arena.getBottomY(), center.getZ() - half,
+                center.getX() + half, arena.getTopY(), center.getZ() + half
         );
-        for (ItemEntity entity : arena.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
+        for (Entity entity : arena.getEntitiesByClass(Entity.class, box,
+                e -> !(e instanceof ServerPlayerEntity))) {
             entity.discard();
         }
     }
