@@ -84,7 +84,7 @@ public abstract class PlayerEntityMixin {
                 d = 0.01;
             }
             // 直接施加速度：takeKnockback 的方向约定相反（传"指向目标"会把人往攻击者方向拉），这里显式推离
-            double strength = 1.6; // 水平 1.6 ≈ 击退 III，加 0.4 竖直
+            double strength = 2.0; // 水平 2.0 ≈ 击退 IV，加 0.4 竖直
             victim.setVelocity(
                     victim.getVelocity().x + dx / d * strength,
                     victim.getVelocity().y + 0.4,

@@ -82,7 +82,7 @@ public final class SkyWarsLoot {
             new LootEntry(5, (r, c) -> stack(Items.FISHING_ROD, 1)),
             new LootEntry(5, (r, c) -> trackingCompass()),
             new LootEntry(6, (r, c) -> stack(Items.SNOWBALL, 16)),
-            new LootEntry(2, (r, c) -> stack(Items.SLIME_BALL, 1 + r.nextInt(2))),
+            new LootEntry(2, (r, c) -> slimeBall()), // 粘液球：击退IV 近战武器（每次只出 1 个）
             new LootEntry(3, (r, c) -> stack(Items.ANVIL, 1)),
             new LootEntry(8, (r, c) -> goldenAxe(r)),
             new LootEntry(6, (r, c) -> junkIron(r)),
@@ -241,6 +241,13 @@ public final class SkyWarsLoot {
         if (level > 0) {
             applyEnchant(stack, Enchantments.SHARPNESS, level);
         }
+        return stack;
+    }
+
+    /** 粘液球（击退 IV 近战武器）：附魔击退 IV 作为提示（实际击退由 PlayerEntityMixin 实现），每格 1 个。 */
+    private static ItemStack slimeBall() {
+        ItemStack stack = new ItemStack(Items.SLIME_BALL);
+        applyEnchant(stack, Enchantments.KNOCKBACK, 4); // 击退 IV
         return stack;
     }
 
