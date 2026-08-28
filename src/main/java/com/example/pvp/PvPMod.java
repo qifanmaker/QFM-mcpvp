@@ -106,6 +106,20 @@ public final class PvPMod implements ModInitializer {
         world.spawnEntity(fireball);
     }
 
+    /** 竞技场内抛出一颗 TNT（沿视线方向，2 秒爆炸），消耗物品栏中的 1 个 TNT。 */
+    public static void throwTnt(ServerPlayerEntity player, World world, ItemStack stack) {
+        Vec3d look = player.getRotationVector();
+        TntEntity tnt = new TntEntity(world,
+                player.getX() + look.x * 0.5,
+                player.getEyeY() - 0.2,
+                player.getZ() + look.z * 0.5,
+                player);
+        tnt.setVelocity(look.multiply(1.5));
+        tnt.setFuse(40); // 引信减短（2 秒爆炸）
+        world.spawnEntity(tnt);
+        stack.decrement(1);
+    }
+
     @Override
     public void onInitialize() {
         LOGGER.info("[PvP] 正在初始化 PvP 匹配 Mod...");
@@ -252,23 +266,10 @@ public final class PvPMod implements ModInitializer {
                         return TypedActionResult.success(stack);
                     }
                 }
-                // 竞技场内 TNT：对空中右键可把 TNT 抛射出去（对准方块则交给原版放置）
+                // 竞技场内 TNT：右键即抛出（对准方块时由 UseBlockCallback 拦截抛出，不再放置）
                 if (stack.isOf(Items.TNT) && world.getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
-                    HitResult hit = serverPlayer.raycast(4.5, 1.0F, false);
-                    if (hit != null && hit.getType() == HitResult.Type.MISS) {
-                        Vec3d look = serverPlayer.getRotationVector();
-                        TntEntity tnt = new TntEntity(world,
-                                serverPlayer.getX() + look.x * 0.5,
-                                serverPlayer.getEyeY() - 0.2,
-                                serverPlayer.getZ() + look.z * 0.5,
-                                serverPlayer);
-                        tnt.setVelocity(look.multiply(1.5));
-                        tnt.setFuse(40); // 引信减短（2 秒爆炸）
-                        world.spawnEntity(tnt);
-                        stack.decrement(1);
-                        return TypedActionResult.success(stack);
-                    }
-                    return TypedActionResult.pass(stack);
+                    throwTnt(serverPlayer, world, stack);
+                    return TypedActionResult.success(stack);
                 }
                 // 竞技场内火焰弹（空岛战争）：对空右键即发射（对方块右键由 FireChargeItemMixin 拦截发射）
                 if (stack.isOf(Items.FIRE_CHARGE) && world.getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
@@ -294,6 +295,16 @@ public final class PvPMod implements ModInitializer {
                 return ActionResult.FAIL;
             }
             return ActionResult.PASS;
+        });
+        // 竞技场内 TNT：对着方块右键也抛出而不是放置（UseItemCallback 只覆盖"右键空气"路径）
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (!(player instanceof ServerPlayerEntity sp) || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY
+                    || !sp.getStackInHand(hand).isOf(Items.TNT)
+                    || (MATCH != null && MATCH.isEliminated(sp.getUuid()))) {
+                return ActionResult.PASS;
+            }
+            throwTnt(sp, world, sp.getStackInHand(hand));
+            return ActionResult.SUCCESS;
         });
         // TNT 跑酷：右键羽毛对准方块时也触发跳跃（UseItemCallback 只覆盖"右键空气"路径）
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
