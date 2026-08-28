@@ -131,6 +131,8 @@ public final class Match {
     private int tntRunJumpTimer; // 二段跳充能计时（tick）
     private int tntRunDropTimer; // 掉落物刷新计时（tick）
     private final Map<BlockPos, Integer> tntRunVanish = new HashMap<>(); // 待消失方块 → 到期 tick
+    /** 不死图腾非掉虚空复活后的摔落保护（UUID → 剩余 tick，期间每 tick 清零 fallDistance）。 */
+    private final Map<UUID, Integer> totemFallSafeTicks = new HashMap<>();
 
     private MatchTeam winnerTeam;
     private int celebrationTicks;
@@ -291,6 +293,22 @@ public final class Match {
             return;
         }
         this.ticks++;
+
+        // 不死图腾复活后的摔落保护：期间每 tick 清零 fallDistance，防止在高空复活后摔死
+        if (!this.totemFallSafeTicks.isEmpty()) {
+            for (UUID uuid : List.copyOf(this.totemFallSafeTicks.keySet())) {
+                int left = this.totemFallSafeTicks.get(uuid) - 1;
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
+                if (online != null) {
+                    online.fallDistance = 0;
+                }
+                if (left <= 0) {
+                    this.totemFallSafeTicks.remove(uuid);
+                } else {
+                    this.totemFallSafeTicks.put(uuid, left);
+                }
+            }
+        }
 
         // 超时保护：防止卡死的对局一直占用场地导致后续无法开赛
         int countdownStuckThreshold = this.initialCountdownTicks + 20 * 10;
@@ -516,6 +534,9 @@ public final class Match {
             player.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 2400, 1));
             player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 900, 1));
             player.addStatusEffect(new StatusEffectInstance(StatusEffects.FIRE_RESISTANCE, 800, 0));
+            // 可能在半空/高处被救活（被打落/坠落中），给 5 秒摔落保护（tick 里清零 fallDistance），避免落地摔死
+            player.fallDistance = 0;
+            this.totemFallSafeTicks.put(player.getUuid(), 100);
             player.sendMessage(Messages.gold("不死图腾救了你一命！"), false);
         }
         this.broadcast(Messages.warn("§e" + player.getGameProfile().getName() + "§r 依靠不死图腾死里逃生！"));
