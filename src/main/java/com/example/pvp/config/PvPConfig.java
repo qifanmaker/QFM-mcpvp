@@ -57,8 +57,8 @@ public final class PvPConfig {
     /** 地图覆盖边长（生成/清理边界，需覆盖所有岛屿）。 */
     public int skywarsSize = 176;
     public int skywarsIslandRadius = 5;
-    /** 中间主岛半径（整体扩大后默认 45 ≈ 30×1.5；spawnDist 随之外推，与其他岛 gap 不变）。 */
-    public int skywarsMiddleRadius = 45;
+    /** 中岛群半径（岛群覆盖范围，中央主岛+卫星岛；spawnDist 随之外推，与其他岛 gap 不变）。 */
+    public int skywarsMiddleRadius = 52;
     /** 出生岛边缘到中间主岛边缘的空隙（格）：越大出生岛离中间岛越远、越难偷袭。 */
     public int skywarsIslandGap = 40;
     public int skywarsChestsPerIsland = 3;
@@ -192,6 +192,14 @@ public final class PvPConfig {
         }
         if (this.bridgeTimeoutSeconds <= 0) {
             this.bridgeTimeoutSeconds = defaults.bridgeTimeoutSeconds;
+            changed = true;
+        }
+        if (this.skywarsMiddleRadius <= 0) {
+            this.skywarsMiddleRadius = defaults.skywarsMiddleRadius;
+            changed = true;
+        } else if (this.skywarsMiddleRadius == 45) {
+            // 旧默认 45 改为新默认（中岛群继续加大）
+            this.skywarsMiddleRadius = defaults.skywarsMiddleRadius;
             changed = true;
         }
         if (this.luckyPillarMinPlayers <= 0) {

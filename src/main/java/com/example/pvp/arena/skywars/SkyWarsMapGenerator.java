@@ -43,13 +43,17 @@ public final class SkyWarsMapGenerator {
                 : SkyWarsLoot.handicapForMatch(players);
         List<SkyWarsLayout.Island> spawnIslands = layout.spawnIslands();
         for (int i = 0; i < spawnIslands.size(); i++) {
-            buildIsland(world, spawnIslands.get(i), false, theme, handicaps[i]);
+            buildIsland(world, spawnIslands.get(i), false, theme, handicaps[i], false);
         }
         List<SkyWarsLayout.Island> midIslands = layout.midIslands();
         for (int i = 0; i < midIslands.size(); i++) {
-            buildIsland(world, midIslands.get(i), false, theme, handicaps[i]);
+            buildIsland(world, midIslands.get(i), false, theme, handicaps[i], false);
         }
-        buildIsland(world, layout.middle(), true, theme, 0);
+        // 中岛群：中央主岛（END 主题才空心环）+ 卫星岛（实心），各带障碍物
+        List<SkyWarsLayout.Island> middleIslands = layout.middleIslands();
+        for (int i = 0; i < middleIslands.size(); i++) {
+            buildIsland(world, middleIslands.get(i), true, theme, 0, i == 0);
+        }
 
         LOGGER.info("[PvP] 空岛战争地图已生成: {} 个出生岛 + {} 个中途岛 + 中间主岛({} 箱)，主题：{}",
                 spawnIslands.size(), midIslands.size(), layout.middle().chests().size(),
@@ -57,14 +61,15 @@ public final class SkyWarsMapGenerator {
         return layout;
     }
 
-    /** 铺一座岛（按主题选材质 + 箱子 + 偶发装饰）；中间岛前两个箱子放在石砖柱上。 */
-    private static void buildIsland(ArenaWorld world, SkyWarsLayout.Island island, boolean middle, SkyWarsTheme theme, int handicap) {
+    /** 铺一座岛（按主题选材质 + 箱子 + 偶发装饰）；中间岛前两个箱子放在石砖柱上；中岛群带障碍物。 */
+    private static void buildIsland(ArenaWorld world, SkyWarsLayout.Island island, boolean middle,
+                                    SkyWarsTheme theme, int handicap, boolean ring) {
         Random random = new Random(island.center.hashCode());
         int r = island.radius;
         BlockPos c = island.center;
         Block top = theme.topBlock(), sub = theme.subBlock(), deep = theme.deepBlock();
-        boolean ring = theme.ringMiddle() && middle;
-        int innerR = ring ? (int) (r * theme.ringInnerRatio()) : 0;
+        boolean applyRing = ring && theme.ringMiddle(); // 只有中央主岛才空心环
+        int innerR = applyRing ? (int) (r * theme.ringInnerRatio()) : 0;
         // 地狱岛面随机危害：灵魂沙/岩浆（只放玩家岛，避免中岛太混乱）
         int soulSandLeft = theme == SkyWarsTheme.NETHER ? 3 + random.nextInt(3) : 0;
         int lavaLeft = theme == SkyWarsTheme.NETHER ? 1 + random.nextInt(2) : 0;
@@ -76,7 +81,7 @@ public final class SkyWarsMapGenerator {
                 if (dist > r) {
                     continue;
                 }
-                if (ring && dist < innerR) {
+                if (applyRing && dist < innerR) {
                     continue; // 空心环：中央不铺块
                 }
                 BlockPos topPos = new BlockPos(c.getX() + dx, c.getY(), c.getZ() + dz);
@@ -130,6 +135,11 @@ public final class SkyWarsMapGenerator {
             }
         }
 
+        // 中岛群障碍物：石柱/蜘蛛网/水(岩浆)池/矮墙掩体，提供遮蔽与战术点
+        if (middle) {
+            addMiddleObstacles(world, random, island, theme);
+        }
+
         // 主题装饰/树（放到离岛心 ≥3 格处，避免玩家出生卡进树干/树叶里）
         if (!middle && r >= 5 && random.nextInt(3) == 0) {
             int treeDist = 3 + random.nextInt(Math.max(1, r - 4));
@@ -143,6 +153,61 @@ public final class SkyWarsMapGenerator {
                 case ICE -> buildSmallTree(world, random, treeBase, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES);
                 case END -> buildChorus(world, random, treeBase);
                 default -> buildSmallTree(world, random, treeBase, Blocks.OAK_LOG, Blocks.OAK_LEAVES);
+            }
+        }
+    }
+
+    /** 中岛群障碍物：石柱/蜘蛛网/水(岩浆)池/矮墙掩体——随机放在岛面上（避开箱子）。 */
+    private static void addMiddleObstacles(ArenaWorld world, Random random, SkyWarsLayout.Island island, SkyWarsTheme theme) {
+        int count = 1 + random.nextInt(2); // 每座中岛 1~2 个障碍
+        for (int i = 0; i < count; i++) {
+            int r = island.radius;
+            if (r < 3) {
+                continue;
+            }
+            int dist = 2 + random.nextInt(Math.max(1, r - 2));
+            double angle = random.nextDouble() * 2.0 * Math.PI;
+            int x = island.center.getX() + (int) Math.round(Math.cos(angle) * dist);
+            int z = island.center.getZ() + (int) Math.round(Math.sin(angle) * dist);
+            boolean onChest = false;
+            for (BlockPos chest : island.chests()) {
+                if (chest.getX() == x && chest.getZ() == z) {
+                    onChest = true;
+                    break;
+                }
+            }
+            if (onChest) {
+                continue;
+            }
+            int y = island.center.getY();
+            switch (random.nextInt(4)) {
+                case 0 -> {
+                    // 石柱（掩体）：2~4 格石砖柱
+                    int h = 2 + random.nextInt(3);
+                    for (int dy = 1; dy <= h; dy++) {
+                        world.setBlockState(new BlockPos(x, y + dy, z), Blocks.STONE_BRICKS.getDefaultState(), 3);
+                    }
+                }
+                case 1 -> {
+                    // 蜘蛛网（减速）：1~2 个
+                    for (int k = 0; k < 2; k++) {
+                        world.setBlockState(new BlockPos(x, y + 1 + random.nextInt(2), z), Blocks.COBWEB.getDefaultState(), 3);
+                    }
+                }
+                case 2 -> {
+                    // 水/岩浆浅池：挖掉表层，下面填液体（地狱→岩浆，其余→水）
+                    boolean lava = theme == SkyWarsTheme.NETHER;
+                    world.setBlockState(new BlockPos(x, y, z), Blocks.AIR.getDefaultState(), 3);
+                    world.setBlockState(new BlockPos(x, y - 1, z),
+                            (lava ? Blocks.LAVA : Blocks.WATER).getDefaultState(), 3);
+                }
+                default -> {
+                    // 矮墙（3 格宽、2 格高石砖），作掩体
+                    for (int k = -1; k <= 1; k++) {
+                        world.setBlockState(new BlockPos(x + k, y + 1, z), Blocks.STONE_BRICKS.getDefaultState(), 3);
+                        world.setBlockState(new BlockPos(x + k, y + 2, z), Blocks.STONE_BRICKS.getDefaultState(), 3);
+                    }
+                }
             }
         }
     }
