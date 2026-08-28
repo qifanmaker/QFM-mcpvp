@@ -8,6 +8,7 @@
     "MinecraftServerMixin",
     "PlayerEntityMixin",
     "LivingEntityMixin",
+    "LivingEntityAccessor",
     "ServerPlayerEntityMixin",
     "FishingBobberEntityMixin",
     "FireChargeItemMixin",

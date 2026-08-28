@@ -9,7 +9,7 @@ import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLoot;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.tntrun.TntRunLayout;
-import com.example.pvp.mixin.LivingEntityMixin;
+import com.example.pvp.mixin.LivingEntityAccessor;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
 import com.example.pvp.config.PvPConfig;
@@ -934,7 +934,7 @@ public final class Match {
         }
         // 4) 二段跳：空中"松开再按跳"（跳跃输入上升沿）且次数 > 0 → 上升
         for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
-            boolean jumping = ((LivingEntityMixin) (Object) online).pvp$isJumping();
+            boolean jumping = ((LivingEntityAccessor) (Object) online).pvp$isJumping();
             Boolean last = this.tntRunLastJump.getOrDefault(online.getUuid(), false);
             this.tntRunLastJump.put(online.getUuid(), jumping);
             if (jumping && !last && !online.isOnGround()
