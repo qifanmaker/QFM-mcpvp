@@ -2,6 +2,7 @@ package com.example.pvp.mixin;
 
 import com.example.pvp.PvPMod;
 import com.example.pvp.arena.ArenaWorldManager;
+import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerEntity;
@@ -12,6 +13,9 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import net.minecraft.world.explosion.Explosion;
 import net.minecraft.world.explosion.ExplosionBehavior;
@@ -49,11 +53,27 @@ public abstract class SmallFireballEntityMixin {
         }
 
         // 引用 TNT 爆炸判定：径向击退（shouldDamage=false 只跳伤害，击退照常）+
-        // 破坏方块（ExplosionSourceType.TNT），威力 1.5x
+        // 破坏方块（ExplosionSourceType.TNT）。破坏性降低为 0.5x（只破坏中心 power 格内），
+        // 击退增强为 1.5x（getKnockbackModifier）。
         ExplosionBehavior behavior = new ExplosionBehavior() {
             @Override
             public boolean shouldDamage(Explosion explosion, Entity entity) {
                 return false; // 不造成伤害，只击退
+            }
+
+            @Override
+            public float getKnockbackModifier(Entity entity) {
+                return 1.5f; // 击退增强 1.5x
+            }
+
+            @Override
+            public boolean canDestroyBlock(Explosion explosion, BlockView world, BlockPos pos, BlockState state, float power) {
+                // 破坏性 0.5x：只破坏爆炸中心 power(1.5) 格内的方块（原本破坏半径 2*power=3 格）
+                Vec3d c = explosion.getPosition();
+                double dx = pos.getX() + 0.5 - c.x;
+                double dy = pos.getY() + 0.5 - c.y;
+                double dz = pos.getZ() + 0.5 - c.z;
+                return dx * dx + dy * dy + dz * dz <= power * power;
             }
         };
         DamageSource source = world.getDamageSources().explosion(fireball, owner);
