@@ -61,6 +61,7 @@ import org.slf4j.Logger;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * PvP 匹配 Mod 入口：注册虚空生成器、加载配置、挂接生命周期事件。
@@ -76,6 +77,14 @@ public final class PvPMod implements ModInitializer {
 
     /** 幸运之柱"一击必杀"全局标记：开启时对应对局内所有伤害致死（LivingEntityMixin 检查）。 */
     public static volatile boolean oneHitKillActive = false;
+
+    /** 被烈焰弹击退后免疫第一次摔落伤害的玩家（一次性，落地后消耗）。 */
+    public static final Set<UUID> fireballNoFallOnce = new HashSet<>();
+
+    /** 消耗一次"烈焰弹免摔"次数（返回是否有）。 */
+    public static boolean consumeFireballNoFall(ServerPlayerEntity player) {
+        return fireballNoFallOnce.remove(player.getUuid());
+    }
 
     /** 主城内需自动补 TNT 的发射器（仅主世界，加载/卸载自动增删）。 */
     private static final Set<DispenserBlockEntity> TNT_DISPENSERS = new HashSet<>();
@@ -313,7 +322,8 @@ public final class PvPMod implements ModInitializer {
             return true;
         });
 
-        // 对局中拦截致死伤害：不弹死亡界面——战桥由对局下 tick 原地重生；其余模式直接淘汰转隐身幽灵
+        // 对局中拦截致死伤害：不弹死亡界面——战桥由对局下 tick 原地重生；其余模式直接淘汰转隐身幽灵。
+        // 不在对局中的玩家（主城/竞技场访客）也取消原生死亡处理：满血送回复活点，由 Mod 自己处理。
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
             if (entity instanceof ServerPlayerEntity sp && MATCH != null) {
                 Match match = MATCH.getMatchFor(sp);
@@ -333,9 +343,22 @@ public final class PvPMod implements ModInitializer {
                             }
                             match.eliminate(sp, EliminationCause.DEATH);
                         }
+                    } else {
+                        // 倒计时/庆祝中：不淘汰，直接回血防原生死亡界面
+                        sp.setHealth(sp.getMaxHealth());
+                        sp.setFireTicks(0);
+                        sp.fallDistance = 0;
                     }
-                    return false;
+                    return false; // 对局内（含倒计时/庆祝）一律取消原生死亡处理
                 }
+                // 不在对局中（主城/竞技场访客）：不触发原生死亡界面，满血送回复活点
+                sp.setHealth(sp.getMaxHealth());
+                sp.setFireTicks(0);
+                sp.clearStatusEffects();
+                sp.fallDistance = 0;
+                MATCH.teleportToOverworldSpawn(sp);
+                sp.sendMessage(Messages.warn("你已死亡，已被送回主城"), false);
+                return false;
             }
             return true;
         });

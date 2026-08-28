@@ -922,10 +922,15 @@ public final class Match {
 
     // ---------- TNT 跑酷 (TNT Run) ----------
 
-    /** TNT 跑酷每帧逻辑：方块消失、二段跳、掉落物刷新、掉出底层淘汰。 */
+    /** TNT 跑酷每帧逻辑：方块消失、羽毛跳跃充能、掉落物刷新、掉出底层淘汰。 */
     private void tickTntRun() {
         PvPConfig cfg = PvPConfig.INSTANCE;
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
+
+        // 0) TNT 跑酷免疫摔落伤害：每 tick 清零 fallDistance，层间自由下落不掉血
+        for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
+            online.fallDistance = 0;
+        }
 
         // 1) 处理待消失方块（到点置空气 + 粒子提示）
         if (arena != null) {
@@ -1185,8 +1190,12 @@ public final class Match {
 
     /** ALLOW_DEATH 拦截回调：只登记，等下一 tick 重生（避免死亡判定途中传送）。 */
     public void onBridgeDeath(ServerPlayerEntity player) {
+        // 立即回血/清火/清坠落：避免血量 0 同步到客户端短暂弹出原生死亡界面（战桥有概率触发）
+        player.setHealth(player.getMaxHealth());
+        player.setFireTicks(0);
+        player.fallDistance = 0;
         if (this.state != MatchState.ACTIVE) {
-            return;
+            return; // 非 ACTIVE（倒计时/庆祝）只保证不死，不排队重生
         }
         this.bridgePendingRespawns.add(player.getUuid());
     }
