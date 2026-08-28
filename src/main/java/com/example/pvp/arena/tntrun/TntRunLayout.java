@@ -63,6 +63,18 @@ public final class TntRunLayout {
         return this.platformBlocks.contains(pos);
     }
 
+    /** 是否在该场 TNT 跑酷的整个塔形范围内（含层间与玩家放置的方块，供爆炸掉落判定）。 */
+    public boolean isWithinArea(BlockPos pos) {
+        int dx = pos.getX() - this.mapCenter.getX();
+        int dz = pos.getZ() - this.mapCenter.getZ();
+        if (Math.abs(dx) > this.halfSize || Math.abs(dz) > this.halfSize) {
+            return false;
+        }
+        int minY = this.layerYs.get(0);
+        int maxY = this.layerYs.get(this.layerYs.size() - 1);
+        return pos.getY() >= minY - 1 && pos.getY() <= maxY + 1;
+    }
+
     public int topY() {
         return this.layerYs.get(this.layerYs.size() - 1);
     }

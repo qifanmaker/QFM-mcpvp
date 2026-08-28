@@ -57,6 +57,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
@@ -911,12 +912,27 @@ public final class Match {
                 }
             }
 
-            // 2) 玩家踩过的平台方块：tntRunVanishTicks（0.2 秒）后消失
-            for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
-                BlockPos below = online.getBlockPos().down();
-                if (this.tntRunLayout != null && this.tntRunLayout.isPlatformBlock(below)
-                        && !this.tntRunVanish.containsKey(below)) {
-                    this.tntRunVanish.put(below, this.ticks + Math.max(1, cfg.tntRunVanishTicks));
+            // 2) 玩家踩过的平台方块：tntRunVanishTicks（0.2 秒）后消失。
+            //    用碰撞箱水平投影覆盖到的所有方块（含踩到边缘时相邻的方块），避免边缘漏判
+            if (this.tntRunLayout != null) {
+                for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
+                    if (!online.isOnGround()) {
+                        continue;
+                    }
+                    Box pbox = online.getBoundingBox();
+                    int minX = (int) Math.floor(pbox.minX - 0.001);
+                    int maxX = (int) Math.floor(pbox.maxX - 0.001);
+                    int minZ = (int) Math.floor(pbox.minZ - 0.001);
+                    int maxZ = (int) Math.floor(pbox.maxZ - 0.001);
+                    int underY = (int) Math.floor(pbox.minY) - 1;
+                    for (int bx = minX; bx <= maxX; bx++) {
+                        for (int bz = minZ; bz <= maxZ; bz++) {
+                            BlockPos pos = new BlockPos(bx, underY, bz);
+                            if (this.tntRunLayout.isPlatformBlock(pos)) {
+                                this.tntRunVanish.putIfAbsent(pos, this.ticks + Math.max(1, cfg.tntRunVanishTicks));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1725,9 +1741,12 @@ public final class Match {
                 online.fallDistance = 0;
                 online.clearStatusEffects();
                 online.changeGameMode(GameMode.SURVIVAL);
+                // 给饱和效果：跑步/跳跃不掉饥饿
+                online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
                 ItemStack feather = new ItemStack(Items.FEATHER);
                 feather.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§b跳跃羽毛（右键）"));
                 online.getInventory().setStack(0, feather);
+                this.tntRunJumpCharge.put(online.getUuid(), 1); // 开局即可用一次羽毛跳
                 online.currentScreenHandler.sendContentUpdates();
             } else {
                 Kit playerKit = this.playerKits.get(player.getUuid());
