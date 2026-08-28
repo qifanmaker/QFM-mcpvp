@@ -473,16 +473,17 @@ public final class Match {
             if (online.getY() >= rescueY || online.isOnGround()) {
                 continue;
             }
-            this.tryTotemSave(online);
+            this.tryTotemSave(online, true); // 掉虚空：传送救回
         }
     }
 
     /**
-     * 不死图腾救场：消耗背包中任意位置的一个图腾，清状态回满血、给吸收/再生，并传送到救回点。
-     * 空岛/幸运之柱通用——掉入虚空由各模式 tick 调用，受到致死伤害由 PvPMod 的 ALLOW_DEATH 调用。
+     * 不死图腾救场：消耗背包中任意位置的一个图腾，清状态回满血、给吸收/再生。
+     * 空岛/幸运之柱通用——掉入虚空由各模式 tick 调用（voidFall=true：传送到救回点），
+     * 受到致死伤害由 PvPMod 的 ALLOW_DEATH 调用（voidFall=false：按原版逻辑原地复活）。
      * 返回 true 表示成功消耗并救回（调用方据此取消死亡/淘汰）。
      */
-    public boolean tryTotemSave(ServerPlayerEntity player) {
+    public boolean tryTotemSave(ServerPlayerEntity player, boolean voidFall) {
         if (this.type != MatchType.SKYWARS && this.type != MatchType.LUCKY_PILLAR) {
             return false;
         }
@@ -502,12 +503,21 @@ public final class Match {
         player.setHealth(player.getMaxHealth());
         player.setFireTicks(0);
         player.clearStatusEffects();
-        player.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 100, 1)); // 吸收 II
-        player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 400, 1)); // 再生 II
-        BlockPos rescue = this.totemRescuePoint(player);
-        int y = Math.max(rescue.getY() + 2, ArenaTemplate.PLATFORM_Y + 1);
-        player.teleport(arena, rescue.getX() + 0.5, y, rescue.getZ() + 0.5, player.getYaw(), player.getPitch());
-        player.sendMessage(Messages.gold("不死图腾生效！你被传回安全点！"), false);
+        if (voidFall) {
+            // 掉虚空：传送到安全点救回（原有逻辑），给吸收/再生
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 100, 1)); // 吸收 II
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 400, 1)); // 再生 II
+            BlockPos rescue = this.totemRescuePoint(player);
+            int y = Math.max(rescue.getY() + 2, ArenaTemplate.PLATFORM_Y + 1);
+            player.teleport(arena, rescue.getX() + 0.5, y, rescue.getZ() + 0.5, player.getYaw(), player.getPitch());
+            player.sendMessage(Messages.gold("不死图腾生效！你被传回安全点！"), false);
+        } else {
+            // 非掉虚空（被击杀等致死伤害）：按原版图腾逻辑——原地复活，给原版效果（吸收II/再生II/抗火）
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 2400, 1));
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 900, 1));
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.FIRE_RESISTANCE, 800, 0));
+            player.sendMessage(Messages.gold("不死图腾救了你一命！"), false);
+        }
         this.broadcast(Messages.warn("§e" + player.getGameProfile().getName() + "§r 依靠不死图腾死里逃生！"));
         return true;
     }
@@ -676,7 +686,7 @@ public final class Match {
         double rescueY = ArenaTemplate.PLATFORM_Y - 8;
         for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
             if (online.getY() < rescueY && !online.isOnGround()) {
-                this.tryTotemSave(online);
+                this.tryTotemSave(online, true); // 掉虚空：传送救回
             }
         }
 
