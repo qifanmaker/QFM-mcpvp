@@ -1042,6 +1042,7 @@ public final class Match {
         player.setVelocity(v.x, 1.2, v.z);
         player.velocityDirty = true;
         player.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 1.0F, 1.4F);
+        player.sendMessage(Text.literal("§a§l羽毛跳跃！"), true); // 动作栏提示，确认触发
         if (player.getWorld() instanceof ServerWorld sw) {
             sw.spawnParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(),
                     10, 0.3, 0.1, 0.3, 0.02);
