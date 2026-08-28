@@ -267,6 +267,14 @@ public final class PvPMod implements ModInitializer {
                     stack.decrement(1);
                     return TypedActionResult.success(stack);
                 }
+                // TNT 跑酷：右键跳跃羽毛向上跳一段（每 10 秒充能 1 次）
+                if (stack.isOf(Items.FEATHER)) {
+                    Match match = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
+                    if (match != null && match.getType() == MatchType.TNT_RUN && match.getState() == MatchState.ACTIVE) {
+                        match.tntRunFeatherJump(serverPlayer);
+                        return TypedActionResult.success(stack);
+                    }
+                }
             }
             return TypedActionResult.pass(stack);
         });

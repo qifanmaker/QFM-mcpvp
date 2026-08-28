@@ -246,7 +246,7 @@ public final class PvpGuiManager {
             inv.setStack(25, makeButton(Items.TNT, "§cTNT 跑酷", PvPConfig.INSTANCE.tntRunMinPlayers + "~"
                     + PvPConfig.INSTANCE.tntRunMaxPlayers + " 人，凑齐 " + PvPConfig.INSTANCE.tntRunStartPlayers + " 人开赛",
                     "5 层彩色平台，踩过的方块 0.2 秒后掉落",
-                    "每 " + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + " 秒可二段跳一次",
+                    "右键羽毛可向上跳一段（每 " + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + " 秒充能）",
                     "地面会刷火焰弹/TNT，掉出底层淘汰",
                     "最后存活者获胜，点击直接加入"));
             inv.setStack(19, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));

@@ -9,7 +9,6 @@ import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLoot;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.tntrun.TntRunLayout;
-import com.example.pvp.mixin.LivingEntityAccessor;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
 import com.example.pvp.config.PvPConfig;
@@ -131,7 +130,6 @@ public final class Match {
     private int tntRunJumpTimer; // 二段跳充能计时（tick）
     private int tntRunDropTimer; // 掉落物刷新计时（tick）
     private final Map<BlockPos, Integer> tntRunVanish = new HashMap<>(); // 待消失方块 → 到期 tick
-    private final Map<UUID, Boolean> tntRunLastJump = new HashMap<>(); // 上一 tick 跳跃输入
 
     private MatchTeam winnerTeam;
     private int celebrationTicks;
@@ -923,28 +921,14 @@ public final class Match {
             }
         }
 
-        // 3) 二段跳充能：每 tntRunDoubleJumpIntervalSeconds 秒给 1 次（最多 1 次）
+        // 3) 羽毛跳跃充能：每 tntRunDoubleJumpIntervalSeconds 秒给 1 次（右键羽毛触发，见 tntRunFeatherJump）
         if (++this.tntRunJumpTimer >= cfg.tntRunDoubleJumpIntervalSeconds * 20) {
             this.tntRunJumpTimer = 0;
             for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
                 this.tntRunJumpCharge.put(online.getUuid(), 1);
                 online.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), SoundCategory.PLAYERS, 1.0F, 1.6F);
             }
-            this.broadcast(Messages.gold("§b二段跳已就绪！空中再按一次空格"));
-        }
-        // 4) 二段跳：空中"松开再按跳"（跳跃输入上升沿）且次数 > 0 → 上升
-        for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
-            boolean jumping = ((LivingEntityAccessor) (Object) online).pvp$isJumping();
-            Boolean last = this.tntRunLastJump.getOrDefault(online.getUuid(), false);
-            this.tntRunLastJump.put(online.getUuid(), jumping);
-            if (jumping && !last && !online.isOnGround()
-                    && this.tntRunJumpCharge.getOrDefault(online.getUuid(), 0) > 0) {
-                this.tntRunJumpCharge.put(online.getUuid(), 0);
-                Vec3d v = online.getVelocity();
-                online.setVelocity(v.x, 0.9, v.z);
-                online.velocityDirty = true;
-                online.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 1.0F, 1.4F);
-            }
+            this.broadcast(Messages.gold("§b羽毛跳跃已就绪！右键羽毛向上跳"));
         }
 
         // 5) 掉出底层平台 → 淘汰
@@ -984,6 +968,28 @@ public final class Match {
                     break;
                 }
             }
+        }
+    }
+
+    /** TNT 跑酷：右键羽毛向上跳一段（充能 1 次，用完后等下一轮充能）。 */
+    public void tntRunFeatherJump(ServerPlayerEntity player) {
+        if (this.type != MatchType.TNT_RUN || this.state != MatchState.ACTIVE
+                || this.eliminated.contains(player.getUuid())) {
+            return;
+        }
+        if (this.tntRunJumpCharge.getOrDefault(player.getUuid(), 0) <= 0) {
+            player.sendMessage(Messages.warn("§b羽毛跳跃还在充能中..."), true);
+            return;
+        }
+        this.tntRunJumpCharge.put(player.getUuid(), 0);
+        Vec3d v = player.getVelocity();
+        // 向上跳一段：层距 6 格，竖直速度 1.1 约可升 7 格，够上一层平台
+        player.setVelocity(v.x, 1.1, v.z);
+        player.velocityDirty = true;
+        player.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 1.0F, 1.4F);
+        if (player.getWorld() instanceof ServerWorld sw) {
+            sw.spawnParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(),
+                    10, 0.3, 0.1, 0.3, 0.02);
         }
     }
 
@@ -1709,7 +1715,7 @@ public final class Match {
                 online.changeGameMode(GameMode.SURVIVAL);
                 online.currentScreenHandler.sendContentUpdates();
             } else if (tntRun) {
-                // TNT 跑酷：无套件，生存模式空手开局，靠地面刷新掉落物
+                // TNT 跑酷：无套件，生存模式空手开局，靠地面刷新掉落物；发跳跃羽毛（右键向上跳）
                 online.getInventory().clear();
                 online.setHealth(online.getMaxHealth());
                 online.getHungerManager().setFoodLevel(20);
@@ -1719,6 +1725,9 @@ public final class Match {
                 online.fallDistance = 0;
                 online.clearStatusEffects();
                 online.changeGameMode(GameMode.SURVIVAL);
+                ItemStack feather = new ItemStack(Items.FEATHER);
+                feather.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§b跳跃羽毛（右键）"));
+                online.getInventory().setStack(0, feather);
                 online.currentScreenHandler.sendContentUpdates();
             } else {
                 Kit playerKit = this.playerKits.get(player.getUuid());
@@ -1742,8 +1751,8 @@ public final class Match {
             this.broadcast(Messages.info("幸运之柱开始！空手站在柱顶，每 §e"
                     + PvPConfig.INSTANCE.luckyPillarItemIntervalSeconds + "§r 秒获得随机物品，还会触发随机事件！最后的幸存者获胜！（1.8 低版本战斗）"));
         } else if (tntRun) {
-            this.broadcast(Messages.info("TNT 跑酷开始！踩过的方块 §e0.2 秒§r 后掉落，掉出底层即淘汰；每 §e"
-                    + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + "§r 秒可二段跳一次，地面会刷火焰弹/TNT，最后的幸存者获胜！"));
+            this.broadcast(Messages.info("TNT 跑酷开始！踩过的方块 §e0.2 秒§r 后掉落，掉出底层即淘汰；右键跳跃羽毛可向上跳一段（每 §e"
+                    + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + "§r 秒充能一次），地面会刷火焰弹/TNT，最后的幸存者获胜！"));
         } else {
             this.broadcast(Messages.info("对局开始！模式：" + this.type.getDisplayName() + "，套件：" + this.kit.getDisplayName()));
         }
@@ -1945,7 +1954,7 @@ public final class Match {
             if (this.type == MatchType.TNT_RUN) {
                 int rem = Math.max(0, (PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds * 20
                         - this.tntRunJumpTimer + 19) / 20);
-                this.setInfoLine(scoreboard, objective, "§b下次二段跳 §f" + rem + "s", score--);
+                this.setInfoLine(scoreboard, objective, "§b羽毛跳充能 §f" + rem + "s", score--);
             }
             this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
             for (ServerPlayerEntity player : this.players) {

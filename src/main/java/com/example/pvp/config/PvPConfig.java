@@ -128,11 +128,11 @@ public final class PvPConfig {
     public int tntRunSize = 31;
     /** 层数（默认 5 层）。 */
     public int tntRunLayerCount = 5;
-    /** 层间距（格，默认 3）。 */
-    public int tntRunLayerGap = 3;
+    /** 层间距（格，默认 6）。 */
+    public int tntRunLayerGap = 6;
     /** 踩过的方块多少 tick 后消失（默认 4 tick = 0.2 秒）。 */
     public int tntRunVanishTicks = 4;
-    /** 二段跳充能间隔（秒，默认 10 秒 1 次）。 */
+    /** 羽毛跳跃充能间隔（秒，默认 10 秒 1 次；右键羽毛向上跳一段）。 */
     public int tntRunDoubleJumpIntervalSeconds = 10;
     /** 地面掉落物刷新间隔（tick，默认 40 = 2 秒）。 */
     public int tntRunDropIntervalTicks = 40;
@@ -292,6 +292,10 @@ public final class PvPConfig {
             changed = true;
         }
         if (this.tntRunLayerGap <= 0) {
+            this.tntRunLayerGap = defaults.tntRunLayerGap;
+            changed = true;
+        } else if (this.tntRunLayerGap == 3) {
+            // 旧默认 3 改为新默认（层距 6 格）
             this.tntRunLayerGap = defaults.tntRunLayerGap;
             changed = true;
         }
