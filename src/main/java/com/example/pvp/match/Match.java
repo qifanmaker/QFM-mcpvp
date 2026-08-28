@@ -1025,6 +1025,8 @@ public final class Match {
 
     /** TNT 跑酷：右键羽毛向上跳一段（充能 1 次，用完后等下一轮充能）。 */
     public void tntRunFeatherJump(ServerPlayerEntity player) {
+        LOGGER.info("[PvP] 羽毛跳跃触发: {} 充能={}", player.getGameProfile().getName(),
+                this.tntRunJumpCharge.getOrDefault(player.getUuid(), 0));
         if (this.type != MatchType.TNT_RUN || this.state != MatchState.ACTIVE
                 || this.eliminated.contains(player.getUuid())) {
             return;
@@ -1035,8 +1037,9 @@ public final class Match {
         }
         this.tntRunJumpCharge.put(player.getUuid(), 0);
         Vec3d v = player.getVelocity();
-        // 向上跳一段：层距 6 格，竖直速度 1.1 约可升 7 格，够上一层平台
-        player.setVelocity(v.x, 1.1, v.z);
+        // 向上跳一段：层距 6 格，竖直速度 1.2 约可升 8 格，够上一层平台（含头顶留白）
+        player.setOnGround(false); // 先脱离地面，确保跳跃速度生效
+        player.setVelocity(v.x, 1.2, v.z);
         player.velocityDirty = true;
         player.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 1.0F, 1.4F);
         if (player.getWorld() instanceof ServerWorld sw) {

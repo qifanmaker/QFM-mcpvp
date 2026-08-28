@@ -295,6 +295,21 @@ public final class PvPMod implements ModInitializer {
             }
             return ActionResult.PASS;
         });
+        // TNT 跑酷：右键羽毛对准方块时也触发跳跃（UseItemCallback 只覆盖"右键空气"路径）
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (!(player instanceof ServerPlayerEntity sp) || !sp.getStackInHand(hand).isOf(Items.FEATHER)) {
+                return ActionResult.PASS;
+            }
+            if (MATCH == null || MATCH.isEliminated(sp.getUuid())) {
+                return ActionResult.PASS;
+            }
+            Match match = MATCH.getMatchFor(sp);
+            if (match != null && match.getType() == MatchType.TNT_RUN && match.getState() == MatchState.ACTIVE) {
+                match.tntRunFeatherJump(sp);
+                return ActionResult.SUCCESS;
+            }
+            return ActionResult.PASS;
+        });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {
                 return ActionResult.FAIL;
