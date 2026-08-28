@@ -50,6 +50,9 @@ import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.network.packet.s2c.play.ScoreboardDisplayS2CPacket;
+import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -449,7 +452,7 @@ public final class Match {
             SkyWarsMapGenerator.removeRing(arena, this.skywarsLayout.mapCenter(),
                     this.skywarsLayout.maxRadius(), keepRadius);
         }
-        this.broadcast(Messages.gold("§c§l缩圈！§r 安全区缩小到半径 §e" + keepRadius + "§r 格"));
+        this.broadcastTitleBig("§c§l缩圈！", "§f安全区缩小到半径 " + keepRadius + " 格");
 
         if (arena != null) {
             for (ServerPlayerEntity player : this.players) {
@@ -680,7 +683,7 @@ public final class Match {
             this.luckyPillarOneHitTicks--;
             if (this.luckyPillarOneHitTicks <= 0) {
                 PvPMod.oneHitKillActive = false;
-                this.broadcast(Messages.warn("§c一击必杀结束"));
+                this.broadcastTitleBig("§c一击必杀结束", null);
             }
         }
 
@@ -755,14 +758,14 @@ public final class Match {
     private void triggerOneHitKill() {
         PvPMod.oneHitKillActive = true;
         this.luckyPillarOneHitTicks = Math.max(20, PvPConfig.INSTANCE.luckyPillarOneHitSeconds * 20);
-        this.broadcast(Messages.error("§4§l一击必杀！！§c " + PvPConfig.INSTANCE.luckyPillarOneHitSeconds
-                + " 秒内所有攻击直接致死！"));
+        this.broadcastTitleBig("§4§l一击必杀！！",
+                "§c" + PvPConfig.INSTANCE.luckyPillarOneHitSeconds + " 秒内所有攻击直接致死！");
     }
 
     /** 箭雨：5 秒内每 10 tick 在随机存活玩家头顶落一支下坠的箭。 */
     private void triggerArrowRain() {
         this.luckyPillarArrowRainTicks = 100;
-        this.broadcast(Messages.warn("§e§l箭雨来袭！快躲开！"));
+        this.broadcastTitleBig("§e§l箭雨来袭！！", "§f快躲开！");
     }
 
     private void spawnRainArrow() {
@@ -803,7 +806,7 @@ public final class Match {
                 }
             }
         }
-        this.broadcast(Messages.warn("§e§l天雷滚滚！！"));
+        this.broadcastTitleBig("§e§l天雷滚滚！！", null);
     }
 
     /** TNT 雨：随机存活玩家头顶落下 TNT（4 秒爆炸，可把玩家炸落柱子）。 */
@@ -823,7 +826,7 @@ public final class Match {
                 }
             }
         }
-        this.broadcast(Messages.warn("§6§lTNT 雨！！快躲开！"));
+        this.broadcastTitleBig("§6§lTNT 雨！！", "§f快躲开！");
     }
 
     /** 位置交换：随机两名存活玩家，3 秒倒计时后互换位置（清速度，避免互换后飞出柱子）。 */
@@ -840,8 +843,9 @@ public final class Match {
         this.luckyPillarSwapA = a.getUuid();
         this.luckyPillarSwapB = b.getUuid();
         this.luckyPillarSwapTicks = 60; // 3 秒倒计时
-        this.broadcast(Messages.warn("§d§l位置交换！！§r 3 秒后 " + a.getGameProfile().getName()
-                + " 与 " + b.getGameProfile().getName() + " 互换位置！"));
+        // 交换前提示：明确告知谁和谁在 3 秒后互换
+        this.broadcastTitleBig("§d§l位置交换！！",
+                "§f3 秒后 " + a.getGameProfile().getName() + " 与 " + b.getGameProfile().getName() + " 互换位置！");
     }
 
     /** 位置交换倒计时结束：执行互换；目标下线/被淘汰则重新挑两人。 */
@@ -881,7 +885,7 @@ public final class Match {
         for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
             LuckyPillarLoot.giveRandomItems(online, this.random, 3);
         }
-        this.broadcast(Messages.info("§a§l补给潮！！全员获得 3 件随机物品！"));
+        this.broadcastTitleBig("§a§l补给潮！！", "§f全员获得 3 件随机物品！");
     }
 
     /** 击杀登记（ALLOW_DEATH 回调），超时决胜用。 */
@@ -980,7 +984,7 @@ public final class Match {
                 this.tntRunJumpCharge.put(online.getUuid(), 1);
                 online.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), SoundCategory.PLAYERS, 1.0F, 1.6F);
             }
-            this.broadcast(Messages.gold("§b羽毛跳跃已就绪！右键羽毛向上跳"));
+            this.broadcastTitleBig("§b羽毛跳跃已就绪！", "§f右键羽毛向上跳");
         }
 
         // 5) 掉出底层平台 → 淘汰
@@ -1162,7 +1166,7 @@ public final class Match {
             this.applyBridgeGear(online);
             online.setInvulnerable(true);
         }
-        this.broadcast(Messages.gold("回合暂停，" + PvPConfig.INSTANCE.countdownSeconds + " 秒后继续！"));
+        this.broadcastTitleBig("§e回合暂停", "§f" + PvPConfig.INSTANCE.countdownSeconds + " 秒后继续");
     }
 
     /** 回合间歇结束：解除所有存活玩家无敌。 */
@@ -2175,12 +2179,22 @@ public final class Match {
         }
     }
 
-    private void broadcastTitle(String subtitle) {
+    /** 屏幕中央大字（Title 系统）提示：主标题 + 可选副标题。 */
+    private void broadcastTitleBig(String title, String subtitle) {
         for (ServerPlayerEntity player : this.players) {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-            if (online != null) {
-                online.sendMessage(Text.literal("§6§l" + subtitle), true);
+            if (online != null && online.networkHandler != null) {
+                online.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 40, 10));
+                if (subtitle != null) {
+                    online.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(subtitle)));
+                }
+                online.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(title)));
             }
         }
+    }
+
+    /** 倒计时/简短提示：屏幕中央大字（不再是动作栏小字）。 */
+    private void broadcastTitle(String text) {
+        this.broadcastTitleBig("§6§l" + text, null);
     }
 }

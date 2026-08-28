@@ -65,8 +65,8 @@ public final class SkyWarsLoot {
             new LootEntry(6, (r, c) -> bow(r, c)),
             new LootEntry(10, (r, c) -> arrow(8 + r.nextInt(9))),
             new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
-            new LootEntry(26, (r, c) -> armor(r, c, false)),
-            new LootEntry(8, (r, c) -> armor(r, c, true)),
+            new LootEntry(32, (r, c) -> armor(r, c, false)),
+            new LootEntry(10, (r, c) -> armor(r, c, true)),
             new LootEntry(8, (r, c) -> food(r)),
             new LootEntry(8, (r, c) -> stack(Items.GOLDEN_APPLE, 1 + r.nextInt(2))),
             new LootEntry(5, (r, c) -> stack(Items.ENDER_PEARL, 1 + r.nextInt(2))),
@@ -95,8 +95,8 @@ public final class SkyWarsLoot {
             new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_AXE, r, c)),
             new LootEntry(8, (r, c) -> bow(r, c)),
             new LootEntry(12, (r, c) -> arrow(12 + r.nextInt(20))),
-            new LootEntry(24, (r, c) -> armor(r, c, true)),
-            new LootEntry(8, (r, c) -> armor(r, c, false)),
+            new LootEntry(30, (r, c) -> armor(r, c, true)),
+            new LootEntry(10, (r, c) -> armor(r, c, false)),
             new LootEntry(10, (r, c) -> stack(Items.GOLDEN_APPLE, 2 + r.nextInt(3))),
             new LootEntry(8, (r, c) -> stack(Items.ENDER_PEARL, 2 + r.nextInt(3))),
             new LootEntry(6, (r, c) -> food(r)),
@@ -125,16 +125,17 @@ public final class SkyWarsLoot {
     public static void populate(ChestBlockEntity chest, boolean middle, int handicap) {
         Random random = new Random();
         List<ItemStack> drops = new ArrayList<>();
-        int stackCount = middle ? 4 + random.nextInt(3) : 3 + random.nextInt(2); // 中间 4~6，出生 3~4
+        int stackCount = middle ? 5 + random.nextInt(3) : 4 + random.nextInt(2); // 中间 5~7，出生 4~5（更丰富）
         int enchantBonus = handicap * 10; // 弱势玩家附魔概率略高
 
-        // 出生箱保底：两小叠搭桥方块（分散放置）+ 两件铁质装备（3 箱合计至少 6 件，铁装几乎必齐）
+        // 出生岛/中途岛保底：两小叠搭桥方块（分散放置）+ 三件铁质装备（3 箱合计 9 件，可凑齐整套甲）；
+        // 附带 10% 基础概率直接升级为钻石装（略微提高钻石护甲刷新率）
         if (!middle) {
             drops.add(bridgeBlocks(random));
             drops.add(bridgeBlocks(random));
-            for (int k = 0; k < 2; k++) {
-                if (handicap > 0 && random.nextInt(100) < handicap * 16) {
-                    // 战绩低：保底铁装更大概率换成钻石装（装备补偿加强）
+            for (int k = 0; k < 3; k++) {
+                if ((handicap > 0 && random.nextInt(100) < handicap * 16)
+                        || random.nextInt(100) < 10) {
                     drops.add(random.nextBoolean()
                             ? weapon(Items.DIAMOND_SWORD, random, 30 + enchantBonus)
                             : armor(random, 30 + enchantBonus, true));
