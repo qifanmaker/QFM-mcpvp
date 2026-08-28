@@ -21,7 +21,8 @@ public class ArenaTemplate {
         FFA,
         SKYWARS,
         BRIDGE,
-        LUCKY_PILLAR
+        LUCKY_PILLAR,
+        TNT_RUN
     }
 
     private final Layout layout;
@@ -102,6 +103,9 @@ public class ArenaTemplate {
             }
             case LUCKY_PILLAR -> {
                 // 幸运之柱出生点由 LuckyPillarLayout 计算（Match 构造时处理），这里返回空避免占位
+            }
+            case TNT_RUN -> {
+                // TNT 跑酷出生点由 TntRunLayout 计算（Match 构造时处理），这里返回空避免占位
             }
         }
         return spawns;

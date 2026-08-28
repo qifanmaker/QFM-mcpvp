@@ -243,6 +243,12 @@ public final class PvpGuiManager {
                     "随机事件：一击必杀/箭雨/雷击/TNT 雨/位置交换/补给潮",
                     "掉出平台下方 20 格淘汰，最后存活者获胜",
                     "点击直接加入"));
+            inv.setStack(25, makeButton(Items.TNT, "§cTNT 跑酷", PvPConfig.INSTANCE.tntRunMinPlayers + "~"
+                    + PvPConfig.INSTANCE.tntRunMaxPlayers + " 人，凑齐 " + PvPConfig.INSTANCE.tntRunStartPlayers + " 人开赛",
+                    "5 层彩色平台，踩过的方块 0.2 秒后掉落",
+                    "每 " + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + " 秒可二段跳一次",
+                    "地面会刷火焰弹/TNT，掉出底层淘汰",
+                    "最后存活者获胜，点击直接加入"));
             inv.setStack(19, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
             inv.setStack(20, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
             inv.setStack(21, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
@@ -440,6 +446,8 @@ public final class PvpGuiManager {
             case 18 -> this.joinQueue(player, MatchType.BRIDGE_TEAM, KitManager.bridgeKit());
             // 幸运之柱无套件（空手开局），直接加入
             case 24 -> this.joinQueue(player, MatchType.LUCKY_PILLAR, KitManager.luckyPillarKit());
+            // TNT 跑酷无套件（空手开局），直接加入
+            case 25 -> this.joinQueue(player, MatchType.TNT_RUN, KitManager.tntRunKit());
             case 19 -> this.openDuelTargetPage(player);
             case 20 -> this.openStatsPage(player);
             case 21 -> this.openKitInfoPage(player);
@@ -558,6 +566,9 @@ public final class PvpGuiManager {
             } else if (type == MatchType.LUCKY_PILLAR) {
                 player.sendMessage(Messages.info("已加入幸运之柱：凑齐 " + PvPConfig.INSTANCE.luckyPillarStartPlayers
                         + " 人开赛，空手开局，随机物品与事件"), false);
+            } else if (type == MatchType.TNT_RUN) {
+                player.sendMessage(Messages.info("已加入 TNT 跑酷：凑齐 " + PvPConfig.INSTANCE.tntRunStartPlayers
+                        + " 人开赛，踩过的方块会掉落"), false);
             } else if (type.isBridge()) {
                 if (type.isBridgeTeam()) {
                     player.sendMessage(Messages.info("已加入战桥混战：需要偶数人数（≥ "

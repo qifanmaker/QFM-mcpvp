@@ -43,6 +43,9 @@ public final class KitManager {
     /** 幸运之柱哨兵套件：空手开局、生存模式，仅作队列占位。 */
     private static Kit luckyPillarKit;
 
+    /** TNT 跑酷哨兵套件：空手开局、生存模式，仅作队列占位。 */
+    private static Kit tntRunKit;
+
     /** 附魔注册表：服务器启动后才可用，用于给套件物品加附魔。 */
     private static Registry<Enchantment> enchantmentRegistry;
 
@@ -69,6 +72,11 @@ public final class KitManager {
                 .build();
         luckyPillarKit = new Kit.Builder("luckypillar", KitType.CUSTOM)
                 .displayName("幸运之柱")
+                .food(20, 5f)
+                .gamemode(GameMode.SURVIVAL)
+                .build();
+        tntRunKit = new Kit.Builder("tntrun", KitType.CUSTOM)
+                .displayName("TNT 跑酷")
                 .food(20, 5f)
                 .gamemode(GameMode.SURVIVAL)
                 .build();
@@ -128,6 +136,11 @@ public final class KitManager {
     /** 幸运之柱哨兵套件（不入 KITS 列表，实际空手开局）。 */
     public static Kit luckyPillarKit() {
         return luckyPillarKit;
+    }
+
+    /** TNT 跑酷哨兵套件（不入 KITS 列表，实际空手开局）。 */
+    public static Kit tntRunKit() {
+        return tntRunKit;
     }
 
     private static Kit buildSwordKit() {

@@ -5,6 +5,7 @@ import com.example.pvp.arena.VoidChunkGenerator;
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.skywars.SkyWarsLoot;
+import com.example.pvp.arena.tntrun.TntRunLayout;
 import com.example.pvp.command.PvPCommands;
 import com.example.pvp.config.KitConfig;
 import com.example.pvp.config.PvPConfig;
@@ -45,6 +46,7 @@ import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.GameMode;
 import net.minecraft.world.World;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -179,6 +181,21 @@ public final class PvPMod implements ModInitializer {
             handler.player.getInventory().clear();
             if (MATCH != null) {
                 MATCH.onPlayerJoin(handler.player);
+            }
+            // 进服强制解除幽灵状态（仅限主城/非场上幽灵）：退出重进有概率残留隐身的浮空/飞行。
+            // 回连正在进行中且已被淘汰的幽灵玩家保留幽灵状态（隐身/浮空），不打断。
+            boolean reconnectingGhost = MATCH != null && MATCH.isInMatch(handler.player.getUuid())
+                    && MATCH.isEliminated(handler.player.getUuid());
+            if (!reconnectingGhost
+                    && handler.player.interactionManager.getGameMode() != GameMode.CREATIVE
+                    && handler.player.interactionManager.getGameMode() != GameMode.SPECTATOR) {
+                handler.player.setInvisible(false);
+                handler.player.setNoGravity(false);
+                if (handler.player.getAbilities().allowFlying || handler.player.getAbilities().flying) {
+                    handler.player.getAbilities().allowFlying = false;
+                    handler.player.getAbilities().flying = false;
+                    handler.player.sendAbilitiesUpdate();
+                }
             }
             PvpGuiManager.get().giveMenuItem(handler.player);
             PvpGuiManager.removeQueueItem(handler.player); // 清理断线残留的排队红石
@@ -336,6 +353,14 @@ public final class PvPMod implements ModInitializer {
                     }
                     LuckyPillarLayout layout = match.luckyPillarLayout();
                     return layout == null || !layout.contains(pos);
+                }
+                // TNT 跑酷：平台方块不可拆（踩过的会自然掉落），玩家放置的方块可拆
+                if (match != null && match.getType() == MatchType.TNT_RUN) {
+                    if (match.getState() != MatchState.ACTIVE) {
+                        return false; // 倒计时/庆祝中禁止破坏
+                    }
+                    TntRunLayout layout = match.tntRunLayout();
+                    return layout == null || !layout.isPlatformBlock(pos);
                 }
             }
             return true;

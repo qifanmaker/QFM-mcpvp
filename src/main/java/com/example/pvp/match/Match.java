@@ -8,6 +8,8 @@ import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLoot;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
+import com.example.pvp.arena.tntrun.TntRunLayout;
+import com.example.pvp.mixin.LivingEntityMixin;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
 import com.example.pvp.config.PvPConfig;
@@ -20,6 +22,7 @@ import com.example.pvp.kit.KitApplicator;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.ints.IntList;
+import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FireworkExplosionComponent;
 import net.minecraft.component.type.FireworksComponent;
@@ -33,9 +36,13 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.projectile.ArrowEntity;
 import net.minecraft.entity.projectile.FireworkRocketEntity;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.scoreboard.AbstractTeam;
 import net.minecraft.scoreboard.ScoreHolder;
 import net.minecraft.scoreboard.Scoreboard;
@@ -113,7 +120,18 @@ public final class Match {
     private int luckyPillarOneHitTicks; // 一击必杀剩余时长（>0 表示生效中）
     private int luckyPillarArrowRainTicks; // 箭雨剩余时长
     private final Map<UUID, Integer> luckyPillarKills = new HashMap<>(); // 击杀数（超时决胜用）
+    private int luckyPillarSwapTicks; // 位置交换倒计时（>0 表示即将交换）
+    private UUID luckyPillarSwapA;
+    private UUID luckyPillarSwapB;
     private final Random random = new Random();
+
+    /** TNT 跑酷地图布局（仅 TNT_RUN 模式非空，方块消失判定/清理用）。 */
+    private final TntRunLayout tntRunLayout;
+    private final Map<UUID, Integer> tntRunJumpCharge = new HashMap<>(); // 二段跳次数（0/1）
+    private int tntRunJumpTimer; // 二段跳充能计时（tick）
+    private int tntRunDropTimer; // 掉落物刷新计时（tick）
+    private final Map<BlockPos, Integer> tntRunVanish = new HashMap<>(); // 待消失方块 → 到期 tick
+    private final Map<UUID, Boolean> tntRunLastJump = new HashMap<>(); // 上一 tick 跳跃输入
 
     private MatchTeam winnerTeam;
     private int celebrationTicks;
@@ -157,12 +175,14 @@ public final class Match {
             this.skywarsLayout = SkyWarsLayout.compute(template.getCenter(regionIndex), seed, this.players.size());
             this.bridgeLayout = null;
             this.luckyPillarLayout = null;
+            this.tntRunLayout = null;
             spawnPositions = this.skywarsLayout.spawns();
         } else if (type.isBridge()) {
             this.skywarsLayout = null;
             this.skywarsTheme = null;
             this.skywarsSeed = id;
             this.luckyPillarLayout = null;
+            this.tntRunLayout = null;
             this.bridgeLayout = BridgeLayout.compute(template.getCenter(regionIndex),
                     this.players.size(), type == MatchType.BRIDGE_1V1V1V1);
             // 每人出生点 = 所属队伍（teams 顺序即基地顺序）对应的笼位
@@ -183,15 +203,27 @@ public final class Match {
             this.skywarsTheme = null;
             this.skywarsSeed = id;
             this.bridgeLayout = null;
+            this.tntRunLayout = null;
             this.luckyPillarLayout = LuckyPillarLayout.compute(template.getCenter(regionIndex),
                     id, this.players.size());
             spawnPositions = this.luckyPillarLayout.spawns();
+        } else if (type == MatchType.TNT_RUN) {
+            this.skywarsLayout = null;
+            this.skywarsTheme = null;
+            this.skywarsSeed = id;
+            this.bridgeLayout = null;
+            this.luckyPillarLayout = null;
+            PvPConfig cfg = PvPConfig.INSTANCE;
+            this.tntRunLayout = TntRunLayout.compute(template.getCenter(regionIndex),
+                    Math.max(3, cfg.tntRunSize / 2), cfg.tntRunLayerCount, Math.max(2, cfg.tntRunLayerGap));
+            spawnPositions = this.tntRunLayout.spawns;
         } else {
             this.skywarsLayout = null;
             this.skywarsTheme = null;
             this.skywarsSeed = id;
             this.bridgeLayout = null;
             this.luckyPillarLayout = null;
+            this.tntRunLayout = null;
             spawnPositions = template.computeSpawns(regionIndex, this.players.size());
         }
         for (int i = 0; i < this.players.size(); i++) {
@@ -270,6 +302,8 @@ public final class Match {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.bridgeTimeoutSeconds * 20);
         } else if (this.type == MatchType.LUCKY_PILLAR) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.luckyPillarTimeoutSeconds * 20);
+        } else if (this.type == MatchType.TNT_RUN) {
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.tntRunTimeoutSeconds * 20);
         } else {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
         }
@@ -309,6 +343,9 @@ public final class Match {
                 }
                 if (this.type == MatchType.LUCKY_PILLAR) {
                     this.tickLuckyPillar();
+                }
+                if (this.type == MatchType.TNT_RUN) {
+                    this.tickTntRun();
                 }
                 this.checkWinCondition();
             }
@@ -595,7 +632,7 @@ public final class Match {
         // 随机物品发放：每隔 N 秒每名存活玩家获得 1 件（动作栏提示，不广播刷屏）
         if (--this.luckyPillarItemTicks <= 0) {
             this.luckyPillarItemTicks = cfg.luckyPillarItemIntervalSeconds * 20;
-            for (ServerPlayerEntity online : this.luckyPillarAliveOnline()) {
+            for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
                 LuckyPillarLoot.giveRandomItem(online, this.random);
             }
         }
@@ -625,9 +662,20 @@ public final class Match {
             }
         }
 
+        // 位置交换倒计时：3 秒后执行互换（目标失效则重新挑选）
+        if (this.luckyPillarSwapTicks > 0) {
+            this.luckyPillarSwapTicks--;
+            if (this.luckyPillarSwapTicks % 20 == 0) {
+                this.broadcastTitle("位置交换 " + ((this.luckyPillarSwapTicks + 19) / 20) + "s");
+            }
+            if (this.luckyPillarSwapTicks <= 0) {
+                this.performPositionSwap();
+            }
+        }
+
         // 掉入虚空且持有不死图腾 → 消耗救回自己柱顶（每 tick 检查，先于死亡判定保证必被救到）
         double rescueY = ArenaTemplate.PLATFORM_Y - 8;
-        for (ServerPlayerEntity online : this.luckyPillarAliveOnline()) {
+        for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
             if (online.getY() < rescueY && !online.isOnGround()) {
                 this.tryTotemSave(online);
             }
@@ -636,7 +684,7 @@ public final class Match {
         // 掉出平台下方 20 格 → 淘汰（"掉下平台 20 格死亡"）
         if (this.luckyPillarLayout != null) {
             int deathY = this.luckyPillarLayout.platformY() - LuckyPillarLayout.FALL_DEATH_BELOW_PLATFORM;
-            for (ServerPlayerEntity online : this.luckyPillarAliveOnline()) {
+            for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
                 if (online.getY() < deathY) {
                     this.eliminate(online, EliminationCause.VOID);
                 }
@@ -644,8 +692,8 @@ public final class Match {
         }
     }
 
-    /** 当前存活的在线玩家列表（幸运之柱通用遍历用，排除幽灵/离线）。 */
-    private List<ServerPlayerEntity> luckyPillarAliveOnline() {
+    /** 当前存活的在线玩家列表（竞技场内、排除幽灵/离线，幸运之柱/TNT 跑酷通用）。 */
+    private List<ServerPlayerEntity> aliveOnlineInArena() {
         List<ServerPlayerEntity> list = new ArrayList<>();
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         for (ServerPlayerEntity player : this.players) {
@@ -692,7 +740,7 @@ public final class Match {
         if (arena == null) {
             return;
         }
-        List<ServerPlayerEntity> alive = this.luckyPillarAliveOnline();
+        List<ServerPlayerEntity> alive = this.aliveOnlineInArena();
         if (alive.isEmpty()) {
             return;
         }
@@ -715,7 +763,7 @@ public final class Match {
     private void triggerLightning() {
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena != null) {
-            List<ServerPlayerEntity> alive = this.luckyPillarAliveOnline();
+            List<ServerPlayerEntity> alive = this.aliveOnlineInArena();
             for (int i = 0; i < 3 && !alive.isEmpty(); i++) {
                 ServerPlayerEntity target = alive.get(this.random.nextInt(alive.size()));
                 LightningEntity bolt = EntityType.LIGHTNING_BOLT.create(arena);
@@ -728,11 +776,11 @@ public final class Match {
         this.broadcast(Messages.warn("§e§l天雷滚滚！！"));
     }
 
-    /** TNT 雨：随机存活玩家头顶落下 TNT（2 秒爆炸，可把玩家炸落柱子）。 */
+    /** TNT 雨：随机存活玩家头顶落下 TNT（4 秒爆炸，可把玩家炸落柱子）。 */
     private void triggerTntRain() {
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena != null) {
-            List<ServerPlayerEntity> alive = this.luckyPillarAliveOnline();
+            List<ServerPlayerEntity> alive = this.aliveOnlineInArena();
             for (int i = 0; i < 4 && !alive.isEmpty(); i++) {
                 ServerPlayerEntity target = alive.get(this.random.nextInt(alive.size()));
                 for (int k = 0; k < 2; k++) {
@@ -740,7 +788,7 @@ public final class Match {
                             target.getX() + (this.random.nextDouble() - 0.5) * 2.0,
                             target.getY() + 10 + this.random.nextInt(3),
                             target.getZ() + (this.random.nextDouble() - 0.5) * 2.0, null);
-                    tnt.setFuse(40);
+                    tnt.setFuse(80); // 4 秒爆炸（比默认 2 秒多 2 秒，给人反应时间）
                     arena.spawnEntity(tnt);
                 }
             }
@@ -748,13 +796,9 @@ public final class Match {
         this.broadcast(Messages.warn("§6§lTNT 雨！！快躲开！"));
     }
 
-    /** 位置交换：随机两名存活玩家互换位置（清速度，避免互换后飞出柱子）。 */
+    /** 位置交换：随机两名存活玩家，3 秒倒计时后互换位置（清速度，避免互换后飞出柱子）。 */
     private void triggerPositionSwap() {
-        ArenaWorld arena = this.manager.getArenaManager().getWorld();
-        if (arena == null) {
-            return;
-        }
-        List<ServerPlayerEntity> alive = this.luckyPillarAliveOnline();
+        List<ServerPlayerEntity> alive = this.aliveOnlineInArena();
         if (alive.size() < 2) {
             return;
         }
@@ -762,6 +806,34 @@ public final class Match {
         ServerPlayerEntity b = alive.get(this.random.nextInt(alive.size()));
         if (a == b) {
             b = alive.get((alive.indexOf(a) + 1) % alive.size());
+        }
+        this.luckyPillarSwapA = a.getUuid();
+        this.luckyPillarSwapB = b.getUuid();
+        this.luckyPillarSwapTicks = 60; // 3 秒倒计时
+        this.broadcast(Messages.warn("§d§l位置交换！！§r 3 秒后 " + a.getGameProfile().getName()
+                + " 与 " + b.getGameProfile().getName() + " 互换位置！"));
+    }
+
+    /** 位置交换倒计时结束：执行互换；目标下线/被淘汰则重新挑两人。 */
+    private void performPositionSwap() {
+        this.luckyPillarSwapTicks = 0;
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        ServerPlayerEntity a = this.manager.getOnlinePlayer(this.luckyPillarSwapA);
+        ServerPlayerEntity b = this.manager.getOnlinePlayer(this.luckyPillarSwapB);
+        if (a == null || b == null || a == b
+                || this.eliminated.contains(a.getUuid()) || this.eliminated.contains(b.getUuid())) {
+            List<ServerPlayerEntity> alive = this.aliveOnlineInArena();
+            if (alive.size() < 2) {
+                return;
+            }
+            a = alive.get(this.random.nextInt(alive.size()));
+            b = alive.get(this.random.nextInt(alive.size()));
+            if (a == b) {
+                b = alive.get((alive.indexOf(a) + 1) % alive.size());
+            }
         }
         double ax = a.getX(), ay = a.getY(), az = a.getZ();
         float ayaw = a.getYaw(), apitch = a.getPitch();
@@ -776,7 +848,7 @@ public final class Match {
 
     /** 补给潮：全体存活玩家立即各得 3 件随机物品。 */
     private void triggerSupplyRush() {
-        for (ServerPlayerEntity online : this.luckyPillarAliveOnline()) {
+        for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
             LuckyPillarLoot.giveRandomItems(online, this.random, 3);
         }
         this.broadcast(Messages.info("§a§l补给潮！！全员获得 3 件随机物品！"));
@@ -816,6 +888,108 @@ public final class Match {
             return this.luckyPillarTimeoutWinner();
         }
         return null;
+    }
+
+    // ---------- TNT 跑酷 (TNT Run) ----------
+
+    /** TNT 跑酷每帧逻辑：方块消失、二段跳、掉落物刷新、掉出底层淘汰。 */
+    private void tickTntRun() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+
+        // 1) 处理待消失方块（到点置空气 + 粒子提示）
+        if (arena != null) {
+            for (Map.Entry<BlockPos, Integer> entry : List.copyOf(this.tntRunVanish.entrySet())) {
+                if (this.ticks >= entry.getValue()) {
+                    BlockPos pos = entry.getKey();
+                    this.tntRunVanish.remove(pos);
+                    if (!arena.getBlockState(pos).isAir()) {
+                        arena.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                        if (arena instanceof ServerWorld sw) {
+                            sw.spawnParticles(ParticleTypes.POOF, pos.getX() + 0.5, pos.getY() + 0.5,
+                                    pos.getZ() + 0.5, 6, 0.25, 0.25, 0.25, 0.01);
+                        }
+                    }
+                }
+            }
+
+            // 2) 玩家踩过的平台方块：tntRunVanishTicks（0.2 秒）后消失
+            for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
+                BlockPos below = online.getBlockPos().down();
+                if (this.tntRunLayout != null && this.tntRunLayout.isPlatformBlock(below)
+                        && !this.tntRunVanish.containsKey(below)) {
+                    this.tntRunVanish.put(below, this.ticks + Math.max(1, cfg.tntRunVanishTicks));
+                }
+            }
+        }
+
+        // 3) 二段跳充能：每 tntRunDoubleJumpIntervalSeconds 秒给 1 次（最多 1 次）
+        if (++this.tntRunJumpTimer >= cfg.tntRunDoubleJumpIntervalSeconds * 20) {
+            this.tntRunJumpTimer = 0;
+            for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
+                this.tntRunJumpCharge.put(online.getUuid(), 1);
+                online.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), SoundCategory.PLAYERS, 1.0F, 1.6F);
+            }
+            this.broadcast(Messages.gold("§b二段跳已就绪！空中再按一次空格"));
+        }
+        // 4) 二段跳：空中"松开再按跳"（跳跃输入上升沿）且次数 > 0 → 上升
+        for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
+            boolean jumping = ((LivingEntityMixin) (Object) online).pvp$isJumping();
+            Boolean last = this.tntRunLastJump.getOrDefault(online.getUuid(), false);
+            this.tntRunLastJump.put(online.getUuid(), jumping);
+            if (jumping && !last && !online.isOnGround()
+                    && this.tntRunJumpCharge.getOrDefault(online.getUuid(), 0) > 0) {
+                this.tntRunJumpCharge.put(online.getUuid(), 0);
+                Vec3d v = online.getVelocity();
+                online.setVelocity(v.x, 0.9, v.z);
+                online.velocityDirty = true;
+                online.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 1.0F, 1.4F);
+            }
+        }
+
+        // 5) 掉出底层平台 → 淘汰
+        double deathY = ArenaTemplate.PLATFORM_Y - 8;
+        for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
+            if (online.getY() < deathY) {
+                this.eliminate(online, EliminationCause.VOID);
+            }
+        }
+
+        // 6) 地面随机刷新火焰弹/TNT 掉落物（纯物品实体，不触发方块消失）
+        if (++this.tntRunDropTimer >= Math.max(10, cfg.tntRunDropIntervalTicks)) {
+            this.tntRunDropTimer = 0;
+            this.spawnTntRunDrops();
+        }
+    }
+
+    /** TNT 跑酷地面刷新掉落物：在仍有方块的最上层随机放火焰弹/TNT。 */
+    private void spawnTntRunDrops() {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null || this.tntRunLayout == null) {
+            return;
+        }
+        int half = this.tntRunLayout.halfSize;
+        int cx = this.tntRunLayout.mapCenter.getX();
+        int cz = this.tntRunLayout.mapCenter.getZ();
+        for (int i = 0; i < 2; i++) {
+            int x = cx + this.random.nextInt(half * 2 + 1) - half;
+            int z = cz + this.random.nextInt(half * 2 + 1) - half;
+            for (int layer = this.tntRunLayout.layerYs.size() - 1; layer >= 0; layer--) {
+                int y = this.tntRunLayout.layerYs.get(layer);
+                if (!arena.getBlockState(new BlockPos(x, y, z)).isAir()) {
+                    Item item = this.random.nextBoolean() ? Items.FIRE_CHARGE : Items.TNT;
+                    ItemEntity entity = new ItemEntity(arena, x + 0.5, y + 1.0, z + 0.5, new ItemStack(item));
+                    entity.setVelocity(0, 0.1, 0);
+                    arena.spawnEntity(entity);
+                    break;
+                }
+            }
+        }
+    }
+
+    /** TNT 跑酷地图布局（方块消失判定/破坏保护用），非 TNT 跑酷模式返回 null。 */
+    public TntRunLayout tntRunLayout() {
+        return this.tntRunLayout;
     }
 
     // ---------- 战桥 (Bridge) ----------
@@ -1211,6 +1385,8 @@ public final class Match {
                 mapMaxRadius = this.bridgeLayout.maxRadius();
             } else if (this.luckyPillarLayout != null) {
                 mapMaxRadius = this.luckyPillarLayout.maxRadius();
+            } else if (this.tntRunLayout != null) {
+                mapMaxRadius = this.tntRunLayout.maxRadius;
             } else {
                 mapMaxRadius = 0;
             }
@@ -1244,17 +1420,19 @@ public final class Match {
         inventory.clear();
     }
 
-    /** 将玩家转为"幽灵"：冒险模式 + 空物品栏 + 无敌 + 隐身 + 可自由飞行，无法与对局任何交互。 */
+    /**
+     * 将玩家转为"幽灵"：旁观者模式（完全隐身，其他玩家看不到）+ 空物品栏 + 无敌 + 可自由飞行，
+     * 无法与对局任何交互。注意 vanilla 的 setInvisible 只是半透明（身体仍隐约可见），
+     * 只有旁观者模式才能真正做到完全隐身。
+     */
     public void makeGhost(ServerPlayerEntity player) {
-        player.changeGameMode(GameMode.ADVENTURE);
+        player.changeGameMode(GameMode.SPECTATOR);
         player.getInventory().clear();
         player.setInvulnerable(true);
         player.setHealth(20f);
         player.setNoGravity(true);
-        // 幽灵隐身：不显示身体/手持物品，也不会有隐身药水粒子（无效果，纯 setInvisible）
         player.clearStatusEffects();
-        player.setInvisible(true);
-        // 幽灵可任意飞行（赛后由 InventorySnapshot.restore 还原能力与隐身）
+        player.setInvisible(true); // 冗余保险（旁观者天然隐身）
         player.getAbilities().allowFlying = true;
         player.getAbilities().flying = true;
         player.sendAbilitiesUpdate();
@@ -1429,6 +1607,11 @@ public final class Match {
             this.setupPlayers();
         }
 
+        // 幸运之柱：开局倒计时玩家不能移动（可旋转视角）——把偏离出生点的玩家拉回
+        if (this.type == MatchType.LUCKY_PILLAR) {
+            this.lockLuckyPillarPlayersToSpawn();
+        }
+
         if (this.countdownTicks > 0) {
             if (this.countdownTicks % 20 == 0) {
                 int seconds = this.countdownTicks / 20;
@@ -1454,6 +1637,33 @@ public final class Match {
         }
     }
 
+    /** 幸运之柱开局倒计时：把玩家锁在出生点（不能移动，但允许旋转视角——保留 yaw/pitch）。 */
+    private void lockLuckyPillarPlayersToSpawn() {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null || online.getWorld() != arena) {
+                continue;
+            }
+            BlockPos spawn = this.spawns.get(player.getUuid());
+            if (spawn == null) {
+                continue;
+            }
+            double tx = spawn.getX() + 0.5;
+            double tz = spawn.getZ() + 0.5;
+            double dx = online.getX() - tx;
+            double dz = online.getZ() - tz;
+            if (dx * dx + dz * dz > 0.02 || online.getY() < spawn.getY() - 0.1) {
+                online.teleport(arena, tx, spawn.getY(), tz, online.getYaw(), online.getPitch());
+                online.setVelocity(Vec3d.ZERO);
+                online.velocityDirty = true;
+            }
+        }
+    }
+
     private void setupPlayers() {
         this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.skywarsSeed,
                 this.players.size(), this.type, this.players);
@@ -1462,6 +1672,7 @@ public final class Match {
         boolean skywars = this.type == MatchType.SKYWARS;
         boolean bridge = this.type.isBridge();
         boolean luckyPillar = this.type == MatchType.LUCKY_PILLAR;
+        boolean tntRun = this.type == MatchType.TNT_RUN;
         for (ServerPlayerEntity player : this.players) {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online == null) {
@@ -1497,6 +1708,18 @@ public final class Match {
                 online.clearStatusEffects();
                 online.changeGameMode(GameMode.SURVIVAL);
                 online.currentScreenHandler.sendContentUpdates();
+            } else if (tntRun) {
+                // TNT 跑酷：无套件，生存模式空手开局，靠地面刷新掉落物
+                online.getInventory().clear();
+                online.setHealth(online.getMaxHealth());
+                online.getHungerManager().setFoodLevel(20);
+                online.getHungerManager().setSaturationLevel(5f);
+                online.setAbsorptionAmount(0);
+                online.setFireTicks(0);
+                online.fallDistance = 0;
+                online.clearStatusEffects();
+                online.changeGameMode(GameMode.SURVIVAL);
+                online.currentScreenHandler.sendContentUpdates();
             } else {
                 Kit playerKit = this.playerKits.get(player.getUuid());
                 if (playerKit == null) {
@@ -1518,6 +1741,9 @@ public final class Match {
         } else if (luckyPillar) {
             this.broadcast(Messages.info("幸运之柱开始！空手站在柱顶，每 §e"
                     + PvPConfig.INSTANCE.luckyPillarItemIntervalSeconds + "§r 秒获得随机物品，还会触发随机事件！最后的幸存者获胜！（1.8 低版本战斗）"));
+        } else if (tntRun) {
+            this.broadcast(Messages.info("TNT 跑酷开始！踩过的方块 §e0.2 秒§r 后掉落，掉出底层即淘汰；每 §e"
+                    + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + "§r 秒可二段跳一次，地面会刷火焰弹/TNT，最后的幸存者获胜！"));
         } else {
             this.broadcast(Messages.info("对局开始！模式：" + this.type.getDisplayName() + "，套件：" + this.kit.getDisplayName()));
         }
@@ -1716,6 +1942,11 @@ public final class Match {
                     this.setInfoLine(scoreboard, objective, "§d下次事件 §f" + evSec + "s", score--);
                 }
             }
+            if (this.type == MatchType.TNT_RUN) {
+                int rem = Math.max(0, (PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds * 20
+                        - this.tntRunJumpTimer + 19) / 20);
+                this.setInfoLine(scoreboard, objective, "§b下次二段跳 §f" + rem + "s", score--);
+            }
             this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
             for (ServerPlayerEntity player : this.players) {
                 if (score < 0) {
@@ -1784,6 +2015,7 @@ public final class Match {
             case BRIDGE_1V1V1V1 -> "§5";
             case BRIDGE_TEAM -> "§e";
             case LUCKY_PILLAR -> "§d";
+            case TNT_RUN -> "§4";
         };
         return "模式: " + color + this.type.getDisplayName();
     }

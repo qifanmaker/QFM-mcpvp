@@ -16,7 +16,8 @@ public enum MatchType {
     BRIDGE_1V1V1V1("bridge1v1v1v1", "战桥 1v1v1v1"),
     BRIDGE_2V2("bridge2v2", "战桥 2v2"),
     BRIDGE_TEAM("bridge", "战桥 混战"),
-    LUCKY_PILLAR("luckypillar", "幸运之柱");
+    LUCKY_PILLAR("luckypillar", "幸运之柱"),
+    TNT_RUN("tntrun", "TNT 跑酷");
 
     private final String id;
     private final String displayName;
@@ -42,6 +43,7 @@ public enum MatchType {
             case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;
             case BRIDGE_TEAM -> PvPConfig.INSTANCE.bridgeTeamMinPlayers;
             case LUCKY_PILLAR -> PvPConfig.INSTANCE.luckyPillarMinPlayers;
+            case TNT_RUN -> PvPConfig.INSTANCE.tntRunMinPlayers;
         };
     }
 
@@ -55,9 +57,9 @@ public enum MatchType {
         return this == BRIDGE_TEAM;
     }
 
-    /** 是否"最后存活者获胜"的 FFA 淘汰类玩法（自由乱斗 / 空岛战争 / 幸运之柱）。 */
+    /** 是否"最后存活者获胜"的 FFA 淘汰类玩法（自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷）。 */
     public boolean isLastManStanding() {
-        return this == FFA || this == SKYWARS || this == LUCKY_PILLAR;
+        return this == FFA || this == SKYWARS || this == LUCKY_PILLAR || this == TNT_RUN;
     }
 
     public static MatchType byId(String id) {

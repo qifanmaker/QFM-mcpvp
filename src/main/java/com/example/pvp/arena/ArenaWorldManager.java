@@ -5,6 +5,9 @@ import com.example.pvp.arena.bridge.BridgeMapGenerator;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
+import com.example.pvp.arena.tntrun.TntRunLayout;
+import com.example.pvp.arena.tntrun.TntRunMapGenerator;
+import com.example.pvp.config.PvPConfig;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.mixin.MinecraftServerAccess;
 import com.example.pvp.util.PvpDimensionOptions;
@@ -186,6 +189,15 @@ public final class ArenaWorldManager {
             return;
         }
 
+        // TNT 跑酷：多层方形平台（踩过的方块掉落）
+        if (template.getLayout() == ArenaTemplate.Layout.TNT_RUN) {
+            TntRunLayout layout = TntRunLayout.compute(template.getCenter(regionIndex),
+                    Math.max(3, PvPConfig.INSTANCE.tntRunSize / 2), PvPConfig.INSTANCE.tntRunLayerCount,
+                    Math.max(2, PvPConfig.INSTANCE.tntRunLayerGap));
+            TntRunMapGenerator.generate(arena, layout);
+            return;
+        }
+
         BlockPos origin = template.getRegionOrigin(regionIndex);
         int size = template.getSize();
 
@@ -228,6 +240,9 @@ public final class ArenaWorldManager {
         } else if (template.getLayout() == ArenaTemplate.Layout.LUCKY_PILLAR) {
             // 幸运之柱：按地图中心 ± 实际最大半径清空（含高柱/平台/掉落物）
             LuckyPillarMapGenerator.clear(arena, regionIndex, mapMaxRadius);
+        } else if (template.getLayout() == ArenaTemplate.Layout.TNT_RUN) {
+            // TNT 跑酷：清空多层平台
+            TntRunMapGenerator.clear(arena, regionIndex, mapMaxRadius);
         } else {
             BlockPos origin = template.getRegionOrigin(regionIndex);
             int size = template.getSize();

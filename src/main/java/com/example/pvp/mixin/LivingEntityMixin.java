@@ -8,15 +8,22 @@ import com.example.pvp.match.MatchType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 /**
  * 1.8 模式：剑格挡时受到的伤害减半（模拟 1.8.9 的剑格挡）。
  * 幸运之柱"一击必杀"事件：开启时对应 ACTIVE 幸运之柱对局的玩家所有伤害直接致死。
+ * TNT 跑酷二段跳：暴露 protected 的跳跃输入字段。
  */
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {
+
+    /** TNT 跑酷二段跳：读取玩家当前是否在按跳跃键（服务端由 updateInput 写入）。 */
+    @Accessor("jumping")
+    public abstract boolean pvp$isJumping();
+
     @ModifyArg(
             method = "damage",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/LivingEntity;applyDamage(Lnet/minecraft/entity/damage/DamageSource;F)V"),

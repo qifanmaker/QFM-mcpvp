@@ -93,7 +93,7 @@ public final class MatchManager {
         this.applyLobbyProtection();
     }
 
-    /** 大厅保护：不在对局中的玩家 → 冒险模式 + 无敌 + 饱食度不掉。 */
+    /** 大厅保护：不在对局中的玩家 → 冒险模式 + 无敌 + 饱食度不掉，并强制解除幽灵状态。 */
     private void applyLobbyProtection() {
         if (!PvPConfig.INSTANCE.lobbyProtection) {
             return;
@@ -106,9 +106,18 @@ public final class MatchManager {
             GameMode mode = player.interactionManager.getGameMode();
             if (mode == GameMode.SURVIVAL) {
                 player.changeGameMode(GameMode.ADVENTURE);
+                mode = GameMode.ADVENTURE;
             }
             player.setInvulnerable(true);
-            player.setInvisible(false); // 主城一律显形（防止幽灵隐身状态残留）
+            // 强制非幽灵：显形 + 正常重力 + 取消幽灵飞行（创造/旁观者保留自然飞行）
+            player.setInvisible(false);
+            player.setNoGravity(false);
+            if (mode != GameMode.CREATIVE && mode != GameMode.SPECTATOR
+                    && (player.getAbilities().allowFlying || player.getAbilities().flying)) {
+                player.getAbilities().allowFlying = false;
+                player.getAbilities().flying = false;
+                player.sendAbilitiesUpdate();
+            }
             player.getHungerManager().setFoodLevel(20);
             player.getHungerManager().setSaturationLevel(20f);
         }
@@ -143,6 +152,11 @@ public final class MatchManager {
         } else if (type == MatchType.LUCKY_PILLAR) {
             if (players.size() < PvPConfig.INSTANCE.luckyPillarMinPlayers
                     || players.size() > PvPConfig.INSTANCE.luckyPillarMaxPlayers) {
+                return false;
+            }
+        } else if (type == MatchType.TNT_RUN) {
+            if (players.size() < PvPConfig.INSTANCE.tntRunMinPlayers
+                    || players.size() > PvPConfig.INSTANCE.tntRunMaxPlayers) {
                 return false;
             }
         } else if (type.isBridge()) {
@@ -322,6 +336,7 @@ public final class MatchManager {
             case SKYWARS -> PvPConfig.INSTANCE.skywarsSize;
             case BRIDGE_1V1, BRIDGE_2V2, BRIDGE_1V1V1V1, BRIDGE_TEAM -> PvPConfig.INSTANCE.bridgeSize;
             case LUCKY_PILLAR -> PvPConfig.INSTANCE.luckyPillarSize;
+            case TNT_RUN -> PvPConfig.INSTANCE.tntRunSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
@@ -330,10 +345,11 @@ public final class MatchManager {
             case SKYWARS -> ArenaTemplate.Layout.SKYWARS;
             case BRIDGE_1V1, BRIDGE_2V2, BRIDGE_1V1V1V1, BRIDGE_TEAM -> ArenaTemplate.Layout.BRIDGE;
             case LUCKY_PILLAR -> ArenaTemplate.Layout.LUCKY_PILLAR;
+            case TNT_RUN -> ArenaTemplate.Layout.TNT_RUN;
         };
-        // 相扑/空岛/战桥/幸运之柱无围墙；空岛/战桥/幸运之柱地图本身由各自生成器铺
+        // 相扑/空岛/战桥/幸运之柱/TNT 跑酷无围墙；其地图本身由各自生成器铺
         boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
-                && type != MatchType.LUCKY_PILLAR;
+                && type != MatchType.LUCKY_PILLAR && type != MatchType.TNT_RUN;
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 

@@ -116,6 +116,29 @@ public final class PvPConfig {
     /** 柱顶下方多少格有一圈大平台（即柱高，默认 40 格；掉出平台下方 20 格死亡）。 */
     public int luckyPillarPlatformGap = 40;
 
+    // ---------- TNT 跑酷 (TNT Run) ----------
+    /** 最少/触发开赛倒计时/最多人数。默认凑齐 4 人开赛，最少 2 人可开。 */
+    public int tntRunMinPlayers = 2;
+    public int tntRunStartPlayers = 4;
+    public int tntRunMaxPlayers = 8;
+    /** 开赛倒计时（秒）；不足开赛人数时等待填充的最长时间（秒）。 */
+    public int tntRunCountdownSeconds = 30;
+    public int tntRunFillTimeoutSeconds = 60;
+    /** 平台边长（每层方形，默认 31 格）。 */
+    public int tntRunSize = 31;
+    /** 层数（默认 5 层）。 */
+    public int tntRunLayerCount = 5;
+    /** 层间距（格，默认 3）。 */
+    public int tntRunLayerGap = 3;
+    /** 踩过的方块多少 tick 后消失（默认 4 tick = 0.2 秒）。 */
+    public int tntRunVanishTicks = 4;
+    /** 二段跳充能间隔（秒，默认 10 秒 1 次）。 */
+    public int tntRunDoubleJumpIntervalSeconds = 10;
+    /** 地面掉落物刷新间隔（tick，默认 40 = 2 秒）。 */
+    public int tntRunDropIntervalTicks = 40;
+    /** 对局超时（秒）：超过后击杀最多者胜，无击杀平局。 */
+    public int tntRunTimeoutSeconds = 600;
+
     private PvPConfig() {
     }
 
@@ -238,6 +261,54 @@ public final class PvPConfig {
         } else if (this.luckyPillarPlatformGap == 20) {
             // 旧默认 20 改为新默认（柱高 40 格，平台保持在地图中心高度）
             this.luckyPillarPlatformGap = defaults.luckyPillarPlatformGap;
+            changed = true;
+        }
+        if (this.tntRunMinPlayers <= 0) {
+            this.tntRunMinPlayers = defaults.tntRunMinPlayers;
+            changed = true;
+        }
+        if (this.tntRunStartPlayers <= 0) {
+            this.tntRunStartPlayers = defaults.tntRunStartPlayers;
+            changed = true;
+        }
+        if (this.tntRunMaxPlayers <= 0) {
+            this.tntRunMaxPlayers = defaults.tntRunMaxPlayers;
+            changed = true;
+        }
+        if (this.tntRunCountdownSeconds <= 0) {
+            this.tntRunCountdownSeconds = defaults.tntRunCountdownSeconds;
+            changed = true;
+        }
+        if (this.tntRunFillTimeoutSeconds <= 0) {
+            this.tntRunFillTimeoutSeconds = defaults.tntRunFillTimeoutSeconds;
+            changed = true;
+        }
+        if (this.tntRunSize <= 0) {
+            this.tntRunSize = defaults.tntRunSize;
+            changed = true;
+        }
+        if (this.tntRunLayerCount <= 0) {
+            this.tntRunLayerCount = defaults.tntRunLayerCount;
+            changed = true;
+        }
+        if (this.tntRunLayerGap <= 0) {
+            this.tntRunLayerGap = defaults.tntRunLayerGap;
+            changed = true;
+        }
+        if (this.tntRunVanishTicks <= 0) {
+            this.tntRunVanishTicks = defaults.tntRunVanishTicks;
+            changed = true;
+        }
+        if (this.tntRunDoubleJumpIntervalSeconds <= 0) {
+            this.tntRunDoubleJumpIntervalSeconds = defaults.tntRunDoubleJumpIntervalSeconds;
+            changed = true;
+        }
+        if (this.tntRunDropIntervalTicks <= 0) {
+            this.tntRunDropIntervalTicks = defaults.tntRunDropIntervalTicks;
+            changed = true;
+        }
+        if (this.tntRunTimeoutSeconds <= 0) {
+            this.tntRunTimeoutSeconds = defaults.tntRunTimeoutSeconds;
             changed = true;
         }
         return changed;
