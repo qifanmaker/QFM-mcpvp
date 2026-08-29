@@ -160,9 +160,11 @@ public final class Match {
     /** 烫手山芋地图布局（仅 HOT_POTATO 模式非空，障碍物保护用）。 */
     private HotPotatoLayout hotPotatoLayout;
     private UUID hotPotatoHolder;             // 当前山芋持有者
-    private int hotPotatoTicks;               // 持有倒计时（tick）
+    private int hotPotatoTicks;               // 山芋爆炸倒计时（tick，自发放起累计；传递不重置）
     private int hotPotatoRespawnTicks;        // 山芋重生倒计时（tick，爆炸后）
+    private int hotPotatoPassCooldown;        // 传递冷却剩余 tick（>0 时不可传递）
     private boolean hotPotatoTimeoutTriggered; // 超时爆炸已触发（防每 tick 重复）
+    private static final int HOT_POTATO_PASS_COOLDOWN_TICKS = 4; // 传递冷却：0.2 秒
     private static final String HOT_POTATO_TAG = "pvp.hotpotato";
 
     private MatchTeam winnerTeam;
@@ -1134,12 +1136,21 @@ public final class Match {
             this.scheduleHotPotatoRespawn();
         }
 
-        // 2) 持有倒计时与爆炸
+        // 2) 山芋倒计时、爆炸与顶部提示
         if (holder != null) {
             this.ensureHotPotatoInHand(holder);
             this.hotPotatoTicks++;
             int total = cfg.hotPotatoExplodeSeconds * 20;
             int left = total - this.hotPotatoTicks;
+            // 顶部动作栏：给全部存活玩家持续显示山芋爆炸倒计时（每 5 tick 更新一次）
+            if (this.ticks % 5 == 0) {
+                int seconds = Math.max(0, (left + 19) / 20);
+                for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
+                    boolean isHolder = online.getUuid().equals(holder.getUuid());
+                    online.sendMessage(Text.literal("§6烫手山芋 §8| §c爆炸倒计时 §e" + seconds + "s"
+                            + (isHolder ? " §f← 你持有！左键传给别人" : "")), true);
+                }
+            }
             if (left <= cfg.hotPotatoWarnSeconds * 20 && left > 0 && left % 10 == 0) {
                 holder.sendMessage(Text.literal("§c§l山芋要爆炸了！ §e" + ((left + 19) / 20) + "s"), true);
                 holder.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.PLAYERS, 1.0F, 0.6F);
@@ -1157,6 +1168,11 @@ public final class Match {
                 holder.addStatusEffect(new StatusEffectInstance(
                         StatusEffects.SPEED, 40, 0, false, false, true));
             }
+        }
+
+        // 2.5) 传递冷却递减
+        if (this.hotPotatoPassCooldown > 0) {
+            this.hotPotatoPassCooldown--;
         }
 
         // 3) 山芋重生计时
@@ -1183,13 +1199,18 @@ public final class Match {
         }
     }
 
-    /** 左键（攻击）传递山芋：持有者攻击其他存活玩家时把山芋传过去（攻击不造成伤害）。 */
+    /** 左键（攻击）传递山芋：持有者攻击其他存活玩家时把山芋传过去（攻击不造成伤害）。
+     * 传递不会重置山芋爆炸倒计时（山芋总寿命从发放起算，时间到就炸当前持有者），有 0.5 秒传递冷却。 */
     public void tryPassHotPotato(ServerPlayerEntity attacker, Entity target) {
         if (this.type != MatchType.HOT_POTATO || this.state != MatchState.ACTIVE) {
             return;
         }
         if (this.hotPotatoHolder == null || !this.hotPotatoHolder.equals(attacker.getUuid())) {
             return; // 只有持有者能传递
+        }
+        if (this.hotPotatoPassCooldown > 0) {
+            attacker.sendMessage(Messages.warn("§c山芋传递冷却中..."), true);
+            return; // 传递冷却
         }
         if (!(target instanceof ServerPlayerEntity targetPlayer)
                 || this.eliminated.contains(targetPlayer.getUuid())
@@ -1202,7 +1223,8 @@ public final class Match {
         this.clearHotPotatoItems(attacker);
         attacker.removeStatusEffect(StatusEffects.SPEED); // 传递后不再加速
         this.hotPotatoHolder = targetPlayer.getUuid();
-        this.hotPotatoTicks = 0;
+        // 注意：不重置 hotPotatoTicks——山芋总寿命从发放起算，传递只是换持有者
+        this.hotPotatoPassCooldown = HOT_POTATO_PASS_COOLDOWN_TICKS;
         this.giveHotPotatoItem(targetPlayer);
         this.broadcast(Messages.warn("§e" + attacker.getGameProfile().getName()
                 + "§r 把烫手山芋传给了 §e" + targetPlayer.getGameProfile().getName() + "§r！"));
