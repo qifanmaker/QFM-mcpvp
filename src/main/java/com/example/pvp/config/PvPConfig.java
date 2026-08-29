@@ -130,8 +130,8 @@ public final class PvPConfig {
     public int tntRunLayerCount = 5;
     /** 层间距（格，默认 6）。 */
     public int tntRunLayerGap = 6;
-    /** 踩过的方块多少 tick 后消失（默认 4 tick = 0.2 秒）。 */
-    public int tntRunVanishTicks = 4;
+    /** 踩过的方块多少 tick 后消失（默认 5 tick = 0.25 秒）。 */
+    public int tntRunVanishTicks = 5;
     /** 羽毛跳跃充能间隔（秒，默认 10 秒 1 次；右键羽毛向上跳一段）。 */
     public int tntRunDoubleJumpIntervalSeconds = 10;
     /** 地面掉落物刷新间隔（tick，默认 40 = 2 秒）。 */
@@ -170,12 +170,12 @@ public final class PvPConfig {
     /** 开赛倒计时（秒）；不足开赛人数时等待填充的最长时间（秒）。 */
     public int hotPotatoCountdownSeconds = 30;
     public int hotPotatoFillTimeoutSeconds = 60;
-    /** 障碍物平台边长（默认 41）。 */
-    public int hotPotatoSize = 41;
-    /** 山芋持有多少秒后爆炸（默认 8 秒）。 */
-    public int hotPotatoExplodeSeconds = 8;
-    /** 爆炸倒计时最后几秒开始警告（默认 3 秒）。 */
-    public int hotPotatoWarnSeconds = 3;
+    /** 障碍物平台边长（默认 61）。 */
+    public int hotPotatoSize = 61;
+    /** 山芋持有多少秒后爆炸（默认 20 秒）。 */
+    public int hotPotatoExplodeSeconds = 20;
+    /** 爆炸倒计时最后几秒开始警告（默认 5 秒）。 */
+    public int hotPotatoWarnSeconds = 5;
     /** 持有者是否获得速度 I（追逐传递用，默认 true）。 */
     public Boolean hotPotatoHolderSpeed = true;
     /** 山芋爆炸后多久重新随机发放（秒，默认 2）。 */
