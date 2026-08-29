@@ -149,8 +149,8 @@ public final class PvPConfig {
     public int heartbeatSize = 21;
     /** 关卡总数（塔并排，第 1 关最易 → 最后一关最难）。 */
     public int heartbeatLevels = 5;
-    /** 层间距（格，默认 30：下落约 1.5 秒，配合上下层关联洞位，足够横向移动对准）。 */
-    public int heartbeatFloorGap = 30;
+    /** 层间距（格，默认 35：下落约 1.5 秒+，配合上下层关联洞位，足够横向移动对准）。 */
+    public int heartbeatFloorGap = 35;
     /** 第 1 关玻璃地板层数；每过一关 +1（最后一关 = baseFloors + levels - 1）。 */
     public int heartbeatBaseFloors = 3;
     /** 对局超时（秒）：超时后按关卡进度排名结算，进度最高者胜。 */

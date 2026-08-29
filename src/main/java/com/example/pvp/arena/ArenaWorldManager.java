@@ -118,7 +118,7 @@ public final class ArenaWorldManager {
         this.deleteDirectory(arenaDir);
 
         VoidChunkGenerator generator = new VoidChunkGenerator(this.server);
-        DimensionOptions options = new DimensionOptions(this.dimTypeEntry(), generator);
+        DimensionOptions options = new DimensionOptions(this.arenaDimTypeEntry(), generator);
         ((PvpDimensionOptions) (Object) options).pvp$setSave(false);
         ((PvpDimensionOptions) (Object) options).pvp$setSaveProperties(false);
 
@@ -272,8 +272,9 @@ public final class ArenaWorldManager {
         } else {
             BlockPos origin = template.getRegionOrigin(regionIndex);
             int size = template.getSize();
-            // 清到世界最高可搭建 Y（玩家可能向上搭很高的塔），下方也留出夹方块/搭桥的空间
-            int maxDy = arena.getTopY() - 1 - ArenaTemplate.PLATFORM_Y;
+            // 清到世界最高可搭建 Y（玩家可能向上搭很高的塔），下方也留出夹方块/搭桥的空间；
+            // 竞技场世界高度已调高到 1024，这里封顶 320 格即可覆盖所有玩家搭建，避免全高度扫描拖慢清场
+            int maxDy = Math.min(arena.getTopY() - 1 - ArenaTemplate.PLATFORM_Y, 320);
             int minDy = -16;
 
             // 先清方块再清掉落物：拆掉箱子等容器时内容物会重新掉落成实体
@@ -337,11 +338,22 @@ public final class ArenaWorldManager {
         rules.get(GameRules.SHOW_DEATH_MESSAGES).set(false, server);
     }
 
-    private RegistryEntry<DimensionType> dimTypeEntry() {
-        return this.server.getRegistryManager()
+    /** 竞技场维度类型：以主世界为底，但把高度上限调到 1024（y -64..959），突破 320 建筑高度供高塔地图使用。 */
+    private RegistryEntry<DimensionType> arenaDimTypeEntry() {
+        DimensionType base = this.server.getRegistryManager()
                 .get(RegistryKeys.DIMENSION_TYPE)
                 .getEntry(DimensionTypes.OVERWORLD)
-                .orElseThrow();
+                .orElseThrow()
+                .value();
+        int height = 1024;
+        DimensionType tall = new DimensionType(
+                base.fixedTime(), base.hasSkyLight(), base.hasCeiling(), base.ultrawarm(), base.natural(),
+                base.coordinateScale(), base.bedWorks(), base.respawnAnchorWorks(),
+                -64, height, height,
+                base.infiniburn(), base.effects(), base.ambientLight(),
+                new DimensionType.MonsterSettings(base.piglinSafe(), base.hasRaids(),
+                        base.monsterSpawnLightTest(), base.monsterSpawnBlockLightLimit()));
+        return RegistryEntry.of(tall);
     }
 
     private SimpleRegistry<DimensionOptions> getDimensionsRegistry() {
