@@ -15,10 +15,11 @@ import java.util.Set;
 /**
  * 心跳水立方（多关卡自由落体跳水）地图布局：
  * N 座小塔沿 +z 方向并排，第 0 关最易、最后一关最难。
- * 每关 = 塔顶出发台 → 若干层满铺玻璃地板（每层固定个 1×1 洞）→ 塔底整塔方形水池。
+ * 每关 = 塔顶出发台 → 若干层不透光羊毛地板（每层固定个 2×2 洞）→ 塔底整塔方形水池。
  * 玩家从塔顶跳下，逐层穿过洞里，落进水池即过关，传送进下一关。
  *
- * 纯几何、确定性（洞位由 seed + level + floor 决定，固定不脉冲）。
+ * 洞位由 seed + level + floor 决定（固定不脉冲）：首层随机，之后每层整体做小幅偏移，
+ * 保证上下层洞位有关联（顺着下落即可跟上）。
  */
 public final class HeartbeatLayout {
 
@@ -30,7 +31,7 @@ public final class HeartbeatLayout {
     public final int floorGap;           // 玻璃层间距（足够下落时横向移动）
     public final int baseFloors;         // 第 1 关玻璃层数（每关 +1）
     public final int maxRadius;          // 清理半径（自第 0 关中心覆盖全部塔）
-    public final Block floorBlock;       // 玻璃地板（透明，可看透找洞）
+    public final Block floorBlock;       // 地板（红色羊毛，不透光、清晰可见）
     public final Block platformBlock;    // 出发台/塔底平台（白色混凝土）
     public final List<BlockPos> spawns;  // 第 0 关出发台环（setupPlayers 用）
 
@@ -69,26 +70,39 @@ public final class HeartbeatLayout {
         HeartbeatLayout layout = new HeartbeatLayout(mapCenter, levelCount, halfSize, levelStride,
                 poolY, floorGap, baseFloors, maxRadius,
                 level0Spawns(mapCenter, halfSize, baseFloors, floorGap, poolY),
-                Blocks.GLASS, Blocks.WHITE_CONCRETE);
+                Blocks.RED_WOOL, Blocks.WHITE_CONCRETE);
 
-        // 每关每层洞位：确定性，避免与上一层洞位太近（防笔直下落）
+        // 每关：不透光地板满铺 + 2×2 洞位（首层随机，之后每层整体小幅偏移 → 上下层洞位关联）
         for (int level = 0; level < levelCount; level++) {
-            Set<BlockPos> prevFloorHoles = null;
             int cx = layout.center(level).getX();
             int cz = layout.center(level).getZ();
+            // 先铺满全部玻璃（羊毛）地板
             for (int f = 0; f < layout.floors(level); f++) {
                 int fy = layout.floorY(level, f);
-                Set<BlockPos> holes = pickHoles(seed, level, f, layout.holes(level), prevFloorHoles, halfSize);
-                // 玻璃地板满铺 + 洞位挖空
                 for (int dx = -halfSize; dx <= halfSize; dx++) {
                     for (int dz = -halfSize; dz <= halfSize; dz++) {
                         layout.floorBlocks.add(new BlockPos(cx + dx, fy, cz + dz));
                     }
                 }
-                for (BlockPos rel : holes) {
-                    layout.holeBlocks.add(new BlockPos(cx + rel.getX(), fy, cz + rel.getZ()));
+            }
+            // 再挖洞：2×2，逐层偏移
+            List<BlockPos> prevAnchors = null;
+            for (int f = 0; f < layout.floors(level); f++) {
+                int fy = layout.floorY(level, f);
+                List<BlockPos> anchors;
+                if (f == 0) {
+                    anchors = new ArrayList<>(pickInitialHoles(seed, level, layout.holes(level), halfSize));
+                } else {
+                    anchors = shiftHoles(seed, level, f, prevAnchors, halfSize);
                 }
-                prevFloorHoles = holes;
+                for (BlockPos a : anchors) {
+                    for (int dx = 0; dx < 2; dx++) {
+                        for (int dz = 0; dz < 2; dz++) {
+                            layout.holeBlocks.add(new BlockPos(cx + a.getX() + dx, fy, cz + a.getZ() + dz));
+                        }
+                    }
+                }
+                prevAnchors = anchors;
             }
         }
         return layout;
@@ -109,39 +123,80 @@ public final class HeartbeatLayout {
         return spawns;
     }
 
-    /** 抽取一层地板上的洞位（相对坐标，xz 分量，y=0 占位）。 */
-    private static Set<BlockPos> pickHoles(int seed, int level, int floor, int count,
-                                           Set<BlockPos> prevFloorHoles, int halfSize) {
+    /**
+     * 首层洞位锚点（每个锚点是 2×2 洞的左上角，相对坐标，y=0 占位）。
+     * 锚点范围限制在距塔边 ≥1 格，避免穿洞后立刻掉出塔外。
+     */
+    private static Set<BlockPos> pickInitialHoles(int seed, int level, int count, int halfSize) {
         Set<BlockPos> holes = new HashSet<>();
-        Random rng = new Random(seed * 31L + level * 131L + floor * 17L + 7L);
-        // 洞位至少距塔边 1 格，避免穿洞后立刻掉出塔外
-        int range = halfSize - 1;
+        Random rng = new Random(seed * 31L + level * 131L + 7L);
+        int range = halfSize - 2; // 2×2 洞：锚点 +1 后仍留 1 格边距
         int attempts = 0;
-        while (holes.size() < count && attempts < count * 40) {
+        while (holes.size() < count && attempts < count * 60) {
             int hx = rng.nextInt(range * 2 + 1) - range;
             int hz = rng.nextInt(range * 2 + 1) - range;
             BlockPos p = new BlockPos(hx, 0, hz);
-            if (holes.contains(p)) {
+            if (anyOverlap(holes, p)) {
                 attempts++;
                 continue;
-            }
-            // 与上一层洞位保持曼哈顿距离 >= 2（避免两层洞位叠一起笔直下落）
-            if (prevFloorHoles != null) {
-                boolean tooClose = false;
-                for (BlockPos q : prevFloorHoles) {
-                    if (Math.abs(p.getX() - q.getX()) + Math.abs(p.getZ() - q.getZ()) < 2) {
-                        tooClose = true;
-                        break;
-                    }
-                }
-                if (tooClose) {
-                    attempts++;
-                    continue;
-                }
             }
             holes.add(p);
         }
         return holes;
+    }
+
+    /**
+     * 下一层洞位：把上一层的锚点整体做小幅偏移（每个分量 -3~3，曼哈顿 1~4）。
+     * 保证上下层洞位有关联——玩家顺着刚穿过的洞继续下落，只要小幅横向移动就能对准下一层。
+     */
+    private static List<BlockPos> shiftHoles(int seed, int level, int floor,
+                                             List<BlockPos> prev, int halfSize) {
+        Random rng = new Random(seed * 31L + level * 131L + floor * 17L + 7L);
+        int range = halfSize - 2;
+        List<BlockPos> out = new ArrayList<>();
+        for (int attempt = 0; attempt < 40; attempt++) {
+            out.clear();
+            int sx = rng.nextInt(7) - 3; // -3..3
+            int sz = rng.nextInt(7) - 3;
+            int man = Math.abs(sx) + Math.abs(sz);
+            if (man < 1 || man > 4) {
+                continue;
+            }
+            for (BlockPos a : prev) {
+                int nx = Math.max(-range, Math.min(range, a.getX() + sx));
+                int nz = Math.max(-range, Math.min(range, a.getZ() + sz));
+                out.add(new BlockPos(nx, 0, nz));
+            }
+            // 同一层的 2×2 洞之间不得重叠
+            boolean ok = true;
+            for (int i = 0; i < out.size() && ok; i++) {
+                for (int j = i + 1; j < out.size(); j++) {
+                    if (overlaps(out.get(i), out.get(j))) {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+            if (ok) {
+                return out;
+            }
+        }
+        return out; // 兜底：重试耗尽也返回（重叠概率极低）
+    }
+
+    /** 两个 2×2 洞锚点是否重叠（x、z 差都 < 2 即重叠）。 */
+    private static boolean overlaps(BlockPos a, BlockPos b) {
+        return Math.abs(a.getX() - b.getX()) < 2 && Math.abs(a.getZ() - b.getZ()) < 2;
+    }
+
+    /** 集合中是否已有与 p 重叠的 2×2 洞锚点。 */
+    private static boolean anyOverlap(Set<BlockPos> holes, BlockPos p) {
+        for (BlockPos h : holes) {
+            if (overlaps(h, p)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---------- 查询接口 ----------
@@ -167,7 +222,7 @@ public final class HeartbeatLayout {
         return this.poolY + 4 + this.floors(level) * this.floorGap;
     }
 
-    /** 第 level 关每层洞数（由易到难：5 → 1）。 */
+    /** 第 level 关每层 2×2 洞的个数（由易到难：5 → 1）。 */
     public int holes(int level) {
         return Math.max(1, 5 - level);
     }
