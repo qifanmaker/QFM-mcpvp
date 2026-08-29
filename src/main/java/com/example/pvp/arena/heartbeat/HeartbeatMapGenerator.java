@@ -85,13 +85,13 @@ public final class HeartbeatMapGenerator {
                     world.setBlockState(new BlockPos(cx + outer, y, z), wallState, 3);
                 }
             }
-            // 光源：沿四周外墙每 10 格高嵌入发光石（塔内全封闭，无光会很暗）
-            for (int y = wallBottom + 4; y <= wallTop; y += 10) {
-                for (int x = cx - outer + 3; x <= cx + outer - 3; x += 7) {
+            // 光源：沿四周外墙每 5 格高嵌入发光石（塔内全封闭，无光会很暗，加密保证看清地板洞位）
+            for (int y = wallBottom + 4; y <= wallTop; y += 5) {
+                for (int x = cx - outer + 3; x <= cx + outer - 3; x += 5) {
                     world.setBlockState(new BlockPos(x, y, cz - outer), glowState, 3);
                     world.setBlockState(new BlockPos(x, y, cz + outer), glowState, 3);
                 }
-                for (int z = cz - outer + 3; z <= cz + outer - 3; z += 7) {
+                for (int z = cz - outer + 3; z <= cz + outer - 3; z += 5) {
                     world.setBlockState(new BlockPos(cx - outer, y, z), glowState, 3);
                     world.setBlockState(new BlockPos(cx + outer, y, z), glowState, 3);
                 }

@@ -56,12 +56,12 @@ public final class HeartbeatLayout {
         return Math.max(1, (int) Math.ceil(tTerm + (d - dTerm) / TERMINAL_VELOCITY));
     }
 
-    /** 每关安全系数：第 1 关 0.4 → 最后一关 0.8 线性递增（简单关洞位近、难关允许更远）。 */
+    /** 每关安全系数：第 1 关 0.3 → 最后一关 0.7 线性递增（简单关洞位近、难关允许更远）。 */
     static double safetyForLevel(int level, int levelCount) {
         if (levelCount <= 1) {
-            return 0.8;
+            return 0.7;
         }
-        return 0.4 + (level / (double) (levelCount - 1)) * 0.4;
+        return 0.3 + (level / (double) (levelCount - 1)) * 0.4;
     }
 
     /** 两层洞位之间的最大可达曼哈顿距离 = 下落时间 × 横向速度 × 该关安全系数（随层距与关卡缩放）。 */
@@ -157,11 +157,11 @@ public final class HeartbeatLayout {
         return layout;
     }
 
-    /** 第 0 关出发台环（最多 8 人，围一圈）。 */
+    /** 第 0 关出发台环（最多 8 人，围一圈，靠外侧、远离中央洞口，避免出生即掉入）。 */
     private static List<BlockPos> level0Spawns(BlockPos mapCenter, int halfSize, int baseFloors,
                                                int floorGap, int poolY) {
         int topY = poolY + 4 + baseFloors * floorGap;
-        int spawnR = Math.max(1, halfSize - 2);
+        int spawnR = Math.max(1, halfSize - 1);
         List<BlockPos> spawns = new ArrayList<>();
         for (int i = 0; i < 8; i++) {
             double angle = i * 2.0 * Math.PI / 8 + 0.4;
@@ -292,10 +292,10 @@ public final class HeartbeatLayout {
                 && z >= c.getZ() - this.halfSize && z <= c.getZ() + this.halfSize + 1;
     }
 
-    /** 第 level 关出发台上第 index 个出生点（环，8 个循环取）。 */
+    /** 第 level 关出发台上第 index 个出生点（环，8 个循环取，靠外侧远离中央洞口）。 */
     public BlockPos levelTopSpawn(int level, int index) {
         int k = index % 8;
-        int spawnR = Math.max(1, this.halfSize - 2);
+        int spawnR = Math.max(1, this.halfSize - 1);
         double angle = k * 2.0 * Math.PI / 8 + 0.4;
         BlockPos c = this.center(level);
         int x = c.getX() + (int) Math.round(Math.cos(angle) * spawnR);
