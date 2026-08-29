@@ -6,6 +6,10 @@ import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.bridge.BridgeMapGenerator;
+import com.example.pvp.arena.heartbeat.HeartbeatLayout;
+import com.example.pvp.arena.heartbeat.HeartbeatMapGenerator;
+import com.example.pvp.arena.hotpotato.HotPotatoLayout;
+import com.example.pvp.arena.hotpotato.HotPotatoMapGenerator;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
@@ -50,7 +54,8 @@ public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> MODE_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(new String[]{
                     "1v1", "2v2", "ffa", "sumo", "1.8", "skywars",
-                    "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar", "tntrun"}, builder);
+                    "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar", "tntrun",
+                    "heartbeat", "hotpotato"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -130,7 +135,11 @@ public final class PvPCommands {
                                         .then(CommandManager.argument("count", StringArgumentType.word())
                                                 .executes(ctx -> debugLuckyPillar(ctx, parseIntSafe(ctx, "count", 4)))))
                                 .then(CommandManager.literal("tntrun")
-                                        .executes(ctx -> debugTntRun(ctx))))
+                                        .executes(ctx -> debugTntRun(ctx)))
+                                .then(CommandManager.literal("heartbeat")
+                                        .executes(ctx -> debugHeartbeat(ctx)))
+                                .then(CommandManager.literal("hotpotato")
+                                        .executes(ctx -> debugHotPotato(ctx))))
         );
 
         dispatcher.register(CommandManager.literal("hub").executes(ctx -> tpOut(ctx)));   // 返回主城
@@ -170,6 +179,8 @@ public final class PvPCommands {
                         + "§e/pvp join bridge1v1|bridge1v1v1v1|bridge2v2|bridge§r 加入战桥（无需套件）\n"
                         + "§e/pvp join luckypillar§r 加入幸运之柱（无需套件，空手开局）\n"
                         + "§e/pvp join tntrun§r 加入 TNT 跑酷（无需套件，踩过的方块掉落）\n"
+                        + "§e/pvp join heartbeat§r 加入心跳水立方（无需套件，卡心跳下落排名）\n"
+                        + "§e/pvp join hotpotato§r 加入烫手山芋（无需套件，左键传递山芋）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
@@ -191,7 +202,7 @@ public final class PvPCommands {
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
             player.sendMessage(Messages.error("未知模式: " + modeId
-                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun）"), false);
+                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato）"), false);
             return 0;
         }
         Kit kit;
@@ -203,6 +214,10 @@ public final class PvPCommands {
             kit = KitManager.luckyPillarKit(); // 幸运之柱空手开局，无套件
         } else if (type == MatchType.TNT_RUN) {
             kit = KitManager.tntRunKit(); // TNT 跑酷空手开局，无套件
+        } else if (type == MatchType.HEARTBEAT) {
+            kit = KitManager.heartbeatKit(); // 心跳水立方空手开局，无套件
+        } else if (type == MatchType.HOT_POTATO) {
+            kit = KitManager.hotPotatoKit(); // 烫手山芋空手开局，无套件
         } else {
             if (kitId == null) {
                 player.sendMessage(Messages.error("该模式需要指定套件（用 /pvp kit list 查看）"), false);
@@ -233,6 +248,12 @@ public final class PvPCommands {
             } else if (type == MatchType.TNT_RUN) {
                 player.sendMessage(Messages.info("已加入 TNT 跑酷：凑齐 " + PvPConfig.INSTANCE.tntRunStartPlayers
                         + " 人开赛，踩过的方块会掉落"), false);
+            } else if (type == MatchType.HEARTBEAT) {
+                player.sendMessage(Messages.info("已加入心跳水立方：凑齐 " + PvPConfig.INSTANCE.heartbeatStartPlayers
+                        + " 人开赛，卡心跳节奏下落，落进水坑排名"), false);
+            } else if (type == MatchType.HOT_POTATO) {
+                player.sendMessage(Messages.info("已加入烫手山芋：凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers
+                        + " 人开赛，左键传递山芋，时间到爆炸"), false);
             } else if (type.isBridge()) {
                 if (type.isBridgeTeam()) {
                     player.sendMessage(Messages.info("已加入战桥混战：需要偶数人数（≥ "
@@ -603,6 +624,54 @@ public final class PvPCommands {
         player.teleport(arena, center.getX() + 0.5, layout.topY() + 8, center.getZ() + 0.5, 0, 90);
         arenaManager.addVisitor(player, 180);
         player.sendMessage(Messages.gold("已传送到 TNT 跑酷地图上空（约 3 分钟后自动回城），可下落查看各层平台"), false);
+        return 1;
+    }
+
+    /** 调试：在竞技场远区生成一张心跳水立方地图并传送查看（不影响正式对局）。 */
+    private static int debugHeartbeat(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
+        ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
+        if (arena == null) {
+            player.sendMessage(Messages.error("竞技场世界不可用"), false);
+            return 0;
+        }
+        int region = 980; // 远离正式对局分配的区域
+        int size = PvPConfig.INSTANCE.heartbeatSize;
+        BlockPos origin = new BlockPos(region * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
+        BlockPos center = new BlockPos(origin.getX() + size / 2, ArenaTemplate.PLATFORM_Y + 1, origin.getZ() + size / 2);
+        HeartbeatLayout layout = HeartbeatLayout.compute(center, PvPConfig.INSTANCE, 9000);
+        HeartbeatMapGenerator.generate(arena, layout);
+
+        player.sendMessage(Messages.info("测试心跳水立方地图已生成（塔半宽 " + layout.halfSize + "，障碍层 "
+                + layout.layerYs.size() + " 层，水坑 " + layout.pools.size() + " 个）"), false);
+        player.teleport(arena, center.getX() + 0.5, layout.topY + 12, center.getZ() + 0.5, 0, 90);
+        arenaManager.addVisitor(player, 180);
+        player.sendMessage(Messages.gold("已传送到心跳水立方地图上空（约 3 分钟后自动回城），可下落查看各层与底部水坑"), false);
+        return 1;
+    }
+
+    /** 调试：在竞技场远区生成一张烫手山芋地图并传送查看（不影响正式对局）。 */
+    private static int debugHotPotato(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
+        ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
+        if (arena == null) {
+            player.sendMessage(Messages.error("竞技场世界不可用"), false);
+            return 0;
+        }
+        int region = 986; // 远离正式对局分配的区域
+        int size = PvPConfig.INSTANCE.hotPotatoSize;
+        BlockPos origin = new BlockPos(region * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
+        BlockPos center = new BlockPos(origin.getX() + size / 2, ArenaTemplate.PLATFORM_Y + 1, origin.getZ() + size / 2);
+        HotPotatoLayout layout = HotPotatoLayout.compute(center, PvPConfig.INSTANCE, 9000);
+        HotPotatoMapGenerator.generate(arena, layout);
+
+        player.sendMessage(Messages.info("测试烫手山芋地图已生成（平台半宽 " + layout.halfSize + "，玻璃柱 "
+                + layout.pillars().size() + " 根，矮墙方块 " + layout.walls().size() + " 块）"), false);
+        player.teleport(arena, center.getX() + 0.5, center.getY() + 15, center.getZ() + 0.5, 0, 90);
+        arenaManager.addVisitor(player, 180);
+        player.sendMessage(Messages.gold("已传送到烫手山芋地图上空（约 3 分钟后自动回城），可下落查看平台与障碍物"), false);
         return 1;
     }
 

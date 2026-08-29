@@ -46,6 +46,12 @@ public final class KitManager {
     /** TNT 跑酷哨兵套件：空手开局、生存模式，仅作队列占位。 */
     private static Kit tntRunKit;
 
+    /** 心跳水立方哨兵套件：空手开局、冒险模式，仅作队列占位。 */
+    private static Kit heartbeatKit;
+
+    /** 烫手山芋哨兵套件：空手开局、冒险模式，仅作队列占位。 */
+    private static Kit hotPotatoKit;
+
     /** 附魔注册表：服务器启动后才可用，用于给套件物品加附魔。 */
     private static Registry<Enchantment> enchantmentRegistry;
 
@@ -79,6 +85,16 @@ public final class KitManager {
                 .displayName("TNT 跑酷")
                 .food(20, 5f)
                 .gamemode(GameMode.SURVIVAL)
+                .build();
+        heartbeatKit = new Kit.Builder("heartbeat", KitType.CUSTOM)
+                .displayName("心跳水立方")
+                .food(20, 5f)
+                .gamemode(GameMode.ADVENTURE)
+                .build();
+        hotPotatoKit = new Kit.Builder("hotpotato", KitType.CUSTOM)
+                .displayName("烫手山芋")
+                .food(20, 5f)
+                .gamemode(GameMode.ADVENTURE)
                 .build();
         KITS.add(buildSwordKit());
         KITS.add(buildBowKit());
@@ -141,6 +157,16 @@ public final class KitManager {
     /** TNT 跑酷哨兵套件（不入 KITS 列表，实际空手开局）。 */
     public static Kit tntRunKit() {
         return tntRunKit;
+    }
+
+    /** 心跳水立方哨兵套件（不入 KITS 列表，实际空手开局）。 */
+    public static Kit heartbeatKit() {
+        return heartbeatKit;
+    }
+
+    /** 烫手山芋哨兵套件（不入 KITS 列表，实际空手开局）。 */
+    public static Kit hotPotatoKit() {
+        return hotPotatoKit;
     }
 
     private static Kit buildSwordKit() {

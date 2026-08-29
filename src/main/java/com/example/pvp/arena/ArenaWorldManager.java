@@ -2,6 +2,10 @@ package com.example.pvp.arena;
 
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.bridge.BridgeMapGenerator;
+import com.example.pvp.arena.heartbeat.HeartbeatLayout;
+import com.example.pvp.arena.heartbeat.HeartbeatMapGenerator;
+import com.example.pvp.arena.hotpotato.HotPotatoLayout;
+import com.example.pvp.arena.hotpotato.HotPotatoMapGenerator;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
@@ -198,6 +202,22 @@ public final class ArenaWorldManager {
             return;
         }
 
+        // 心跳水立方：高空出发台 + 多层心跳地板 + 底部水坑平台
+        if (template.getLayout() == ArenaTemplate.Layout.HEARTBEAT) {
+            HeartbeatLayout layout = HeartbeatLayout.compute(template.getCenter(regionIndex),
+                    PvPConfig.INSTANCE, seed);
+            HeartbeatMapGenerator.generate(arena, layout);
+            return;
+        }
+
+        // 烫手山芋：带障碍物的圆形平台
+        if (template.getLayout() == ArenaTemplate.Layout.HOT_POTATO) {
+            HotPotatoLayout layout = HotPotatoLayout.compute(template.getCenter(regionIndex),
+                    PvPConfig.INSTANCE, seed);
+            HotPotatoMapGenerator.generate(arena, layout);
+            return;
+        }
+
         BlockPos origin = template.getRegionOrigin(regionIndex);
         int size = template.getSize();
 
@@ -243,6 +263,12 @@ public final class ArenaWorldManager {
         } else if (template.getLayout() == ArenaTemplate.Layout.TNT_RUN) {
             // TNT 跑酷：清空多层平台
             TntRunMapGenerator.clear(arena, regionIndex, mapMaxRadius);
+        } else if (template.getLayout() == ArenaTemplate.Layout.HEARTBEAT) {
+            // 心跳水立方：清空整座塔（含顶部出发台/心跳层/水坑平台）
+            HeartbeatMapGenerator.clear(arena, regionIndex, mapMaxRadius);
+        } else if (template.getLayout() == ArenaTemplate.Layout.HOT_POTATO) {
+            // 烫手山芋：清空平台与障碍物
+            HotPotatoMapGenerator.clear(arena, regionIndex, mapMaxRadius);
         } else {
             BlockPos origin = template.getRegionOrigin(regionIndex);
             int size = template.getSize();

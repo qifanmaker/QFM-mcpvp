@@ -36,6 +36,12 @@ public final class QueueManager {
     /** TNT 跑酷开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
     private Integer tntRunCountdownTicks;
     private Integer tntRunFillTicks;
+    /** 心跳水立方开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
+    private Integer heartbeatCountdownTicks;
+    private Integer heartbeatFillTicks;
+    /** 烫手山芋开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
+    private Integer hotPotatoCountdownTicks;
+    private Integer hotPotatoFillTicks;
 
     public QueueManager(MinecraftServer server) {
         this.server = server;
@@ -106,6 +112,8 @@ public final class QueueManager {
         this.tickSkywars(matchManager);
         this.tickLuckyPillar(matchManager);
         this.tickTntRun(matchManager);
+        this.tickHeartbeat(matchManager);
+        this.tickHotPotato(matchManager);
         this.tickInstantMatches(matchManager);
     }
 
@@ -462,12 +470,205 @@ public final class QueueManager {
         }
     }
 
-    /** 非 FFA/SkyWars/幸运之柱/TNT 跑酷（1v1/2v2/相扑/1.8）的即时凑齐开赛。 */
+    /** 心跳水立方队列：与幸运之柱相同——凑齐 startPlayers 倒计时、满 maxPlayers 立即开、之间等待填人。 */
+    private void tickHeartbeat(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        long count = this.countHeartbeat();
+
+        if (this.heartbeatCountdownTicks != null) {
+            this.heartbeatCountdownTicks = count >= config.heartbeatMaxPlayers
+                    ? 0 : this.heartbeatCountdownTicks - 1;
+            if (this.heartbeatCountdownTicks <= 0) {
+                this.heartbeatCountdownTicks = null;
+                this.heartbeatFillTicks = null;
+                this.startHeartbeatMatch(matchManager);
+            }
+            return;
+        }
+
+        if (count >= config.heartbeatStartPlayers) {
+            this.heartbeatCountdownTicks = config.heartbeatCountdownSeconds * 20;
+            this.broadcastHeartbeat(matchManager, Messages.info(
+                    "§e" + count + "§r 人已就绪，§e" + config.heartbeatCountdownSeconds + "§r 秒后开始心跳水立方！"));
+            this.heartbeatFillTicks = null;
+            return;
+        }
+
+        // 人数在 minPlayers 与 startPlayers 之间：等待填人
+        if (count >= config.heartbeatMinPlayers) {
+            if (this.heartbeatFillTicks == null) {
+                this.heartbeatFillTicks = config.heartbeatFillTimeoutSeconds * 20;
+            }
+            if (this.heartbeatFillTicks % 40 == 0) {
+                this.broadcastHeartbeat(matchManager, Messages.info(
+                        "等待更多玩家加入心跳水立方（当前 " + count + "/" + config.heartbeatStartPlayers + "）..."));
+            }
+            this.heartbeatFillTicks--;
+            if (this.heartbeatFillTicks <= 0) {
+                this.heartbeatFillTicks = null;
+                this.startHeartbeatMatch(matchManager);
+            }
+        } else {
+            this.heartbeatFillTicks = null;
+        }
+    }
+
+    /** 开一场心跳水立方：取队列前 maxPlayers 人，每人发哨兵套件（实际上空手开局）。 */
+    private void startHeartbeatMatch(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        List<QueueEntry> toRemove = new ArrayList<>();
+        Kit sentinel = KitManager.heartbeatKit();
+        if (sentinel == null) {
+            return;
+        }
+
+        for (QueueEntry entry : List.copyOf(this.entries)) {
+            if (entry.getType() != MatchType.HEARTBEAT) {
+                continue;
+            }
+            if (players.size() >= config.heartbeatMaxPlayers) {
+                break;
+            }
+            toRemove.add(entry);
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                players.add(online);
+            }
+        }
+
+        if (players.size() < config.heartbeatMinPlayers) {
+            return; // 人数不足：保留排队，等待下一轮倒计时
+        }
+
+        Map<UUID, Kit> kits = new HashMap<>();
+        for (ServerPlayerEntity player : players) {
+            kits.put(player.getUuid(), sentinel);
+        }
+        if (matchManager.startMatch(players, MatchType.HEARTBEAT, kits)) {
+            this.entries.removeAll(toRemove);
+        }
+    }
+
+    private long countHeartbeat() {
+        return this.entries.stream().filter(e -> e.getType() == MatchType.HEARTBEAT).count();
+    }
+
+    private void broadcastHeartbeat(MatchManager matchManager, Text message) {
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != MatchType.HEARTBEAT) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                online.sendMessage(message, false);
+            }
+        }
+    }
+
+    /** 烫手山芋队列：与幸运之柱相同——凑齐 startPlayers 倒计时、满 maxPlayers 立即开、之间等待填人。 */
+    private void tickHotPotato(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        long count = this.countHotPotato();
+
+        if (this.hotPotatoCountdownTicks != null) {
+            this.hotPotatoCountdownTicks = count >= config.hotPotatoMaxPlayers
+                    ? 0 : this.hotPotatoCountdownTicks - 1;
+            if (this.hotPotatoCountdownTicks <= 0) {
+                this.hotPotatoCountdownTicks = null;
+                this.hotPotatoFillTicks = null;
+                this.startHotPotatoMatch(matchManager);
+            }
+            return;
+        }
+
+        if (count >= config.hotPotatoStartPlayers) {
+            this.hotPotatoCountdownTicks = config.hotPotatoCountdownSeconds * 20;
+            this.broadcastHotPotato(matchManager, Messages.info(
+                    "§e" + count + "§r 人已就绪，§e" + config.hotPotatoCountdownSeconds + "§r 秒后开始烫手山芋！"));
+            this.hotPotatoFillTicks = null;
+            return;
+        }
+
+        // 人数在 minPlayers 与 startPlayers 之间：等待填人
+        if (count >= config.hotPotatoMinPlayers) {
+            if (this.hotPotatoFillTicks == null) {
+                this.hotPotatoFillTicks = config.hotPotatoFillTimeoutSeconds * 20;
+            }
+            if (this.hotPotatoFillTicks % 40 == 0) {
+                this.broadcastHotPotato(matchManager, Messages.info(
+                        "等待更多玩家加入烫手山芋（当前 " + count + "/" + config.hotPotatoStartPlayers + "）..."));
+            }
+            this.hotPotatoFillTicks--;
+            if (this.hotPotatoFillTicks <= 0) {
+                this.hotPotatoFillTicks = null;
+                this.startHotPotatoMatch(matchManager);
+            }
+        } else {
+            this.hotPotatoFillTicks = null;
+        }
+    }
+
+    /** 开一场烫手山芋：取队列前 maxPlayers 人，每人发哨兵套件（实际上空手开局）。 */
+    private void startHotPotatoMatch(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        List<QueueEntry> toRemove = new ArrayList<>();
+        Kit sentinel = KitManager.hotPotatoKit();
+        if (sentinel == null) {
+            return;
+        }
+
+        for (QueueEntry entry : List.copyOf(this.entries)) {
+            if (entry.getType() != MatchType.HOT_POTATO) {
+                continue;
+            }
+            if (players.size() >= config.hotPotatoMaxPlayers) {
+                break;
+            }
+            toRemove.add(entry);
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                players.add(online);
+            }
+        }
+
+        if (players.size() < config.hotPotatoMinPlayers) {
+            return; // 人数不足：保留排队，等待下一轮倒计时
+        }
+
+        Map<UUID, Kit> kits = new HashMap<>();
+        for (ServerPlayerEntity player : players) {
+            kits.put(player.getUuid(), sentinel);
+        }
+        if (matchManager.startMatch(players, MatchType.HOT_POTATO, kits)) {
+            this.entries.removeAll(toRemove);
+        }
+    }
+
+    private long countHotPotato() {
+        return this.entries.stream().filter(e -> e.getType() == MatchType.HOT_POTATO).count();
+    }
+
+    private void broadcastHotPotato(MatchManager matchManager, Text message) {
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != MatchType.HOT_POTATO) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                online.sendMessage(message, false);
+            }
+        }
+    }
+
+    /** 非 FFA/SkyWars/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋（1v1/2v2/相扑/1.8）的即时凑齐开赛。 */
     private void tickInstantMatches(MatchManager matchManager) {
         Map<String, List<QueueEntry>> groups = new LinkedHashMap<>();
         for (QueueEntry entry : this.entries) {
             if (entry.getType() == MatchType.FFA || entry.getType() == MatchType.SKYWARS
-                    || entry.getType() == MatchType.LUCKY_PILLAR || entry.getType() == MatchType.TNT_RUN) {
+                    || entry.getType() == MatchType.LUCKY_PILLAR || entry.getType() == MatchType.TNT_RUN
+                    || entry.getType() == MatchType.HEARTBEAT || entry.getType() == MatchType.HOT_POTATO) {
                 continue;
             }
             groups.computeIfAbsent(entry.getType().getId() + "|" + entry.getKit().getId(), k -> new ArrayList<>()).add(entry);
@@ -542,13 +743,15 @@ public final class QueueManager {
         }
         MatchType type = entry.getType();
 
-        // 自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷：直接以当前队列所有人开赛
+        // 自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋：直接以当前队列所有人开赛
         if (type == MatchType.FFA || type == MatchType.SKYWARS || type == MatchType.LUCKY_PILLAR
-                || type == MatchType.TNT_RUN) {
+                || type == MatchType.TNT_RUN || type == MatchType.HEARTBEAT || type == MatchType.HOT_POTATO) {
             int min = switch (type) {
                 case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
                 case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;
                 case LUCKY_PILLAR -> PvPConfig.INSTANCE.luckyPillarMinPlayers;
+                case HEARTBEAT -> PvPConfig.INSTANCE.heartbeatMinPlayers;
+                case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoMinPlayers;
                 default -> PvPConfig.INSTANCE.tntRunMinPlayers;
             };
             int count = (int) this.countType(type);
@@ -563,10 +766,16 @@ public final class QueueManager {
             this.luckyPillarFillTicks = null;
             this.tntRunCountdownTicks = null;
             this.tntRunFillTicks = null;
+            this.heartbeatCountdownTicks = null;
+            this.heartbeatFillTicks = null;
+            this.hotPotatoCountdownTicks = null;
+            this.hotPotatoFillTicks = null;
             switch (type) {
                 case FFA -> this.startFfaMatch(matchManager);
                 case SKYWARS -> this.startSkywarsMatch(matchManager);
                 case LUCKY_PILLAR -> this.startLuckyPillarMatch(matchManager);
+                case HEARTBEAT -> this.startHeartbeatMatch(matchManager);
+                case HOT_POTATO -> this.startHotPotatoMatch(matchManager);
                 default -> this.startTntRunMatch(matchManager);
             }
             return true;

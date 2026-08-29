@@ -5,6 +5,9 @@ import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.bridge.BridgeLayout;
+import com.example.pvp.arena.heartbeat.HeartbeatLayout;
+import com.example.pvp.arena.heartbeat.HeartbeatMapGenerator;
+import com.example.pvp.arena.hotpotato.HotPotatoLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLoot;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
@@ -26,6 +29,9 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FireworkExplosionComponent;
 import net.minecraft.component.type.FireworksComponent;
 import net.minecraft.component.type.LodestoneTrackerComponent;
+import net.minecraft.component.type.NbtComponent;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
@@ -39,6 +45,10 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
@@ -137,6 +147,20 @@ public final class Match {
     /** 不死图腾非掉虚空复活后的摔落保护（UUID → 剩余 tick，期间每 tick 清零 fallDistance）。 */
     private final Map<UUID, Integer> totemFallSafeTicks = new HashMap<>();
 
+    /** 心跳水立方地图布局（仅 HEARTBEAT 模式非空，心跳地板/水坑判定用）。 */
+    private HeartbeatLayout heartbeatLayout;
+    private int heartbeatTicks;               // 心跳周期计时
+    private boolean heartbeatOpen;            // 当前心跳是否处于"消失窗口"（地板已清除）
+    private final List<UUID> heartbeatRanking = new ArrayList<>(); // 到达水坑的名次顺序
+
+    /** 烫手山芋地图布局（仅 HOT_POTATO 模式非空，障碍物保护用）。 */
+    private HotPotatoLayout hotPotatoLayout;
+    private UUID hotPotatoHolder;             // 当前山芋持有者
+    private int hotPotatoTicks;               // 持有倒计时（tick）
+    private int hotPotatoRespawnTicks;        // 山芋重生倒计时（tick，爆炸后）
+    private boolean hotPotatoTimeoutTriggered; // 超时爆炸已触发（防每 tick 重复）
+    private static final String HOT_POTATO_TAG = "pvp.hotpotato";
+
     private MatchTeam winnerTeam;
     private int celebrationTicks;
     private MatchState state;
@@ -221,6 +245,27 @@ public final class Match {
             this.tntRunLayout = TntRunLayout.compute(template.getCenter(regionIndex),
                     Math.max(3, cfg.tntRunSize / 2), cfg.tntRunLayerCount, Math.max(2, cfg.tntRunLayerGap));
             spawnPositions = this.tntRunLayout.spawns;
+        } else if (type == MatchType.HEARTBEAT) {
+            this.skywarsLayout = null;
+            this.skywarsTheme = null;
+            this.skywarsSeed = id;
+            this.bridgeLayout = null;
+            this.luckyPillarLayout = null;
+            this.tntRunLayout = null;
+            PvPConfig cfg = PvPConfig.INSTANCE;
+            this.heartbeatLayout = HeartbeatLayout.compute(template.getCenter(regionIndex), cfg, id);
+            spawnPositions = this.heartbeatLayout.spawns;
+        } else if (type == MatchType.HOT_POTATO) {
+            this.skywarsLayout = null;
+            this.skywarsTheme = null;
+            this.skywarsSeed = id;
+            this.bridgeLayout = null;
+            this.luckyPillarLayout = null;
+            this.tntRunLayout = null;
+            this.heartbeatLayout = null;
+            PvPConfig cfg = PvPConfig.INSTANCE;
+            this.hotPotatoLayout = HotPotatoLayout.compute(template.getCenter(regionIndex), cfg, id);
+            spawnPositions = this.hotPotatoLayout.spawns;
         } else {
             this.skywarsLayout = null;
             this.skywarsTheme = null;
@@ -228,6 +273,8 @@ public final class Match {
             this.bridgeLayout = null;
             this.luckyPillarLayout = null;
             this.tntRunLayout = null;
+            this.heartbeatLayout = null;
+            this.hotPotatoLayout = null;
             spawnPositions = template.computeSpawns(regionIndex, this.players.size());
         }
         for (int i = 0; i < this.players.size(); i++) {
@@ -324,6 +371,10 @@ public final class Match {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.luckyPillarTimeoutSeconds * 20);
         } else if (this.type == MatchType.TNT_RUN) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.tntRunTimeoutSeconds * 20);
+        } else if (this.type == MatchType.HEARTBEAT) {
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.heartbeatTimeoutSeconds * 20);
+        } else if (this.type == MatchType.HOT_POTATO) {
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.hotPotatoTimeoutSeconds * 20);
         } else {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
         }
@@ -334,6 +385,21 @@ public final class Match {
         }
         if (this.state == MatchState.ACTIVE && this.ticks > this.initialCountdownTicks + activeTimeout) {
             LOGGER.warn("[PvP] 比赛 #{} 超时（{} 秒）结束", this.id, activeTimeout / 20);
+            if (this.type == MatchType.HOT_POTATO) {
+                // 烫手山芋超时：当前持有者爆炸淘汰（一次性），若之后仍互传拖时间则 60 秒后强制平局
+                if (!this.hotPotatoTimeoutTriggered) {
+                    this.hotPotatoTimeoutTriggered = true;
+                    ServerPlayerEntity holder = this.onlineHotPotatoHolder();
+                    if (holder != null) {
+                        this.explodeHotPotato(holder);
+                    } else {
+                        this.finishMatch(this.timeoutWinner());
+                    }
+                } else if (this.ticks > this.initialCountdownTicks + activeTimeout + 60 * 20) {
+                    this.finishMatch(this.timeoutWinner());
+                }
+                return;
+            }
             this.finishMatch(this.timeoutWinner());
             return;
         }
@@ -366,6 +432,12 @@ public final class Match {
                 }
                 if (this.type == MatchType.TNT_RUN) {
                     this.tickTntRun();
+                }
+                if (this.type == MatchType.HEARTBEAT) {
+                    this.tickHeartbeat();
+                }
+                if (this.type == MatchType.HOT_POTATO) {
+                    this.tickHotPotato();
                 }
                 this.checkWinCondition();
             }
@@ -913,7 +985,7 @@ public final class Match {
         return team;
     }
 
-    /** 超时结算入口：战桥按比分、幸运之柱按击杀、其余平局。 */
+    /** 超时结算入口：战桥按比分、幸运之柱按击杀、心跳水立方按当前进度排名、其余平局。 */
     private MatchTeam timeoutWinner() {
         if (this.type.isBridge()) {
             return this.bridgeTimeoutWinner();
@@ -921,7 +993,367 @@ public final class Match {
         if (this.type == MatchType.LUCKY_PILLAR) {
             return this.luckyPillarTimeoutWinner();
         }
+        if (this.type == MatchType.HEARTBEAT) {
+            // 超时按当前进度排名结算（announceResult 显示完整排名）
+            return this.teams.get(0);
+        }
         return null;
+    }
+
+    // ---------- 心跳水立方 (Heartbeat) ----------
+
+    /** 心跳水立方每帧逻辑：心跳地板周期切换、到达/落空判定、摔落免疫。 */
+    private void tickHeartbeat() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null || this.heartbeatLayout == null) {
+            return;
+        }
+
+        this.heartbeatTicks++;
+        int total = cfg.heartbeatCloseTicks + cfg.heartbeatOpenTicks;
+        int phase = this.heartbeatTicks % total;
+        boolean open = phase >= cfg.heartbeatCloseTicks; // 消失窗口：地板全部清除
+
+        // 心跳状态切换：铺/清心跳地板 + 心跳音效/粒子提示
+        if (open != this.heartbeatOpen) {
+            this.heartbeatOpen = open;
+            HeartbeatMapGenerator.setLayers(arena, this.heartbeatLayout, open);
+            for (ServerPlayerEntity player : this.players) {
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online != null) {
+                    online.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_HEARTBEAT,
+                            SoundCategory.PLAYERS, 1.0F, open ? 1.2F : 0.8F);
+                }
+            }
+            if (arena instanceof ServerWorld sw) {
+                for (int y : this.heartbeatLayout.layerYs) {
+                    sw.spawnParticles(ParticleTypes.HEART,
+                            this.heartbeatLayout.mapCenter.getX() + 0.5, y + 0.5,
+                            this.heartbeatLayout.mapCenter.getZ() + 0.5, open ? 4 : 2, 3.0, 0.1, 3.0, 0.01);
+                }
+            }
+        }
+
+        // 存活玩家：高空下落免摔 + 到达水坑 / 落空淘汰 / 掉出塔兜底
+        for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
+            online.fallDistance = 0;
+            double y = online.getY();
+            if (y < this.heartbeatLayout.platformY - 0.3) {
+                if (this.heartbeatLayout.isInPool(online.getX(), online.getZ())) {
+                    this.heartbeatArrive(online); // 落入水坑 → 安全到达
+                } else if (y < this.heartbeatLayout.platformY - 2.0) {
+                    // 从平台边缘/洞外落到平台下方：没落到水里 → 淘汰
+                    this.eliminate(online, EliminationCause.VOID);
+                }
+            }
+            if (y < this.heartbeatLayout.platformY - 20) {
+                // 掉出整座塔 → 虚空淘汰（兜底）
+                this.eliminate(online, EliminationCause.VOID);
+            }
+        }
+    }
+
+    /** 玩家到达水坑：记录名次并转幽灵观战；第 1 名到达即结束比赛。 */
+    private void heartbeatArrive(ServerPlayerEntity player) {
+        if (this.eliminated.contains(player.getUuid()) || this.heartbeatRanking.contains(player.getUuid())) {
+            return;
+        }
+        this.heartbeatRanking.add(player.getUuid());
+        this.eliminated.add(player.getUuid());
+        for (MatchTeam team : this.teams) {
+            team.eliminate(player);
+        }
+        this.makeGhost(player); // 转幽灵观战
+        this.broadcast(Messages.gold("§e" + player.getGameProfile().getName()
+                + "§r 到达水底！名次 §6#" + this.heartbeatRanking.size()));
+        if (this.heartbeatRanking.size() == 1) {
+            this.finishMatch(this.teams.get(0));
+        }
+    }
+
+    /** 心跳水立方结算：广播完整排名（到达者按顺序，未到达者按当前高度，已淘汰/离线排最后）。 */
+    private void announceHeartbeatResult() {
+        List<UUID> order = new ArrayList<>(this.heartbeatRanking);
+        List<ServerPlayerEntity> unfinished = new ArrayList<>();
+        List<UUID> fallen = new ArrayList<>();
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        for (ServerPlayerEntity player : this.players) {
+            if (order.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null && arena != null && online.getWorld() == arena
+                    && !this.eliminated.contains(player.getUuid())) {
+                unfinished.add(online); // 仍在场上的未到达玩家
+            } else {
+                fallen.add(player.getUuid()); // 已淘汰 / 离线
+            }
+        }
+        // 未到达者按当前高度升序（越接近水坑名次越靠前）
+        unfinished.sort((a, b) -> Double.compare(a.getY(), b.getY()));
+        for (ServerPlayerEntity p : unfinished) {
+            order.add(p.getUuid());
+        }
+        order.addAll(fallen);
+
+        this.broadcast(Messages.gold("§6§l心跳水立方结束！"));
+        for (int i = 0; i < order.size(); i++) {
+            UUID uuid = order.get(i);
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
+            String name = online != null ? online.getGameProfile().getName() : "§7(离线)";
+            String medal = switch (i) {
+                case 0 -> "§6§l#1";
+                case 1 -> "§e§l#2";
+                case 2 -> "§b§l#3";
+                default -> "§7#" + (i + 1);
+            };
+            this.broadcast(Text.literal(medal + " §f" + name));
+        }
+    }
+
+    // ---------- 烫手山芋 (Hot Potato) ----------
+
+    /** 烫手山芋每帧逻辑：持有倒计时/爆炸、山芋粘主手、重生、掉落物清理、掉出平台兜底。 */
+    private void tickHotPotato() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+
+        // 1) 持有者状态检查（离线/被淘汰 → 山芋重生）
+        ServerPlayerEntity holder = this.onlineHotPotatoHolder();
+        if (this.hotPotatoHolder != null && holder == null) {
+            this.clearHotPotatoItems();
+            this.hotPotatoHolder = null;
+            this.scheduleHotPotatoRespawn();
+        }
+
+        // 2) 持有倒计时与爆炸
+        if (holder != null) {
+            this.ensureHotPotatoInHand(holder);
+            this.hotPotatoTicks++;
+            int total = cfg.hotPotatoExplodeSeconds * 20;
+            int left = total - this.hotPotatoTicks;
+            if (left <= cfg.hotPotatoWarnSeconds * 20 && left > 0 && left % 10 == 0) {
+                holder.sendMessage(Text.literal("§c§l山芋要爆炸了！ §e" + ((left + 19) / 20) + "s"), true);
+                holder.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.PLAYERS, 1.0F, 0.6F);
+                if (arena instanceof ServerWorld sw) {
+                    sw.spawnParticles(ParticleTypes.FLAME, holder.getX(), holder.getY() + 1.2,
+                            holder.getZ(), 6, 0.3, 0.3, 0.3, 0.01);
+                }
+            }
+            if (this.hotPotatoTicks >= total) {
+                this.explodeHotPotato(holder);
+            }
+            // 持有者加速（追逐传递）
+            if (cfg.hotPotatoHolderSpeed && holder != null
+                    && !this.eliminated.contains(holder.getUuid())) {
+                holder.addStatusEffect(new StatusEffectInstance(
+                        StatusEffects.SPEED, 40, 0, false, false, true));
+            }
+        }
+
+        // 3) 山芋重生计时
+        if (this.hotPotatoRespawnTicks > 0) {
+            this.hotPotatoRespawnTicks--;
+            if (this.hotPotatoRespawnTicks == 0) {
+                ServerPlayerEntity next = this.pickRandomAlive();
+                if (next != null) {
+                    this.giveHotPotato(next);
+                }
+            }
+        }
+
+        // 4) 清理场上的山芋掉落物（防 Q 丢弃/爆炸掉落）
+        this.clearHotPotatoDrops(arena);
+
+        // 5) 掉出平台 → 淘汰（兜底）
+        if (this.hotPotatoLayout != null) {
+            for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
+                if (online.getY() < this.hotPotatoLayout.platformY - 15) {
+                    this.eliminate(online, EliminationCause.VOID);
+                }
+            }
+        }
+    }
+
+    /** 左键（攻击）传递山芋：持有者攻击其他存活玩家时把山芋传过去（攻击不造成伤害）。 */
+    public void tryPassHotPotato(ServerPlayerEntity attacker, Entity target) {
+        if (this.type != MatchType.HOT_POTATO || this.state != MatchState.ACTIVE) {
+            return;
+        }
+        if (this.hotPotatoHolder == null || !this.hotPotatoHolder.equals(attacker.getUuid())) {
+            return; // 只有持有者能传递
+        }
+        if (!(target instanceof ServerPlayerEntity targetPlayer)
+                || this.eliminated.contains(targetPlayer.getUuid())
+                || attacker.getUuid().equals(targetPlayer.getUuid())) {
+            return;
+        }
+        if (attacker.squaredDistanceTo(targetPlayer) > 25) {
+            return; // 距离保险
+        }
+        this.clearHotPotatoItems(attacker);
+        attacker.removeStatusEffect(StatusEffects.SPEED); // 传递后不再加速
+        this.hotPotatoHolder = targetPlayer.getUuid();
+        this.hotPotatoTicks = 0;
+        this.giveHotPotatoItem(targetPlayer);
+        this.broadcast(Messages.warn("§e" + attacker.getGameProfile().getName()
+                + "§r 把烫手山芋传给了 §e" + targetPlayer.getGameProfile().getName() + "§r！"));
+        attacker.playSoundToPlayer(SoundEvents.ENTITY_ENDER_PEARL_THROW, SoundCategory.PLAYERS, 1.0F, 1.0F);
+        targetPlayer.playSoundToPlayer(SoundEvents.ENTITY_ENDER_PEARL_THROW, SoundCategory.PLAYERS, 1.0F, 1.4F);
+    }
+
+    /** 山芋爆炸：无方块破坏的爆炸特效 + 淘汰持有者 + 安排山芋重生。 */
+    private void explodeHotPotato(ServerPlayerEntity holder) {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena instanceof ServerWorld sw) {
+            sw.spawnParticles(ParticleTypes.EXPLOSION_EMITTER,
+                    holder.getX(), holder.getY() + 0.5, holder.getZ(), 1, 0, 0, 0, 0);
+            sw.spawnParticles(ParticleTypes.FLAME,
+                    holder.getX(), holder.getY() + 0.5, holder.getZ(), 30, 0.6, 0.6, 0.6, 0.05);
+        }
+        holder.playSoundToPlayer(SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 1.5F, 1.0F);
+        holder.clearStatusEffects();
+        this.hotPotatoHolder = null;
+        this.eliminate(holder, EliminationCause.HOT_POTATO_EXPLODE);
+        this.clearHotPotatoItems(); // 爆炸后清掉可能掉出的山芋
+        this.scheduleHotPotatoRespawn();
+    }
+
+    /** 随机给一名存活玩家发放山芋（无存活者则不动）。 */
+    private void giveHotPotato(ServerPlayerEntity player) {
+        this.hotPotatoHolder = player.getUuid();
+        this.hotPotatoTicks = 0;
+        this.giveHotPotatoItem(player);
+        this.broadcast(Messages.gold("§6烫手山芋出现了！§e" + player.getGameProfile().getName()
+                + "§r 持有它！§c左键点击其他玩家传递，时间到会爆炸！"));
+        player.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 1.0F, 1.5F);
+    }
+
+    /** 把山芋放到玩家主手（快捷栏第 1 格）。 */
+    private void giveHotPotatoItem(ServerPlayerEntity player) {
+        player.getInventory().setStack(0, createHotPotatoItem());
+        player.currentScreenHandler.sendContentUpdates();
+    }
+
+    /** 山芋粘主手：若不在主手则从物品栏移除并放回主手（防丢弃/换格）。 */
+    private void ensureHotPotatoInHand(ServerPlayerEntity player) {
+        var inventory = player.getInventory();
+        if (isHotPotatoItem(inventory.getStack(0))) {
+            return;
+        }
+        // 从物品栏所有槽位移除山芋（含护甲/副手）
+        for (int i = 0; i < inventory.size(); i++) {
+            if (isHotPotatoItem(inventory.getStack(i))) {
+                inventory.setStack(i, ItemStack.EMPTY);
+            }
+        }
+        inventory.setStack(0, createHotPotatoItem());
+        player.currentScreenHandler.sendContentUpdates();
+    }
+
+    /** 清掉指定玩家（或所有玩家）身上的山芋物品。 */
+    private void clearHotPotatoItems() {
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null) {
+                var inventory = online.getInventory();
+                boolean changed = false;
+                for (int i = 0; i < inventory.size(); i++) {
+                    if (isHotPotatoItem(inventory.getStack(i))) {
+                        inventory.setStack(i, ItemStack.EMPTY);
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    online.currentScreenHandler.sendContentUpdates();
+                }
+            }
+        }
+    }
+
+    private void clearHotPotatoItems(ServerPlayerEntity player) {
+        var inventory = player.getInventory();
+        boolean changed = false;
+        for (int i = 0; i < inventory.size(); i++) {
+            if (isHotPotatoItem(inventory.getStack(i))) {
+                inventory.setStack(i, ItemStack.EMPTY);
+                changed = true;
+            }
+        }
+        if (changed) {
+            player.currentScreenHandler.sendContentUpdates();
+        }
+    }
+
+    /** 清掉竞技场内掉落的山芋物品实体（防 Q 丢弃/爆炸掉落残留）。 */
+    private void clearHotPotatoDrops(ArenaWorld arena) {
+        Box box = new Box(
+                this.hotPotatoLayout.mapCenter.getX() - this.hotPotatoLayout.maxRadius, arena.getBottomY(),
+                this.hotPotatoLayout.mapCenter.getZ() - this.hotPotatoLayout.maxRadius,
+                this.hotPotatoLayout.mapCenter.getX() + this.hotPotatoLayout.maxRadius, arena.getTopY(),
+                this.hotPotatoLayout.mapCenter.getZ() + this.hotPotatoLayout.maxRadius);
+        for (ItemEntity entity : arena.getEntitiesByClass(ItemEntity.class, box,
+                e -> isHotPotatoItem(e.getStack()))) {
+            entity.discard();
+        }
+    }
+
+    /** 安排山芋重生（若场上有存活玩家）。 */
+    private void scheduleHotPotatoRespawn() {
+        this.hotPotatoRespawnTicks = PvPConfig.INSTANCE.hotPotatoRespawnSeconds * 20;
+    }
+
+    /** 随机选一名存活在线且在场内的玩家。 */
+    private ServerPlayerEntity pickRandomAlive() {
+        List<ServerPlayerEntity> alive = this.aliveOnlineInArena();
+        if (alive.isEmpty()) {
+            return null;
+        }
+        return alive.get(this.random.nextInt(alive.size()));
+    }
+
+    /** 当前山芋持有者（在线且在竞技场内），无则 null。 */
+    private ServerPlayerEntity onlineHotPotatoHolder() {
+        if (this.hotPotatoHolder == null) {
+            return null;
+        }
+        ServerPlayerEntity online = this.manager.getOnlinePlayer(this.hotPotatoHolder);
+        if (online == null || this.eliminated.contains(this.hotPotatoHolder)) {
+            return null;
+        }
+        return online;
+    }
+
+    /** 创建"烫手山芋"物品（烤马铃薯 + 自定义名 + 附魔光效 + 识别 NBT）。 */
+    private ItemStack createHotPotatoItem() {
+        ItemStack stack = new ItemStack(Items.BAKED_POTATO);
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§6§l烫手山芋"));
+        NbtCompound nbt = new NbtCompound();
+        nbt.putString(HOT_POTATO_TAG, "1");
+        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+        // 附魔光效（耐久 I 附魔模拟，注册表服务器启动后可用）
+        MinecraftServer server = this.manager.getServer();
+        if (server != null) {
+            Registry<Enchantment> registry = server.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
+            RegistryEntry<Enchantment> unbreaking = registry.getEntry(Enchantments.UNBREAKING).orElse(null);
+            if (unbreaking != null) {
+                stack.addEnchantment(unbreaking, 1);
+            }
+        }
+        return stack;
+    }
+
+    /** 是否为"烫手山芋"物品（按识别 NBT 判断）。 */
+    public static boolean isHotPotatoItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        NbtComponent nbt = stack.get(DataComponentTypes.CUSTOM_DATA);
+        return nbt != null && nbt.copyNbt().contains(HOT_POTATO_TAG);
     }
 
     // ---------- TNT 跑酷 (TNT Run) ----------
@@ -1367,12 +1799,7 @@ public final class Match {
     }
 
     private void startCelebration(MatchTeam winnerTeam) {
-        Set<UUID> winners = new HashSet<>();
-        if (winnerTeam != null) {
-            for (ServerPlayerEntity player : winnerTeam.getAlivePlayers()) {
-                winners.add(player.getUuid());
-            }
-        }
+        Set<UUID> winners = this.computeWinners();
         this.announceResult(winners);
 
         // 获胜大字（动作栏）
@@ -1390,14 +1817,26 @@ public final class Match {
         this.spawnCelebrationFireworks(winners);
     }
 
-    /** 庆祝结束后的实际结算：恢复、战绩、清场、释放。 */
-    private void finalizeMatch() {
+    /** 结算胜者集合：心跳水立方为第一名到达者，其余模式为胜利队伍存活成员。 */
+    private Set<UUID> computeWinners() {
         Set<UUID> winners = new HashSet<>();
+        if (this.type == MatchType.HEARTBEAT) {
+            if (!this.heartbeatRanking.isEmpty()) {
+                winners.add(this.heartbeatRanking.get(0));
+            }
+            return winners;
+        }
         if (this.winnerTeam != null) {
             for (ServerPlayerEntity player : this.winnerTeam.getAlivePlayers()) {
                 winners.add(player.getUuid());
             }
         }
+        return winners;
+    }
+
+    /** 庆祝结束后的实际结算：恢复、战绩、清场、释放。 */
+    private void finalizeMatch() {
+        Set<UUID> winners = this.computeWinners();
         try {
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
@@ -1457,6 +1896,10 @@ public final class Match {
                 mapMaxRadius = this.luckyPillarLayout.maxRadius();
             } else if (this.tntRunLayout != null) {
                 mapMaxRadius = this.tntRunLayout.maxRadius;
+            } else if (this.heartbeatLayout != null) {
+                mapMaxRadius = this.heartbeatLayout.maxRadius;
+            } else if (this.hotPotatoLayout != null) {
+                mapMaxRadius = this.hotPotatoLayout.maxRadius;
             } else {
                 mapMaxRadius = 0;
             }
@@ -1695,6 +2138,13 @@ public final class Match {
                 this.luckyPillarItemTicks = 1;
                 this.luckyPillarEventTicks = PvPConfig.INSTANCE.luckyPillarEventIntervalSeconds * 20;
             }
+            if (this.type == MatchType.HOT_POTATO) {
+                // 开赛立即随机给一名玩家发放烫手山芋
+                ServerPlayerEntity first = this.pickRandomAlive();
+                if (first != null) {
+                    this.giveHotPotato(first);
+                }
+            }
             this.broadcast(Messages.gold("战斗开始！"));
             this.broadcastTitle("开始！");
             for (ServerPlayerEntity player : this.players) {
@@ -1743,6 +2193,8 @@ public final class Match {
         boolean bridge = this.type.isBridge();
         boolean luckyPillar = this.type == MatchType.LUCKY_PILLAR;
         boolean tntRun = this.type == MatchType.TNT_RUN;
+        boolean heartbeat = this.type == MatchType.HEARTBEAT;
+        boolean hotPotato = this.type == MatchType.HOT_POTATO;
         for (ServerPlayerEntity player : this.players) {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online == null) {
@@ -1796,6 +2248,19 @@ public final class Match {
                 online.getInventory().setStack(0, feather);
                 this.tntRunJumpCharge.put(online.getUuid(), 1); // 开局即可用一次羽毛跳
                 online.currentScreenHandler.sendContentUpdates();
+            } else if (heartbeat || hotPotato) {
+                // 心跳水立方 / 烫手山芋：无套件，冒险模式空手开局（专注玩法本身，不能放/拆方块）
+                online.getInventory().clear();
+                online.setHealth(online.getMaxHealth());
+                online.getHungerManager().setFoodLevel(20);
+                online.getHungerManager().setSaturationLevel(5f);
+                online.setAbsorptionAmount(0);
+                online.setFireTicks(0);
+                online.fallDistance = 0;
+                online.clearStatusEffects();
+                online.changeGameMode(GameMode.ADVENTURE);
+                online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
+                online.currentScreenHandler.sendContentUpdates();
             } else {
                 Kit playerKit = this.playerKits.get(player.getUuid());
                 if (playerKit == null) {
@@ -1820,6 +2285,10 @@ public final class Match {
         } else if (tntRun) {
             this.broadcast(Messages.info("TNT 跑酷开始！踩过的方块 §e0.2 秒§r 后掉落，掉出底层即淘汰；右键跳跃羽毛可向上跳一段（每 §e"
                     + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + "§r 秒充能一次），地面会刷火焰弹/TNT，最后的幸存者获胜！"));
+        } else if (heartbeat) {
+            this.broadcast(Messages.info("心跳水立方开始！卡心跳节奏逐层下落，落进底部水坑即安全到达，第一个到达的玩家获胜！"));
+        } else if (hotPotato) {
+            this.broadcast(Messages.info("烫手山芋开始！左键点击其他玩家传递山芋，持有时间到会爆炸！最后的幸存者获胜！"));
         } else {
             this.broadcast(Messages.info("对局开始！模式：" + this.type.getDisplayName() + "，套件：" + this.kit.getDisplayName()));
         }
@@ -1833,6 +2302,10 @@ public final class Match {
     }
 
     private MatchTeam computeWinner() {
+        if (this.type == MatchType.HEARTBEAT) {
+            // 心跳水立方：第 1 名到达即结束（heartbeatArrive 触发）；这里兜底全员到达/淘汰
+            return this.heartbeatRanking.size() >= this.players.size() ? this.teams.get(0) : null;
+        }
         if (this.type.isLastManStanding()) {
             List<ServerPlayerEntity> alive = this.teams.get(0).getAlivePlayers();
             return alive.size() <= 1 ? this.teams.get(0) : null;
@@ -1856,6 +2329,11 @@ public final class Match {
     }
 
     private void announceResult(Set<UUID> winners) {
+        if (this.type == MatchType.HEARTBEAT) {
+            // 心跳水立方：按到达顺序广播完整排名
+            this.announceHeartbeatResult();
+            return;
+        }
         if (this.type.isBridge()) {
             // 战桥：比分最高者胜，并列平局
             MatchTeam winningTeam = null;
@@ -2001,8 +2479,37 @@ public final class Match {
         this.setInfoLine(scoreboard, objective, this.timeLine(), score--);
         this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
 
-        if (this.type.isLastManStanding()) {
-            // FFA/空岛战争/幸运之柱：存活数 + 存活玩家列表
+        if (this.type == MatchType.HEARTBEAT) {
+            // 心跳水立方：已到达/存活 + 心跳状态 + 名次列表
+            int arrived = this.heartbeatRanking.size();
+            this.setInfoLine(scoreboard, objective, "§b已到达 §f" + arrived + "§7/§f" + this.players.size(), score--);
+            if (this.heartbeatLayout != null) {
+                int total = PvPConfig.INSTANCE.heartbeatCloseTicks + PvPConfig.INSTANCE.heartbeatOpenTicks;
+                int phase = this.heartbeatTicks % total;
+                int left = this.heartbeatOpen
+                        ? Math.max(0, total - phase)
+                        : Math.max(0, PvPConfig.INSTANCE.heartbeatCloseTicks - phase);
+                String heart = this.heartbeatOpen ? "§c心跳消失 §f" : "§a心跳落地 §f";
+                this.setInfoLine(scoreboard, objective, heart + ((left + 19) / 20) + "s", score--);
+            }
+            this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
+            for (ServerPlayerEntity player : this.players) {
+                if (score < 0) {
+                    break;
+                }
+                int rank = this.heartbeatRanking.indexOf(player.getUuid());
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                String name = online != null ? online.getGameProfile().getName() : player.getGameProfile().getName();
+                if (rank >= 0) {
+                    this.setInfoLine(scoreboard, objective, " §6#" + (rank + 1) + " §f" + name, score--);
+                } else if (online != null) {
+                    this.setInfoLine(scoreboard, objective, " §a● §f" + name, score--);
+                } else {
+                    this.setInfoLine(scoreboard, objective, " §7✝ §f" + name, score--);
+                }
+            }
+        } else if (this.type.isLastManStanding()) {
+            // FFA/空岛战争/幸运之柱/TNT 跑酷/烫手山芋：存活数 + 存活玩家列表
             int alive = this.teams.isEmpty() ? 0 : this.teams.get(0).aliveCount();
             this.setInfoLine(scoreboard, objective, "§b存活 §f" + alive + "§7/§f" + this.players.size(), score--);
             if (this.type == MatchType.SKYWARS) {
@@ -2022,6 +2529,14 @@ public final class Match {
                 int rem = Math.max(0, (PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds * 20
                         - this.tntRunJumpTimer + 19) / 20);
                 this.setInfoLine(scoreboard, objective, "§b羽毛跳充能 §f" + rem + "s", score--);
+            }
+            if (this.type == MatchType.HOT_POTATO) {
+                ServerPlayerEntity holder = this.onlineHotPotatoHolder();
+                String holderName = holder != null ? holder.getGameProfile().getName() : "无";
+                this.setInfoLine(scoreboard, objective, "§6山芋持有者 §f" + holderName, score--);
+                int left = Math.max(0, (PvPConfig.INSTANCE.hotPotatoExplodeSeconds * 20
+                        - this.hotPotatoTicks + 19) / 20);
+                this.setInfoLine(scoreboard, objective, "§c爆炸倒计时 §f" + left + "s", score--);
             }
             this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
             for (ServerPlayerEntity player : this.players) {
@@ -2092,6 +2607,8 @@ public final class Match {
             case BRIDGE_TEAM -> "§e";
             case LUCKY_PILLAR -> "§d";
             case TNT_RUN -> "§4";
+            case HEARTBEAT -> "§b";
+            case HOT_POTATO -> "§c";
         };
         return "模式: " + color + this.type.getDisplayName();
     }

@@ -14,36 +14,36 @@ import java.util.UUID;
 
 /**
  * PvP 菜单用的容器 ScreenHandler。
- * 使用原版 GENERIC_9X3（三行箱子）作为客户端渲染，前 27 个槽位当作按钮，
+ * 使用原版 GENERIC_9X4（四行箱子）作为客户端渲染，前 36 个槽位当作按钮，
  * 点击即触发 {@link PvpGuiManager#onMenuSlotClick}，玩家自己的物品一律禁止移动。
  */
 public class PvpScreenHandler extends ScreenHandler {
-    public static final int MENU_SIZE = 27;
+    public static final int MENU_SIZE = 36;
 
     private final SimpleInventory menu = new SimpleInventory(MENU_SIZE);
     private final PvpGuiManager guiManager;
     private final UUID playerUuid;
 
     public PvpScreenHandler(int syncId, PlayerInventory playerInventory, PvpGuiManager guiManager, UUID playerUuid) {
-        super(ScreenHandlerType.GENERIC_9X3, syncId);
+        super(ScreenHandlerType.GENERIC_9X4, syncId);
         this.guiManager = guiManager;
         this.playerUuid = playerUuid;
 
-        // 菜单按钮槽位 0-26
-        for (int row = 0; row < 3; row++) {
+        // 菜单按钮槽位 0-35
+        for (int row = 0; row < 4; row++) {
             for (int col = 0; col < 9; col++) {
                 this.addSlot(new Slot(this.menu, col + row * 9, 8 + col * 18, 18 + row * 18));
             }
         }
-        // 玩家主背包槽位 27-53
+        // 玩家主背包槽位 36-62
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(playerInventory, 9 + col + row * 9, 8 + col * 18, 84 + row * 18));
+                this.addSlot(new Slot(playerInventory, 9 + col + row * 9, 8 + col * 18, 112 + row * 18));
             }
         }
-        // 玩家快捷栏槽位 54-62
+        // 玩家快捷栏槽位 63-71
         for (int col = 0; col < 9; col++) {
-            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 142));
+            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 170));
         }
     }
 

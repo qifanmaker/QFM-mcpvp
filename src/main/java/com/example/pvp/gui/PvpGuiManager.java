@@ -249,6 +249,16 @@ public final class PvpGuiManager {
                     "右键羽毛可向上跳一段（每 " + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + " 秒充能）",
                     "地面会刷火焰弹/TNT，掉出底层淘汰",
                     "最后存活者获胜，点击直接加入"));
+            inv.setStack(26, makeButton(Items.WATER_BUCKET, "§b心跳水立方", PvPConfig.INSTANCE.heartbeatMinPlayers + "~"
+                    + PvPConfig.INSTANCE.heartbeatMaxPlayers + " 人，凑齐 " + PvPConfig.INSTANCE.heartbeatStartPlayers + " 人开赛",
+                    "从高空出发台往下跳，卡心跳节奏穿过障碍层",
+                    "落进底部水坑即安全到达，按到底顺序排名",
+                    "第一个到达的玩家获胜，点击直接加入"));
+            inv.setStack(27, makeButton(Items.BAKED_POTATO, "§c烫手山芋", PvPConfig.INSTANCE.hotPotatoMinPlayers + "~"
+                    + PvPConfig.INSTANCE.hotPotatoMaxPlayers + " 人，凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers + " 人开赛",
+                    "场上唯一一颗山芋，左键点击其他玩家传递",
+                    "持有时间到会爆炸淘汰，障碍物地图可绕行",
+                    "最后存活者获胜，点击直接加入"));
             inv.setStack(19, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
             inv.setStack(20, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
             inv.setStack(21, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
@@ -448,6 +458,10 @@ public final class PvpGuiManager {
             case 24 -> this.joinQueue(player, MatchType.LUCKY_PILLAR, KitManager.luckyPillarKit());
             // TNT 跑酷无套件（空手开局），直接加入
             case 25 -> this.joinQueue(player, MatchType.TNT_RUN, KitManager.tntRunKit());
+            // 心跳水立方无套件（空手开局），直接加入
+            case 26 -> this.joinQueue(player, MatchType.HEARTBEAT, KitManager.heartbeatKit());
+            // 烫手山芋无套件（空手开局），直接加入
+            case 27 -> this.joinQueue(player, MatchType.HOT_POTATO, KitManager.hotPotatoKit());
             case 19 -> this.openDuelTargetPage(player);
             case 20 -> this.openStatsPage(player);
             case 21 -> this.openKitInfoPage(player);
@@ -569,6 +583,12 @@ public final class PvpGuiManager {
             } else if (type == MatchType.TNT_RUN) {
                 player.sendMessage(Messages.info("已加入 TNT 跑酷：凑齐 " + PvPConfig.INSTANCE.tntRunStartPlayers
                         + " 人开赛，踩过的方块会掉落"), false);
+            } else if (type == MatchType.HEARTBEAT) {
+                player.sendMessage(Messages.info("已加入心跳水立方：凑齐 " + PvPConfig.INSTANCE.heartbeatStartPlayers
+                        + " 人开赛，卡心跳节奏下落，落进水坑排名"), false);
+            } else if (type == MatchType.HOT_POTATO) {
+                player.sendMessage(Messages.info("已加入烫手山芋：凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers
+                        + " 人开赛，左键传递山芋，时间到爆炸"), false);
             } else if (type.isBridge()) {
                 if (type.isBridgeTeam()) {
                     player.sendMessage(Messages.info("已加入战桥混战：需要偶数人数（≥ "

@@ -22,7 +22,9 @@ public class ArenaTemplate {
         SKYWARS,
         BRIDGE,
         LUCKY_PILLAR,
-        TNT_RUN
+        TNT_RUN,
+        HEARTBEAT,
+        HOT_POTATO
     }
 
     private final Layout layout;
@@ -106,6 +108,12 @@ public class ArenaTemplate {
             }
             case TNT_RUN -> {
                 // TNT 跑酷出生点由 TntRunLayout 计算（Match 构造时处理），这里返回空避免占位
+            }
+            case HEARTBEAT -> {
+                // 心跳水立方出生点由 HeartbeatLayout 计算（Match 构造时处理），这里返回空避免占位
+            }
+            case HOT_POTATO -> {
+                // 烫手山芋出生点由 HotPotatoLayout 计算（Match 构造时处理），这里返回空避免占位
             }
         }
         return spawns;

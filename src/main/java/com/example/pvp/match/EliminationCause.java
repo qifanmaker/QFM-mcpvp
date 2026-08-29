@@ -9,7 +9,8 @@ public enum EliminationCause {
     RING_OUT("出场"),
     SHRINK("缩圈淘汰"),
     DISCONNECT("中途退出"),
-    FORFEIT("弃权");
+    FORFEIT("弃权"),
+    HOT_POTATO_EXPLODE("山芋爆炸");
 
     private final String displayName;
 

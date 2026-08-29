@@ -234,6 +234,10 @@ public final class PvPMod implements ModInitializer {
                 if (MATCH != null && MATCH.isEliminated(serverPlayer.getUuid())) {
                     return TypedActionResult.fail(stack);
                 }
+                // 烫手山芋：禁止使用（吃/右键）山芋物品，只能左键传递
+                if (Match.isHotPotatoItem(stack)) {
+                    return TypedActionResult.fail(stack);
+                }
                 // 旁观者 UI：指南针切换观战 / 绿宝石下一把 / 红石退出
                 if (PvpGuiManager.isSpectatorUiItem(stack)) {
                     Match match = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
@@ -328,8 +332,17 @@ public final class PvPMod implements ModInitializer {
             return ActionResult.PASS;
         });
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
-            if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {
-                return ActionResult.FAIL;
+            if (player instanceof ServerPlayerEntity sp && MATCH != null) {
+                if (MATCH.isEliminated(sp.getUuid())) {
+                    return ActionResult.FAIL;
+                }
+                // 烫手山芋：左键（攻击）其他存活玩家传递山芋；拦截原版攻击（对局内不造成伤害）
+                Match match = MATCH.getMatchFor(sp);
+                if (match != null && match.getType() == MatchType.HOT_POTATO
+                        && entity instanceof ServerPlayerEntity) {
+                    match.tryPassHotPotato(sp, entity);
+                    return ActionResult.SUCCESS;
+                }
             }
             return ActionResult.PASS;
         });

@@ -159,6 +159,16 @@ public final class MatchManager {
                     || players.size() > PvPConfig.INSTANCE.tntRunMaxPlayers) {
                 return false;
             }
+        } else if (type == MatchType.HEARTBEAT) {
+            if (players.size() < PvPConfig.INSTANCE.heartbeatMinPlayers
+                    || players.size() > PvPConfig.INSTANCE.heartbeatMaxPlayers) {
+                return false;
+            }
+        } else if (type == MatchType.HOT_POTATO) {
+            if (players.size() < PvPConfig.INSTANCE.hotPotatoMinPlayers
+                    || players.size() > PvPConfig.INSTANCE.hotPotatoMaxPlayers) {
+                return false;
+            }
         } else if (type.isBridge()) {
             if (type.isBridgeTeam()) {
                 // 混战：总人数/2 分两队，需要偶数且 ≥ 最少人数
@@ -337,6 +347,8 @@ public final class MatchManager {
             case BRIDGE_1V1, BRIDGE_2V2, BRIDGE_1V1V1V1, BRIDGE_TEAM -> PvPConfig.INSTANCE.bridgeSize;
             case LUCKY_PILLAR -> PvPConfig.INSTANCE.luckyPillarSize;
             case TNT_RUN -> PvPConfig.INSTANCE.tntRunSize;
+            case HEARTBEAT -> PvPConfig.INSTANCE.heartbeatSize;
+            case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
@@ -346,10 +358,13 @@ public final class MatchManager {
             case BRIDGE_1V1, BRIDGE_2V2, BRIDGE_1V1V1V1, BRIDGE_TEAM -> ArenaTemplate.Layout.BRIDGE;
             case LUCKY_PILLAR -> ArenaTemplate.Layout.LUCKY_PILLAR;
             case TNT_RUN -> ArenaTemplate.Layout.TNT_RUN;
+            case HEARTBEAT -> ArenaTemplate.Layout.HEARTBEAT;
+            case HOT_POTATO -> ArenaTemplate.Layout.HOT_POTATO;
         };
-        // 相扑/空岛/战桥/幸运之柱/TNT 跑酷无围墙；其地图本身由各自生成器铺
+        // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋无围墙；其地图本身由各自生成器铺
         boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
-                && type != MatchType.LUCKY_PILLAR && type != MatchType.TNT_RUN;
+                && type != MatchType.LUCKY_PILLAR && type != MatchType.TNT_RUN
+                && type != MatchType.HEARTBEAT && type != MatchType.HOT_POTATO;
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 

@@ -139,6 +139,50 @@ public final class PvPConfig {
     /** 对局超时（秒）：超过后击杀最多者胜，无击杀平局。 */
     public int tntRunTimeoutSeconds = 600;
 
+    // ---------- 心跳水立方 (Heartbeat) ----------
+    /** 最少/触发开赛倒计时/最多人数。默认凑齐 4 人开赛，最少 2 人可开。 */
+    public int heartbeatMinPlayers = 2;
+    public int heartbeatStartPlayers = 4;
+    public int heartbeatMaxPlayers = 8;
+    /** 开赛倒计时（秒）；不足开赛人数时等待填充的最长时间（秒）。 */
+    public int heartbeatCountdownSeconds = 30;
+    public int heartbeatFillTimeoutSeconds = 60;
+    /** 塔区覆盖边长（生成/清理边界）。 */
+    public int heartbeatSize = 41;
+    /** 心跳障碍层数（默认 5 层）。 */
+    public int heartbeatLayerCount = 5;
+    /** 层间距（格，默认 8：心跳消失窗口内正好下穿 1 层）。 */
+    public int heartbeatLayerGap = 8;
+    /** 心跳出现时长（tick，默认 60 = 3 秒）与消失时长（tick，默认 30 = 1.5 秒）。 */
+    public int heartbeatCloseTicks = 60;
+    public int heartbeatOpenTicks = 30;
+    /** 底部水坑数量与半径（格）。 */
+    public int heartbeatPoolCount = 5;
+    public int heartbeatPoolRadius = 3;
+    /** 对局超时（秒）：超时后按当前进度排名结算。 */
+    public int heartbeatTimeoutSeconds = 600;
+
+    // ---------- 烫手山芋 (Hot Potato) ----------
+    /** 最少/触发开赛倒计时/最多人数。默认凑齐 4 人开赛，最少 2 人可开。 */
+    public int hotPotatoMinPlayers = 2;
+    public int hotPotatoStartPlayers = 4;
+    public int hotPotatoMaxPlayers = 8;
+    /** 开赛倒计时（秒）；不足开赛人数时等待填充的最长时间（秒）。 */
+    public int hotPotatoCountdownSeconds = 30;
+    public int hotPotatoFillTimeoutSeconds = 60;
+    /** 障碍物平台边长（默认 41）。 */
+    public int hotPotatoSize = 41;
+    /** 山芋持有多少秒后爆炸（默认 8 秒）。 */
+    public int hotPotatoExplodeSeconds = 8;
+    /** 爆炸倒计时最后几秒开始警告（默认 3 秒）。 */
+    public int hotPotatoWarnSeconds = 3;
+    /** 持有者是否获得速度 I（追逐传递用，默认 true）。 */
+    public Boolean hotPotatoHolderSpeed = true;
+    /** 山芋爆炸后多久重新随机发放（秒，默认 2）。 */
+    public int hotPotatoRespawnSeconds = 2;
+    /** 对局超时（秒）：超时后当前持有者爆炸淘汰。 */
+    public int hotPotatoTimeoutSeconds = 600;
+
     private PvPConfig() {
     }
 
@@ -321,6 +365,102 @@ public final class PvPConfig {
         }
         if (this.tntRunTimeoutSeconds <= 0) {
             this.tntRunTimeoutSeconds = defaults.tntRunTimeoutSeconds;
+            changed = true;
+        }
+        if (this.heartbeatMinPlayers <= 0) {
+            this.heartbeatMinPlayers = defaults.heartbeatMinPlayers;
+            changed = true;
+        }
+        if (this.heartbeatStartPlayers <= 0) {
+            this.heartbeatStartPlayers = defaults.heartbeatStartPlayers;
+            changed = true;
+        }
+        if (this.heartbeatMaxPlayers <= 0) {
+            this.heartbeatMaxPlayers = defaults.heartbeatMaxPlayers;
+            changed = true;
+        }
+        if (this.heartbeatCountdownSeconds <= 0) {
+            this.heartbeatCountdownSeconds = defaults.heartbeatCountdownSeconds;
+            changed = true;
+        }
+        if (this.heartbeatFillTimeoutSeconds <= 0) {
+            this.heartbeatFillTimeoutSeconds = defaults.heartbeatFillTimeoutSeconds;
+            changed = true;
+        }
+        if (this.heartbeatSize <= 0) {
+            this.heartbeatSize = defaults.heartbeatSize;
+            changed = true;
+        }
+        if (this.heartbeatLayerCount <= 0) {
+            this.heartbeatLayerCount = defaults.heartbeatLayerCount;
+            changed = true;
+        }
+        if (this.heartbeatLayerGap <= 0) {
+            this.heartbeatLayerGap = defaults.heartbeatLayerGap;
+            changed = true;
+        }
+        if (this.heartbeatCloseTicks <= 0) {
+            this.heartbeatCloseTicks = defaults.heartbeatCloseTicks;
+            changed = true;
+        }
+        if (this.heartbeatOpenTicks <= 0) {
+            this.heartbeatOpenTicks = defaults.heartbeatOpenTicks;
+            changed = true;
+        }
+        if (this.heartbeatPoolCount <= 0) {
+            this.heartbeatPoolCount = defaults.heartbeatPoolCount;
+            changed = true;
+        }
+        if (this.heartbeatPoolRadius <= 0) {
+            this.heartbeatPoolRadius = defaults.heartbeatPoolRadius;
+            changed = true;
+        }
+        if (this.heartbeatTimeoutSeconds <= 0) {
+            this.heartbeatTimeoutSeconds = defaults.heartbeatTimeoutSeconds;
+            changed = true;
+        }
+        if (this.hotPotatoMinPlayers <= 0) {
+            this.hotPotatoMinPlayers = defaults.hotPotatoMinPlayers;
+            changed = true;
+        }
+        if (this.hotPotatoStartPlayers <= 0) {
+            this.hotPotatoStartPlayers = defaults.hotPotatoStartPlayers;
+            changed = true;
+        }
+        if (this.hotPotatoMaxPlayers <= 0) {
+            this.hotPotatoMaxPlayers = defaults.hotPotatoMaxPlayers;
+            changed = true;
+        }
+        if (this.hotPotatoCountdownSeconds <= 0) {
+            this.hotPotatoCountdownSeconds = defaults.hotPotatoCountdownSeconds;
+            changed = true;
+        }
+        if (this.hotPotatoFillTimeoutSeconds <= 0) {
+            this.hotPotatoFillTimeoutSeconds = defaults.hotPotatoFillTimeoutSeconds;
+            changed = true;
+        }
+        if (this.hotPotatoSize <= 0) {
+            this.hotPotatoSize = defaults.hotPotatoSize;
+            changed = true;
+        }
+        if (this.hotPotatoExplodeSeconds <= 0) {
+            this.hotPotatoExplodeSeconds = defaults.hotPotatoExplodeSeconds;
+            changed = true;
+        }
+        if (this.hotPotatoWarnSeconds <= 0) {
+            this.hotPotatoWarnSeconds = defaults.hotPotatoWarnSeconds;
+            changed = true;
+        }
+        if (this.hotPotatoRespawnSeconds <= 0) {
+            this.hotPotatoRespawnSeconds = defaults.hotPotatoRespawnSeconds;
+            changed = true;
+        }
+        if (this.hotPotatoHolderSpeed == null) {
+            this.hotPotatoHolderSpeed = defaults.hotPotatoHolderSpeed;
+            changed = true;
+        }
+        if (this.hotPotatoTimeoutSeconds <= 0) {
+            this.hotPotatoTimeoutSeconds = defaults.hotPotatoTimeoutSeconds;
             changed = true;
         }
         return changed;
