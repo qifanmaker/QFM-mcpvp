@@ -64,7 +64,41 @@ public final class HeartbeatMapGenerator {
             world.setBlockState(pos, air, 3);
         }
 
-        LOGGER.info("[PvP] 心跳水立方地图已生成: {} 关，塔宽 {}，层距 {}，起始层数 {}",
+        // 4) 四周外墙：封住塔身（防止从出发台边缘跳出绕过地板直落水），彩虹羊毛装饰，内嵌发光石照明
+        for (int level = 0; level < layout.levelCount; level++) {
+            BlockPos c = layout.center(level);
+            int cx = c.getX();
+            int cz = c.getZ();
+            int outer = halfSize + 1; // 外墙在地板外圈 1 格，内壁与地板齐平
+            int wallBottom = layout.poolY - 2;
+            int wallTop = layout.topY(level) + 3; // 高出出发台 3 格，防止跳出外墙
+            BlockState wallState = layout.wallBlock(level).getDefaultState();
+            BlockState glowState = layout.glowBlock().getDefaultState();
+
+            for (int y = wallBottom; y <= wallTop; y++) {
+                for (int x = cx - outer; x <= cx + outer; x++) {
+                    world.setBlockState(new BlockPos(x, y, cz - outer), wallState, 3);
+                    world.setBlockState(new BlockPos(x, y, cz + outer), wallState, 3);
+                }
+                for (int z = cz - outer + 1; z <= cz + outer - 1; z++) {
+                    world.setBlockState(new BlockPos(cx - outer, y, z), wallState, 3);
+                    world.setBlockState(new BlockPos(cx + outer, y, z), wallState, 3);
+                }
+            }
+            // 光源：沿四周外墙每 10 格高嵌入发光石（塔内全封闭，无光会很暗）
+            for (int y = wallBottom + 4; y <= wallTop; y += 10) {
+                for (int x = cx - outer + 3; x <= cx + outer - 3; x += 7) {
+                    world.setBlockState(new BlockPos(x, y, cz - outer), glowState, 3);
+                    world.setBlockState(new BlockPos(x, y, cz + outer), glowState, 3);
+                }
+                for (int z = cz - outer + 3; z <= cz + outer - 3; z += 7) {
+                    world.setBlockState(new BlockPos(cx - outer, y, z), glowState, 3);
+                    world.setBlockState(new BlockPos(cx + outer, y, z), glowState, 3);
+                }
+            }
+        }
+
+        LOGGER.info("[PvP] 心跳水立方地图已生成: {} 关，塔宽 {}，层距 {}，起始层数 {}，已封外墙+光源",
                 layout.levelCount, halfSize * 2 + 1, layout.floorGap, layout.baseFloors);
     }
 

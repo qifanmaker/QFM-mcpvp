@@ -30,6 +30,12 @@ public final class HeartbeatLayout {
      */
     public static final int BASE_Y = -50;
 
+    /** 外墙彩虹配色（每关一色；地板是红色羊毛，外墙避开红色以作区分）。 */
+    private static final Block[] RAINBOW_WALLS = {
+            Blocks.ORANGE_WOOL, Blocks.YELLOW_WOOL, Blocks.LIME_WOOL,
+            Blocks.LIGHT_BLUE_WOOL, Blocks.PURPLE_WOOL, Blocks.MAGENTA_WOOL
+    };
+
     public final BlockPos mapCenter;     // 第 0 关塔中心
     public final int levelCount;         // 关卡总数
     public final int halfSize;           // 塔半宽（方形边长 = 2*halfSize+1）
@@ -260,6 +266,16 @@ public final class HeartbeatLayout {
     /** 水池水方块。 */
     public Block poolWater() {
         return Blocks.WATER;
+    }
+
+    /** 第 level 关外墙颜色（彩虹羊毛，每关一色，便于区分塔）。 */
+    public Block wallBlock(int level) {
+        return RAINBOW_WALLS[level % RAINBOW_WALLS.length];
+    }
+
+    /** 外墙内嵌的光源方块（发光石）。 */
+    public Block glowBlock() {
+        return Blocks.GLOWSTONE;
     }
 
     /** 全部玻璃地板方块（生成用）。 */
