@@ -25,6 +25,8 @@ public final class HeartbeatLayout {
 
     /** 出发台中央洞口半宽：出发台做成环形，中央留 7×7 洞口供玩家跳入塔内下落。 */
     public static final int START_HOLE_HALF = 3;
+    /** 出发台在最后一层地板之上的固定间距（不随层距放大，避免塔顶超出建造高度）。 */
+    public static final int START_GAP = 8;
 
     public final BlockPos mapCenter;     // 第 0 关塔中心
     public final int levelCount;         // 关卡总数
@@ -114,7 +116,7 @@ public final class HeartbeatLayout {
     /** 第 0 关出发台环（最多 8 人，围一圈）。 */
     private static List<BlockPos> level0Spawns(BlockPos mapCenter, int halfSize, int baseFloors,
                                                int floorGap, int poolY) {
-        int topY = poolY + 4 + baseFloors * floorGap;
+        int topY = poolY + 4 + (baseFloors - 1) * floorGap + START_GAP;
         int spawnR = Math.max(1, halfSize - 2);
         List<BlockPos> spawns = new ArrayList<>();
         for (int i = 0; i < 8; i++) {
@@ -220,9 +222,9 @@ public final class HeartbeatLayout {
         return this.poolY + 4 + f * this.floorGap;
     }
 
-    /** 第 level 关出发台表面 Y（最后一层玻璃之上 floorGap）。 */
+    /** 第 level 关出发台表面 Y（最后一层地板之上 START_GAP）。 */
     public int topY(int level) {
-        return this.poolY + 4 + this.floors(level) * this.floorGap;
+        return this.poolY + 4 + (this.floors(level) - 1) * this.floorGap + START_GAP;
     }
 
     /** 第 level 关每层 2×2 洞的个数（由易到难：5 → 1）。 */
