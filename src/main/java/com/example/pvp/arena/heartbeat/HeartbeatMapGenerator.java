@@ -77,9 +77,8 @@ public final class HeartbeatMapGenerator {
         int levelCount = Math.max(2, PvPConfig.INSTANCE.heartbeatLevels);
         int baseFloors = Math.max(2, PvPConfig.INSTANCE.heartbeatBaseFloors);
         int floorGap = Math.max(6, PvPConfig.INSTANCE.heartbeatFloorGap);
-        int maxY = ArenaTemplate.PLATFORM_Y + 4 + (baseFloors + levelCount - 2) * floorGap
-                + HeartbeatLayout.START_GAP + 8;
-        int minY = ArenaTemplate.PLATFORM_Y - 6;
+        int maxY = HeartbeatLayout.BASE_Y + 4 + (baseFloors + levelCount - 1) * floorGap + 8;
+        int minY = HeartbeatLayout.BASE_Y - 6;
         for (int dx = -maxRadius; dx <= maxRadius; dx++) {
             for (int dz = -maxRadius; dz <= maxRadius; dz++) {
                 int x = center.getX() + dx;

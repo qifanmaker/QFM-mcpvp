@@ -1072,6 +1072,14 @@ public final class Match {
                     team.eliminate(online);
                 }
                 this.makeGhost(online); // 转幽灵观战
+                // 幽灵传送到最后一关塔顶上空俯视全图（makeGhost 默认观战点在普通平台高度，会落在塔内）
+                ArenaWorld arena = this.manager.getArenaManager().getWorld();
+                if (arena != null) {
+                    int last = layout.levelCount - 1;
+                    BlockPos topCenter = layout.center(last);
+                    online.teleport(arena, topCenter.getX() + 0.5, layout.topY(last) + 15,
+                            topCenter.getZ() + 0.5, 0, 90);
+                }
                 this.broadcast(Messages.gold("§e" + name + "§r 完成了全部 " + layout.levelCount + " 关！"));
                 this.broadcastTitleBig("§a§l全部关卡完成！", "§f" + name + " 通关！");
             }

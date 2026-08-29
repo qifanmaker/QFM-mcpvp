@@ -394,6 +394,8 @@ public final class MatchManager {
                         match.rescueGhost(player); // 幽灵掉出虚空送回观战台
                     } else if (match.getType().isBridge()) {
                         match.bridgeRespawn(player); // 战桥：掉出虚空直接原地重生（兜底）
+                    } else if (match.getType() == MatchType.HEARTBEAT) {
+                        match.onHeartbeatDeath(player); // 心跳水立方：掉出虚空回当前关塔顶重试（不淘汰）
                     } else {
                         match.eliminate(player, EliminationCause.VOID);
                     }

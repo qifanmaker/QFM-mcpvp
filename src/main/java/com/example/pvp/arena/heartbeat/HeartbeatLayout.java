@@ -1,6 +1,5 @@
 package com.example.pvp.arena.heartbeat;
 
-import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.config.PvPConfig;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
@@ -25,8 +24,11 @@ public final class HeartbeatLayout {
 
     /** 出发台中央洞口半宽：出发台做成环形，中央留 7×7 洞口供玩家跳入塔内下落。 */
     public static final int START_HOLE_HALF = 3;
-    /** 出发台在最后一层地板之上的固定间距（不随层距放大，避免塔顶超出建造高度）。 */
-    public static final int START_GAP = 8;
+    /**
+     * 塔底池面 Y（负坐标）：竞技场世界高度上限仍是 320，高塔地图整体下移、
+     * 塔顶落在正常高度内（层距 35 时最后一关塔顶 = -50+4+7*35 = 199）。
+     */
+    public static final int BASE_Y = -50;
 
     public final BlockPos mapCenter;     // 第 0 关塔中心
     public final int levelCount;         // 关卡总数
@@ -66,7 +68,7 @@ public final class HeartbeatLayout {
         int levelCount = Math.max(2, cfg.heartbeatLevels);
         int floorGap = Math.max(6, cfg.heartbeatFloorGap);
         int baseFloors = Math.max(2, cfg.heartbeatBaseFloors);
-        int poolY = ArenaTemplate.PLATFORM_Y;
+        int poolY = BASE_Y;
         int levelStride = halfSize * 2 + 9;
 
         // 清理半径：从第 0 关中心覆盖到最后一关塔边 + 边距
@@ -116,7 +118,7 @@ public final class HeartbeatLayout {
     /** 第 0 关出发台环（最多 8 人，围一圈）。 */
     private static List<BlockPos> level0Spawns(BlockPos mapCenter, int halfSize, int baseFloors,
                                                int floorGap, int poolY) {
-        int topY = poolY + 4 + (baseFloors - 1) * floorGap + START_GAP;
+        int topY = poolY + 4 + baseFloors * floorGap;
         int spawnR = Math.max(1, halfSize - 2);
         List<BlockPos> spawns = new ArrayList<>();
         for (int i = 0; i < 8; i++) {
@@ -222,9 +224,9 @@ public final class HeartbeatLayout {
         return this.poolY + 4 + f * this.floorGap;
     }
 
-    /** 第 level 关出发台表面 Y（最后一层地板之上 START_GAP）。 */
+    /** 第 level 关出发台表面 Y（最后一层地板之上 floorGap）。 */
     public int topY(int level) {
-        return this.poolY + 4 + (this.floors(level) - 1) * this.floorGap + START_GAP;
+        return this.poolY + 4 + this.floors(level) * this.floorGap;
     }
 
     /** 第 level 关每层 2×2 洞的个数（由易到难：5 → 1）。 */

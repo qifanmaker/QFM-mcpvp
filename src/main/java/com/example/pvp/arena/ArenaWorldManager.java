@@ -118,7 +118,7 @@ public final class ArenaWorldManager {
         this.deleteDirectory(arenaDir);
 
         VoidChunkGenerator generator = new VoidChunkGenerator(this.server);
-        DimensionOptions options = new DimensionOptions(this.arenaDimTypeEntry(), generator);
+        DimensionOptions options = new DimensionOptions(this.dimTypeEntry(), generator);
         ((PvpDimensionOptions) (Object) options).pvp$setSave(false);
         ((PvpDimensionOptions) (Object) options).pvp$setSaveProperties(false);
 
@@ -338,22 +338,11 @@ public final class ArenaWorldManager {
         rules.get(GameRules.SHOW_DEATH_MESSAGES).set(false, server);
     }
 
-    /** 竞技场维度类型：以主世界为底，但把高度上限调到 1024（y -64..959），突破 320 建筑高度供高塔地图使用。 */
-    private RegistryEntry<DimensionType> arenaDimTypeEntry() {
-        DimensionType base = this.server.getRegistryManager()
+    private RegistryEntry<DimensionType> dimTypeEntry() {
+        return this.server.getRegistryManager()
                 .get(RegistryKeys.DIMENSION_TYPE)
                 .getEntry(DimensionTypes.OVERWORLD)
-                .orElseThrow()
-                .value();
-        int height = 1024;
-        DimensionType tall = new DimensionType(
-                base.fixedTime(), base.hasSkyLight(), base.hasCeiling(), base.ultrawarm(), base.natural(),
-                base.coordinateScale(), base.bedWorks(), base.respawnAnchorWorks(),
-                -64, height, height,
-                base.infiniburn(), base.effects(), base.ambientLight(),
-                new DimensionType.MonsterSettings(base.piglinSafe(), base.hasRaids(),
-                        base.monsterSpawnLightTest(), base.monsterSpawnBlockLightLimit()));
-        return RegistryEntry.of(tall);
+                .orElseThrow();
     }
 
     private SimpleRegistry<DimensionOptions> getDimensionsRegistry() {
