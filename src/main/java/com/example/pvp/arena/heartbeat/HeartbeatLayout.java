@@ -43,8 +43,6 @@ public final class HeartbeatLayout {
     private static final double TERMINAL_VELOCITY = 3.92;
     /** 玩家下落时可持续的横向冲刺速度（方块/tick，≈5.6 方块/秒）。 */
     private static final double HORIZONTAL_SPEED = 0.28;
-    /** 安全系数：为瞄准 2×2 洞留出余量，保证生成的步长一定可解。 */
-    private static final double REACH_SAFETY = 0.75;
 
     /** 从一层落到下一层所需 tick（重力加速；超过终端距离后按终端速度匀速）。 */
     static int fallTicks(int gap) {
@@ -58,9 +56,18 @@ public final class HeartbeatLayout {
         return Math.max(1, (int) Math.ceil(tTerm + (d - dTerm) / TERMINAL_VELOCITY));
     }
 
-    /** 两层洞位之间的最大可达曼哈顿距离 = 下落时间 × 横向速度 × 安全系数（随层距自动缩放）。 */
-    static int maxLateralReach(int floorGap) {
-        return Math.max(1, (int) Math.floor(fallTicks(floorGap) * HORIZONTAL_SPEED * REACH_SAFETY));
+    /** 每关安全系数：第 1 关 0.4 → 最后一关 0.8 线性递增（简单关洞位近、难关允许更远）。 */
+    static double safetyForLevel(int level, int levelCount) {
+        if (levelCount <= 1) {
+            return 0.8;
+        }
+        return 0.4 + (level / (double) (levelCount - 1)) * 0.4;
+    }
+
+    /** 两层洞位之间的最大可达曼哈顿距离 = 下落时间 × 横向速度 × 该关安全系数（随层距与关卡缩放）。 */
+    static int maxLateralReach(int floorGap, int level, int levelCount) {
+        return Math.max(1, (int) Math.floor(
+                fallTicks(floorGap) * HORIZONTAL_SPEED * safetyForLevel(level, levelCount)));
     }
 
     public final BlockPos mapCenter;     // 第 0 关塔中心
@@ -113,9 +120,9 @@ public final class HeartbeatLayout {
                 Blocks.RED_WOOL, Blocks.WHITE_CONCRETE);
 
         // 每关：不透光地板满铺 + 2×2 洞位（首层随机，之后每层整体小幅偏移 → 上下层洞位关联）
-        // 偏移上限由下落物理算出（保证两层之间必可达，不存在无解）
-        int maxReach = maxLateralReach(floorGap);
+        // 偏移上限由下落物理 + 该关安全系数算出（保证两层之间必可达，不存在无解）
         for (int level = 0; level < levelCount; level++) {
+            int maxReach = maxLateralReach(floorGap, level, levelCount);
             int cx = layout.center(level).getX();
             int cz = layout.center(level).getZ();
             // 先铺满全部玻璃（羊毛）地板
