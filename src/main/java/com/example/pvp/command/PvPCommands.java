@@ -179,7 +179,7 @@ public final class PvPCommands {
                         + "§e/pvp join bridge1v1|bridge1v1v1v1|bridge2v2|bridge§r 加入战桥（无需套件）\n"
                         + "§e/pvp join luckypillar§r 加入幸运之柱（无需套件，空手开局）\n"
                         + "§e/pvp join tntrun§r 加入 TNT 跑酷（无需套件，踩过的方块掉落）\n"
-                        + "§e/pvp join heartbeat§r 加入心跳水立方（无需套件，穿玻璃洞落水过关，完成关卡多者胜）\n"
+                        + "§e/pvp join heartbeat§r 加入心跳水立方（无需套件，跳中央洞口穿地板洞落水过关）\n"
                         + "§e/pvp join hotpotato§r 加入烫手山芋（无需套件，左键传递山芋）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
@@ -650,7 +650,7 @@ public final class PvPCommands {
         player.teleport(arena, lastCenter.getX() + 0.5, layout.topY(layout.levelCount - 1) + 10,
                 lastCenter.getZ() + 0.5, 180, 90);
         arenaManager.addVisitor(player, 180);
-        player.sendMessage(Messages.gold("已传送到心跳水立方最后一关塔顶上空（约 3 分钟后自动回城），可下落查看玻璃洞与底部水池"), false);
+        player.sendMessage(Messages.gold("已传送到心跳水立方最后一关塔顶上空（约 3 分钟后自动回城），从中央洞口跳下查看每层红色地板上的洞与底部水池"), false);
         return 1;
     }
 

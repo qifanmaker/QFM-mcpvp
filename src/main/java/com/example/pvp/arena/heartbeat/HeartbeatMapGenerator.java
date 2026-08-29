@@ -40,11 +40,15 @@ public final class HeartbeatMapGenerator {
                 }
             }
 
-            // 2) 塔顶出发台（实心方盘）
+            // 2) 塔顶出发台：环形（中央留 7×7 洞口，玩家跳进洞口下落）
             int topY = layout.topY(level);
             BlockState topState = layout.platformBlock.getDefaultState();
             for (int dx = -halfSize; dx <= halfSize; dx++) {
                 for (int dz = -halfSize; dz <= halfSize; dz++) {
+                    if (Math.abs(dx) <= HeartbeatLayout.START_HOLE_HALF
+                            && Math.abs(dz) <= HeartbeatLayout.START_HOLE_HALF) {
+                        continue; // 中央洞口（不铺出发台）
+                    }
                     world.setBlockState(new BlockPos(cx + dx, topY, cz + dz), topState, 3);
                 }
             }

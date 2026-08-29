@@ -2370,7 +2370,7 @@ public final class Match {
         } else if (tntRun) {
             this.broadcast(Messages.info("TNT 跑酷开始！踩过的方块 §e0.2 秒§r 后掉落，掉出底层即淘汰；地面会刷火焰弹/TNT，捡起来砸人/炸人，最后的幸存者获胜！"));
         } else if (heartbeat) {
-            this.broadcast(Messages.info("心跳水立方开始！从塔顶跳下，穿过每层玻璃地板上的洞落进水坑过关，失误回塔顶重试；时间结束完成关卡数最多者获胜！"));
+            this.broadcast(Messages.info("心跳水立方开始！从出发台中央洞口跳下，穿过每层红色地板上的洞落水过关，失误回塔顶重试；时间结束完成关卡数最多者获胜！"));
         } else if (hotPotato) {
             this.broadcast(Messages.info("烫手山芋开始！左键点击其他玩家传递山芋，持有时间到会爆炸！最后的幸存者获胜！"));
         } else {

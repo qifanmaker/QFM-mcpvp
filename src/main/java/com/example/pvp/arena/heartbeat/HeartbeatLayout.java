@@ -23,6 +23,9 @@ import java.util.Set;
  */
 public final class HeartbeatLayout {
 
+    /** 出发台中央洞口半宽：出发台做成环形，中央留 7×7 洞口供玩家跳入塔内下落。 */
+    public static final int START_HOLE_HALF = 3;
+
     public final BlockPos mapCenter;     // 第 0 关塔中心
     public final int levelCount;         // 关卡总数
     public final int halfSize;           // 塔半宽（方形边长 = 2*halfSize+1）
