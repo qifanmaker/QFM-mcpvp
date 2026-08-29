@@ -36,6 +36,33 @@ public final class HeartbeatLayout {
             Blocks.LIGHT_BLUE_WOOL, Blocks.PURPLE_WOOL, Blocks.MAGENTA_WOOL
     };
 
+    // ---------- 下落物理：决定两层洞位之间可达的最大曼哈顿距离 ----------
+    /** MC 重力加速度（方块/tick²）。 */
+    private static final double GRAVITY_PER_TICK = 0.08;
+    /** MC 终端下落速度（方块/tick）。 */
+    private static final double TERMINAL_VELOCITY = 3.92;
+    /** 玩家下落时可持续的横向冲刺速度（方块/tick，≈5.6 方块/秒）。 */
+    private static final double HORIZONTAL_SPEED = 0.28;
+    /** 安全系数：为瞄准 2×2 洞留出余量，保证生成的步长一定可解。 */
+    private static final double REACH_SAFETY = 0.75;
+
+    /** 从一层落到下一层所需 tick（重力加速；超过终端距离后按终端速度匀速）。 */
+    static int fallTicks(int gap) {
+        double d = Math.max(1, gap);
+        double vFinal = Math.sqrt(2 * GRAVITY_PER_TICK * d);
+        if (vFinal <= TERMINAL_VELOCITY) {
+            return Math.max(1, (int) Math.ceil(Math.sqrt(2 * d / GRAVITY_PER_TICK)));
+        }
+        double tTerm = TERMINAL_VELOCITY / GRAVITY_PER_TICK;
+        double dTerm = 0.5 * GRAVITY_PER_TICK * tTerm * tTerm;
+        return Math.max(1, (int) Math.ceil(tTerm + (d - dTerm) / TERMINAL_VELOCITY));
+    }
+
+    /** 两层洞位之间的最大可达曼哈顿距离 = 下落时间 × 横向速度 × 安全系数（随层距自动缩放）。 */
+    static int maxLateralReach(int floorGap) {
+        return Math.max(1, (int) Math.floor(fallTicks(floorGap) * HORIZONTAL_SPEED * REACH_SAFETY));
+    }
+
     public final BlockPos mapCenter;     // 第 0 关塔中心
     public final int levelCount;         // 关卡总数
     public final int halfSize;           // 塔半宽（方形边长 = 2*halfSize+1）
@@ -86,6 +113,8 @@ public final class HeartbeatLayout {
                 Blocks.RED_WOOL, Blocks.WHITE_CONCRETE);
 
         // 每关：不透光地板满铺 + 2×2 洞位（首层随机，之后每层整体小幅偏移 → 上下层洞位关联）
+        // 偏移上限由下落物理算出（保证两层之间必可达，不存在无解）
+        int maxReach = maxLateralReach(floorGap);
         for (int level = 0; level < levelCount; level++) {
             int cx = layout.center(level).getX();
             int cz = layout.center(level).getZ();
@@ -106,7 +135,7 @@ public final class HeartbeatLayout {
                 if (f == 0) {
                     anchors = new ArrayList<>(pickInitialHoles(seed, level, layout.holes(level), halfSize));
                 } else {
-                    anchors = shiftHoles(seed, level, f, prevAnchors, halfSize);
+                    anchors = shiftHoles(seed, level, f, prevAnchors, halfSize, maxReach);
                 }
                 for (BlockPos a : anchors) {
                     for (int dx = 0; dx < 2; dx++) {
@@ -159,29 +188,38 @@ public final class HeartbeatLayout {
     }
 
     /**
-     * 下一层洞位：把上一层的锚点整体做小幅偏移（每个分量 -3~3，曼哈顿 1~4）。
-     * 保证上下层洞位有关联——玩家顺着刚穿过的洞继续下落，只要小幅横向移动就能对准下一层。
+     * 下一层洞位：把上一层的锚点整体做小幅偏移，曼哈顿上限由下落物理算出（maxReach）。
+     * 夹紧到塔边后仍会校验每个洞位的实际步长 ≤ maxReach，保证两层之间一定可解；
+     * 同层 2×2 洞之间不得重叠。生成确定性（seed + level + floor）。
      */
     private static List<BlockPos> shiftHoles(int seed, int level, int floor,
-                                             List<BlockPos> prev, int halfSize) {
+                                             List<BlockPos> prev, int halfSize, int maxReach) {
         Random rng = new Random(seed * 31L + level * 131L + floor * 17L + 7L);
         int range = halfSize - 2;
         List<BlockPos> out = new ArrayList<>();
-        for (int attempt = 0; attempt < 40; attempt++) {
+        for (int attempt = 0; attempt < 60; attempt++) {
             out.clear();
-            int sx = rng.nextInt(7) - 3; // -3..3
-            int sz = rng.nextInt(7) - 3;
+            int sx = rng.nextInt(maxReach * 2 + 1) - maxReach;
+            int sz = rng.nextInt(maxReach * 2 + 1) - maxReach;
             int man = Math.abs(sx) + Math.abs(sz);
-            if (man < 1 || man > 4) {
+            if (man < 1 || man > maxReach) {
                 continue;
             }
+            boolean ok = true;
             for (BlockPos a : prev) {
                 int nx = Math.max(-range, Math.min(range, a.getX() + sx));
                 int nz = Math.max(-range, Math.min(range, a.getZ() + sz));
+                // 夹紧后的实际步长必须 ≤ maxReach，否则玩家够不到（无解）
+                if (Math.abs(nx - a.getX()) + Math.abs(nz - a.getZ()) > maxReach) {
+                    ok = false;
+                    break;
+                }
                 out.add(new BlockPos(nx, 0, nz));
             }
+            if (!ok) {
+                continue;
+            }
             // 同一层的 2×2 洞之间不得重叠
-            boolean ok = true;
             for (int i = 0; i < out.size() && ok; i++) {
                 for (int j = i + 1; j < out.size(); j++) {
                     if (overlaps(out.get(i), out.get(j))) {
@@ -194,7 +232,7 @@ public final class HeartbeatLayout {
                 return out;
             }
         }
-        return out; // 兜底：重试耗尽也返回（重叠概率极低）
+        return out; // 兜底：重试耗尽也返回（概率极低）
     }
 
     /** 两个 2×2 洞锚点是否重叠（x、z 差都 < 2 即重叠）。 */
