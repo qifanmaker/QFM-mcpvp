@@ -154,6 +154,7 @@ public final class PvPMod implements ModInitializer {
                 QUEUE.tick(MATCH);
                 DUEL.tick();
             }
+            PvpGuiManager.get().tick(); // 每秒刷新打开的 GUI，实时显示各模式排队人数
         });
 
         // 主城内所有发射器实时自动补满 TNT（仅主城/主世界；加载/卸载自动增删追踪）

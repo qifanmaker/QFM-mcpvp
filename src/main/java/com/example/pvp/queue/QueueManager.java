@@ -100,6 +100,31 @@ public final class QueueManager {
         return count;
     }
 
+    /** 该模式下排队的总人数（不限套件；GUI 菜单实时显示用）。 */
+    public int countQueued(MatchType type) {
+        int count = 0;
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() == type) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** 一组模式的总排队人数（分类按钮显示用）。 */
+    public int countQueued(MatchType... types) {
+        int count = 0;
+        for (QueueEntry entry : this.entries) {
+            for (MatchType type : types) {
+                if (entry.getType() == type) {
+                    count++;
+                    break;
+                }
+            }
+        }
+        return count;
+    }
+
     /** 每个服务器 tick 调用：自由乱斗倒计时 + 非 FFA 即时凑齐开赛。 */
     public void tick(MatchManager matchManager) {
         // 自愈：清理已离线或已在比赛中的排队条目（防止残留状态导致无法再次开赛）

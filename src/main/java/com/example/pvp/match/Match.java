@@ -144,6 +144,10 @@ public final class Match {
     private int tntRunJumpTimer; // 二段跳充能计时（tick）
     private int tntRunDropTimer; // 掉落物刷新计时（tick）
     private final Map<BlockPos, Integer> tntRunVanish = new HashMap<>(); // 待消失方块 → 到期 tick
+    /** 羽毛跳跃上升推动（UUID → 剩余 tick）：类似火焰弹的服务端速度驱动，每 tick 重新施加速度。 */
+    private final Map<UUID, Integer> tntRunJumpBoost = new HashMap<>();
+    /** 羽毛跳跃目标层表面 Y（UUID → y），达到后停止推动，自然落在平台上。 */
+    private final Map<UUID, Integer> tntRunJumpTarget = new HashMap<>();
     /** 不死图腾非掉虚空复活后的摔落保护（UUID → 剩余 tick，期间每 tick 清零 fallDistance）。 */
     private final Map<UUID, Integer> totemFallSafeTicks = new HashMap<>();
 
@@ -1368,6 +1372,30 @@ public final class Match {
             online.fallDistance = 0;
         }
 
+        // 0.5) 羽毛跳跃推动（类似火焰弹的服务端速度驱动）：每 tick 重新施加上升速度并同步，
+        //      客户端收到连续速度包后本地模拟跟随上升，移动包位置自然上移（而非被拉回），
+        //      达到目标层表面后停止推动，玩家自然下落到平台上。
+        for (UUID uuid : List.copyOf(this.tntRunJumpBoost.keySet())) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
+            if (online == null) {
+                this.tntRunJumpBoost.remove(uuid);
+                this.tntRunJumpTarget.remove(uuid);
+                continue;
+            }
+            int left = this.tntRunJumpBoost.get(uuid) - 1;
+            Integer targetY = this.tntRunJumpTarget.get(uuid);
+            boolean reached = targetY != null && online.getY() >= targetY + 1;
+            if (left <= 0 || reached) {
+                this.tntRunJumpBoost.remove(uuid);
+                this.tntRunJumpTarget.remove(uuid);
+            } else {
+                Vec3d v = online.getVelocity();
+                online.setVelocity(v.x, 1.0, v.z); // 保持水平动量，持续向上推
+                online.velocityDirty = true;
+                this.tntRunJumpBoost.put(uuid, left);
+            }
+        }
+
         // 1) 处理待消失方块（到点置空气 + 粒子提示）
         if (arena != null) {
             for (Map.Entry<BlockPos, Integer> entry : List.copyOf(this.tntRunVanish.entrySet())) {
@@ -1459,7 +1487,10 @@ public final class Match {
         }
     }
 
-    /** TNT 跑酷：右键羽毛向上跳一段（充能 1 次，用完后等下一轮充能）。 */
+    /** TNT 跑酷：右键羽毛向上跳一层（充能 1 次，用完后等下一轮充能）。
+     * 类似火焰弹的处理逻辑：服务端设置速度、实体随后由服务端 tick 驱动移动——
+     * 这里给玩家一个持续 tick 的上升速度（tickTntRun 每帧重新施加），
+     * 而不是单次 setVelocity（会被客户端移动包拉回）或瞬移传送。 */
     public void tntRunFeatherJump(ServerPlayerEntity player) {
         LOGGER.info("[PvP] 羽毛跳跃触发: {} 充能={}", player.getGameProfile().getName(),
                 this.tntRunJumpCharge.getOrDefault(player.getUuid(), 0));
@@ -1472,11 +1503,27 @@ public final class Match {
             return;
         }
         this.tntRunJumpCharge.put(player.getUuid(), 0);
-        Vec3d v = player.getVelocity();
-        // 向上跳一段：层距 6 格，竖直速度 1.2 约可升 8 格，够上一层平台（含头顶留白）
-        player.setOnGround(false); // 先脱离地面，确保跳跃速度生效
-        player.setVelocity(v.x, 1.2, v.z);
-        player.velocityDirty = true;
+
+        // 目标层：上方最近的平台层表面（站在某层时跳向上一层）
+        int targetY = -1;
+        if (this.tntRunLayout != null) {
+            double currentY = player.getY();
+            for (int y : this.tntRunLayout.layerYs) {
+                if (y + 1 > currentY + 0.1 && (targetY == -1 || y < targetY)) {
+                    targetY = y;
+                }
+            }
+        }
+        if (targetY == -1) {
+            player.jump(); // 已在顶层/无更高层：原版跳跃兜底
+        } else {
+            // 启动上升推动：初速 + 持续 tick（约 10 tick × 0.9 格 ≈ 9 格，够层距 6 + 头顶留白）
+            this.tntRunJumpBoost.put(player.getUuid(), 10);
+            this.tntRunJumpTarget.put(player.getUuid(), targetY);
+            Vec3d v = player.getVelocity();
+            player.setVelocity(v.x, 1.0, v.z);
+            player.velocityDirty = true;
+        }
         player.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 1.0F, 1.4F);
         player.sendMessage(Text.literal("§a§l羽毛跳跃！"), true); // 动作栏提示，确认触发
         if (player.getWorld() instanceof ServerWorld sw) {

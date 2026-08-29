@@ -13,6 +13,8 @@ import com.example.pvp.text.Messages;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
 import net.minecraft.component.type.NbtComponent;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.SimpleInventory;
@@ -20,8 +22,12 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.screen.ScreenHandler;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
@@ -205,83 +211,224 @@ public final class PvpGuiManager {
 
     // ---------- 页面 ----------
 
+    /** 主菜单：4 大类（PvP 对战 / 空岛战争 / 战桥 / 趣味小游戏）+ 功能入口。 */
     public void openMainMenu(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.MAIN;
         ctx.pendingMode = null;
         ctx.duelTargetUuid = null;
-        this.openPage(player, ctx, "§6§lPvP 竞技场", inv -> {
-            inv.setStack(9, makeButton(Items.IRON_SWORD, "§b1v1 决斗匹配", "铁剑互砍，无护甲", "点击选择套件后加入队列"));
-            inv.setStack(10, makeButton(Items.DIAMOND_SWORD, "§b2v2 团队匹配", "4 人随机分队", "点击选择套件后加入队列"));
-            inv.setStack(11, makeButton(Items.GOLDEN_SWORD, "§b自由乱斗 (FFA)",
-                    PvPConfig.INSTANCE.ffaMinPlayers + " 人起，倒计时 " + PvPConfig.INSTANCE.ffaCountdownSeconds + " 秒",
-                    PvPConfig.INSTANCE.ffaEarlyStartPlayers + " 人时加速到 " + PvPConfig.INSTANCE.ffaEarlyStartSeconds + " 秒",
-                    "点击选择套件后加入队列"));
-            inv.setStack(12, makeButton(Items.STICK, "§b相扑 (Sumo)", "不吃伤害，只吃击退", "落到平台下方 20 格淘汰，末影珍珠可救回", "点击选择套件后加入队列"));
-            inv.setStack(13, makeButton(Items.DIAMOND_SWORD, "§b1.8 经典PvP", "无攻击冷却，疯狂点按", "剑可格挡减伤 50%", "点击选择套件后加入队列"));
-            inv.setStack(14, makeButton(Items.END_CRYSTAL, "§b空岛战争 (Beta)", "2~8 人，凑齐 "
-                    + PvPConfig.INSTANCE.skywarsStartPlayers + " 人开赛",
-                    "随机空岛 + 中间主岛，开箱获得装备",
-                    "1.8 低版本战斗：无冷却、剑格挡",
-                    "3 分钟后缩圈，最后存活者获胜",
-                    "点击直接加入"));
+        this.openPage(player, ctx, "§6§lPvP 竞技场", inv -> this.fillMainMenu(inv, player, ctx));
+    }
 
-            int win = PvPConfig.INSTANCE.bridgeWinScore;
-            inv.setStack(15, makeButton(Items.BRICK, "§3战桥 1v1", "2 人，先得 " + win + " 分获胜",
-                    "跳进对方球门洞得分", "1.8 低版本战斗：无冷却、剑格挡", "点击直接加入"));
-            inv.setStack(16, makeButton(Items.IRON_BARS, "§5战桥 1v1v1v1", "4 人四方混战，各自一个球门",
-                    "先得 " + win + " 分获胜", "点击直接加入"));
-            inv.setStack(17, makeButton(Items.RED_TERRACOTTA, "§b战桥 2v2", "4 人随机分队",
-                    "先得 " + win + " 分获胜", "点击直接加入"));
+    /** 主菜单按钮填充（打开与实时刷新共用；分类按钮显示该分类排队总人数：附魔光效 + 堆叠数）。 */
+    private void fillMainMenu(SimpleInventory inv, ServerPlayerEntity player, GuiContext ctx) {
+        // 先铺灰色玻璃板覆盖全槽（刷新时防止旧按钮残留），再放业务按钮
+        for (int slot = 0; slot < 36; slot++) {
+            inv.setStack(slot, makeButton(Items.GRAY_STAINED_GLASS_PANE, " "));
+        }
+        // 第 1 行：四大类（显示分类排队总人数）
+        ItemStack pvp = makeButton(Items.DIAMOND_SWORD, "§b§lPvP 对战",
+                "1v1 / 2v2 / 自由乱斗 / 相扑 / 1.8 经典",
+                "点击选择对战模式与套件");
+        this.applyQueueIndicator(pvp, player, PvPMod.QUEUE.countQueued(
+                MatchType.DUEL_1V1, MatchType.DUEL_2V2, MatchType.FFA, MatchType.SUMO, MatchType.PVP_1_8));
+        inv.setStack(9, pvp);
 
-            inv.setStack(18, makeButton(Items.DIAMOND_PICKAXE, "§e战桥 混战", "偶数人数，总人数/2 分两队",
-                    "2v2 / 3v3 / 4v4...", "先得 " + win + " 分获胜", "点击直接加入"));
-            inv.setStack(24, makeButton(Items.QUARTZ_PILLAR, "§d幸运之柱", PvPConfig.INSTANCE.luckyPillarMinPlayers + "~"
-                    + PvPConfig.INSTANCE.luckyPillarMaxPlayers + " 人，凑齐 " + PvPConfig.INSTANCE.luckyPillarStartPlayers + " 人开赛",
-                    "每位玩家一根 40 格基岩棍，柱下有大平台",
-                    "每 3 秒随机获得 1 件物品（纯随机，每件 1 个）",
-                    "随机事件：一击必杀/箭雨/雷击/TNT 雨/位置交换/补给潮",
-                    "掉出平台下方 20 格淘汰，最后存活者获胜",
-                    "点击直接加入"));
-            inv.setStack(25, makeButton(Items.TNT, "§cTNT 跑酷", PvPConfig.INSTANCE.tntRunMinPlayers + "~"
-                    + PvPConfig.INSTANCE.tntRunMaxPlayers + " 人，凑齐 " + PvPConfig.INSTANCE.tntRunStartPlayers + " 人开赛",
-                    "5 层彩色平台，踩过的方块 0.2 秒后掉落",
-                    "右键羽毛可向上跳一段（每 " + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + " 秒充能）",
-                    "地面会刷火焰弹/TNT，掉出底层淘汰",
-                    "最后存活者获胜，点击直接加入"));
-            inv.setStack(26, makeButton(Items.WATER_BUCKET, "§b心跳水立方", PvPConfig.INSTANCE.heartbeatMinPlayers + "~"
-                    + PvPConfig.INSTANCE.heartbeatMaxPlayers + " 人，凑齐 " + PvPConfig.INSTANCE.heartbeatStartPlayers + " 人开赛",
-                    "从高空出发台往下跳，卡心跳节奏穿过障碍层",
-                    "落进底部水坑即安全到达，按到底顺序排名",
-                    "第一个到达的玩家获胜，点击直接加入"));
-            inv.setStack(27, makeButton(Items.BAKED_POTATO, "§c烫手山芋", PvPConfig.INSTANCE.hotPotatoMinPlayers + "~"
-                    + PvPConfig.INSTANCE.hotPotatoMaxPlayers + " 人，凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers + " 人开赛",
-                    "场上唯一一颗山芋，左键点击其他玩家传递",
-                    "持有时间到会爆炸淘汰，障碍物地图可绕行",
-                    "最后存活者获胜，点击直接加入"));
-            inv.setStack(19, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
-            inv.setStack(20, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
-            inv.setStack(21, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
+        ItemStack skywars = makeButton(Items.END_CRYSTAL, "§6空岛战争 (Beta)", "2~8 人，凑齐 "
+                + PvPConfig.INSTANCE.skywarsStartPlayers + " 人开赛",
+                "随机空岛 + 中间主岛，开箱获得装备",
+                "1.8 低版本战斗，3 分钟后缩圈",
+                "最后存活者获胜，点击直接加入");
+        this.applyQueueIndicator(skywars, player, PvPMod.QUEUE.countQueued(MatchType.SKYWARS));
+        inv.setStack(10, skywars);
 
-            if (PvPMod.QUEUE.contains(player.getUuid())) {
-                String status = "排队中";
-                var entry = PvPMod.QUEUE.getEntry(player);
-                if (entry != null) {
-                    status = "排队中：" + entry.getType().getDisplayName() + " / " + entry.getKit().getDisplayName();
-                }
-                // OP(2级+) 可立即用当前队列人数开赛
-                if (player.hasPermissionLevel(2)) {
-                    inv.setStack(22, makeButton(Items.EMERALD, "§a立即开始",
-                            "OP 专用：立刻用当前队列人数开赛",
-                            "人数不足时无法开始"));
-                }
-                inv.setStack(23, makeButton(Items.BARRIER, "§c离开队列", status));
+        ItemStack bridge = makeButton(Items.BRICK, "§3§l战桥",
+                "1v1 / 1v1v1v1 / 2v2 / 混战",
+                "跳进对方球门洞得分，先得 " + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜",
+                "点击选择战桥模式");
+        this.applyQueueIndicator(bridge, player, PvPMod.QUEUE.countQueued(
+                MatchType.BRIDGE_1V1, MatchType.BRIDGE_1V1V1V1, MatchType.BRIDGE_2V2, MatchType.BRIDGE_TEAM));
+        inv.setStack(11, bridge);
+
+        ItemStack games = makeButton(Items.FIREWORK_ROCKET, "§d§l趣味小游戏",
+                "幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋",
+                "点击选择小游戏");
+        this.applyQueueIndicator(games, player, PvPMod.QUEUE.countQueued(
+                MatchType.LUCKY_PILLAR, MatchType.TNT_RUN, MatchType.HEARTBEAT, MatchType.HOT_POTATO));
+        inv.setStack(12, games);
+
+        // 第 2 行：功能入口
+        inv.setStack(13, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
+        inv.setStack(14, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
+        inv.setStack(15, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
+
+        if (PvPMod.QUEUE.contains(player.getUuid())) {
+            String status = "排队中";
+            var entry = PvPMod.QUEUE.getEntry(player);
+            if (entry != null) {
+                status = "排队中：" + entry.getType().getDisplayName() + " / " + entry.getKit().getDisplayName();
             }
-        });
+            // OP(2级+) 可立即用当前队列人数开赛
+            if (player.hasPermissionLevel(2)) {
+                inv.setStack(21, makeButton(Items.EMERALD, "§a立即开始",
+                        "OP 专用：立刻用当前队列人数开赛",
+                        "人数不足时无法开始"));
+            }
+            inv.setStack(22, makeButton(Items.BARRIER, "§c离开队列", status));
+        }
+    }
+
+    /** PvP 对战分类页：需要套件的对战模式。 */
+    private void openPvpCategory(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.PVP_CATEGORY;
+        this.openPage(player, ctx, "§6§lPvP 对战", inv -> this.fillPvpCategory(inv, player, ctx));
+    }
+
+    /** PvP 对战分类按钮填充（各模式按钮显示该模式排队人数）。 */
+    private void fillPvpCategory(SimpleInventory inv, ServerPlayerEntity player, GuiContext ctx) {
+        for (int slot = 0; slot < 36; slot++) {
+            inv.setStack(slot, makeButton(Items.GRAY_STAINED_GLASS_PANE, " "));
+        }
+        inv.setStack(9, queueButton(Items.IRON_SWORD, "§b1v1 决斗匹配", player, MatchType.DUEL_1V1,
+                "铁剑互砍，无护甲", "点击选择套件后加入队列"));
+        inv.setStack(10, queueButton(Items.DIAMOND_SWORD, "§b2v2 团队匹配", player, MatchType.DUEL_2V2,
+                "4 人随机分队", "点击选择套件后加入队列"));
+        inv.setStack(11, queueButton(Items.GOLDEN_SWORD, "§b自由乱斗 (FFA)", player, MatchType.FFA,
+                PvPConfig.INSTANCE.ffaMinPlayers + " 人起，倒计时 " + PvPConfig.INSTANCE.ffaCountdownSeconds + " 秒",
+                PvPConfig.INSTANCE.ffaEarlyStartPlayers + " 人时加速到 " + PvPConfig.INSTANCE.ffaEarlyStartSeconds + " 秒",
+                "点击选择套件后加入队列"));
+        inv.setStack(12, queueButton(Items.STICK, "§b相扑 (Sumo)", player, MatchType.SUMO,
+                "不吃伤害，只吃击退", "落到平台下方 20 格淘汰，末影珍珠可救回", "点击选择套件后加入队列"));
+        inv.setStack(13, queueButton(Items.NETHERITE_SWORD, "§b1.8 经典PvP", player, MatchType.PVP_1_8,
+                "无攻击冷却，疯狂点按", "剑可格挡减伤 50%", "点击选择套件后加入队列"));
+        inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+    }
+
+    /** 战桥分类页：四种战桥模式（无套件，装备固定）。 */
+    private void openBridgeCategory(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.BRIDGE_CATEGORY;
+        this.openPage(player, ctx, "§6§l战桥", inv -> this.fillBridgeCategory(inv, player, ctx));
+    }
+
+    /** 战桥分类按钮填充（各模式按钮显示该模式排队人数）。 */
+    private void fillBridgeCategory(SimpleInventory inv, ServerPlayerEntity player, GuiContext ctx) {
+        for (int slot = 0; slot < 36; slot++) {
+            inv.setStack(slot, makeButton(Items.GRAY_STAINED_GLASS_PANE, " "));
+        }
+        int win = PvPConfig.INSTANCE.bridgeWinScore;
+        inv.setStack(9, queueButton(Items.BRICK, "§3战桥 1v1", player, MatchType.BRIDGE_1V1,
+                "2 人，先得 " + win + " 分获胜", "跳进对方球门洞得分", "1.8 低版本战斗：无冷却、剑格挡", "点击直接加入"));
+        inv.setStack(10, queueButton(Items.IRON_BARS, "§5战桥 1v1v1v1", player, MatchType.BRIDGE_1V1V1V1,
+                "4 人四方混战，各自一个球门", "先得 " + win + " 分获胜", "点击直接加入"));
+        inv.setStack(11, queueButton(Items.RED_TERRACOTTA, "§b战桥 2v2", player, MatchType.BRIDGE_2V2,
+                "4 人随机分队", "先得 " + win + " 分获胜", "点击直接加入"));
+        inv.setStack(12, queueButton(Items.DIAMOND_PICKAXE, "§e战桥 混战", player, MatchType.BRIDGE_TEAM,
+                "偶数人数，总人数/2 分两队", "2v2 / 3v3 / 4v4...", "先得 " + win + " 分获胜", "点击直接加入"));
+        inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+    }
+
+    /** 趣味小游戏分类页：四个无套件小游戏。 */
+    private void openGamesCategory(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.GAMES_CATEGORY;
+        this.openPage(player, ctx, "§6§l趣味小游戏", inv -> this.fillGamesCategory(inv, player, ctx));
+    }
+
+    /** 趣味小游戏分类按钮填充（各模式按钮显示该模式排队人数）。 */
+    private void fillGamesCategory(SimpleInventory inv, ServerPlayerEntity player, GuiContext ctx) {
+        for (int slot = 0; slot < 36; slot++) {
+            inv.setStack(slot, makeButton(Items.GRAY_STAINED_GLASS_PANE, " "));
+        }
+        inv.setStack(9, queueButton(Items.QUARTZ_PILLAR, "§d幸运之柱", player, MatchType.LUCKY_PILLAR,
+                PvPConfig.INSTANCE.luckyPillarMinPlayers + "~" + PvPConfig.INSTANCE.luckyPillarMaxPlayers
+                        + " 人，凑齐 " + PvPConfig.INSTANCE.luckyPillarStartPlayers + " 人开赛",
+                "每位玩家一根 40 格基岩棍，柱下有大平台",
+                "底部平台每局随机 9 种风格",
+                "每 3 秒随机获得 1 件物品",
+                "随机事件：一击必杀/箭雨/雷击/TNT 雨/位置交换/补给潮",
+                "最后存活者获胜，点击直接加入"));
+        inv.setStack(10, queueButton(Items.TNT, "§cTNT 跑酷", player, MatchType.TNT_RUN,
+                PvPConfig.INSTANCE.tntRunMinPlayers + "~" + PvPConfig.INSTANCE.tntRunMaxPlayers
+                        + " 人，凑齐 " + PvPConfig.INSTANCE.tntRunStartPlayers + " 人开赛",
+                "5 层彩色平台，踩过的方块 0.2 秒后掉落",
+                "右键羽毛可向上跳一段（每 " + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + " 秒充能）",
+                "地面会刷火焰弹/TNT，掉出底层淘汰",
+                "最后存活者获胜，点击直接加入"));
+        inv.setStack(11, queueButton(Items.WATER_BUCKET, "§b心跳水立方", player, MatchType.HEARTBEAT,
+                PvPConfig.INSTANCE.heartbeatMinPlayers + "~" + PvPConfig.INSTANCE.heartbeatMaxPlayers
+                        + " 人，凑齐 " + PvPConfig.INSTANCE.heartbeatStartPlayers + " 人开赛",
+                "从高空出发台往下跳，卡心跳节奏穿过障碍层",
+                "落进底部水坑即安全到达，按到底顺序排名",
+                "第一个到达的玩家获胜，点击直接加入"));
+        inv.setStack(12, queueButton(Items.BAKED_POTATO, "§c烫手山芋", player, MatchType.HOT_POTATO,
+                PvPConfig.INSTANCE.hotPotatoMinPlayers + "~" + PvPConfig.INSTANCE.hotPotatoMaxPlayers
+                        + " 人，凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers + " 人开赛",
+                "场上唯一一颗山芋，左键点击其他玩家传递",
+                "持有时间到会爆炸淘汰，障碍物地图可绕行",
+                "最后存活者获胜，点击直接加入"));
+        inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+    }
+
+    /** 创建带"排队人数指示"的按钮：有人排队时附魔光效 + 堆叠数 = 排队人数。 */
+    private static ItemStack queueButton(Item item, String name, ServerPlayerEntity player,
+                                         MatchType type, String... lore) {
+        ItemStack stack = makeButton(item, name, lore);
+        applyQueueIndicator(stack, player, PvPMod.QUEUE.countQueued(type));
+        return stack;
+    }
+
+    /** 排队人数指示：count>0 时给物品附魔（发光）并把堆叠数设为排队人数（上限 64）。 */
+    private static void applyQueueIndicator(ItemStack stack, ServerPlayerEntity player, int count) {
+        if (count <= 0) {
+            return;
+        }
+        MinecraftServer server = player.getServer();
+        if (server != null) {
+            Registry<Enchantment> registry = server.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
+            RegistryEntry<Enchantment> unbreaking = registry.getEntry(Enchantments.UNBREAKING).orElse(null);
+            if (unbreaking != null) {
+                stack.addEnchantment(unbreaking, 1);
+            }
+        }
+        stack.setCount(Math.min(64, count));
+    }
+
+    /** 每个服务器 tick 调用（由 PvPMod 挂接）：每秒刷新打开的分类页，实时显示队列人数。 */
+    public void tick() {
+        if (PvPMod.SERVER == null || PvPMod.SERVER.getTicks() % 20 != 0) {
+            return;
+        }
+        for (UUID uuid : List.copyOf(this.contexts.keySet())) {
+            ServerPlayerEntity player = PvPMod.SERVER.getPlayerManager().getPlayer(uuid);
+            if (player == null) {
+                this.contexts.remove(uuid);
+                continue;
+            }
+            if (!(player.currentScreenHandler instanceof PvpScreenHandler handler)) {
+                continue; // 玩家打开的不是 PvP 菜单（对局容器等），跳过
+            }
+            GuiContext ctx = this.contexts.get(uuid);
+            if (ctx == null) {
+                continue;
+            }
+            SimpleInventory inv = handler.getMenu();
+            switch (ctx.page) {
+                case MAIN -> this.fillMainMenu(inv, player, ctx);
+                case PVP_CATEGORY -> this.fillPvpCategory(inv, player, ctx);
+                case BRIDGE_CATEGORY -> this.fillBridgeCategory(inv, player, ctx);
+                case GAMES_CATEGORY -> this.fillGamesCategory(inv, player, ctx);
+                default -> {
+                }
+            }
+            player.currentScreenHandler.sendContentUpdates();
+        }
     }
 
     private void openKitPage(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
+        ctx.kitReturnPage = ctx.page; // 记录进入套件选择前的页面（返回用）
         ctx.page = Page.KIT;
         boolean duel = ctx.duelTargetUuid != null;
         String title = duel ? "§6选择套件 - 决斗" : "§6选择套件 - " + ctx.pendingMode.getDisplayName();
@@ -405,6 +552,9 @@ public final class PvpGuiManager {
         }
         switch (ctx.page) {
             case MAIN -> this.onClickMain(player, ctx, slotIndex);
+            case PVP_CATEGORY -> this.onClickPvpCategory(player, ctx, slotIndex);
+            case BRIDGE_CATEGORY -> this.onClickBridgeCategory(player, ctx, slotIndex);
+            case GAMES_CATEGORY -> this.onClickGamesCategory(player, ctx, slotIndex);
             case KIT -> this.onClickKit(player, ctx, slotIndex);
             case DUEL_TARGET -> this.onClickDuelTarget(player, ctx, slotIndex);
             case THEME -> this.onClickTheme(player, ctx, slotIndex);
@@ -427,45 +577,15 @@ public final class PvpGuiManager {
 
     private void onClickMain(ServerPlayerEntity player, GuiContext ctx, int slot) {
         switch (slot) {
-            case 9 -> {
-                ctx.pendingMode = MatchType.DUEL_1V1;
-                this.openKitPage(player);
-            }
-            case 10 -> {
-                ctx.pendingMode = MatchType.DUEL_2V2;
-                this.openKitPage(player);
-            }
-            case 11 -> {
-                ctx.pendingMode = MatchType.FFA;
-                this.openKitPage(player);
-            }
-            case 12 -> {
-                ctx.pendingMode = MatchType.SUMO;
-                this.openKitPage(player);
-            }
-            case 13 -> {
-                ctx.pendingMode = MatchType.PVP_1_8;
-                this.openKitPage(player);
-            }
+            case 9 -> this.openPvpCategory(player);
             // 空岛战争无套件，直接加入
-            case 14 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
-            // 战桥系列无套件（装备固定），直接加入
-            case 15 -> this.joinQueue(player, MatchType.BRIDGE_1V1, KitManager.bridgeKit());
-            case 16 -> this.joinQueue(player, MatchType.BRIDGE_1V1V1V1, KitManager.bridgeKit());
-            case 17 -> this.joinQueue(player, MatchType.BRIDGE_2V2, KitManager.bridgeKit());
-            case 18 -> this.joinQueue(player, MatchType.BRIDGE_TEAM, KitManager.bridgeKit());
-            // 幸运之柱无套件（空手开局），直接加入
-            case 24 -> this.joinQueue(player, MatchType.LUCKY_PILLAR, KitManager.luckyPillarKit());
-            // TNT 跑酷无套件（空手开局），直接加入
-            case 25 -> this.joinQueue(player, MatchType.TNT_RUN, KitManager.tntRunKit());
-            // 心跳水立方无套件（空手开局），直接加入
-            case 26 -> this.joinQueue(player, MatchType.HEARTBEAT, KitManager.heartbeatKit());
-            // 烫手山芋无套件（空手开局），直接加入
-            case 27 -> this.joinQueue(player, MatchType.HOT_POTATO, KitManager.hotPotatoKit());
-            case 19 -> this.openDuelTargetPage(player);
-            case 20 -> this.openStatsPage(player);
-            case 21 -> this.openKitInfoPage(player);
-            case 22 -> {
+            case 10 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
+            case 11 -> this.openBridgeCategory(player);
+            case 12 -> this.openGamesCategory(player);
+            case 13 -> this.openDuelTargetPage(player);
+            case 14 -> this.openStatsPage(player);
+            case 15 -> this.openKitInfoPage(player);
+            case 21 -> {
                 // OP 立即开始：排队空岛战争时可先选主题，其余模式直接开
                 QueueEntry entry = PvPMod.QUEUE.getEntry(player);
                 if (entry != null && entry.getType() == MatchType.SKYWARS) {
@@ -474,7 +594,7 @@ public final class PvpGuiManager {
                     this.doForceStart(player);
                 }
             }
-            case 23 -> {
+            case 22 -> {
                 if (PvPMod.QUEUE.leave(player)) {
                     player.sendMessage(Messages.info("已离开匹配队列"), false);
                     this.openMainMenu(player);
@@ -485,9 +605,78 @@ public final class PvpGuiManager {
         }
     }
 
-    private void onClickKit(ServerPlayerEntity player, GuiContext ctx, int slot) {
+    /** PvP 对战分类页点击：各模式 → 套件选择。 */
+    private void onClickPvpCategory(ServerPlayerEntity player, GuiContext ctx, int slot) {
         if (slot == 26) {
             this.openMainMenu(player);
+            return;
+        }
+        MatchType type = switch (slot) {
+            case 9 -> MatchType.DUEL_1V1;
+            case 10 -> MatchType.DUEL_2V2;
+            case 11 -> MatchType.FFA;
+            case 12 -> MatchType.SUMO;
+            case 13 -> MatchType.PVP_1_8;
+            default -> null;
+        };
+        if (type == null) {
+            return;
+        }
+        ctx.pendingMode = type;
+        this.openKitPage(player);
+    }
+
+    /** 战桥分类页点击：各模式直接加入队列。 */
+    private void onClickBridgeCategory(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        MatchType type = switch (slot) {
+            case 9 -> MatchType.BRIDGE_1V1;
+            case 10 -> MatchType.BRIDGE_1V1V1V1;
+            case 11 -> MatchType.BRIDGE_2V2;
+            case 12 -> MatchType.BRIDGE_TEAM;
+            default -> null;
+        };
+        if (type != null) {
+            this.joinQueue(player, type, KitManager.bridgeKit());
+        }
+    }
+
+    /** 趣味小游戏分类页点击：各小游戏直接加入队列。 */
+    private void onClickGamesCategory(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        MatchType type = switch (slot) {
+            case 9 -> MatchType.LUCKY_PILLAR;
+            case 10 -> MatchType.TNT_RUN;
+            case 11 -> MatchType.HEARTBEAT;
+            case 12 -> MatchType.HOT_POTATO;
+            default -> null;
+        };
+        if (type == null) {
+            return;
+        }
+        Kit kit = switch (type) {
+            case LUCKY_PILLAR -> KitManager.luckyPillarKit();
+            case TNT_RUN -> KitManager.tntRunKit();
+            case HEARTBEAT -> KitManager.heartbeatKit();
+            default -> KitManager.hotPotatoKit();
+        };
+        this.joinQueue(player, type, kit);
+    }
+
+    private void onClickKit(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            // 返回进入套件选择前的页面（PvP 分类 → 回分类；决斗/其他 → 回主菜单）
+            if (ctx.kitReturnPage == Page.PVP_CATEGORY) {
+                this.openPvpCategory(player);
+            } else {
+                this.openMainMenu(player);
+            }
             return;
         }
         int kitIndex = slot - 9;
@@ -701,11 +890,12 @@ public final class PvpGuiManager {
     // ---------- 内部类型 ----------
 
     private enum Page {
-        MAIN, KIT, DUEL_TARGET, STATS, KIT_INFO, THEME
+        MAIN, PVP_CATEGORY, BRIDGE_CATEGORY, GAMES_CATEGORY, KIT, DUEL_TARGET, STATS, KIT_INFO, THEME
     }
 
     private static final class GuiContext {
         Page page = Page.MAIN;
+        Page kitReturnPage = Page.MAIN; // 进入套件选择前的页面（返回用）
         MatchType pendingMode;
         UUID duelTargetUuid;
         int duelTargetPage;

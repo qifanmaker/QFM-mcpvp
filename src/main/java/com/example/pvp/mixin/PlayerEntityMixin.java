@@ -71,7 +71,11 @@ public abstract class PlayerEntityMixin {
             return; // 只有手持粘液球攻击才有击退 III
         }
         MatchManager matchManager = MatchManager.get();
-        if (matchManager == null || !matchManager.isInMatch(sp.getUuid())) {
+        if (matchManager == null) {
+            return;
+        }
+        Match match = matchManager.getMatchFor(sp.getUuid());
+        if (match == null) {
             return;
         }
         if (target instanceof LivingEntity victim && victim != self) {
@@ -84,10 +88,13 @@ public abstract class PlayerEntityMixin {
                 d = 0.01;
             }
             // 直接施加速度：takeKnockback 的方向约定相反（传"指向目标"会把人往攻击者方向拉），这里显式推离
-            double strength = 2.0; // 水平 2.0 ≈ 击退 IV，加 0.4 竖直
+            // 空岛战争击退球削弱：水平 2.0 → 1.5（*0.75）、竖直 0.4 → 0.3（*0.75）；其他模式（幸运之柱随机掉落）保持原强度
+            boolean skywars = match.getType() == MatchType.SKYWARS;
+            double strength = skywars ? 1.5 : 2.0;
+            double up = skywars ? 0.3 : 0.4;
             victim.setVelocity(
                     victim.getVelocity().x + dx / d * strength,
-                    victim.getVelocity().y + 0.4,
+                    victim.getVelocity().y + up,
                     victim.getVelocity().z + dz / d * strength);
             victim.velocityDirty = true;
         }
