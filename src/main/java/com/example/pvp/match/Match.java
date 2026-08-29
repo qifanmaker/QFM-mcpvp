@@ -6,7 +6,6 @@ import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.heartbeat.HeartbeatLayout;
-import com.example.pvp.arena.heartbeat.HeartbeatMapGenerator;
 import com.example.pvp.arena.hotpotato.HotPotatoLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLoot;
@@ -147,11 +146,16 @@ public final class Match {
     /** 不死图腾非掉虚空复活后的摔落保护（UUID → 剩余 tick，期间每 tick 清零 fallDistance）。 */
     private final Map<UUID, Integer> totemFallSafeTicks = new HashMap<>();
 
-    /** 心跳水立方地图布局（仅 HEARTBEAT 模式非空，心跳地板/水坑判定用）。 */
+    /** 心跳水立方地图布局（仅 HEARTBEAT 模式非空，多关卡塔/水池/玻璃地板判定用）。 */
     private HeartbeatLayout heartbeatLayout;
-    private int heartbeatTicks;               // 心跳周期计时
-    private boolean heartbeatOpen;            // 当前心跳是否处于"消失窗口"（地板已清除）
-    private final List<UUID> heartbeatRanking = new ArrayList<>(); // 到达水坑的名次顺序
+    /** 心跳水立方：玩家当前关卡（0 起，即已完成关卡数）。 */
+    private final Map<UUID, Integer> heartbeatProgress = new HashMap<>();
+    /** 心跳水立方：玩家到达当前进度的 tick（并列决胜：越小越早）。 */
+    private final Map<UUID, Integer> heartbeatReachTick = new HashMap<>();
+    /** 心跳水立方：已通关全部关卡的玩家（转幽灵观战）。 */
+    private final Set<UUID> heartbeatFinished = new HashSet<>();
+    /** 心跳水立方：通关全部关卡的先后顺序。 */
+    private final List<UUID> heartbeatFinishOrder = new ArrayList<>();
 
     /** 烫手山芋地图布局（仅 HOT_POTATO 模式非空，障碍物保护用）。 */
     private HotPotatoLayout hotPotatoLayout;
@@ -1004,104 +1008,167 @@ public final class Match {
 
     // ---------- 心跳水立方 (Heartbeat) ----------
 
-    /** 心跳水立方每帧逻辑：心跳地板周期切换、到达/落空判定、摔落免疫。 */
+    /** 心跳水立方每帧逻辑：过关/失误判定、摔落免疫、通关转幽灵。 */
     private void tickHeartbeat() {
-        PvPConfig cfg = PvPConfig.INSTANCE;
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena == null || this.heartbeatLayout == null) {
             return;
         }
-
-        this.heartbeatTicks++;
-        int total = cfg.heartbeatCloseTicks + cfg.heartbeatOpenTicks;
-        int phase = this.heartbeatTicks % total;
-        boolean open = phase >= cfg.heartbeatCloseTicks; // 消失窗口：地板全部清除
-
-        // 心跳状态切换：铺/清心跳地板 + 心跳音效/粒子提示
-        if (open != this.heartbeatOpen) {
-            this.heartbeatOpen = open;
-            HeartbeatMapGenerator.setLayers(arena, this.heartbeatLayout, open);
-            for (ServerPlayerEntity player : this.players) {
-                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-                if (online != null) {
-                    online.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_HEARTBEAT,
-                            SoundCategory.PLAYERS, 1.0F, open ? 1.2F : 0.8F);
-                }
-            }
-            if (arena instanceof ServerWorld sw) {
-                for (int y : this.heartbeatLayout.layerYs) {
-                    sw.spawnParticles(ParticleTypes.HEART,
-                            this.heartbeatLayout.mapCenter.getX() + 0.5, y + 0.5,
-                            this.heartbeatLayout.mapCenter.getZ() + 0.5, open ? 4 : 2, 3.0, 0.1, 3.0, 0.01);
-                }
-            }
-        }
-
-        // 存活玩家：高空下落免摔 + 到达水坑 / 落空淘汰 / 掉出塔兜底
+        HeartbeatLayout layout = this.heartbeatLayout;
         for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
-            online.fallDistance = 0;
+            UUID uuid = online.getUuid();
+            int level = this.heartbeatProgress.getOrDefault(uuid, 0);
+            if (level >= layout.levelCount) {
+                continue; // 已通关全部关卡（转幽灵，正常不会出现在存活列表）
+            }
+            online.fallDistance = 0; // 摔落免疫：纯精度挑战，不因摔伤而死
             double y = online.getY();
-            if (y < this.heartbeatLayout.platformY - 0.3) {
-                if (this.heartbeatLayout.isInPool(online.getX(), online.getZ())) {
-                    this.heartbeatArrive(online); // 落入水坑 → 安全到达
-                } else if (y < this.heartbeatLayout.platformY - 2.0) {
-                    // 从平台边缘/洞外落到平台下方：没落到水里 → 淘汰
-                    this.eliminate(online, EliminationCause.VOID);
+            BlockPos c = layout.center(level);
+            double dx = online.getX() - (c.getX() + 0.5);
+            double dz = online.getZ() - (c.getZ() + 0.5);
+
+            // 1) 过关：低于池面且落在中央水池内
+            if (y < layout.poolY + 0.3) {
+                if (layout.isInPool(level, online.getX(), online.getZ())) {
+                    this.advanceHeartbeatLevel(online);
+                } else {
+                    // 落到池面平台外 / 掉穿水池 → 失误
+                    this.failHeartbeatLevel(online);
                 }
-            }
-            if (y < this.heartbeatLayout.platformY - 20) {
-                // 掉出整座塔 → 虚空淘汰（兜底）
-                this.eliminate(online, EliminationCause.VOID);
-            }
-        }
-    }
-
-    /** 玩家到达水坑：记录名次并转幽灵观战；第 1 名到达即结束比赛。 */
-    private void heartbeatArrive(ServerPlayerEntity player) {
-        if (this.eliminated.contains(player.getUuid()) || this.heartbeatRanking.contains(player.getUuid())) {
-            return;
-        }
-        this.heartbeatRanking.add(player.getUuid());
-        this.eliminated.add(player.getUuid());
-        for (MatchTeam team : this.teams) {
-            team.eliminate(player);
-        }
-        this.makeGhost(player); // 转幽灵观战
-        this.broadcast(Messages.gold("§e" + player.getGameProfile().getName()
-                + "§r 到达水底！名次 §6#" + this.heartbeatRanking.size()));
-        if (this.heartbeatRanking.size() == 1) {
-            this.finishMatch(this.teams.get(0));
-        }
-    }
-
-    /** 心跳水立方结算：广播完整排名（到达者按顺序，未到达者按当前高度，已淘汰/离线排最后）。 */
-    private void announceHeartbeatResult() {
-        List<UUID> order = new ArrayList<>(this.heartbeatRanking);
-        List<ServerPlayerEntity> unfinished = new ArrayList<>();
-        List<UUID> fallen = new ArrayList<>();
-        ArenaWorld arena = this.manager.getArenaManager().getWorld();
-        for (ServerPlayerEntity player : this.players) {
-            if (order.contains(player.getUuid())) {
                 continue;
             }
-            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-            if (online != null && arena != null && online.getWorld() == arena
-                    && !this.eliminated.contains(player.getUuid())) {
-                unfinished.add(online); // 仍在场上的未到达玩家
-            } else {
-                fallen.add(player.getUuid()); // 已淘汰 / 离线
+            // 2) 飞出塔边（塔外 3 格兜底）→ 失误
+            if (Math.abs(dx) > layout.halfSize + 3 || Math.abs(dz) > layout.halfSize + 3) {
+                this.failHeartbeatLevel(online);
+                continue;
+            }
+            // 3) 落地时脚下是玻璃地板 → 撞上地板，失误
+            if (online.isOnGround()) {
+                BlockPos feet = online.getBlockPos();
+                if (arena.getBlockState(feet).getBlock() == layout.floorBlock
+                        || arena.getBlockState(feet.down()).getBlock() == layout.floorBlock) {
+                    this.failHeartbeatLevel(online);
+                }
             }
         }
-        // 未到达者按当前高度升序（越接近水坑名次越靠前）
-        unfinished.sort((a, b) -> Double.compare(a.getY(), b.getY()));
-        for (ServerPlayerEntity p : unfinished) {
-            order.add(p.getUuid());
+    }
+
+    /** 过关：进度+1，传送到下一关塔顶；通关全部关卡则转幽灵观战。 */
+    private void advanceHeartbeatLevel(ServerPlayerEntity online) {
+        UUID uuid = online.getUuid();
+        HeartbeatLayout layout = this.heartbeatLayout;
+        int level = this.heartbeatProgress.getOrDefault(uuid, 0); // 0 起当前关
+        int next = level + 1;
+        String name = online.getGameProfile().getName();
+
+        if (next >= layout.levelCount) {
+            // 通关全部关卡
+            if (this.heartbeatFinished.add(uuid)) {
+                this.heartbeatProgress.put(uuid, layout.levelCount);
+                this.heartbeatReachTick.put(uuid, this.ticks);
+                this.heartbeatFinishOrder.add(uuid);
+                this.eliminated.add(uuid);
+                for (MatchTeam team : this.teams) {
+                    team.eliminate(online);
+                }
+                this.makeGhost(online); // 转幽灵观战
+                this.broadcast(Messages.gold("§e" + name + "§r 完成了全部 " + layout.levelCount + " 关！"));
+                this.broadcastTitleBig("§a§l全部关卡完成！", "§f" + name + " 通关！");
+            }
+            this.checkWinCondition();
+            return;
         }
-        order.addAll(fallen);
+
+        this.heartbeatProgress.put(uuid, next);
+        this.heartbeatReachTick.put(uuid, this.ticks);
+        this.teleportHeartbeatLevel(online, next);
+        this.broadcastTitleBig("§b§l第 " + (next + 1) + " 关！", "§f" + name + " 进入第 " + (next + 1) + " 关");
+        this.broadcast(Messages.gold("§e" + name + "§r 完成第 " + (level + 1) + " 关，进入第 " + (next + 1) + " 关！"));
+    }
+
+    /** 失误：传送回当前关塔顶重试（不淘汰），并中心大字提示。 */
+    private void failHeartbeatLevel(ServerPlayerEntity online) {
+        UUID uuid = online.getUuid();
+        int level = this.heartbeatProgress.getOrDefault(uuid, 0);
+        if (level >= this.heartbeatLayout.levelCount) {
+            return; // 已通关
+        }
+        this.teleportHeartbeatLevel(online, level);
+        online.setVelocity(Vec3d.ZERO);
+        online.velocityDirty = true;
+        if (online.networkHandler != null) {
+            online.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 25, 10));
+            online.networkHandler.sendPacket(new SubtitleS2CPacket(
+                    Text.literal("§f回到第 " + (level + 1) + " 关起点")));
+            online.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("§c§l失误了！")));
+        }
+    }
+
+    /** 心跳水立方玩家死亡（ALLOW_DEATH 回调）：回当前关塔顶，不淘汰。 */
+    public void onHeartbeatDeath(ServerPlayerEntity player) {
+        player.setHealth(player.getMaxHealth());
+        player.setFireTicks(0);
+        player.fallDistance = 0;
+        if (this.state == MatchState.ACTIVE) {
+            this.failHeartbeatLevel(player);
+        }
+    }
+
+    /** 传送到第 level 关的出发台（按玩家在 players 中的序号取环上出生点）。 */
+    private void teleportHeartbeatLevel(ServerPlayerEntity online, int level) {
+        int idx = 0;
+        for (int i = 0; i < this.players.size(); i++) {
+            if (this.players.get(i).getUuid().equals(online.getUuid())) {
+                idx = i;
+                break;
+            }
+        }
+        BlockPos spawn = this.heartbeatLayout.levelTopSpawn(level, idx);
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        BlockPos c = this.heartbeatLayout.center(level);
+        float yaw = (float) Math.toDegrees(Math.atan2(c.getX() - spawn.getX(), c.getZ() - spawn.getZ()));
+        online.teleport(arena, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, yaw, 0);
+        online.setVelocity(Vec3d.ZERO);
+        online.velocityDirty = true;
+        online.fallDistance = 0;
+    }
+
+    /** 心跳水立方胜者：关卡进度最高；并列取先到达者（reachTick 最小）。 */
+    private ServerPlayerEntity bestHeartbeatPlayer() {
+        ServerPlayerEntity best = null;
+        int bestProgress = -1;
+        int bestTick = Integer.MAX_VALUE;
+        for (ServerPlayerEntity player : this.players) {
+            int progress = this.heartbeatProgress.getOrDefault(player.getUuid(), 0);
+            int reach = this.heartbeatReachTick.getOrDefault(player.getUuid(), 0);
+            if (progress > bestProgress || (progress == bestProgress && reach < bestTick)) {
+                bestProgress = progress;
+                bestTick = reach;
+                best = player;
+            }
+        }
+        return best;
+    }
+
+    /** 心跳水立方结算：广播完整排名（进度降序，并列按先到达），并公告胜者。 */
+    private void announceHeartbeatResult() {
+        List<UUID> order = new ArrayList<>(this.players.stream()
+                .map(ServerPlayerEntity::getUuid).toList());
+        order.sort((a, b) -> {
+            int pa = this.heartbeatProgress.getOrDefault(a, 0);
+            int pb = this.heartbeatProgress.getOrDefault(b, 0);
+            if (pa != pb) {
+                return Integer.compare(pb, pa);
+            }
+            return Integer.compare(this.heartbeatReachTick.getOrDefault(a, 0),
+                    this.heartbeatReachTick.getOrDefault(b, 0));
+        });
+        HeartbeatLayout layout = this.heartbeatLayout;
 
         this.broadcast(Messages.gold("§6§l心跳水立方结束！"));
         for (int i = 0; i < order.size(); i++) {
             UUID uuid = order.get(i);
+            int progress = this.heartbeatProgress.getOrDefault(uuid, 0);
             ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
             String name = online != null ? online.getGameProfile().getName() : "§7(离线)";
             String medal = switch (i) {
@@ -1110,7 +1177,16 @@ public final class Match {
                 case 2 -> "§b§l#3";
                 default -> "§7#" + (i + 1);
             };
-            this.broadcast(Text.literal(medal + " §f" + name));
+            String prog = this.heartbeatFinished.contains(uuid)
+                    ? "全部通关"
+                    : "第 " + Math.min(progress + 1, layout.levelCount) + "/" + layout.levelCount + " 关";
+            this.broadcast(Text.literal(medal + " §f" + name + " §7(" + prog + ")"));
+        }
+        ServerPlayerEntity winner = this.bestHeartbeatPlayer();
+        if (winner != null) {
+            this.broadcast(Messages.gold("§6" + winner.getGameProfile().getName() + "§r 以最高关卡进度获胜！"));
+        } else {
+            this.broadcast(Messages.warn("本局平局"));
         }
     }
 
@@ -1833,8 +1909,9 @@ public final class Match {
     private Set<UUID> computeWinners() {
         Set<UUID> winners = new HashSet<>();
         if (this.type == MatchType.HEARTBEAT) {
-            if (!this.heartbeatRanking.isEmpty()) {
-                winners.add(this.heartbeatRanking.get(0));
+            ServerPlayerEntity best = this.bestHeartbeatPlayer();
+            if (best != null) {
+                winners.add(best.getUuid());
             }
             return winners;
         }
@@ -1909,7 +1986,7 @@ public final class Match {
             } else if (this.tntRunLayout != null) {
                 mapMaxRadius = this.tntRunLayout.maxRadius;
             } else if (this.heartbeatLayout != null) {
-                mapMaxRadius = this.heartbeatLayout.maxRadius;
+                mapMaxRadius = this.heartbeatLayout.maxRadius();
             } else if (this.hotPotatoLayout != null) {
                 mapMaxRadius = this.hotPotatoLayout.maxRadius;
             } else {
@@ -2133,8 +2210,8 @@ public final class Match {
         }
 
         // 幸运之柱：开局倒计时玩家不能移动（可旋转视角）——把偏离出生点的玩家拉回
-        if (this.type == MatchType.LUCKY_PILLAR) {
-            this.lockLuckyPillarPlayersToSpawn();
+        if (this.type == MatchType.LUCKY_PILLAR || this.type == MatchType.HEARTBEAT) {
+            this.lockPlayersToSpawn();
         }
 
         if (this.countdownTicks > 0) {
@@ -2169,8 +2246,8 @@ public final class Match {
         }
     }
 
-    /** 幸运之柱开局倒计时：把玩家锁在出生点（不能移动，但允许旋转视角——保留 yaw/pitch）。 */
-    private void lockLuckyPillarPlayersToSpawn() {
+    /** 幸运之柱 / 心跳水立方开局倒计时：把玩家锁在出生点（不能移动，但允许旋转视角——保留 yaw/pitch）。 */
+    private void lockPlayersToSpawn() {
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena == null) {
             return;
@@ -2293,7 +2370,7 @@ public final class Match {
         } else if (tntRun) {
             this.broadcast(Messages.info("TNT 跑酷开始！踩过的方块 §e0.2 秒§r 后掉落，掉出底层即淘汰；地面会刷火焰弹/TNT，捡起来砸人/炸人，最后的幸存者获胜！"));
         } else if (heartbeat) {
-            this.broadcast(Messages.info("心跳水立方开始！卡心跳节奏逐层下落，落进底部水坑即安全到达，第一个到达的玩家获胜！"));
+            this.broadcast(Messages.info("心跳水立方开始！从塔顶跳下，穿过每层玻璃地板上的洞落进水坑过关，失误回塔顶重试；时间结束完成关卡数最多者获胜！"));
         } else if (hotPotato) {
             this.broadcast(Messages.info("烫手山芋开始！左键点击其他玩家传递山芋，持有时间到会爆炸！最后的幸存者获胜！"));
         } else {
@@ -2310,8 +2387,8 @@ public final class Match {
 
     private MatchTeam computeWinner() {
         if (this.type == MatchType.HEARTBEAT) {
-            // 心跳水立方：第 1 名到达即结束（heartbeatArrive 触发）；这里兜底全员到达/淘汰
-            return this.heartbeatRanking.size() >= this.players.size() ? this.teams.get(0) : null;
+            // 心跳水立方：全员通关全部关卡 → 结算（超时由 timeoutWinner 兜底）
+            return this.heartbeatFinished.size() >= this.players.size() ? this.teams.get(0) : null;
         }
         if (this.type.isLastManStanding()) {
             List<ServerPlayerEntity> alive = this.teams.get(0).getAlivePlayers();
@@ -2487,32 +2564,32 @@ public final class Match {
         this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
 
         if (this.type == MatchType.HEARTBEAT) {
-            // 心跳水立方：已到达/存活 + 心跳状态 + 名次列表
-            int arrived = this.heartbeatRanking.size();
-            this.setInfoLine(scoreboard, objective, "§b已到达 §f" + arrived + "§7/§f" + this.players.size(), score--);
-            if (this.heartbeatLayout != null) {
-                int total = PvPConfig.INSTANCE.heartbeatCloseTicks + PvPConfig.INSTANCE.heartbeatOpenTicks;
-                int phase = this.heartbeatTicks % total;
-                int left = this.heartbeatOpen
-                        ? Math.max(0, total - phase)
-                        : Math.max(0, PvPConfig.INSTANCE.heartbeatCloseTicks - phase);
-                String heart = this.heartbeatOpen ? "§c心跳消失 §f" : "§a心跳落地 §f";
-                this.setInfoLine(scoreboard, objective, heart + ((left + 19) / 20) + "s", score--);
+            // 心跳水立方：已通关人数 + 领先者 + 各玩家关卡进度
+            HeartbeatLayout layout = this.heartbeatLayout;
+            int finished = this.heartbeatFinished.size();
+            this.setInfoLine(scoreboard, objective, "§b已通关 §f" + finished + "§7/§f" + this.players.size(), score--);
+            ServerPlayerEntity leader = this.bestHeartbeatPlayer();
+            if (leader != null && layout != null) {
+                String ln = leader.getGameProfile().getName();
+                int lp = this.heartbeatProgress.getOrDefault(leader.getUuid(), 0);
+                this.setInfoLine(scoreboard, objective, "§e领先 §f" + ln + " §7("
+                        + Math.min(lp + 1, layout.levelCount) + "/" + layout.levelCount + " 关)", score--);
             }
             this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
             for (ServerPlayerEntity player : this.players) {
                 if (score < 0) {
                     break;
                 }
-                int rank = this.heartbeatRanking.indexOf(player.getUuid());
                 ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
                 String name = online != null ? online.getGameProfile().getName() : player.getGameProfile().getName();
-                if (rank >= 0) {
-                    this.setInfoLine(scoreboard, objective, " §6#" + (rank + 1) + " §f" + name, score--);
-                } else if (online != null) {
-                    this.setInfoLine(scoreboard, objective, " §a● §f" + name, score--);
+                if (this.heartbeatFinished.contains(player.getUuid())) {
+                    this.setInfoLine(scoreboard, objective, " §a★ §f" + name + " §7(通关)", score--);
+                } else if (layout != null) {
+                    int p = this.heartbeatProgress.getOrDefault(player.getUuid(), 0);
+                    this.setInfoLine(scoreboard, objective, " §a● §f" + name + " §7("
+                            + Math.min(p + 1, layout.levelCount) + "/" + layout.levelCount + ")", score--);
                 } else {
-                    this.setInfoLine(scoreboard, objective, " §7✝ §f" + name, score--);
+                    this.setInfoLine(scoreboard, objective, " §a● §f" + name, score--);
                 }
             }
         } else if (this.type.isLastManStanding()) {

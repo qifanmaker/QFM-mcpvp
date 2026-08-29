@@ -358,9 +358,9 @@ public final class PvpGuiManager {
         inv.setStack(11, queueButton(Items.WATER_BUCKET, "§b心跳水立方", player, MatchType.HEARTBEAT,
                 PvPConfig.INSTANCE.heartbeatMinPlayers + "~" + PvPConfig.INSTANCE.heartbeatMaxPlayers
                         + " 人，凑齐 " + PvPConfig.INSTANCE.heartbeatStartPlayers + " 人开赛",
-                "从高空出发台往下跳，卡心跳节奏穿过障碍层",
-                "落进底部水坑即安全到达，按到底顺序排名",
-                "第一个到达的玩家获胜，点击直接加入"));
+                "从塔顶跳下，穿过每层玻璃地板上的洞",
+                "落进水坑过关进下一关（由易到难）",
+                "失误回塔顶重试；时间结束完成关卡数最多者胜，点击直接加入"));
         inv.setStack(12, queueButton(Items.BAKED_POTATO, "§c烫手山芋", player, MatchType.HOT_POTATO,
                 PvPConfig.INSTANCE.hotPotatoMinPlayers + "~" + PvPConfig.INSTANCE.hotPotatoMaxPlayers
                         + " 人，凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers + " 人开赛",
@@ -773,7 +773,7 @@ public final class PvpGuiManager {
                         + " 人开赛，踩过的方块会掉落"), false);
             } else if (type == MatchType.HEARTBEAT) {
                 player.sendMessage(Messages.info("已加入心跳水立方：凑齐 " + PvPConfig.INSTANCE.heartbeatStartPlayers
-                        + " 人开赛，卡心跳节奏下落，落进水坑排名"), false);
+                        + " 人开赛，穿过玻璃洞落水过关，完成关卡数最多者胜"), false);
             } else if (type == MatchType.HOT_POTATO) {
                 player.sendMessage(Messages.info("已加入烫手山芋：凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers
                         + " 人开赛，左键传递山芋，时间到爆炸"), false);

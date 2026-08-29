@@ -179,7 +179,7 @@ public final class PvPCommands {
                         + "§e/pvp join bridge1v1|bridge1v1v1v1|bridge2v2|bridge§r 加入战桥（无需套件）\n"
                         + "§e/pvp join luckypillar§r 加入幸运之柱（无需套件，空手开局）\n"
                         + "§e/pvp join tntrun§r 加入 TNT 跑酷（无需套件，踩过的方块掉落）\n"
-                        + "§e/pvp join heartbeat§r 加入心跳水立方（无需套件，卡心跳下落排名）\n"
+                        + "§e/pvp join heartbeat§r 加入心跳水立方（无需套件，穿玻璃洞落水过关，完成关卡多者胜）\n"
                         + "§e/pvp join hotpotato§r 加入烫手山芋（无需套件，左键传递山芋）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
@@ -250,7 +250,7 @@ public final class PvPCommands {
                         + " 人开赛，踩过的方块会掉落"), false);
             } else if (type == MatchType.HEARTBEAT) {
                 player.sendMessage(Messages.info("已加入心跳水立方：凑齐 " + PvPConfig.INSTANCE.heartbeatStartPlayers
-                        + " 人开赛，卡心跳节奏下落，落进水坑排名"), false);
+                        + " 人开赛，穿过玻璃洞落水过关，完成关卡数最多者胜"), false);
             } else if (type == MatchType.HOT_POTATO) {
                 player.sendMessage(Messages.info("已加入烫手山芋：凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers
                         + " 人开赛，左键传递山芋，时间到爆炸"), false);
@@ -643,11 +643,14 @@ public final class PvPCommands {
         HeartbeatLayout layout = HeartbeatLayout.compute(center, PvPConfig.INSTANCE, 9000);
         HeartbeatMapGenerator.generate(arena, layout);
 
-        player.sendMessage(Messages.info("测试心跳水立方地图已生成（塔半宽 " + layout.halfSize + "，障碍层 "
-                + layout.layerYs.size() + " 层，水坑 " + layout.pools.size() + " 个）"), false);
-        player.teleport(arena, center.getX() + 0.5, layout.topY + 12, center.getZ() + 0.5, 0, 90);
+        // 传送到最高一关（最后一关）塔顶上空俯视全部关卡
+        BlockPos lastCenter = layout.center(layout.levelCount - 1);
+        player.sendMessage(Messages.info("测试心跳水立方地图已生成（" + layout.levelCount + " 关，塔宽 "
+                + (layout.halfSize * 2 + 1) + "，层距 " + layout.floorGap + "，起始层数 " + layout.baseFloors + "）"), false);
+        player.teleport(arena, lastCenter.getX() + 0.5, layout.topY(layout.levelCount - 1) + 10,
+                lastCenter.getZ() + 0.5, 180, 90);
         arenaManager.addVisitor(player, 180);
-        player.sendMessage(Messages.gold("已传送到心跳水立方地图上空（约 3 分钟后自动回城），可下落查看各层与底部水坑"), false);
+        player.sendMessage(Messages.gold("已传送到心跳水立方最后一关塔顶上空（约 3 分钟后自动回城），可下落查看玻璃洞与底部水池"), false);
         return 1;
     }
 

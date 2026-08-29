@@ -347,6 +347,9 @@ public final class PvPMod implements ModInitializer {
                 if (match != null) {
                     if (match.getType().isBridge()) {
                         match.onBridgeDeath(sp);
+                    } else if (match.getType() == MatchType.HEARTBEAT) {
+                        // 心跳水立方：死亡（撞玻璃等）不淘汰，回当前关塔顶重试
+                        match.onHeartbeatDeath(sp);
                     } else if (match.getState() == MatchState.ACTIVE) {
                         // 不死图腾救场：空岛/幸运之柱受到致死伤害时消耗图腾取消死亡（非掉虚空→原版逻辑原地复活）
                         if ((match.getType() == MatchType.SKYWARS || match.getType() == MatchType.LUCKY_PILLAR)

@@ -9,119 +9,204 @@ import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 /**
- * 心跳水立方地图布局：高空出发台 → 多层"心跳"棋盘格地板 → 底部水坑平台。
- * 纯几何、确定性；心跳地板/水坑判定/出生点共用同一份布局。
+ * 心跳水立方（多关卡自由落体跳水）地图布局：
+ * N 座小塔沿 +z 方向并排，第 0 关最易、最后一关最难。
+ * 每关 = 塔顶出发台 → 若干层满铺玻璃地板（每层固定个 1×1 洞）→ 塔底整塔方形水池。
+ * 玩家从塔顶跳下，逐层穿过洞里，落进水池即过关，传送进下一关。
  *
- * 玩法：玩家从顶部出发台往下跳，障碍地板周期性"心跳"（出现→消失），
- * 卡心跳窗口逐层下落，落进底部任一水坑即安全到达（按到达顺序排名），
- * 第一个到达水坑的玩家获胜。
+ * 纯几何、确定性（洞位由 seed + level + floor 决定，固定不脉冲）。
  */
 public final class HeartbeatLayout {
 
-    public final BlockPos mapCenter;
-    public final int halfSize;         // 塔半宽（边长 = 2*halfSize+1）
-    public final int maxRadius;        // 清理半径
-    public final int platformY;        // 底部平台表面 Y
-    public final int topY;             // 顶部出发台表面 Y
-    public final List<Integer> layerYs;    // 心跳地板层 Y（自底向上）
-    public final List<BlockPos> spawns;    // 顶部出生点（围成一圈）
-    public final List<BlockPos> pools;     // 水坑中心（xz，y 为平台表面）
-    public final int poolRadius;           // 水坑半径
-    /** 心跳地板方块位置（每层棋盘格：dx+dz 为偶数放方块，奇数留洞）。 */
-    private final Set<BlockPos> layerBlocks = new HashSet<>();
-    /** 心跳地板方块（材料）。 */
-    public final Block layerBlock;
-    public final Block poolWater;
+    public final BlockPos mapCenter;     // 第 0 关塔中心
+    public final int levelCount;         // 关卡总数
+    public final int halfSize;           // 塔半宽（方形边长 = 2*halfSize+1）
+    public final int levelStride;        // 相邻塔中心 z 间距
+    public final int poolY;              // 塔底池面 Y（整塔方形水池，水面与塔底齐平）
+    public final int floorGap;           // 玻璃层间距（足够下落时横向移动）
+    public final int baseFloors;         // 第 1 关玻璃层数（每关 +1）
+    public final int maxRadius;          // 清理半径（自第 0 关中心覆盖全部塔）
+    public final Block floorBlock;       // 玻璃地板（透明，可看透找洞）
+    public final Block platformBlock;    // 出发台/塔底平台（白色混凝土）
+    public final List<BlockPos> spawns;  // 第 0 关出发台环（setupPlayers 用）
 
-    private HeartbeatLayout(BlockPos mapCenter, int halfSize, int maxRadius, int platformY, int topY,
-                            List<Integer> layerYs, List<BlockPos> spawns, List<BlockPos> pools,
-                            int poolRadius, Block layerBlock, Block poolWater) {
+    /** 全部玻璃地板方块位置（绝对坐标）。 */
+    private final Set<BlockPos> floorBlocks = new HashSet<>();
+    /** 全部洞位（绝对坐标，玻璃地板中挖成空气）。 */
+    private final Set<BlockPos> holeBlocks = new HashSet<>();
+
+    private HeartbeatLayout(BlockPos mapCenter, int levelCount, int halfSize, int levelStride,
+                            int poolY, int floorGap, int baseFloors,
+                            int maxRadius, List<BlockPos> spawns, Block floorBlock, Block platformBlock) {
         this.mapCenter = mapCenter;
+        this.levelCount = levelCount;
         this.halfSize = halfSize;
+        this.levelStride = levelStride;
+        this.poolY = poolY;
+        this.floorGap = floorGap;
+        this.baseFloors = baseFloors;
         this.maxRadius = maxRadius;
-        this.platformY = platformY;
-        this.topY = topY;
-        this.layerYs = List.copyOf(layerYs);
         this.spawns = List.copyOf(spawns);
-        this.pools = List.copyOf(pools);
-        this.poolRadius = poolRadius;
-        this.layerBlock = layerBlock;
-        this.poolWater = poolWater;
-        int cx = mapCenter.getX();
-        int cz = mapCenter.getZ();
-        for (int y : layerYs) {
-            for (int dx = -halfSize; dx <= halfSize; dx++) {
-                for (int dz = -halfSize; dz <= halfSize; dz++) {
-                    if (((dx + dz) & 1) == 0) {
-                        this.layerBlocks.add(new BlockPos(cx + dx, y, cz + dz));
-                    }
-                }
-            }
-        }
+        this.floorBlock = floorBlock;
+        this.platformBlock = platformBlock;
     }
 
     public static HeartbeatLayout compute(BlockPos mapCenter, PvPConfig cfg, int seed) {
-        int halfSize = Math.max(8, cfg.heartbeatSize / 2);
-        int platformY = ArenaTemplate.PLATFORM_Y;
-        int layerGap = Math.max(4, cfg.heartbeatLayerGap);
-        int layerCount = Math.max(2, cfg.heartbeatLayerCount);
-        int poolCount = Math.max(2, cfg.heartbeatPoolCount);
-        int poolRadius = Math.max(2, cfg.heartbeatPoolRadius);
+        int halfSize = Math.max(4, cfg.heartbeatSize / 2);
+        int levelCount = Math.max(2, cfg.heartbeatLevels);
+        int floorGap = Math.max(6, cfg.heartbeatFloorGap);
+        int baseFloors = Math.max(2, cfg.heartbeatBaseFloors);
+        int poolY = ArenaTemplate.PLATFORM_Y;
+        int levelStride = halfSize * 2 + 9;
 
-        // 心跳地板层：平台上方 8 格起，每层间距 layerGap
-        List<Integer> layerYs = new ArrayList<>();
-        for (int i = 0; i < layerCount; i++) {
-            layerYs.add(platformY + 8 + i * layerGap);
-        }
-        // 顶部出发台：最上层地板再往上 layerGap
-        int topY = layerYs.get(layerCount - 1) + layerGap;
+        // 清理半径：从第 0 关中心覆盖到最后一关塔边 + 边距
+        int maxRadius = halfSize + (levelCount - 1) * levelStride + halfSize + 8;
 
-        int cx = mapCenter.getX();
-        int cz = mapCenter.getZ();
+        HeartbeatLayout layout = new HeartbeatLayout(mapCenter, levelCount, halfSize, levelStride,
+                poolY, floorGap, baseFloors, maxRadius,
+                level0Spawns(mapCenter, halfSize, baseFloors, floorGap, poolY),
+                Blocks.GLASS, Blocks.WHITE_CONCRETE);
 
-        // 水坑：中心 1 个 + 一圈均匀分布
-        List<BlockPos> pools = new ArrayList<>();
-        pools.add(new BlockPos(cx, platformY, cz));
-        double ringR = Math.max(poolRadius * 2 + 2, halfSize - 6);
-        for (int i = 0; i < poolCount - 1; i++) {
-            double angle = i * 2.0 * Math.PI / (poolCount - 1);
-            int x = cx + (int) Math.round(Math.cos(angle) * ringR);
-            int z = cz + (int) Math.round(Math.sin(angle) * ringR);
-            pools.add(new BlockPos(x, platformY, z));
-        }
-
-        // 出生点：顶部出发台边缘围一圈（最多 8 人）
-        List<BlockPos> spawns = new ArrayList<>();
-        int spawnR = Math.max(2, halfSize - 3);
-        for (int i = 0; i < 8; i++) {
-            double angle = i * 2.0 * Math.PI / 8 + 0.4;
-            int x = cx + (int) Math.round(Math.cos(angle) * spawnR);
-            int z = cz + (int) Math.round(Math.sin(angle) * spawnR);
-            spawns.add(new BlockPos(x, topY + 1, z));
-        }
-
-        return new HeartbeatLayout(mapCenter, halfSize, halfSize + 8, platformY, topY,
-                layerYs, spawns, pools, poolRadius,
-                Blocks.QUARTZ_BLOCK, Blocks.WATER);
-    }
-
-    /** 是否在水坑范围内（xz 判定）。 */
-    public boolean isInPool(double x, double z) {
-        for (BlockPos pool : this.pools) {
-            double dx = x - (pool.getX() + 0.5);
-            double dz = z - (pool.getZ() + 0.5);
-            if (dx * dx + dz * dz <= this.poolRadius * this.poolRadius + 0.5) {
-                return true;
+        // 每关每层洞位：确定性，避免与上一层洞位太近（防笔直下落）
+        for (int level = 0; level < levelCount; level++) {
+            Set<BlockPos> prevFloorHoles = null;
+            int cx = layout.center(level).getX();
+            int cz = layout.center(level).getZ();
+            for (int f = 0; f < layout.floors(level); f++) {
+                int fy = layout.floorY(level, f);
+                Set<BlockPos> holes = pickHoles(seed, level, f, layout.holes(level), prevFloorHoles, halfSize);
+                // 玻璃地板满铺 + 洞位挖空
+                for (int dx = -halfSize; dx <= halfSize; dx++) {
+                    for (int dz = -halfSize; dz <= halfSize; dz++) {
+                        layout.floorBlocks.add(new BlockPos(cx + dx, fy, cz + dz));
+                    }
+                }
+                for (BlockPos rel : holes) {
+                    layout.holeBlocks.add(new BlockPos(cx + rel.getX(), fy, cz + rel.getZ()));
+                }
+                prevFloorHoles = holes;
             }
         }
-        return false;
+        return layout;
     }
 
-    /** 心跳地板方块集合（切换消失/出现用）。 */
-    public Set<BlockPos> layerBlocks() {
-        return this.layerBlocks;
+    /** 第 0 关出发台环（最多 8 人，围一圈）。 */
+    private static List<BlockPos> level0Spawns(BlockPos mapCenter, int halfSize, int baseFloors,
+                                               int floorGap, int poolY) {
+        int topY = poolY + 4 + baseFloors * floorGap;
+        int spawnR = Math.max(1, halfSize - 2);
+        List<BlockPos> spawns = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            double angle = i * 2.0 * Math.PI / 8 + 0.4;
+            int x = mapCenter.getX() + (int) Math.round(Math.cos(angle) * spawnR);
+            int z = mapCenter.getZ() + (int) Math.round(Math.sin(angle) * spawnR);
+            spawns.add(new BlockPos(x, topY + 1, z));
+        }
+        return spawns;
+    }
+
+    /** 抽取一层地板上的洞位（相对坐标，xz 分量，y=0 占位）。 */
+    private static Set<BlockPos> pickHoles(int seed, int level, int floor, int count,
+                                           Set<BlockPos> prevFloorHoles, int halfSize) {
+        Set<BlockPos> holes = new HashSet<>();
+        Random rng = new Random(seed * 31L + level * 131L + floor * 17L + 7L);
+        // 洞位至少距塔边 1 格，避免穿洞后立刻掉出塔外
+        int range = halfSize - 1;
+        int attempts = 0;
+        while (holes.size() < count && attempts < count * 40) {
+            int hx = rng.nextInt(range * 2 + 1) - range;
+            int hz = rng.nextInt(range * 2 + 1) - range;
+            BlockPos p = new BlockPos(hx, 0, hz);
+            if (holes.contains(p)) {
+                attempts++;
+                continue;
+            }
+            // 与上一层洞位保持曼哈顿距离 >= 2（避免两层洞位叠一起笔直下落）
+            if (prevFloorHoles != null) {
+                boolean tooClose = false;
+                for (BlockPos q : prevFloorHoles) {
+                    if (Math.abs(p.getX() - q.getX()) + Math.abs(p.getZ() - q.getZ()) < 2) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+                if (tooClose) {
+                    attempts++;
+                    continue;
+                }
+            }
+            holes.add(p);
+        }
+        return holes;
+    }
+
+    // ---------- 查询接口 ----------
+
+    /** 第 level 关塔中心（绝对坐标）。 */
+    public BlockPos center(int level) {
+        return new BlockPos(this.mapCenter.getX(), this.mapCenter.getY(),
+                this.mapCenter.getZ() + level * this.levelStride);
+    }
+
+    /** 第 level 关玻璃地板层数（第 1 关 baseFloors，每关 +1）。 */
+    public int floors(int level) {
+        return this.baseFloors + level;
+    }
+
+    /** 第 level 关第 f 层（0 起）玻璃地板表面 Y。 */
+    public int floorY(int level, int f) {
+        return this.poolY + 4 + f * this.floorGap;
+    }
+
+    /** 第 level 关出发台表面 Y（最后一层玻璃之上 floorGap）。 */
+    public int topY(int level) {
+        return this.poolY + 4 + this.floors(level) * this.floorGap;
+    }
+
+    /** 第 level 关每层洞数（由易到难：5 → 1）。 */
+    public int holes(int level) {
+        return Math.max(1, 5 - level);
+    }
+
+    /** 是否在该关塔底水池内（整塔方形水池，与塔身同宽）。 */
+    public boolean isInPool(int level, double x, double z) {
+        BlockPos c = this.center(level);
+        return x >= c.getX() - this.halfSize && x <= c.getX() + this.halfSize + 1
+                && z >= c.getZ() - this.halfSize && z <= c.getZ() + this.halfSize + 1;
+    }
+
+    /** 第 level 关出发台上第 index 个出生点（环，8 个循环取）。 */
+    public BlockPos levelTopSpawn(int level, int index) {
+        int k = index % 8;
+        int spawnR = Math.max(1, this.halfSize - 2);
+        double angle = k * 2.0 * Math.PI / 8 + 0.4;
+        BlockPos c = this.center(level);
+        int x = c.getX() + (int) Math.round(Math.cos(angle) * spawnR);
+        int z = c.getZ() + (int) Math.round(Math.sin(angle) * spawnR);
+        return new BlockPos(x, this.topY(level) + 1, z);
+    }
+
+    /** 清理半径。 */
+    public int maxRadius() {
+        return this.maxRadius;
+    }
+
+    /** 水池水方块。 */
+    public Block poolWater() {
+        return Blocks.WATER;
+    }
+
+    /** 全部玻璃地板方块（生成用）。 */
+    public Set<BlockPos> floorBlocks() {
+        return this.floorBlocks;
+    }
+
+    /** 全部洞位（生成用，这些位置留空气）。 */
+    public Set<BlockPos> holeBlocks() {
+        return this.holeBlocks;
     }
 }

@@ -145,20 +145,16 @@ public final class PvPConfig {
     /** 开赛倒计时（秒）；不足开赛人数时等待填充的最长时间（秒）。 */
     public int heartbeatCountdownSeconds = 30;
     public int heartbeatFillTimeoutSeconds = 60;
-    /** 塔区覆盖边长（生成/清理边界）。 */
-    public int heartbeatSize = 41;
-    /** 心跳障碍层数（默认 5 层）。 */
-    public int heartbeatLayerCount = 5;
-    /** 层间距（格，默认 8：心跳消失窗口内正好下穿 1 层）。 */
-    public int heartbeatLayerGap = 8;
-    /** 心跳出现时长（tick，默认 60 = 3 秒）与消失时长（tick，默认 30 = 1.5 秒）。 */
-    public int heartbeatCloseTicks = 60;
-    public int heartbeatOpenTicks = 30;
-    /** 底部水坑数量与半径（格）。 */
-    public int heartbeatPoolCount = 5;
-    public int heartbeatPoolRadius = 3;
-    /** 对局超时（秒）：超时后按当前进度排名结算。 */
-    public int heartbeatTimeoutSeconds = 600;
+    /** 塔区覆盖边长 = 每关塔的宽（正方形塔，边长 2*halfSize+1）。 */
+    public int heartbeatSize = 21;
+    /** 关卡总数（塔并排，第 1 关最易 → 最后一关最难）。 */
+    public int heartbeatLevels = 5;
+    /** 层间距（格，默认 14：下落约 1 秒，足够在空中横向移动对准下一层洞位）。 */
+    public int heartbeatFloorGap = 14;
+    /** 第 1 关玻璃地板层数；每过一关 +1（最后一关 = baseFloors + levels - 1）。 */
+    public int heartbeatBaseFloors = 3;
+    /** 对局超时（秒）：超时后按关卡进度排名结算，进度最高者胜。 */
+    public int heartbeatTimeoutSeconds = 300;
 
     // ---------- 烫手山芋 (Hot Potato) ----------
     /** 最少/触发开赛倒计时/最多人数。默认凑齐 4 人开赛，最少 2 人可开。 */
@@ -385,28 +381,16 @@ public final class PvPConfig {
             this.heartbeatSize = defaults.heartbeatSize;
             changed = true;
         }
-        if (this.heartbeatLayerCount <= 0) {
-            this.heartbeatLayerCount = defaults.heartbeatLayerCount;
+        if (this.heartbeatLevels <= 0) {
+            this.heartbeatLevels = defaults.heartbeatLevels;
             changed = true;
         }
-        if (this.heartbeatLayerGap <= 0) {
-            this.heartbeatLayerGap = defaults.heartbeatLayerGap;
+        if (this.heartbeatFloorGap <= 0) {
+            this.heartbeatFloorGap = defaults.heartbeatFloorGap;
             changed = true;
         }
-        if (this.heartbeatCloseTicks <= 0) {
-            this.heartbeatCloseTicks = defaults.heartbeatCloseTicks;
-            changed = true;
-        }
-        if (this.heartbeatOpenTicks <= 0) {
-            this.heartbeatOpenTicks = defaults.heartbeatOpenTicks;
-            changed = true;
-        }
-        if (this.heartbeatPoolCount <= 0) {
-            this.heartbeatPoolCount = defaults.heartbeatPoolCount;
-            changed = true;
-        }
-        if (this.heartbeatPoolRadius <= 0) {
-            this.heartbeatPoolRadius = defaults.heartbeatPoolRadius;
+        if (this.heartbeatBaseFloors <= 0) {
+            this.heartbeatBaseFloors = defaults.heartbeatBaseFloors;
             changed = true;
         }
         if (this.heartbeatTimeoutSeconds <= 0) {
