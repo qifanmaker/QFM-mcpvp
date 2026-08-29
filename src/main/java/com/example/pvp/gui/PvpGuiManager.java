@@ -353,9 +353,8 @@ public final class PvpGuiManager {
                 PvPConfig.INSTANCE.tntRunMinPlayers + "~" + PvPConfig.INSTANCE.tntRunMaxPlayers
                         + " 人，凑齐 " + PvPConfig.INSTANCE.tntRunStartPlayers + " 人开赛",
                 "5 层彩色平台，踩过的方块 0.2 秒后掉落",
-                "右键羽毛可向上跳一段（每 " + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + " 秒充能）",
-                "地面会刷火焰弹/TNT，掉出底层淘汰",
-                "最后存活者获胜，点击直接加入"));
+                "地面会刷火焰弹/TNT，捡起来砸人/炸人",
+                "掉出底层淘汰，最后幸存者获胜，点击直接加入"));
         inv.setStack(11, queueButton(Items.WATER_BUCKET, "§b心跳水立方", player, MatchType.HEARTBEAT,
                 PvPConfig.INSTANCE.heartbeatMinPlayers + "~" + PvPConfig.INSTANCE.heartbeatMaxPlayers
                         + " 人，凑齐 " + PvPConfig.INSTANCE.heartbeatStartPlayers + " 人开赛",

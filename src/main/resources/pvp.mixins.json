@@ -14,7 +14,6 @@
     "SmallFireballEntityMixin",
     "TntEntityMixin",
     "ExplosionMixin",
-    "ItemMixin",
     "registry.DimensionOptionsMixin",
     "registry.SimpleRegistryMixin",
     "registry.WorldGenSettingsMixin"

@@ -282,14 +282,6 @@ public final class PvPMod implements ModInitializer {
                     stack.decrement(1);
                     return TypedActionResult.success(stack);
                 }
-                // TNT 跑酷：右键跳跃羽毛向上跳一段（每 10 秒充能 1 次）
-                if (stack.isOf(Items.FEATHER)) {
-                    Match match = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
-                    if (match != null && match.getType() == MatchType.TNT_RUN && match.getState() == MatchState.ACTIVE) {
-                        match.tntRunFeatherJump(serverPlayer);
-                        return TypedActionResult.success(stack);
-                    }
-                }
             }
             return TypedActionResult.pass(stack);
         });
@@ -310,21 +302,6 @@ public final class PvPMod implements ModInitializer {
             }
             throwTnt(sp, world, sp.getStackInHand(hand));
             return ActionResult.SUCCESS;
-        });
-        // TNT 跑酷：右键羽毛对准方块时也触发跳跃（UseItemCallback 只覆盖"右键空气"路径）
-        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (!(player instanceof ServerPlayerEntity sp) || !sp.getStackInHand(hand).isOf(Items.FEATHER)) {
-                return ActionResult.PASS;
-            }
-            if (MATCH == null || MATCH.isEliminated(sp.getUuid())) {
-                return ActionResult.PASS;
-            }
-            Match match = MATCH.getMatchFor(sp);
-            if (match != null && match.getType() == MatchType.TNT_RUN && match.getState() == MatchState.ACTIVE) {
-                match.tntRunFeatherJump(sp);
-                return ActionResult.SUCCESS;
-            }
-            return ActionResult.PASS;
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {

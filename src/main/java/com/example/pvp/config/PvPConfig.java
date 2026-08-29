@@ -132,8 +132,6 @@ public final class PvPConfig {
     public int tntRunLayerGap = 6;
     /** 踩过的方块多少 tick 后消失（默认 4 tick = 0.2 秒）。 */
     public int tntRunVanishTicks = 4;
-    /** 羽毛跳跃充能间隔（秒，默认 10 秒 1 次；右键羽毛向上跳一段）。 */
-    public int tntRunDoubleJumpIntervalSeconds = 10;
     /** 地面掉落物刷新间隔（tick，默认 40 = 2 秒）。 */
     public int tntRunDropIntervalTicks = 40;
     /** 对局超时（秒）：超过后击杀最多者胜，无击杀平局。 */
@@ -353,10 +351,6 @@ public final class PvPConfig {
         }
         if (this.tntRunVanishTicks <= 0) {
             this.tntRunVanishTicks = defaults.tntRunVanishTicks;
-            changed = true;
-        }
-        if (this.tntRunDoubleJumpIntervalSeconds <= 0) {
-            this.tntRunDoubleJumpIntervalSeconds = defaults.tntRunDoubleJumpIntervalSeconds;
             changed = true;
         }
         if (this.tntRunDropIntervalTicks <= 0) {

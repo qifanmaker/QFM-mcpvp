@@ -140,14 +140,10 @@ public final class Match {
 
     /** TNT 跑酷地图布局（仅 TNT_RUN 模式非空，方块消失判定/清理用）。 */
     private final TntRunLayout tntRunLayout;
-    private final Map<UUID, Integer> tntRunJumpCharge = new HashMap<>(); // 二段跳次数（0/1）
-    private int tntRunJumpTimer; // 二段跳充能计时（tick）
     private int tntRunDropTimer; // 掉落物刷新计时（tick）
     private final Map<BlockPos, Integer> tntRunVanish = new HashMap<>(); // 待消失方块 → 到期 tick
-    /** 羽毛跳跃上升推动（UUID → 剩余 tick）：类似火焰弹的服务端速度驱动，每 tick 重新施加速度。 */
-    private final Map<UUID, Integer> tntRunJumpBoost = new HashMap<>();
-    /** 羽毛跳跃目标层表面 Y（UUID → y），达到后停止推动，自然落在平台上。 */
-    private final Map<UUID, Integer> tntRunJumpTarget = new HashMap<>();
+    /** TNT 跑酷道具掉落物识别 tag（火焰弹/TNT）：带此 tag 的掉落物保留，其余（TNT 炸掉的羊毛等）全部清除。 */
+    public static final String TNT_RUN_ITEM_TAG = "pvp.tntrun_item";
     /** 不死图腾非掉虚空复活后的摔落保护（UUID → 剩余 tick，期间每 tick 清零 fallDistance）。 */
     private final Map<UUID, Integer> totemFallSafeTicks = new HashMap<>();
 
@@ -1384,7 +1380,7 @@ public final class Match {
 
     // ---------- TNT 跑酷 (TNT Run) ----------
 
-    /** TNT 跑酷每帧逻辑：方块消失、羽毛跳跃充能、掉落物刷新、掉出底层淘汰。 */
+    /** TNT 跑酷每帧逻辑：方块消失、掉落物刷新、掉出底层淘汰、羊毛掉落物清理。 */
     private void tickTntRun() {
         PvPConfig cfg = PvPConfig.INSTANCE;
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
@@ -1392,30 +1388,6 @@ public final class Match {
         // 0) TNT 跑酷免疫摔落伤害：每 tick 清零 fallDistance，层间自由下落不掉血
         for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
             online.fallDistance = 0;
-        }
-
-        // 0.5) 羽毛跳跃推动（类似火焰弹的服务端速度驱动）：每 tick 重新施加上升速度并同步，
-        //      客户端收到连续速度包后本地模拟跟随上升，移动包位置自然上移（而非被拉回），
-        //      达到目标层表面后停止推动，玩家自然下落到平台上。
-        for (UUID uuid : List.copyOf(this.tntRunJumpBoost.keySet())) {
-            ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
-            if (online == null) {
-                this.tntRunJumpBoost.remove(uuid);
-                this.tntRunJumpTarget.remove(uuid);
-                continue;
-            }
-            int left = this.tntRunJumpBoost.get(uuid) - 1;
-            Integer targetY = this.tntRunJumpTarget.get(uuid);
-            boolean reached = targetY != null && online.getY() >= targetY + 1;
-            if (left <= 0 || reached) {
-                this.tntRunJumpBoost.remove(uuid);
-                this.tntRunJumpTarget.remove(uuid);
-            } else {
-                Vec3d v = online.getVelocity();
-                online.setVelocity(v.x, 1.0, v.z); // 保持水平动量，持续向上推
-                online.velocityDirty = true;
-                this.tntRunJumpBoost.put(uuid, left);
-            }
         }
 
         // 1) 处理待消失方块（到点置空气 + 粒子提示）
@@ -1459,17 +1431,7 @@ public final class Match {
             }
         }
 
-        // 3) 羽毛跳跃充能：每 tntRunDoubleJumpIntervalSeconds 秒给 1 次（右键羽毛触发，见 tntRunFeatherJump）
-        if (++this.tntRunJumpTimer >= cfg.tntRunDoubleJumpIntervalSeconds * 20) {
-            this.tntRunJumpTimer = 0;
-            for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
-                this.tntRunJumpCharge.put(online.getUuid(), 1);
-                online.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), SoundCategory.PLAYERS, 1.0F, 1.6F);
-            }
-            this.broadcastTitleBig("§b羽毛跳跃已就绪！", "§f右键羽毛向上跳");
-        }
-
-        // 5) 掉出底层平台 → 淘汰
+        // 3) 掉出底层平台 → 淘汰
         double deathY = ArenaTemplate.PLATFORM_Y - 8;
         for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
             if (online.getY() < deathY) {
@@ -1477,14 +1439,27 @@ public final class Match {
             }
         }
 
-        // 6) 地面随机刷新火焰弹/TNT 掉落物（纯物品实体，不触发方块消失）
+        // 4) 地面随机刷新火焰弹/TNT 掉落物（纯物品实体，不触发方块消失）
         if (++this.tntRunDropTimer >= Math.max(10, cfg.tntRunDropIntervalTicks)) {
             this.tntRunDropTimer = 0;
             this.spawnTntRunDrops();
         }
+
+        // 5) 清除竞技场内不带道具 tag 的掉落物（主要是 TNT/火焰弹炸掉的羊毛等方块掉落）：
+        //    防止玩家捡起羊毛重新搭方块（TNT 跑酷为生存模式可放方块）。只保留带 TNT_RUN_ITEM_TAG 的道具。
+        if (arena != null && this.tntRunLayout != null) {
+            int half = this.tntRunLayout.maxRadius + 8;
+            BlockPos c = this.tntRunLayout.mapCenter;
+            Box box = new Box(c.getX() - half, arena.getBottomY(), c.getZ() - half,
+                    c.getX() + half, arena.getTopY(), c.getZ() + half);
+            for (ItemEntity entity : arena.getEntitiesByClass(ItemEntity.class, box,
+                    e -> !isTntRunItem(e.getStack()))) {
+                entity.discard();
+            }
+        }
     }
 
-    /** TNT 跑酷地面刷新掉落物：在仍有方块的最上层随机放火焰弹/TNT。 */
+    /** TNT 跑酷地面刷新掉落物：在仍有方块的最上层随机放火焰弹/TNT（带道具 tag，不被清理）。 */
     private void spawnTntRunDrops() {
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena == null || this.tntRunLayout == null) {
@@ -1500,7 +1475,11 @@ public final class Match {
                 int y = this.tntRunLayout.layerYs.get(layer);
                 if (!arena.getBlockState(new BlockPos(x, y, z)).isAir()) {
                     Item item = this.random.nextBoolean() ? Items.FIRE_CHARGE : Items.TNT;
-                    ItemEntity entity = new ItemEntity(arena, x + 0.5, y + 1.0, z + 0.5, new ItemStack(item));
+                    ItemStack stack = new ItemStack(item);
+                    NbtCompound nbt = new NbtCompound();
+                    nbt.putString(TNT_RUN_ITEM_TAG, "1");
+                    stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+                    ItemEntity entity = new ItemEntity(arena, x + 0.5, y + 1.0, z + 0.5, stack);
                     entity.setVelocity(0, 0.1, 0);
                     arena.spawnEntity(entity);
                     break;
@@ -1509,49 +1488,13 @@ public final class Match {
         }
     }
 
-    /** TNT 跑酷：右键羽毛向上跳一层（充能 1 次，用完后等下一轮充能）。
-     * 类似火焰弹的处理逻辑：服务端设置速度、实体随后由服务端 tick 驱动移动——
-     * 这里给玩家一个持续 tick 的上升速度（tickTntRun 每帧重新施加），
-     * 而不是单次 setVelocity（会被客户端移动包拉回）或瞬移传送。 */
-    public void tntRunFeatherJump(ServerPlayerEntity player) {
-        LOGGER.info("[PvP] 羽毛跳跃触发: {} 充能={}", player.getGameProfile().getName(),
-                this.tntRunJumpCharge.getOrDefault(player.getUuid(), 0));
-        if (this.type != MatchType.TNT_RUN || this.state != MatchState.ACTIVE
-                || this.eliminated.contains(player.getUuid())) {
-            return;
+    /** 是否为 TNT 跑酷道具掉落物（带 pvp.tntrun_item tag）。 */
+    public static boolean isTntRunItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
         }
-        if (this.tntRunJumpCharge.getOrDefault(player.getUuid(), 0) <= 0) {
-            player.sendMessage(Messages.warn("§b羽毛跳跃还在充能中..."), true);
-            return;
-        }
-        this.tntRunJumpCharge.put(player.getUuid(), 0);
-
-        // 目标层：上方最近的平台层表面（站在某层时跳向上一层）
-        int targetY = -1;
-        if (this.tntRunLayout != null) {
-            double currentY = player.getY();
-            for (int y : this.tntRunLayout.layerYs) {
-                if (y + 1 > currentY + 0.1 && (targetY == -1 || y < targetY)) {
-                    targetY = y;
-                }
-            }
-        }
-        if (targetY == -1) {
-            player.jump(); // 已在顶层/无更高层：原版跳跃兜底
-        } else {
-            // 启动上升推动：初速 + 持续 tick（约 10 tick × 0.9 格 ≈ 9 格，够层距 6 + 头顶留白）
-            this.tntRunJumpBoost.put(player.getUuid(), 10);
-            this.tntRunJumpTarget.put(player.getUuid(), targetY);
-            Vec3d v = player.getVelocity();
-            player.setVelocity(v.x, 1.0, v.z);
-            player.velocityDirty = true;
-        }
-        player.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.PLAYERS, 1.0F, 1.4F);
-        player.sendMessage(Text.literal("§a§l羽毛跳跃！"), true); // 动作栏提示，确认触发
-        if (player.getWorld() instanceof ServerWorld sw) {
-            sw.spawnParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(),
-                    10, 0.3, 0.1, 0.3, 0.02);
-        }
+        NbtComponent nbt = stack.get(DataComponentTypes.CUSTOM_DATA);
+        return nbt != null && nbt.copyNbt().contains(TNT_RUN_ITEM_TAG);
     }
 
     /** TNT 跑酷地图布局（方块消失判定/破坏保护用），非 TNT 跑酷模式返回 null。 */
@@ -2300,7 +2243,7 @@ public final class Match {
                 online.changeGameMode(GameMode.SURVIVAL);
                 online.currentScreenHandler.sendContentUpdates();
             } else if (tntRun) {
-                // TNT 跑酷：无套件，生存模式空手开局，靠地面刷新掉落物；发跳跃羽毛（右键向上跳）
+                // TNT 跑酷：无套件，生存模式空手开局，靠地面刷新火焰弹/TNT 掉落物
                 online.getInventory().clear();
                 online.setHealth(online.getMaxHealth());
                 online.getHungerManager().setFoodLevel(20);
@@ -2312,10 +2255,6 @@ public final class Match {
                 online.changeGameMode(GameMode.SURVIVAL);
                 // 给饱和效果：跑步/跳跃不掉饥饿
                 online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
-                ItemStack feather = new ItemStack(Items.FEATHER);
-                feather.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§b跳跃羽毛（右键）"));
-                online.getInventory().setStack(0, feather);
-                this.tntRunJumpCharge.put(online.getUuid(), 1); // 开局即可用一次羽毛跳
                 online.currentScreenHandler.sendContentUpdates();
             } else if (heartbeat || hotPotato) {
                 // 心跳水立方 / 烫手山芋：无套件，冒险模式空手开局（专注玩法本身，不能放/拆方块）
@@ -2352,8 +2291,7 @@ public final class Match {
             this.broadcast(Messages.info("幸运之柱开始！空手站在柱顶，每 §e"
                     + PvPConfig.INSTANCE.luckyPillarItemIntervalSeconds + "§r 秒获得随机物品，还会触发随机事件！最后的幸存者获胜！（1.8 低版本战斗）"));
         } else if (tntRun) {
-            this.broadcast(Messages.info("TNT 跑酷开始！踩过的方块 §e0.2 秒§r 后掉落，掉出底层即淘汰；右键跳跃羽毛可向上跳一段（每 §e"
-                    + PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds + "§r 秒充能一次），地面会刷火焰弹/TNT，最后的幸存者获胜！"));
+            this.broadcast(Messages.info("TNT 跑酷开始！踩过的方块 §e0.2 秒§r 后掉落，掉出底层即淘汰；地面会刷火焰弹/TNT，捡起来砸人/炸人，最后的幸存者获胜！"));
         } else if (heartbeat) {
             this.broadcast(Messages.info("心跳水立方开始！卡心跳节奏逐层下落，落进底部水坑即安全到达，第一个到达的玩家获胜！"));
         } else if (hotPotato) {
@@ -2593,11 +2531,6 @@ public final class Match {
                     int evSec = Math.max(0, (this.luckyPillarEventTicks + 19) / 20);
                     this.setInfoLine(scoreboard, objective, "§d下次事件 §f" + evSec + "s", score--);
                 }
-            }
-            if (this.type == MatchType.TNT_RUN) {
-                int rem = Math.max(0, (PvPConfig.INSTANCE.tntRunDoubleJumpIntervalSeconds * 20
-                        - this.tntRunJumpTimer + 19) / 20);
-                this.setInfoLine(scoreboard, objective, "§b羽毛跳充能 §f" + rem + "s", score--);
             }
             if (this.type == MatchType.HOT_POTATO) {
                 ServerPlayerEntity holder = this.onlineHotPotatoHolder();
