@@ -2,10 +2,10 @@ package com.example.pvp.arena.luckypillar;
 
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
-import com.example.pvp.arena.luckypillar.LuckyPillarLayout.PlatformStyle;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout.Pillar;
 import com.example.pvp.config.PvPConfig;
 import com.mojang.logging.LogUtils;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.LeavesBlock;
@@ -13,6 +13,8 @@ import net.minecraft.entity.ItemEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import org.slf4j.Logger;
+
+import java.util.Map;
 
 /**
  * 幸运之柱地图生成：按 {@link LuckyPillarLayout} 铺每根 1 格宽的基岩棍子（从柱底通到柱顶）。
@@ -27,33 +29,28 @@ public final class LuckyPillarMapGenerator {
 
     /** 生成一整张幸运之柱地图：柱顶下 20 格的大平台（随机风格）+ 1 格宽基岩棍。 */
     public static void generate(ArenaWorld world, LuckyPillarLayout layout) {
-        // 平台圆盘（柱顶下方 luckyPillarPlatformGap 格）：按本局随机风格铺表面方块
-        int py = layout.platformY();
-        int pr = layout.platformRadius();
-        BlockPos center = layout.mapCenter();
-        switch (layout.platformStyle()) {
-            case MAGMA -> fillDisk(world, center, py, pr, Blocks.MAGMA_BLOCK.getDefaultState());
-            case LAVA_CAULDRON -> fillDisk(world, center, py, pr, Blocks.LAVA_CAULDRON.getDefaultState());
-            case SNOW_POWDER -> fillDiskCheckered(world, center, py, pr,
-                    Blocks.SNOW_BLOCK.getDefaultState(), Blocks.POWDER_SNOW.getDefaultState());
-            case COBWEB -> {
-                // 平滑石支撑层 + 整片蜘蛛网（掉进网里减速被困，安全）
-                fillDisk(world, center, py, pr, Blocks.SMOOTH_STONE.getDefaultState());
-                fillDisk(world, center, py + 1, pr, Blocks.COBWEB.getDefaultState());
+        // 平台表面：按布局预计算的方块映射铺（跳过 AIR = 虚空洞）
+        for (Map.Entry<BlockPos, Block> entry : layout.surface().entrySet()) {
+            if (entry.getValue() == Blocks.AIR) {
+                continue;
             }
-            case SAND_CACTUS -> {
-                // 沙子底 + 仙人掌间隔放置（1~2 格高，位置由布局预计算）
-                fillDisk(world, center, py, pr, Blocks.SAND.getDefaultState());
-                for (BlockPos pos : layout.decorations()) {
-                    world.setBlockState(pos, Blocks.CACTUS.getDefaultState(), 3);
-                }
+            BlockState state;
+            if (entry.getValue() == Blocks.OAK_LEAVES) {
+                state = Blocks.OAK_LEAVES.getDefaultState().with(LeavesBlock.PERSISTENT, true);
+            } else {
+                state = entry.getValue().getDefaultState();
             }
-            case LEAVES -> fillDisk(world, center, py, pr,
-                    Blocks.OAK_LEAVES.getDefaultState().with(LeavesBlock.PERSISTENT, true));
-            case TRAPDOOR -> fillDisk(world, center, py, pr, Blocks.OAK_TRAPDOOR.getDefaultState());
-            case SLAB -> fillDisk(world, center, py, pr, Blocks.SMOOTH_STONE_SLAB.getDefaultState());
-            case SLIME_HONEY -> fillDiskCheckered(world, center, py, pr,
-                    Blocks.SLIME_BLOCK.getDefaultState(), Blocks.HONEY_BLOCK.getDefaultState());
+            world.setBlockState(entry.getKey(), state, 3);
+        }
+
+        // 支撑方块（SAND_CACTUS 的线）：铺在沙子下方，防止受重力沙子下落
+        for (BlockPos pos : layout.support()) {
+            world.setBlockState(pos, Blocks.TRIPWIRE.getDefaultState(), 3);
+        }
+
+        // 装饰方块（SAND_CACTUS 的仙人掌）
+        for (BlockPos pos : layout.decorations()) {
+            world.setBlockState(pos, Blocks.CACTUS.getDefaultState(), 3);
         }
 
         // 基岩棍：1 格宽，从平台竖到柱顶（顶端为站立面，基岩不可破坏）
@@ -65,33 +62,7 @@ public final class LuckyPillarMapGenerator {
             }
         }
         LOGGER.info("[PvP] 幸运之柱地图已生成: {} 根基岩柱 + 平台（Y {}，半径 {}，风格 {}）",
-                pillars.size(), py, pr, layout.platformStyle().name());
-    }
-
-    /** 铺实心圆盘。 */
-    private static void fillDisk(ArenaWorld world, BlockPos center, int y, int radius, BlockState state) {
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                if (Math.sqrt(dx * dx + dz * dz) > radius) {
-                    continue;
-                }
-                world.setBlockState(new BlockPos(center.getX() + dx, y, center.getZ() + dz), state, 3);
-            }
-        }
-    }
-
-    /** 铺棋盘格圆盘（两种方块按 (dx+dz) 奇偶交错）。 */
-    private static void fillDiskCheckered(ArenaWorld world, BlockPos center, int y, int radius,
-                                          BlockState a, BlockState b) {
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                if (Math.sqrt(dx * dx + dz * dz) > radius) {
-                    continue;
-                }
-                BlockState state = ((dx + dz) & 1) == 0 ? a : b;
-                world.setBlockState(new BlockPos(center.getX() + dx, y, center.getZ() + dz), state, 3);
-            }
-        }
+                pillars.size(), layout.platformY(), layout.platformRadius(), layout.platformStyle().name());
     }
 
     /**
