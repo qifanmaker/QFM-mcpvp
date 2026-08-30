@@ -3,6 +3,7 @@ package com.example.pvp.match;
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
+import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.gui.PvpGuiManager;
@@ -42,6 +43,8 @@ public final class MatchManager {
     /** OP 强制开赛时指定的一次性空岛主题（下一次 SKYWARS 用，用后清除）。 */
     private SkyWarsTheme pendingSkywarsTheme;
     private int nextMatchId = 0;
+    /** 上一局幸运之柱平台风格（开新局时跳过相同风格，保证两局地板不一样）。 */
+    private LuckyPillarLayout.PlatformStyle lastLuckyPillarStyle;
 
     private MatchManager(MinecraftServer server) {
         this.server = server;
@@ -205,7 +208,15 @@ public final class MatchManager {
 
         int regionIndex = this.allocateRegion();
         ArenaTemplate template = this.createTemplate(type);
-        Match match = Match.create(this, this.nextMatchId++, type, players, regionIndex, template, kits);
+        int id = this.nextMatchId;
+        if (type == MatchType.LUCKY_PILLAR) {
+            // 幸运之柱：连续两局不能随机到同一种平台地板——跳过会重复风格的 seed
+            id = this.luckyPillarSeedAvoidingRepeat(template, regionIndex, id, players.size());
+        }
+        Match match = Match.create(this, id, type, players, regionIndex, template, kits);
+        if (id >= this.nextMatchId) {
+            this.nextMatchId = id + 1; // 被跳过后的 id 也要让下一次递增
+        }
         this.matches.add(match);
         match.tick(); // 立即进入倒计时第一帧
         return true;
@@ -335,6 +346,26 @@ public final class MatchManager {
                 return i;
             }
         }
+    }
+
+    /**
+     * 幸运之柱：从 baseId 起找第一个与上一局平台风格不同的 seed（最多试 20 个），
+     * 保证连续两局地板不重复；记录本次风格供下一局跳过。
+     */
+    private int luckyPillarSeedAvoidingRepeat(ArenaTemplate template, int regionIndex,
+                                              int baseId, int playerCount) {
+        int id = baseId;
+        for (int i = 0; i < 20; i++) {
+            LuckyPillarLayout layout = LuckyPillarLayout.compute(
+                    template.getCenter(regionIndex), id, playerCount);
+            if (this.lastLuckyPillarStyle == null
+                    || layout.platformStyle() != this.lastLuckyPillarStyle) {
+                this.lastLuckyPillarStyle = layout.platformStyle();
+                return id;
+            }
+            id++;
+        }
+        return baseId; // 兜底：重试耗尽也按原 id 开（概率极低）
     }
 
     private ArenaTemplate createTemplate(MatchType type) {
