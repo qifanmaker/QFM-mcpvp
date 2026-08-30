@@ -58,11 +58,23 @@ public final class SkyWarsLoot {
     private record LootEntry(int weight, BiFunction<Random, Integer, ItemStack> factory) {
     }
 
+    /** 各套护甲部位。 */
+    private static final Item[] IRON_PIECES = {
+            Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS
+    };
+    private static final Item[] CHAINMAIL_PIECES = {
+            Items.CHAINMAIL_HELMET, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_LEGGINGS, Items.CHAINMAIL_BOOTS
+    };
+    private static final Item[] DIAMOND_PIECES = {
+            Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS
+    };
+
     /** 出生岛箱子战利品：以铁装为主，偶见钻石装，必带桥接方块与基础物资。 */
     private static final List<LootEntry> SPAWN_TABLE = List.of(
             new LootEntry(18, (r, c) -> weapon(Items.IRON_SWORD, r, c)),
             new LootEntry(10, (r, c) -> weapon(Items.IRON_AXE, r, c)),
             new LootEntry(6, (r, c) -> bow(r, c)),
+            new LootEntry(6, (r, c) -> crossbow(r, c)),
             new LootEntry(10, (r, c) -> arrow(8 + r.nextInt(9))),
             new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
             new LootEntry(32, (r, c) -> armor(r, c, false)),
@@ -94,6 +106,7 @@ public final class SkyWarsLoot {
             new LootEntry(14, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
             new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_AXE, r, c)),
             new LootEntry(8, (r, c) -> bow(r, c)),
+            new LootEntry(8, (r, c) -> crossbow(r, c)),
             new LootEntry(12, (r, c) -> arrow(12 + r.nextInt(20))),
             new LootEntry(30, (r, c) -> armor(r, c, true)),
             new LootEntry(10, (r, c) -> armor(r, c, false)),
@@ -201,12 +214,13 @@ public final class SkyWarsLoot {
         return stack;
     }
 
-    /** 一件随机铁质装备：铁护甲（60%）/ 铁剑·铁斧（40%），带附魔概率。适当偏向防具。 */
+    /** 一件随机铁质/锁链装备：护甲（60%，铁/锁链各半）/ 铁剑·铁斧（40%），带附魔概率。适当偏向防具。 */
     private static ItemStack ironEquipment(Random random, int enchantChance) {
         if (random.nextInt(10) < 6) {
-            Item[] pieces = {Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS};
+            boolean chain = random.nextBoolean(); // 锁链与铁套刷新几率相同
+            Item[] pieces = chain ? CHAINMAIL_PIECES : IRON_PIECES;
             ItemStack stack = new ItemStack(pieces[random.nextInt(pieces.length)]);
-            maybeEnchant(stack, random, enchantChance);
+            enchantArmor(stack, random, enchantChance, chain);
             return stack;
         }
         return weapon(random.nextBoolean() ? Items.IRON_SWORD : Items.IRON_AXE, random, enchantChance);
@@ -258,13 +272,54 @@ public final class SkyWarsLoot {
         return stack;
     }
 
-    private static ItemStack armor(Random random, int enchantChance, boolean diamond) {
-        Item[] pieces = diamond
-                ? new Item[]{Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS}
-                : new Item[]{Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS};
-        ItemStack stack = new ItemStack(pieces[random.nextInt(pieces.length)]);
-        maybeEnchant(stack, random, enchantChance);
+    /** 弩：概率附魔快速装填 II（70%）/ 多重射击 III（30%），可同时出现。 */
+    private static ItemStack crossbow(Random random, int enchantChance) {
+        ItemStack stack = new ItemStack(Items.CROSSBOW);
+        if (random.nextInt(100) >= enchantChance) {
+            return stack;
+        }
+        if (random.nextInt(100) < 70) {
+            applyEnchant(stack, Enchantments.QUICK_CHARGE, 2); // 快速装填 II
+        }
+        if (random.nextInt(100) < 30) {
+            applyEnchant(stack, Enchantments.MULTISHOT, 3);    // 多重射击 III
+        }
         return stack;
+    }
+
+    /** 一件护甲：钻石 /（铁·锁链各半，刷新几率相同）。 */
+    private static ItemStack armor(Random random, int enchantChance, boolean diamond) {
+        Item[] pieces;
+        boolean chain = false;
+        if (diamond) {
+            pieces = DIAMOND_PIECES;
+        } else if (random.nextBoolean()) {
+            pieces = CHAINMAIL_PIECES; // 锁链：与铁套刷新几率相同
+            chain = true;
+        } else {
+            pieces = IRON_PIECES;
+        }
+        ItemStack stack = new ItemStack(pieces[random.nextInt(pieces.length)]);
+        enchantArmor(stack, random, enchantChance, chain);
+        return stack;
+    }
+
+    /** 给护甲附魔：锁链以 II/III 级为主，其余走常规 I/II；两者都可能附带耐久。 */
+    private static void enchantArmor(ItemStack stack, Random random, int enchantChance, boolean chainmail) {
+        if (random.nextInt(100) >= enchantChance) {
+            return;
+        }
+        if (chainmail) {
+            // 锁链：保护等级主要 2/3（90%），少量 1 或 4
+            int roll = random.nextInt(20);
+            int level = roll < 1 ? 1 : roll > 18 ? 4 : (random.nextBoolean() ? 2 : 3);
+            applyEnchant(stack, Enchantments.PROTECTION, level);
+        } else {
+            applyEnchant(stack, Enchantments.PROTECTION, rollLevel(random));
+        }
+        if (random.nextInt(100) < 20) {
+            applyEnchant(stack, Enchantments.UNBREAKING, 1 + random.nextInt(2));
+        }
     }
 
     private static ItemStack food(Random random) {
