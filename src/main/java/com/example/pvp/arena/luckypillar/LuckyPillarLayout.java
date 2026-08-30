@@ -35,30 +35,53 @@ public final class LuckyPillarLayout {
      */
     public enum PlatformStyle {
         /** 整片岩浆块：踩上持续烫伤。 */
-        MAGMA,
+        MAGMA("岩浆地板"),
         /** 整片装有岩浆的炼药锅：站上面安全，视觉醒目。 */
-        LAVA_CAULDRON,
+        LAVA_CAULDRON("炼药锅"),
         /** 雪块 / 细雪随机间隔：细雪格陷入减速（不会掉穿）。 */
-        SNOW_POWDER,
+        SNOW_POWDER("雪原"),
         /** 整片蜘蛛网作为地板（无底部支撑方块）：掉进网里减速被困，安全但行动迟缓。 */
-        COBWEB,
+        COBWEB("蜘蛛网"),
         /** 沙子底（下方铺线防止沙子下落）+ 仙人掌间隔放置（1~2 格高，可自然生长）：碰触受伤。 */
-        SAND_CACTUS,
+        SAND_CACTUS("沙地仙人掌"),
         /** 整片常绿橡树叶（持久，不会消散）。 */
-        LEAVES,
+        LEAVES("树叶"),
         /** 整片关闭的橡木活版门：薄地板。 */
-        TRAPDOOR,
+        TRAPDOOR("活板门"),
         /** 整片平滑石台阶（下半砖）。 */
-        SLAB,
+        SLAB("台阶"),
         /** 粘液块 / 蜂蜜块随机间隔：粘液格弹跳、蜂蜜格粘滞减速。 */
-        SLIME_HONEY,
+        SLIME_HONEY("粘液蜂蜜"),
         /** 虚空地板：稀疏散布的地板砖，其余为虚空（洞）——需踩砖行动，掉进洞会下落。 */
-        VOID;
+        VOID("虚空地板");
+
+        private final String displayName;
+
+        PlatformStyle(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return this.displayName;
+        }
 
         /** 随机抽一种风格。 */
         public static PlatformStyle pick(Random random) {
             PlatformStyle[] values = values();
             return values[random.nextInt(values.length)];
+        }
+
+        /** 按名称查找（中文显示名或枚举名），找不到返回 null。 */
+        public static PlatformStyle byName(String name) {
+            if (name == null) {
+                return null;
+            }
+            for (PlatformStyle style : values()) {
+                if (style.name().equalsIgnoreCase(name) || style.displayName.equals(name)) {
+                    return style;
+                }
+            }
+            return null;
         }
     }
 
@@ -186,6 +209,16 @@ public final class LuckyPillarLayout {
      * @param playerCount 玩家人数（决定柱子数量）
      */
     public static LuckyPillarLayout compute(BlockPos mapCenter, int seed, int playerCount) {
+        return compute(mapCenter, seed, playerCount, null);
+    }
+
+    /**
+     * 计算幸运之柱布局。
+     *
+     * @param forcedStyle 非空时强制使用该平台风格（OP 强制指定地图），否则由 seed 随机抽
+     */
+    public static LuckyPillarLayout compute(BlockPos mapCenter, int seed, int playerCount,
+                                            PlatformStyle forcedStyle) {
         PvPConfig cfg = PvPConfig.INSTANCE;
         int centerDist = PILLAR_WIDTH + Math.max(1, cfg.luckyPillarGap);
         int n = Math.max(2, playerCount);
@@ -209,8 +242,8 @@ public final class LuckyPillarLayout {
 
         int maxRadius = (int) Math.ceil(ringR + PILLAR_WIDTH / 2.0 + MAX_RADIUS_MARGIN);
 
-        // 每局随机抽一种平台风格
-        PlatformStyle style = PlatformStyle.pick(random);
+        // 每局抽一种平台风格（OP 强制指定时用指定的）
+        PlatformStyle style = forcedStyle != null ? forcedStyle : PlatformStyle.pick(random);
 
         // 预计算平台表面方块映射（platformY 层每个在圆盘内的格子 → 方块）：
         // 随机分布类（雪/细雪、粘液/蜂蜜）用 Random 逐格决定，不规律交错；

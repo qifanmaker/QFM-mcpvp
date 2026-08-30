@@ -45,6 +45,8 @@ public final class MatchManager {
     private int nextMatchId = 0;
     /** 上一局幸运之柱平台风格（开新局时跳过相同风格，保证两局地板不一样）。 */
     private LuckyPillarLayout.PlatformStyle lastLuckyPillarStyle;
+    /** OP 强制开赛时指定的一次性幸运之柱平台风格（用后清除）。 */
+    private LuckyPillarLayout.PlatformStyle pendingLuckyPillarStyle;
 
     private MatchManager(MinecraftServer server) {
         this.server = server;
@@ -79,6 +81,23 @@ public final class MatchManager {
         SkyWarsTheme theme = this.pendingSkywarsTheme;
         this.pendingSkywarsTheme = null;
         return theme;
+    }
+
+    /** OP 强制开赛前指定下一次幸运之柱的强制平台风格（null = 随机）。 */
+    public void setNextLuckyPillarStyle(LuckyPillarLayout.PlatformStyle style) {
+        this.pendingLuckyPillarStyle = style;
+    }
+
+    /** 查看一次性强制幸运之柱风格（不消费；用于决定是否跳过"避免重复风格"）。 */
+    public LuckyPillarLayout.PlatformStyle peekPendingLuckyPillarStyle() {
+        return this.pendingLuckyPillarStyle;
+    }
+
+    /** 消费一次性强制幸运之柱风格（Match 构造时调用）。 */
+    public LuckyPillarLayout.PlatformStyle consumePendingLuckyPillarStyle() {
+        LuckyPillarLayout.PlatformStyle style = this.pendingLuckyPillarStyle;
+        this.pendingLuckyPillarStyle = null;
+        return style;
     }
 
     /** 每个服务器 tick 调用。 */
@@ -210,8 +229,13 @@ public final class MatchManager {
         ArenaTemplate template = this.createTemplate(type);
         int id = this.nextMatchId;
         if (type == MatchType.LUCKY_PILLAR) {
-            // 幸运之柱：连续两局不能随机到同一种平台地板——跳过会重复风格的 seed
-            id = this.luckyPillarSeedAvoidingRepeat(template, regionIndex, id, players.size());
+            if (this.pendingLuckyPillarStyle != null) {
+                // OP 强制指定地图：直接用该风格，不参与"避免重复"
+                this.lastLuckyPillarStyle = this.pendingLuckyPillarStyle;
+            } else {
+                // 幸运之柱：连续两局不能随机到同一种平台地板——跳过会重复风格的 seed
+                id = this.luckyPillarSeedAvoidingRepeat(template, regionIndex, id, players.size());
+            }
         }
         Match match = Match.create(this, id, type, players, regionIndex, template, kits);
         if (id >= this.nextMatchId) {

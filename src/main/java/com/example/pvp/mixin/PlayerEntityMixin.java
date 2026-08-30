@@ -100,15 +100,15 @@ public abstract class PlayerEntityMixin {
         }
     }
 
-    /** 相扑：跳过血量扣减（damage() 仍正常返回 true，击退照常生效，只不掉血）。 */
+    /** 相扑 / 烫手山芋：跳过血量扣减（damage() 仍正常返回 true，击退照常生效，只不掉血）。 */
     @Inject(method = "applyDamage(Lnet/minecraft/entity/damage/DamageSource;F)V", at = @At("HEAD"), cancellable = true)
-    private void pvp$sumoNoHealthLoss(net.minecraft.entity.damage.DamageSource source, float amount, CallbackInfo ci) {
+    private void pvp$noHealthLossForKnockbackOnly(net.minecraft.entity.damage.DamageSource source, float amount, CallbackInfo ci) {
         PlayerEntity self = (PlayerEntity) (Object) this;
         MatchManager matchManager = MatchManager.get();
         if (matchManager != null && self instanceof ServerPlayerEntity sp) {
             Match match = matchManager.getMatchFor(sp);
-            if (match != null && match.getType() == MatchType.SUMO) {
-                ci.cancel();
+            if (match != null && (match.getType() == MatchType.SUMO || match.getType() == MatchType.HOT_POTATO)) {
+                ci.cancel(); // 只掉血不掉血：相扑靠推出平台、烫手山芋靠山芋爆炸淘汰
             }
         }
     }

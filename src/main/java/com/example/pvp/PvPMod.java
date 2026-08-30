@@ -314,12 +314,13 @@ public final class PvPMod implements ModInitializer {
                 if (MATCH.isEliminated(sp.getUuid())) {
                     return ActionResult.FAIL;
                 }
-                // 烫手山芋：左键（攻击）其他存活玩家传递山芋；拦截原版攻击（对局内不造成伤害）
+                // 烫手山芋：左键（攻击）其他存活玩家传递山芋；
+                // 放行原版攻击（被打者受击退），伤害由 applyDamage 拦截（不掉血）
                 Match match = MATCH.getMatchFor(sp);
                 if (match != null && match.getType() == MatchType.HOT_POTATO
                         && entity instanceof ServerPlayerEntity) {
                     match.tryPassHotPotato(sp, entity);
-                    return ActionResult.SUCCESS;
+                    return ActionResult.PASS;
                 }
             }
             return ActionResult.PASS;

@@ -238,8 +238,10 @@ public final class Match {
             this.skywarsSeed = id;
             this.bridgeLayout = null;
             this.tntRunLayout = null;
+            // OP 可强制指定平台风格（地图）；null = 由 seed 随机
+            LuckyPillarLayout.PlatformStyle forced = manager.consumePendingLuckyPillarStyle();
             this.luckyPillarLayout = LuckyPillarLayout.compute(template.getCenter(regionIndex),
-                    id, this.players.size());
+                    id, this.players.size(), forced);
             spawnPositions = this.luckyPillarLayout.spawns();
         } else if (type == MatchType.TNT_RUN) {
             this.skywarsLayout = null;

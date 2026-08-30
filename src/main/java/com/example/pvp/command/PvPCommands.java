@@ -184,7 +184,7 @@ public final class PvPCommands {
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
-                        + "§e/pvp start [主题]§r OP 专用：立即用当前队列人数开赛（排空岛可指定主题）\n"
+                        + "§e/pvp start [主题]§r OP 专用：立即用当前队列人数开赛（排空岛指定主题 / 幸运之柱指定地图）\n"
                         + "§e/pvp queue§r 查看排队状态\n"
                         + "§e/pvp list§r 查看进行中的比赛\n"
                         + "§e/pvp stats [玩家]§r 查看战绩\n"
@@ -357,18 +357,32 @@ public final class PvPCommands {
             return 0;
         }
         if (themeName != null && !themeName.isBlank()) {
-            SkyWarsTheme theme = SkyWarsTheme.byName(themeName);
-            if (theme == null) {
-                player.sendMessage(Messages.error("未知主题: " + themeName + "（可用: 主世界, 地狱, 冰原, 末地）"), false);
-                return 0;
-            }
             QueueEntry entry = PvPMod.QUEUE.getEntry(player);
-            if (entry == null || entry.getType() != MatchType.SKYWARS) {
-                player.sendMessage(Messages.error("只有排空岛战争才能指定主题"), false);
+            if (entry == null) {
+                player.sendMessage(Messages.error("请先加入队列再指定地图/主题"), false);
                 return 0;
             }
-            PvPMod.MATCH.setNextSkywarsTheme(theme);
-            player.sendMessage(Messages.info("已设置强制主题：§e" + theme.getDisplayName()), false);
+            if (entry.getType() == MatchType.SKYWARS) {
+                SkyWarsTheme theme = SkyWarsTheme.byName(themeName);
+                if (theme == null) {
+                    player.sendMessage(Messages.error("未知主题: " + themeName + "（可用: 主世界, 地狱, 冰原, 末地）"), false);
+                    return 0;
+                }
+                PvPMod.MATCH.setNextSkywarsTheme(theme);
+                player.sendMessage(Messages.info("已设置强制主题：§e" + theme.getDisplayName()), false);
+            } else if (entry.getType() == MatchType.LUCKY_PILLAR) {
+                LuckyPillarLayout.PlatformStyle style = LuckyPillarLayout.PlatformStyle.byName(themeName);
+                if (style == null) {
+                    player.sendMessage(Messages.error("未知幸运之柱地图: " + themeName
+                            + "（可用: 岩浆地板, 炼药锅, 雪原, 蜘蛛网, 沙地仙人掌, 树叶, 活板门, 台阶, 粘液蜂蜜, 虚空地板）"), false);
+                    return 0;
+                }
+                PvPMod.MATCH.setNextLuckyPillarStyle(style);
+                player.sendMessage(Messages.info("已设置强制地图：§e" + style.getDisplayName()), false);
+            } else {
+                player.sendMessage(Messages.error("只有排空岛战争（主题）或幸运之柱（地图）才能指定"), false);
+                return 0;
+            }
         }
         if (PvPMod.QUEUE.forceStart(PvPMod.MATCH, player)) {
             player.sendMessage(Messages.info("已强制立即开赛！"), false);

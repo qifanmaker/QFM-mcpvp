@@ -56,12 +56,12 @@ public final class HeartbeatLayout {
         return Math.max(1, (int) Math.ceil(tTerm + (d - dTerm) / TERMINAL_VELOCITY));
     }
 
-    /** 每关安全系数：第 1 关 0.3 → 最后一关 0.7 线性递增（简单关洞位近、难关允许更远）。 */
+    /** 每关安全系数：第 1 关 0.1 → 最后一关 0.5 线性递增（简单关洞位近、难关允许更远）。 */
     static double safetyForLevel(int level, int levelCount) {
         if (levelCount <= 1) {
-            return 0.7;
+            return 0.5;
         }
-        return 0.3 + (level / (double) (levelCount - 1)) * 0.4;
+        return 0.1 + (level / (double) (levelCount - 1)) * 0.4;
     }
 
     /** 两层洞位之间的最大可达曼哈顿距离 = 下落时间 × 横向速度 × 该关安全系数（随层距与关卡缩放）。 */
