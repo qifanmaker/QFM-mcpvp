@@ -35,6 +35,8 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LightningEntity;
+import net.minecraft.entity.boss.BossBar;
+import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -156,6 +158,8 @@ public final class Match {
     private final Set<UUID> heartbeatFinished = new HashSet<>();
     /** 心跳水立方：通关全部关卡的先后顺序。 */
     private final List<UUID> heartbeatFinishOrder = new ArrayList<>();
+    /** 心跳水立方：屏幕上方 Boss 条的剩余时间倒计时。 */
+    private ServerBossBar heartbeatBossBar;
 
     /** 烫手山芋地图布局（仅 HOT_POTATO 模式非空，障碍物保护用）。 */
     private HotPotatoLayout hotPotatoLayout;
@@ -1012,6 +1016,7 @@ public final class Match {
 
     /** 心跳水立方每帧逻辑：过关/失误判定、摔落免疫、通关转幽灵。 */
     private void tickHeartbeat() {
+        this.updateHeartbeatBossBar();
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena == null || this.heartbeatLayout == null) {
             return;
@@ -1158,6 +1163,33 @@ public final class Match {
             }
         }
         return best;
+    }
+
+    /** 更新心跳 Boss 条：剩余时间倒计时（屏幕上方横条）。 */
+    private void updateHeartbeatBossBar() {
+        if (this.heartbeatBossBar == null) {
+            return;
+        }
+        int total = Math.max(100, PvPConfig.INSTANCE.heartbeatTimeoutSeconds * 20);
+        int elapsed = this.ticks - this.initialCountdownTicks;
+        int remaining = Math.max(0, total - elapsed);
+        int seconds = (remaining + 19) / 20;
+        this.heartbeatBossBar.setName(Text.literal("§6§l心跳水立方 §f剩余 " + seconds + " 秒"));
+        this.heartbeatBossBar.setPercent(Math.max(0.02f, (float) remaining / total));
+    }
+
+    /** 移除心跳 Boss 条（比赛结束时清理，对全员隐藏）。 */
+    private void removeHeartbeatBossBar() {
+        if (this.heartbeatBossBar == null) {
+            return;
+        }
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null) {
+                this.heartbeatBossBar.removePlayer(online);
+            }
+        }
+        this.heartbeatBossBar = null;
     }
 
     /** 心跳水立方结算：广播完整排名（进度降序，并列按先到达），并公告胜者。 */
@@ -1877,6 +1909,7 @@ public final class Match {
             this.broadcast(Messages.error("比赛取消：" + reason));
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
+            this.removeHeartbeatBossBar();
             this.removeInfoScoreboard();
         } catch (Exception e) {
             LOGGER.error("[PvP] 比赛取消处理出错", e);
@@ -1939,6 +1972,7 @@ public final class Match {
         try {
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
+            this.removeHeartbeatBossBar();
             this.removeInfoScoreboard();
             for (ServerPlayerEntity player : this.players) {
                 boolean won = winners.contains(player.getUuid());
@@ -2356,6 +2390,11 @@ public final class Match {
                 online.changeGameMode(GameMode.ADVENTURE);
                 online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
                 online.currentScreenHandler.sendContentUpdates();
+                if (heartbeat && this.heartbeatBossBar == null) {
+                    // 心跳水立方：开局创建屏幕上方 Boss 条倒计时（全员可见）
+                    this.heartbeatBossBar = new ServerBossBar(Text.literal("§6心跳水立方"),
+                            BossBar.Color.RED, BossBar.Style.PROGRESS);
+                }
             } else {
                 Kit playerKit = this.playerKits.get(player.getUuid());
                 if (playerKit == null) {
@@ -2365,6 +2404,16 @@ public final class Match {
             }
             online.setInvulnerable(true);
             online.setNoGravity(false);
+        }
+
+        // 心跳水立方：全员挂上 Boss 条倒计时
+        if (this.heartbeatBossBar != null) {
+            for (ServerPlayerEntity player : this.players) {
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online != null) {
+                    this.heartbeatBossBar.addPlayer(online);
+                }
+            }
         }
 
         this.createScoreboardTeams();
