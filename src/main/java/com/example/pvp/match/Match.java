@@ -61,6 +61,7 @@ import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.network.packet.s2c.play.ScoreboardDisplayS2CPacket;
+import net.minecraft.network.packet.s2c.play.ScoreboardObjectiveUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
@@ -2600,6 +2601,14 @@ public final class Match {
     private static final String INFO_OBJECTIVE = "pvp_info";
 
     public void updateInfoScoreboard() {
+        try {
+            this.updateInfoScoreboardInner();
+        } catch (Exception e) {
+            LOGGER.warn("[PvP] 更新记分板出错", e);
+        }
+    }
+
+    private void updateInfoScoreboardInner() {
         MinecraftServer server = this.manager.getServer();
         if (server == null) {
             return;
@@ -2609,6 +2618,14 @@ public final class Match {
         if (objective == null) {
             objective = scoreboard.addObjective(INFO_OBJECTIVE, ScoreboardCriterion.DUMMY,
                     Text.literal("§6§lPvP 对局"), ScoreboardCriterion.RenderType.INTEGER, true, null);
+        }
+        // 服务端 addObjective 不会把 objective 注册包发给客户端（updateObjective 是空实现），
+        // 必须显式给本场玩家发 ADD 包，否则客户端不知道 pvp_info 存在、记分板完全不显示。
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null && online.networkHandler != null) {
+                online.networkHandler.sendPacket(new ScoreboardObjectiveUpdateS2CPacket(objective, 0));
+            }
         }
 
         // 清掉上一帧的行（分数存于全局计分板，仅本场重绘）
@@ -2620,6 +2637,8 @@ public final class Match {
         int score = 15;
         this.setInfoLine(scoreboard, objective, this.modeLine(), score--);
         this.setInfoLine(scoreboard, objective, this.timeLine(), score--);
+        this.setInfoLine(scoreboard, objective, this.mapLine(), score--);
+        this.setInfoLine(scoreboard, objective, this.playerCountLine(), score--);
         this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
 
         if (this.type == MatchType.HEARTBEAT) {
@@ -2652,13 +2671,9 @@ public final class Match {
                 }
             }
         } else if (this.type.isLastManStanding()) {
-            // FFA/空岛战争/幸运之柱/TNT 跑酷/烫手山芋：存活数 + 存活玩家列表
-            int alive = this.teams.isEmpty() ? 0 : this.teams.get(0).aliveCount();
-            this.setInfoLine(scoreboard, objective, "§b存活 §f" + alive + "§7/§f" + this.players.size(), score--);
+            // FFA/空岛战争/幸运之柱/TNT 跑酷/烫手山芋：模式专属事件倒计时 + 存活玩家列表（玩家数量见头部）
             if (this.type == MatchType.SKYWARS) {
                 this.setInfoLine(scoreboard, objective, this.skywarsShrinkLine(), score--);
-                String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
-                this.setInfoLine(scoreboard, objective, "§7主题: §e" + themeName, score--);
             }
             if (this.type == MatchType.LUCKY_PILLAR) {
                 int itemSec = Math.max(0, (this.luckyPillarItemTicks + 19) / 20);
@@ -2749,6 +2764,38 @@ public final class Match {
             case HOT_POTATO -> "§c";
         };
         return "模式: " + color + this.type.getDisplayName();
+    }
+
+    /** 地图行：各模式当前地图/主题/场地信息。 */
+    private String mapLine() {
+        return switch (this.type) {
+            case SKYWARS -> "§7地图: §e" + (this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界");
+            case LUCKY_PILLAR -> "§7地图: §e" + (this.luckyPillarLayout != null
+                    ? this.luckyPillarLayout.platformStyle().getDisplayName() : "随机");
+            case HEARTBEAT -> "§7地图: §e" + (this.heartbeatLayout != null
+                    ? this.heartbeatLayout.levelCount + " 关" : "-");
+            case TNT_RUN -> "§7地图: §e" + (this.tntRunLayout != null
+                    ? this.tntRunLayout.layerYs.size() + " 层" : "-");
+            case HOT_POTATO -> "§7地图: §e圆环平台";
+            case BRIDGE_1V1 -> "§7地图: §e双基地";
+            case BRIDGE_2V2 -> "§7地图: §e双基地(2v2)";
+            case BRIDGE_1V1V1V1 -> "§7地图: §e四方基地";
+            case BRIDGE_TEAM -> "§7地图: §e混战基地";
+            case SUMO -> "§7地图: §e相扑台";
+            case DUEL_1V1 -> "§7地图: §e1v1 竞技场";
+            case DUEL_2V2 -> "§7地图: §e2v2 竞技场";
+            case PVP_1_8 -> "§7地图: §e1.8 竞技场";
+            case FFA -> "§7地图: §e自由竞技场";
+        };
+    }
+
+    /** 玩家数量行：存活 / 总数。 */
+    private String playerCountLine() {
+        int alive = 0;
+        for (MatchTeam team : this.teams) {
+            alive += team.aliveCount();
+        }
+        return "§7玩家: §f" + alive + "§7/§f" + this.players.size();
     }
 
     /** 计时行：倒计时 / 已进行时间 / 结算中。 */
