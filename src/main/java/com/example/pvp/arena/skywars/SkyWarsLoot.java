@@ -5,7 +5,6 @@ import com.example.pvp.config.StatsStore;
 import com.mojang.logging.LogUtils;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.nbt.NbtCompound;
@@ -77,6 +76,8 @@ public final class SkyWarsLoot {
             new LootEntry(6, (r, c) -> crossbow(r, c)),
             new LootEntry(10, (r, c) -> arrow(8 + r.nextInt(9))),
             new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
+            new LootEntry(6, (r, c) -> diamondAxe(r)), // 钻石斧：耐久 1/5，锋利 I~III
+            new LootEntry(5, (r, c) -> diamondTool(r, c)), // 普通钻石工具：镐/铲/锄
             new LootEntry(32, (r, c) -> armor(r, c, false)),
             new LootEntry(10, (r, c) -> armor(r, c, true)),
             new LootEntry(8, (r, c) -> food(r)),
@@ -105,6 +106,8 @@ public final class SkyWarsLoot {
     private static final List<LootEntry> MIDDLE_TABLE = List.of(
             new LootEntry(14, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
             new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_AXE, r, c)),
+            new LootEntry(8, (r, c) -> diamondAxe(r)), // 钻石斧：耐久 1/5，锋利 I~III
+            new LootEntry(6, (r, c) -> diamondTool(r, c)), // 普通钻石工具：镐/铲/锄
             new LootEntry(8, (r, c) -> bow(r, c)),
             new LootEntry(8, (r, c) -> crossbow(r, c)),
             new LootEntry(12, (r, c) -> arrow(12 + r.nextInt(20))),
@@ -264,6 +267,27 @@ public final class SkyWarsLoot {
         }
         if (level > 0) {
             applyEnchant(stack, Enchantments.SHARPNESS, level);
+        }
+        return stack;
+    }
+
+    /** 钻石斧：耐久仅剩 1/5，附魔锋利 I~III（随机）。 */
+    private static ItemStack diamondAxe(Random random) {
+        ItemStack stack = new ItemStack(Items.DIAMOND_AXE);
+        stack.setDamage((int) (stack.getMaxDamage() * 0.8)); // 消耗 80%，剩 1/5
+        applyEnchant(stack, Enchantments.SHARPNESS, 1 + random.nextInt(3));
+        return stack;
+    }
+
+    /** 普通钻石工具：镐/铲/锄，带效率附魔概率（"等"不包含钻石斧，斧单独有锋利版）。 */
+    private static ItemStack diamondTool(Random random, int enchantChance) {
+        Item[] tools = {Items.DIAMOND_PICKAXE, Items.DIAMOND_SHOVEL, Items.DIAMOND_HOE};
+        ItemStack stack = new ItemStack(tools[random.nextInt(tools.length)]);
+        if (random.nextInt(100) < enchantChance) {
+            applyEnchant(stack, Enchantments.EFFICIENCY, 1 + random.nextInt(3));
+            if (random.nextInt(100) < 20) {
+                applyEnchant(stack, Enchantments.UNBREAKING, 1 + random.nextInt(2));
+            }
         }
         return stack;
     }
@@ -478,20 +502,11 @@ public final class SkyWarsLoot {
         return matches > 0 ? (double) stats.getWins() / matches : 0.0;
     }
 
-    /** 妙人斧：锋利 666 金斧，耐久 1，一击必杀（梗）。 */
+    /** 妙人斧：去掉特殊命名/特殊处理，直接是耐久仅剩 1 的锋利 255 金斧头（一击必杀）。 */
     private static ItemStack makeMiaoRenAxe() {
         ItemStack axe = new ItemStack(Items.GOLDEN_AXE);
-        if (enchantmentRegistry != null) {
-            RegistryEntry<Enchantment> sharpness = enchantmentRegistry.getEntry(Enchantments.SHARPNESS).orElse(null);
-            if (sharpness != null) {
-                axe.addEnchantment(sharpness, 666);
-            }
-        }
-        axe.set(DataComponentTypes.MAX_DAMAGE, 1);
-        axe.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§6§l妙人斧"));
-        axe.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.literal("§7锋利 666 · 耐久 1"),
-                Text.literal("§7一击必杀（梗）"))));
+        applyEnchant(axe, Enchantments.SHARPNESS, 255);
+        axe.setDamage(axe.getMaxDamage() - 1); // 耐久只剩 1
         return axe;
     }
 }
