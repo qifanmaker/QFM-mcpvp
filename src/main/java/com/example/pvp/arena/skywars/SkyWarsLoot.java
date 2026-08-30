@@ -171,12 +171,21 @@ public final class SkyWarsLoot {
         if (middle) {
             rollMiddleUltraRare(random, drops);
         } else {
-            // 神器概率不受弱势补偿影响（只补偿装备，不补偿神器）
+            // 神器：所有玩家正常 1% 爆率（秒人斧 / 不死图腾）
             int ultra = random.nextInt(100);
             if (ultra < 1) {
                 drops.add(makeMiaoRenAxe()); // 秒人斧仅玩家岛刷新（约 1%）
             } else if (ultra < 2) {
                 drops.add(new ItemStack(Items.TOTEM_OF_UNDYING)); // 玩家岛不死图腾（约 1%）
+            }
+            // 弱势补偿：额外一次神器掉落，爆率减半（各约 0.5%），补偿给胜率最低的玩家
+            if (handicap > 0) {
+                int comp = random.nextInt(200);
+                if (comp < 1) {
+                    drops.add(makeMiaoRenAxe());
+                } else if (comp < 2) {
+                    drops.add(new ItemStack(Items.TOTEM_OF_UNDYING));
+                }
             }
         }
 
