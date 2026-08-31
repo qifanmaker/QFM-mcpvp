@@ -11,6 +11,10 @@ import com.example.pvp.kit.InventorySnapshot;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
+import net.minecraft.network.packet.s2c.play.ScoreboardObjectiveUpdateS2CPacket;
+import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.scoreboard.ScoreboardCriterion;
+import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -43,6 +47,31 @@ public final class MatchManager {
     /** OP 强制开赛时指定的一次性空岛主题（下一次 SKYWARS 用，用后清除）。 */
     private SkyWarsTheme pendingSkywarsTheme;
     private int nextMatchId = 0;
+    /** 已向其客户端注册过 pvp_info 计分板 objective 的玩家（避免重复发 ADD 包导致客户端崩溃）。 */
+    private final Set<UUID> scoreboardObjectiveKnown = ConcurrentHashMap.newKeySet();
+
+    /**
+     * 确保玩家客户端已注册计分板 objective：首次发给该玩家 ADD 包（客户端对重复 ADD 会抛异常崩溃），
+     * 之后同一会话不再发。objective 不存在时顺带创建。
+     */
+    public void ensureScoreboardObjective(ServerPlayerEntity player) {
+        if (player == null || player.networkHandler == null
+                || !this.scoreboardObjectiveKnown.add(player.getUuid())) {
+            return;
+        }
+        MinecraftServer server = this.server;
+        if (server == null) {
+            return;
+        }
+        Scoreboard scoreboard = server.getScoreboard();
+        ScoreboardObjective objective = scoreboard.getNullableObjective(Match.INFO_OBJECTIVE);
+        if (objective == null) {
+            objective = scoreboard.addObjective(Match.INFO_OBJECTIVE, ScoreboardCriterion.DUMMY,
+                    Text.literal("§6§lPvP 对局"), ScoreboardCriterion.RenderType.INTEGER, true, null);
+        }
+        player.networkHandler.sendPacket(new ScoreboardObjectiveUpdateS2CPacket(objective, 0));
+    }
+
     /** 上一局幸运之柱平台风格（开新局时跳过相同风格，保证两局地板不一样）。 */
     private LuckyPillarLayout.PlatformStyle lastLuckyPillarStyle;
     /** OP 强制开赛时指定的一次性幸运之柱平台风格（用后清除）。 */

@@ -61,7 +61,6 @@ import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.network.packet.s2c.play.ScoreboardDisplayS2CPacket;
-import net.minecraft.network.packet.s2c.play.ScoreboardObjectiveUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
@@ -2416,6 +2415,13 @@ public final class Match {
                 }
             }
         }
+        // 开局即确保本场玩家客户端已注册计分板 objective（只发一次 ADD）
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null) {
+                this.manager.ensureScoreboardObjective(online);
+            }
+        }
 
         this.createScoreboardTeams();
         if (bridge) {
@@ -2598,7 +2604,7 @@ public final class Match {
 
     // ---------- 右侧信息栏（计分板） ----------
 
-    private static final String INFO_OBJECTIVE = "pvp_info";
+    public static final String INFO_OBJECTIVE = "pvp_info";
 
     public void updateInfoScoreboard() {
         try {
@@ -2614,18 +2620,19 @@ public final class Match {
             return;
         }
         Scoreboard scoreboard = server.getScoreboard();
+        // 服务端 addObjective 不会把 objective 注册包发给客户端（updateObjective 是空实现），
+        // 必须显式给玩家发 ADD 包，否则客户端不知道 pvp_info 存在、记分板完全不显示。
+        // 每个玩家同一会话只发一次（重复发会让客户端抛"objective 已存在"崩溃）。
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null) {
+                this.manager.ensureScoreboardObjective(online);
+            }
+        }
         ScoreboardObjective objective = scoreboard.getNullableObjective(INFO_OBJECTIVE);
         if (objective == null) {
             objective = scoreboard.addObjective(INFO_OBJECTIVE, ScoreboardCriterion.DUMMY,
                     Text.literal("§6§lPvP 对局"), ScoreboardCriterion.RenderType.INTEGER, true, null);
-        }
-        // 服务端 addObjective 不会把 objective 注册包发给客户端（updateObjective 是空实现），
-        // 必须显式给本场玩家发 ADD 包，否则客户端不知道 pvp_info 存在、记分板完全不显示。
-        for (ServerPlayerEntity player : this.players) {
-            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-            if (online != null && online.networkHandler != null) {
-                online.networkHandler.sendPacket(new ScoreboardObjectiveUpdateS2CPacket(objective, 0));
-            }
         }
 
         // 清掉上一帧的行（分数存于全局计分板，仅本场重绘）
