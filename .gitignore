@@ -9,3 +9,5 @@ dist/
 .DS_Store
 
 tmp/
+# 床战地图（Hypixel 社区地图，体积大且不随代码分发）
+config/

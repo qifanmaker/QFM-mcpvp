@@ -42,6 +42,8 @@ public final class QueueManager {
     /** 烫手山芋开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
     private Integer hotPotatoCountdownTicks;
     private Integer hotPotatoFillTicks;
+    /** 起床战争开赛倒计时（tick 数）；null 表示未开始。 */
+    private Integer bedWarsCountdownTicks;
 
     public QueueManager(MinecraftServer server) {
         this.server = server;
@@ -139,6 +141,7 @@ public final class QueueManager {
         this.tickTntRun(matchManager);
         this.tickHeartbeat(matchManager);
         this.tickHotPotato(matchManager);
+        this.tickBedWars(matchManager);
         this.tickInstantMatches(matchManager);
     }
 
@@ -687,13 +690,93 @@ public final class QueueManager {
         }
     }
 
-    /** 非 FFA/SkyWars/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋（1v1/2v2/相扑/1.8）的即时凑齐开赛。 */
+    /** 起床战争队列：凑 2 人即开始倒计时，倒计时结束按当前人数开赛（按人数动态分队）。 */
+    private void tickBedWars(MatchManager matchManager) {
+        long count = this.countBedWars();
+
+        if (this.bedWarsCountdownTicks != null) {
+            this.bedWarsCountdownTicks--;
+            if (this.bedWarsCountdownTicks <= 0) {
+                this.bedWarsCountdownTicks = null;
+                this.startBedWarsMatch(matchManager);
+            }
+            return;
+        }
+
+        if (count >= 2) {
+            this.bedWarsCountdownTicks = PvPConfig.INSTANCE.bedWarsCountdownSeconds * 20;
+            this.broadcastBedWars(matchManager, Messages.info(
+                    "§e" + count + "§r 人已就绪，§e" + PvPConfig.INSTANCE.bedWarsCountdownSeconds
+                            + "§r 秒后开始起床战争！（Solo=每队1人 / 双人=每队2人）"));
+        }
+    }
+
+    /** 开一场床战：取当前队列所有人（最多 16 人），按模式分队。 */
+    private void startBedWarsMatch(MatchManager matchManager) {
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        List<QueueEntry> toRemove = new ArrayList<>();
+        Kit sentinel = KitManager.bedWarsKit();
+        if (sentinel == null) {
+            return;
+        }
+
+        // Solo 与 双人 分开匹配
+        for (MatchType type : new MatchType[]{MatchType.BED_WARS, MatchType.BED_WARS_DOUBLES}) {
+            int perTeam = type.playersPerTeam();
+            int max = 8 * perTeam;
+            List<ServerPlayerEntity> group = new ArrayList<>();
+            List<QueueEntry> toRemoveGroup = new ArrayList<>();
+            for (QueueEntry entry : List.copyOf(this.entries)) {
+                if (entry.getType() != type) {
+                    continue;
+                }
+                if (group.size() >= max) {
+                    break;
+                }
+                toRemoveGroup.add(entry);
+                ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+                if (online != null) {
+                    group.add(online);
+                }
+            }
+            if (group.size() < 2) {
+                continue; // 人数不足：保留排队
+            }
+            java.util.Collections.shuffle(group);
+            Map<UUID, Kit> kits = new HashMap<>();
+            for (ServerPlayerEntity player : group) {
+                kits.put(player.getUuid(), sentinel);
+            }
+            if (matchManager.startMatch(group, type, kits)) {
+                this.entries.removeAll(toRemoveGroup);
+            }
+        }
+    }
+
+    private long countBedWars() {
+        return this.entries.stream().filter(e -> e.getType().isBedWars()).count();
+    }
+
+    private void broadcastBedWars(MatchManager matchManager, Text message) {
+        for (QueueEntry entry : this.entries) {
+            if (!entry.getType().isBedWars()) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                online.sendMessage(message, false);
+            }
+        }
+    }
+
+    /** 非 FFA/SkyWars/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战（1v1/2v2/相扑/1.8）的即时凑齐开赛。 */
     private void tickInstantMatches(MatchManager matchManager) {
         Map<String, List<QueueEntry>> groups = new LinkedHashMap<>();
         for (QueueEntry entry : this.entries) {
             if (entry.getType() == MatchType.FFA || entry.getType() == MatchType.SKYWARS
                     || entry.getType() == MatchType.LUCKY_PILLAR || entry.getType() == MatchType.TNT_RUN
-                    || entry.getType() == MatchType.HEARTBEAT || entry.getType() == MatchType.HOT_POTATO) {
+                    || entry.getType() == MatchType.HEARTBEAT || entry.getType() == MatchType.HOT_POTATO
+                    || entry.getType().isBedWars()) {
                 continue;
             }
             groups.computeIfAbsent(entry.getType().getId() + "|" + entry.getKit().getId(), k -> new ArrayList<>()).add(entry);
@@ -768,16 +851,17 @@ public final class QueueManager {
         }
         MatchType type = entry.getType();
 
-        // 自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋：直接以当前队列所有人开赛
+        // 自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋 / 床战：直接以当前队列所有人开赛
         if (type == MatchType.FFA || type == MatchType.SKYWARS || type == MatchType.LUCKY_PILLAR
-                || type == MatchType.TNT_RUN || type == MatchType.HEARTBEAT || type == MatchType.HOT_POTATO) {
+                || type == MatchType.TNT_RUN || type == MatchType.HEARTBEAT || type == MatchType.HOT_POTATO
+                || type.isBedWars()) {
             int min = switch (type) {
                 case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
                 case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;
                 case LUCKY_PILLAR -> PvPConfig.INSTANCE.luckyPillarMinPlayers;
                 case HEARTBEAT -> PvPConfig.INSTANCE.heartbeatMinPlayers;
                 case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoMinPlayers;
-                default -> PvPConfig.INSTANCE.tntRunMinPlayers;
+                default -> type.isBedWars() ? 2 : PvPConfig.INSTANCE.tntRunMinPlayers;
             };
             int count = (int) this.countType(type);
             if (count < min) {
@@ -795,6 +879,11 @@ public final class QueueManager {
             this.heartbeatFillTicks = null;
             this.hotPotatoCountdownTicks = null;
             this.hotPotatoFillTicks = null;
+            this.bedWarsCountdownTicks = null;
+            if (type.isBedWars()) {
+                this.startBedWarsMatch(matchManager);
+                return true;
+            }
             switch (type) {
                 case FFA -> this.startFfaMatch(matchManager);
                 case SKYWARS -> this.startSkywarsMatch(matchManager);

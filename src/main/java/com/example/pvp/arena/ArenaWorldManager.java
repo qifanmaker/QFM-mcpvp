@@ -2,6 +2,7 @@ package com.example.pvp.arena;
 
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.bridge.BridgeMapGenerator;
+import com.example.pvp.arena.bedwars.BedWarsMapGenerator;
 import com.example.pvp.arena.heartbeat.HeartbeatLayout;
 import com.example.pvp.arena.heartbeat.HeartbeatMapGenerator;
 import com.example.pvp.arena.hotpotato.HotPotatoLayout;
@@ -269,6 +270,9 @@ public final class ArenaWorldManager {
         } else if (template.getLayout() == ArenaTemplate.Layout.HOT_POTATO) {
             // 烫手山芋：清空平台与障碍物
             HotPotatoMapGenerator.clear(arena, regionIndex, mapMaxRadius);
+        } else if (template.getLayout() == ArenaTemplate.Layout.BED_WARS) {
+            // 起床战争：整张地图区域清空（含玩家搭的方块与方块实体）
+            BedWarsMapGenerator.clear(arena, regionIndex, mapMaxRadius);
         } else {
             BlockPos origin = template.getRegionOrigin(regionIndex);
             int size = template.getSize();

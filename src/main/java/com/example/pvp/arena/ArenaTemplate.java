@@ -24,7 +24,8 @@ public class ArenaTemplate {
         LUCKY_PILLAR,
         TNT_RUN,
         HEARTBEAT,
-        HOT_POTATO
+        HOT_POTATO,
+        BED_WARS
     }
 
     private final Layout layout;

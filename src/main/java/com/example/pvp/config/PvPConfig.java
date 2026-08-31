@@ -176,7 +176,21 @@ public final class PvPConfig {
     public int hotPotatoRespawnSeconds = 2;
     /** 对局超时（秒）：超时后当前持有者爆炸淘汰。 */
     public int hotPotatoTimeoutSeconds = 600;
-
+    // ---------- 起床战争 (Bed Wars) ----------
+    /** 区域覆盖边长（生成/清理边界，需覆盖整张地图；Hypixel 图约 100 格）。 */
+    public int bedWarsSize = 200;
+    /** 每队铁生成器间隔（秒）。 */
+    public int bedWarsIronInterval = 2;
+    /** 每队金生成器间隔（秒）。 */
+    public int bedWarsGoldInterval = 6;
+    /** 死亡后复活延迟（秒）。 */
+    public int bedWarsRespawnSeconds = 5;
+    /** 开局初始羊毛数量（每队玩家）。 */
+    public int bedWarsStartWool = 16;
+    /** 对局超时（秒）：超过后按存活队伍/床数判定。 */
+    public int bedWarsTimeoutSeconds = 900;
+    /** 开赛倒计时（秒，大厅等待）。 */
+    public int bedWarsCountdownSeconds = 30;
     private PvPConfig() {
     }
 

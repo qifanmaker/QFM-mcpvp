@@ -303,6 +303,18 @@ public final class PvPMod implements ModInitializer {
             throwTnt(sp, world, sp.getStackInHand(hand));
             return ActionResult.SUCCESS;
         });
+        // 起床战争：右击商店方块（末影箱）打开商店 GUI（拦截原版末影箱打开）
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (!(player instanceof ServerPlayerEntity sp) || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY
+                    || hitResult == null || hitResult.getBlockPos() == null) {
+                return ActionResult.PASS;
+            }
+            Match match = MATCH == null ? null : MATCH.getMatchFor(sp);
+            if (match != null && match.tryOpenBedwarsShop(sp, hitResult.getBlockPos())) {
+                return ActionResult.SUCCESS;
+            }
+            return ActionResult.PASS;
+        });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {
                 return ActionResult.FAIL;
@@ -348,6 +360,9 @@ public final class PvPMod implements ModInitializer {
                 if (match != null) {
                     if (match.getType().isBridge()) {
                         match.onBridgeDeath(sp);
+                    } else if (match.getType().isBedWars()) {
+                        // 起床战争：床活 → 延迟重生；床死 → 淘汰
+                        match.onBedwarsDeath(sp);
                     } else if (match.getType() == MatchType.HEARTBEAT) {
                         // 心跳水立方：死亡（撞地板/掉出塔等）不淘汰，回当前关塔顶重试
                         match.onHeartbeatDeath(sp);
@@ -397,6 +412,10 @@ public final class PvPMod implements ModInitializer {
                     }
                     BridgeLayout layout = match.bridgeLayout();
                     return layout == null || !layout.isProtected(pos);
+                }
+                // 起床战争：床方块可破坏（触发床被摧毁），地图其他方块不可破坏，玩家搭的方块可拆
+                if (match != null && match.getType().isBedWars()) {
+                    return match.onBedwarsBlockBreak(sp, pos);
                 }
                 // 幸运之柱：柱子（柱身 + 平台）不可破坏，玩家放置的方块可拆
                 if (match != null && match.getType() == MatchType.LUCKY_PILLAR) {

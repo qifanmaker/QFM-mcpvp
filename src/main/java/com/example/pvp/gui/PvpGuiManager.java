@@ -257,10 +257,19 @@ public final class PvpGuiManager {
                 MatchType.LUCKY_PILLAR, MatchType.TNT_RUN, MatchType.HEARTBEAT, MatchType.HOT_POTATO));
         inv.setStack(12, games);
 
+        ItemStack bedwars = makeButton(Items.RED_BED, "§c§l起床战争",
+                "摧毁敌方床 + 淘汰所有人获胜",
+                "Solo（每队 1 人） / 双人（每队 2 人）",
+                "Hypixel 风格 8 人地图，商店购买装备",
+                "点击选择模式");
+        this.applyQueueIndicator(bedwars, player, PvPMod.QUEUE.countQueued(
+                MatchType.BED_WARS, MatchType.BED_WARS_DOUBLES));
+        inv.setStack(13, bedwars);
+
         // 第 2 行：功能入口
-        inv.setStack(13, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
-        inv.setStack(14, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
-        inv.setStack(15, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
+        inv.setStack(14, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
+        inv.setStack(15, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
+        inv.setStack(16, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
 
         if (PvPMod.QUEUE.contains(player.getUuid())) {
             String status = "排队中";
@@ -275,6 +284,45 @@ public final class PvpGuiManager {
                         "人数不足时无法开始"));
             }
             inv.setStack(22, makeButton(Items.BARRIER, "§c离开队列", status));
+        }
+    }
+
+    /** 起床战争分类页：Solo / 双人。 */
+    private void openBedWarsCategory(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.BED_WARS_CATEGORY;
+        this.openPage(player, ctx, "§6§l起床战争", inv -> this.fillBedWarsCategory(inv, player, ctx));
+    }
+
+    /** 起床战争分类按钮填充。 */
+    private void fillBedWarsCategory(SimpleInventory inv, ServerPlayerEntity player, GuiContext ctx) {
+        for (int slot = 0; slot < 36; slot++) {
+            inv.setStack(slot, makeButton(Items.GRAY_STAINED_GLASS_PANE, " "));
+        }
+        inv.setStack(9, queueButton(Items.RED_BED, "§c起床战争 (Solo)", player, MatchType.BED_WARS,
+                "每队 1 人，最多 8 队",
+                "摧毁敌方床 + 淘汰所有人获胜",
+                "Hypixel 风格地图，点击直接加入"));
+        inv.setStack(10, queueButton(Items.RED_BED, "§c起床战争 (双人)", player, MatchType.BED_WARS_DOUBLES,
+                "每队 2 人，最多 8 队（16 人）",
+                "与队友配合守床攻敌",
+                "Hypixel 风格地图，点击直接加入"));
+        inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+    }
+
+    /** 起床战争分类点击。 */
+    private void onClickBedWarsCategory(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        MatchType type = switch (slot) {
+            case 9 -> MatchType.BED_WARS;
+            case 10 -> MatchType.BED_WARS_DOUBLES;
+            default -> null;
+        };
+        if (type != null) {
+            this.joinQueue(player, type, KitManager.bedWarsKit());
         }
     }
 
@@ -418,6 +466,7 @@ public final class PvpGuiManager {
                 case PVP_CATEGORY -> this.fillPvpCategory(inv, player, ctx);
                 case BRIDGE_CATEGORY -> this.fillBridgeCategory(inv, player, ctx);
                 case GAMES_CATEGORY -> this.fillGamesCategory(inv, player, ctx);
+                case BED_WARS_CATEGORY -> this.fillBedWarsCategory(inv, player, ctx);
                 default -> {
                 }
             }
@@ -554,6 +603,7 @@ public final class PvpGuiManager {
             case PVP_CATEGORY -> this.onClickPvpCategory(player, ctx, slotIndex);
             case BRIDGE_CATEGORY -> this.onClickBridgeCategory(player, ctx, slotIndex);
             case GAMES_CATEGORY -> this.onClickGamesCategory(player, ctx, slotIndex);
+            case BED_WARS_CATEGORY -> this.onClickBedWarsCategory(player, ctx, slotIndex);
             case KIT -> this.onClickKit(player, ctx, slotIndex);
             case DUEL_TARGET -> this.onClickDuelTarget(player, ctx, slotIndex);
             case THEME -> this.onClickTheme(player, ctx, slotIndex);
@@ -581,9 +631,10 @@ public final class PvpGuiManager {
             case 10 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
             case 11 -> this.openBridgeCategory(player);
             case 12 -> this.openGamesCategory(player);
-            case 13 -> this.openDuelTargetPage(player);
-            case 14 -> this.openStatsPage(player);
-            case 15 -> this.openKitInfoPage(player);
+            case 13 -> this.openBedWarsCategory(player);
+            case 14 -> this.openDuelTargetPage(player);
+            case 15 -> this.openStatsPage(player);
+            case 16 -> this.openKitInfoPage(player);
             case 21 -> {
                 // OP 立即开始：排队空岛战争时可先选主题，其余模式直接开
                 QueueEntry entry = PvPMod.QUEUE.getEntry(player);
@@ -777,6 +828,9 @@ public final class PvpGuiManager {
             } else if (type == MatchType.HOT_POTATO) {
                 player.sendMessage(Messages.info("已加入烫手山芋：凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers
                         + " 人开赛，左键传递山芋，时间到爆炸"), false);
+            } else if (type.isBedWars()) {
+                player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")
+                        + "）：凑 2 人即开始倒计时，摧毁敌方床获胜"), false);
             } else if (type.isBridge()) {
                 if (type.isBridgeTeam()) {
                     player.sendMessage(Messages.info("已加入战桥混战：需要偶数人数（≥ "
@@ -889,7 +943,8 @@ public final class PvpGuiManager {
     // ---------- 内部类型 ----------
 
     private enum Page {
-        MAIN, PVP_CATEGORY, BRIDGE_CATEGORY, GAMES_CATEGORY, KIT, DUEL_TARGET, STATS, KIT_INFO, THEME
+        MAIN, PVP_CATEGORY, BRIDGE_CATEGORY, GAMES_CATEGORY, BED_WARS_CATEGORY,
+        KIT, DUEL_TARGET, STATS, KIT_INFO, THEME
     }
 
     private static final class GuiContext {

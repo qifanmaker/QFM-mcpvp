@@ -19,7 +19,9 @@ public enum MatchType {
     LUCKY_PILLAR("luckypillar", "幸运之柱"),
     TNT_RUN("tntrun", "TNT 跑酷"),
     HEARTBEAT("heartbeat", "心跳水立方"),
-    HOT_POTATO("hotpotato", "烫手山芋");
+    HOT_POTATO("hotpotato", "烫手山芋"),
+    BED_WARS("bedwars", "起床战争"),
+    BED_WARS_DOUBLES("bedwars2", "起床战争(双人)");
 
     private final String id;
     private final String displayName;
@@ -48,7 +50,18 @@ public enum MatchType {
             case TNT_RUN -> PvPConfig.INSTANCE.tntRunMinPlayers;
             case HEARTBEAT -> PvPConfig.INSTANCE.heartbeatMinPlayers;
             case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoMinPlayers;
+            case BED_WARS, BED_WARS_DOUBLES -> 2; // 灵活：按人数启用前 N 队
         };
+    }
+
+    /** 是否起床战争（Solo / 双人）。 */
+    public boolean isBedWars() {
+        return this == BED_WARS || this == BED_WARS_DOUBLES;
+    }
+
+    /** 每队人数（Solo=1，双人=2）。 */
+    public int playersPerTeam() {
+        return this == BED_WARS_DOUBLES ? 2 : 1;
     }
 
     /** 是否战桥系列玩法（1v1 / 1v1v1v1 / 2v2 / 混战）。 */

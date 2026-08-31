@@ -55,7 +55,7 @@ public final class PvPCommands {
             (ctx, builder) -> CommandSource.suggestMatching(new String[]{
                     "1v1", "2v2", "ffa", "sumo", "1.8", "skywars",
                     "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar", "tntrun",
-                    "heartbeat", "hotpotato"}, builder);
+                    "heartbeat", "hotpotato", "bedwars", "bedwars2"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -139,7 +139,9 @@ public final class PvPCommands {
                                 .then(CommandManager.literal("heartbeat")
                                         .executes(ctx -> debugHeartbeat(ctx)))
                                 .then(CommandManager.literal("hotpotato")
-                                        .executes(ctx -> debugHotPotato(ctx))))
+                                        .executes(ctx -> debugHotPotato(ctx)))
+                                .then(CommandManager.literal("bedwars")
+                                        .executes(ctx -> debugBedWars(ctx))))
         );
 
         dispatcher.register(CommandManager.literal("hub").executes(ctx -> tpOut(ctx)));   // 返回主城
@@ -181,6 +183,7 @@ public final class PvPCommands {
                         + "§e/pvp join tntrun§r 加入 TNT 跑酷（无需套件，踩过的方块掉落）\n"
                         + "§e/pvp join heartbeat§r 加入心跳水立方（无需套件，跳中央洞口穿地板洞落水过关）\n"
                         + "§e/pvp join hotpotato§r 加入烫手山芋（无需套件，左键传递山芋）\n"
+                        + "§e/pvp join bedwars|bedwars2§r 加入起床战争（Solo/双人，摧毁敌方床获胜）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
@@ -202,7 +205,7 @@ public final class PvPCommands {
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
             player.sendMessage(Messages.error("未知模式: " + modeId
-                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato）"), false);
+                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2）"), false);
             return 0;
         }
         Kit kit;
@@ -218,6 +221,8 @@ public final class PvPCommands {
             kit = KitManager.heartbeatKit(); // 心跳水立方空手开局，无套件
         } else if (type == MatchType.HOT_POTATO) {
             kit = KitManager.hotPotatoKit(); // 烫手山芋空手开局，无套件
+        } else if (type.isBedWars()) {
+            kit = KitManager.bedWarsKit(); // 起床战争装备由玩法发放
         } else {
             if (kitId == null) {
                 player.sendMessage(Messages.error("该模式需要指定套件（用 /pvp kit list 查看）"), false);
@@ -254,6 +259,9 @@ public final class PvPCommands {
             } else if (type == MatchType.HOT_POTATO) {
                 player.sendMessage(Messages.info("已加入烫手山芋：凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers
                         + " 人开赛，左键传递山芋，时间到爆炸"), false);
+            } else if (type.isBedWars()) {
+                player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")
+                        + "）：凑 2 人即开始倒计时，摧毁敌方床获胜"), false);
             } else if (type.isBridge()) {
                 if (type.isBridgeTeam()) {
                     player.sendMessage(Messages.info("已加入战桥混战：需要偶数人数（≥ "
@@ -689,6 +697,40 @@ public final class PvPCommands {
         player.teleport(arena, center.getX() + 0.5, center.getY() + 15, center.getZ() + 0.5, 0, 90);
         arenaManager.addVisitor(player, 180);
         player.sendMessage(Messages.gold("已传送到烫手山芋地图上空（约 3 分钟后自动回城），可下落查看平台与障碍物"), false);
+        return 1;
+    }
+
+    /** 调试：加载一张床战地图并传送到地图上空查看（不影响正式对局）。 */
+    private static int debugBedWars(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
+        ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
+        if (arena == null) {
+            player.sendMessage(Messages.error("竞技场世界不可用"), false);
+            return 0;
+        }
+        java.util.List<java.nio.file.Path> maps = com.example.pvp.arena.bedwars.BedWarsMaps.listMaps();
+        if (maps.isEmpty()) {
+            player.sendMessage(Messages.error("没有可用床战地图（config/pvp/bedwars/maps/ 下无 region/ 目录）"), false);
+            return 0;
+        }
+        java.nio.file.Path mapDir = maps.get(0);
+        com.example.pvp.arena.bedwars.BedWarsMapLoader.MapData data =
+                com.example.pvp.arena.bedwars.BedWarsMapLoader.load(mapDir);
+        int region = 990; // 远离正式对局分配的区域
+        BlockPos origin = new BlockPos(region * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
+        BlockPos center = new BlockPos(origin.getX() + PvPConfig.INSTANCE.bedWarsSize / 2,
+                ArenaTemplate.PLATFORM_Y + 1, origin.getZ() + PvPConfig.INSTANCE.bedWarsSize / 2);
+        com.example.pvp.arena.bedwars.BedWarsMapPaster.paste(arena, data, center);
+        com.example.pvp.arena.bedwars.BedWarsLayout layout =
+                com.example.pvp.arena.bedwars.BedWarsLayout.detect(mapDir.getFileName().toString(), 8, data);
+        BlockPos lobby = data.lobbySpawn.add(
+                com.example.pvp.arena.bedwars.BedWarsMapPaster.offsetFor(data, center));
+        player.sendMessage(Messages.info("已加载床战地图 §e" + mapDir.getFileName()
+                + "§r（" + data.size() + " 方块，" + layout.teams().size() + " 队，大厅 " + lobby + "）"), false);
+        player.teleport(arena, lobby.getX() + 0.5, lobby.getY() + 20, lobby.getZ() + 0.5, 0, 90);
+        arenaManager.addVisitor(player, 180);
+        player.sendMessage(Messages.gold("已传送到地图上空（约 3 分钟后自动回城），可下落查看地图"), false);
         return 1;
     }
 

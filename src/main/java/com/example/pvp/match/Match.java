@@ -5,6 +5,11 @@ import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.bridge.BridgeLayout;
+import com.example.pvp.arena.bedwars.BedWarsLayout;
+import com.example.pvp.arena.bedwars.BedWarsMapLoader;
+import com.example.pvp.arena.bedwars.BedWarsMapPaster;
+import com.example.pvp.arena.bedwars.BedWarsMaps;
+import com.example.pvp.arena.bedwars.BedWarsShopManager;
 import com.example.pvp.arena.heartbeat.HeartbeatLayout;
 import com.example.pvp.arena.hotpotato.HotPotatoLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
@@ -171,6 +176,21 @@ public final class Match {
     private static final int HOT_POTATO_PASS_COOLDOWN_TICKS = 4; // 传递冷却：0.2 秒
     private static final String HOT_POTATO_TAG = "pvp.hotpotato";
 
+    /** 起床战争地图数据与布局（仅 BED_WARS 模式非空）。 */
+    private BedWarsMapLoader.MapData bedWarsMapData;
+    private BedWarsLayout bedWarsLayout;
+    private BlockPos bedWarsOffset;              // 地图坐标 → 竞技场坐标平移量
+    private BlockPos bedWarsLobbyPos;            // 等待大厅（竞技场坐标）
+    private boolean[] bedWarsBedAlive;           // 每队床是否存活
+    private final Set<BlockPos> bedWarsBedBlocks = new HashSet<>();     // 所有床方块（竞技场坐标）
+    private final Set<BlockPos> bedWarsMapBlocks = new HashSet<>();     // 地图原始方块（竞技场坐标，不可破坏）
+    private final Set<BlockPos> bedWarsPlaced = new HashSet<>();        // 玩家放置的方块
+    private final Map<UUID, Integer> bedWarsRespawnTicks = new HashMap<>(); // 待复活玩家
+    private int bedWarsIronTimer;                // 铁生成器计时
+    private int bedWarsGoldTimer;                // 金生成器计时
+    private boolean bedWarsStarted;              // 是否已从大厅传送到队伍岛
+    private boolean bedWarsTimeoutTriggered;     // 超时判定已触发
+
     private MatchTeam winnerTeam;
     private int celebrationTicks;
     private MatchState state;
@@ -189,7 +209,9 @@ public final class Match {
         this.teams = buildTeams(type, this.players);
         this.template = template;
         this.regionIndex = regionIndex;
-        this.initialCountdownTicks = PvPConfig.INSTANCE.countdownSeconds * 20;
+        this.initialCountdownTicks = this.type.isBedWars()
+                ? PvPConfig.INSTANCE.bedWarsCountdownSeconds * 20
+                : PvPConfig.INSTANCE.countdownSeconds * 20;
         this.countdownTicks = this.initialCountdownTicks;
 
         // 捕获玩家战斗前状态
@@ -278,6 +300,51 @@ public final class Match {
             PvPConfig cfg = PvPConfig.INSTANCE;
             this.hotPotatoLayout = HotPotatoLayout.compute(template.getCenter(regionIndex), cfg, id);
             spawnPositions = this.hotPotatoLayout.spawns;
+        } else if (type.isBedWars()) {
+            // 起床战争：随机加载一张地图 → 探测布局 → 出生点 = 各队岛
+            this.skywarsLayout = null;
+            this.skywarsTheme = null;
+            this.skywarsSeed = id;
+            this.bridgeLayout = null;
+            this.luckyPillarLayout = null;
+            this.tntRunLayout = null;
+            this.heartbeatLayout = null;
+            this.hotPotatoLayout = null;
+            java.nio.file.Path mapDir = BedWarsMaps.randomMap(new Random());
+            if (mapDir == null) {
+                throw new IllegalStateException("没有可用的床战地图（config/pvp/bedwars/maps/ 下无 region/ 目录）");
+            }
+            this.bedWarsMapData = BedWarsMapLoader.load(mapDir);
+            int perTeam = type.playersPerTeam();
+            int teamCount = Math.min(8, Math.max(2, (this.players.size() + perTeam - 1) / perTeam));
+            this.bedWarsLayout = BedWarsLayout.detect(mapDir.getFileName().toString(), teamCount, this.bedWarsMapData);
+            this.bedWarsOffset = BedWarsMapPaster.offsetFor(this.bedWarsMapData, template.getCenter(regionIndex));
+            this.bedWarsBedAlive = new boolean[this.bedWarsLayout.teamCount()];
+            java.util.Arrays.fill(this.bedWarsBedAlive, true);
+            // 预计算床方块与地图方块（竞技场坐标）
+            for (java.util.Map.Entry<BlockPos, net.minecraft.block.BlockState> e : this.bedWarsMapData.blocks.entrySet()) {
+                BlockPos arenaPos = e.getKey().add(this.bedWarsOffset);
+                this.bedWarsMapBlocks.add(arenaPos);
+                if (e.getValue().isOf(net.minecraft.block.Blocks.RED_BED)) {
+                    this.bedWarsBedBlocks.add(arenaPos);
+                }
+            }
+            // 出生点：大厅（倒计时期间）→ 队伍岛（ACTIVE 后）
+            BlockPos lobby = this.bedWarsMapData.lobbySpawn.add(this.bedWarsOffset);
+            spawnPositions = new ArrayList<>();
+            for (ServerPlayerEntity player : this.players) {
+                int teamIdx = 0;
+                for (int i = 0; i < this.teams.size(); i++) {
+                    if (this.teams.get(i).contains(player.getUuid())) {
+                        teamIdx = i;
+                        break;
+                    }
+                }
+                BedWarsLayout.Team t = this.bedWarsLayout.teams().get(Math.min(teamIdx, this.bedWarsLayout.teams().size() - 1));
+                spawnPositions.add(t.spawn.add(this.bedWarsOffset));
+            }
+            // 大厅出生点：存到 spawns 后在 tickCountdown 里覆盖为大厅
+            this.bedWarsLobbyPos = lobby;
         } else {
             this.skywarsLayout = null;
             this.skywarsTheme = null;
@@ -317,6 +384,19 @@ public final class Match {
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));
             teams.add(new MatchTeam("绿队", Formatting.GREEN, List.of(players.get(2))));
             teams.add(new MatchTeam("黄队", Formatting.YELLOW, List.of(players.get(3))));
+        } else if (type.isBedWars()) {
+            // 起床战争：按每队人数动态分队（Solo=1，双人=2），最多 8 队
+            int perTeam = type.playersPerTeam();
+            int teamCount = Math.min(8, Math.max(2, (players.size() + perTeam - 1) / perTeam));
+            for (int i = 0; i < teamCount; i++) {
+                int from = i * perTeam;
+                int to = Math.min(players.size(), from + perTeam);
+                if (from >= players.size()) {
+                    break;
+                }
+                List<ServerPlayerEntity> members = new ArrayList<>(players.subList(from, to));
+                teams.add(new MatchTeam(BedWarsLayout.name(i), BedWarsLayout.color(i), members));
+            }
         } else {
             teams.add(new MatchTeam("全员", Formatting.WHITE, players));
         }
@@ -387,6 +467,8 @@ public final class Match {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.heartbeatTimeoutSeconds * 20);
         } else if (this.type == MatchType.HOT_POTATO) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.hotPotatoTimeoutSeconds * 20);
+        } else if (this.type.isBedWars()) {
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.bedWarsTimeoutSeconds * 20);
         } else {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
         }
@@ -410,6 +492,11 @@ public final class Match {
                 } else if (this.ticks > this.initialCountdownTicks + activeTimeout + 60 * 20) {
                     this.finishMatch(this.timeoutWinner());
                 }
+                return;
+            }
+            if (this.type.isBedWars() && !this.bedWarsTimeoutTriggered) {
+                this.bedWarsTimeoutTriggered = true;
+                this.finishMatch(this.bedWarsTimeoutWinner());
                 return;
             }
             this.finishMatch(this.timeoutWinner());
@@ -450,6 +537,9 @@ public final class Match {
                 }
                 if (this.type == MatchType.HOT_POTATO) {
                     this.tickHotPotato();
+                }
+                if (this.type.isBedWars()) {
+                    this.tickBedWars();
                 }
                 this.checkWinCondition();
             }
@@ -1009,6 +1099,9 @@ public final class Match {
             // 超时按当前进度排名结算（announceResult 显示完整排名）
             return this.teams.get(0);
         }
+        if (this.type.isBedWars()) {
+            return this.bedWarsTimeoutWinner();
+        }
         return null;
     }
 
@@ -1494,6 +1587,251 @@ public final class Match {
         }
         NbtComponent nbt = stack.get(DataComponentTypes.CUSTOM_DATA);
         return nbt != null && nbt.copyNbt().contains(HOT_POTATO_TAG);
+    }
+
+    // ---------- 起床战争 (Bed Wars) ----------
+
+    /** 床战每帧逻辑：复活延迟、资源生成器、掉落虚空兜底、胜利判定。 */
+    private void tickBedWars() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null || this.bedWarsLayout == null) {
+            return;
+        }
+
+        // 1) 复活：床存活队伍的死亡玩家延迟重生
+        for (UUID uuid : List.copyOf(this.bedWarsRespawnTicks.keySet())) {
+            int left = this.bedWarsRespawnTicks.get(uuid) - 1;
+            if (left <= 0) {
+                this.bedWarsRespawnTicks.remove(uuid);
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
+                if (online != null) {
+                    this.bedWarsRespawnPlayer(online);
+                }
+            } else {
+                this.bedWarsRespawnTicks.put(uuid, left);
+            }
+        }
+
+        // 2) 资源生成器：每队刷铁（快）与金（慢）
+        if (++this.bedWarsIronTimer >= cfg.bedWarsIronInterval * 20) {
+            this.bedWarsIronTimer = 0;
+            for (BedWarsLayout.Team t : this.bedWarsLayout.teams()) {
+                this.spawnGeneratorItem(arena, t.generator.add(this.bedWarsOffset), net.minecraft.item.Items.IRON_INGOT);
+            }
+        }
+        if (++this.bedWarsGoldTimer >= cfg.bedWarsGoldInterval * 20) {
+            this.bedWarsGoldTimer = 0;
+            for (BedWarsLayout.Team t : this.bedWarsLayout.teams()) {
+                this.spawnGeneratorItem(arena, t.generator.add(this.bedWarsOffset), net.minecraft.item.Items.GOLD_INGOT);
+            }
+        }
+
+        // 3) 掉出虚空 → 床活则复活，床死则淘汰
+        for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
+            if (online.getY() < ArenaTemplate.PLATFORM_Y - 20) {
+                if (this.teamBedAlive(online)) {
+                    this.bedWarsRespawnTicks.putIfAbsent(online.getUuid(), cfg.bedWarsRespawnSeconds * 20);
+                } else {
+                    this.eliminate(online, EliminationCause.VOID);
+                }
+            }
+        }
+    }
+
+    /** 开赛：传送到队伍岛、发初始羊毛、解除无敌。 */
+    private void startBedWars() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        this.bedWarsStarted = true;
+        this.bedWarsIronTimer = 0;
+        this.bedWarsGoldTimer = 0;
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null) {
+                continue;
+            }
+            int teamIdx = this.teamIndex(online);
+            BedWarsLayout.Team t = this.bedWarsLayout.teams().get(Math.min(Math.max(teamIdx, 0), this.bedWarsLayout.teams().size() - 1));
+            BlockPos spawn = t.spawn.add(this.bedWarsOffset);
+            online.teleport(arena, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5,
+                    this.faceCenter(spawn), 0);
+            online.setInvulnerable(false);
+            online.setHealth(online.getMaxHealth());
+            online.getHungerManager().setFoodLevel(20);
+            online.getHungerManager().setSaturationLevel(20f);
+            online.clearStatusEffects();
+            online.fallDistance = 0;
+            // 初始羊毛（队伍色）+ 木剑
+            online.getInventory().clear();
+            net.minecraft.item.Item wool = switch (BedWarsLayout.color(teamIdx)) {
+                case RED -> net.minecraft.item.Items.RED_WOOL;
+                case BLUE -> net.minecraft.item.Items.BLUE_WOOL;
+                case YELLOW -> net.minecraft.item.Items.YELLOW_WOOL;
+                case GREEN -> net.minecraft.item.Items.GREEN_WOOL;
+                case AQUA -> net.minecraft.item.Items.CYAN_WOOL;
+                case WHITE -> net.minecraft.item.Items.WHITE_WOOL;
+                case LIGHT_PURPLE -> net.minecraft.item.Items.PINK_WOOL;
+                default -> net.minecraft.item.Items.BLACK_WOOL;
+            };
+            online.getInventory().setStack(0, new ItemStack(wool, cfg.bedWarsStartWool));
+            online.getInventory().setStack(1, new ItemStack(net.minecraft.item.Items.WOODEN_SWORD));
+            online.currentScreenHandler.sendContentUpdates();
+        }
+        this.broadcast(Messages.gold("§6开战！§r保护你的床，摧毁敌方床！"));
+    }
+
+    /** 生成器刷物品（掉落物实体）。 */
+    private void spawnGeneratorItem(ArenaWorld arena, BlockPos pos, net.minecraft.item.Item item) {
+        net.minecraft.entity.ItemEntity entity = new net.minecraft.entity.ItemEntity(arena,
+                pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, new ItemStack(item));
+        entity.setVelocity(0, 0.1, 0);
+        arena.spawnEntity(entity);
+    }
+
+    /** 该玩家所属队伍的床是否存活。 */
+    private boolean teamBedAlive(ServerPlayerEntity player) {
+        int idx = this.teamIndex(player);
+        return idx >= 0 && idx < this.bedWarsBedAlive.length && this.bedWarsBedAlive[idx];
+    }
+
+    /** 床战掉出虚空（MatchManager sweep 兜底调用）：床活 → 延迟重生；床死 → 淘汰。 */
+    public void bedWarsVoidFall(ServerPlayerEntity player) {
+        if (this.state != MatchState.ACTIVE) {
+            this.teleportToSpawn(player);
+            return;
+        }
+        if (this.teamBedAlive(player)) {
+            this.bedWarsRespawnTicks.putIfAbsent(player.getUuid(), PvPConfig.INSTANCE.bedWarsRespawnSeconds * 20);
+        } else {
+            this.eliminate(player, EliminationCause.VOID);
+        }
+    }
+
+    /** 床战方块破坏判定（PvPMod PlayerBlockBreakEvents 调用）：返回是否允许破坏。 */
+    public boolean onBedwarsBlockBreak(ServerPlayerEntity player, BlockPos pos) {
+        if (this.type != MatchType.BED_WARS && this.type != MatchType.BED_WARS_DOUBLES) {
+            return true;
+        }
+        if (this.state != MatchState.ACTIVE) {
+            return false; // 倒计时中禁止破坏
+        }
+        // 床方块：允许破坏 → 该队床被摧毁
+        if (this.bedWarsBedBlocks.contains(pos)) {
+            int teamIdx = this.teamOfBed(pos);
+            if (teamIdx >= 0 && teamIdx < this.bedWarsBedAlive.length && this.bedWarsBedAlive[teamIdx]) {
+                this.bedWarsBedAlive[teamIdx] = false;
+                // 清除该队所有床方块（foot + head）
+                for (BlockPos bed : List.copyOf(this.bedWarsBedBlocks)) {
+                    if (this.teamOfBed(bed) == teamIdx) {
+                        this.manager.getArenaManager().getWorld().setBlockState(bed, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                        this.bedWarsBedBlocks.remove(bed);
+                    }
+                }
+                this.broadcast(Messages.error("§c" + BedWarsLayout.name(teamIdx) + "§r 的床被 "
+                        + player.getGameProfile().getName() + " 摧毁了！该队无法再复活！"));
+                player.playSoundToPlayer(SoundEvents.ENTITY_WITHER_BREAK_BLOCK, SoundCategory.PLAYERS, 1.0F, 1.0F);
+            }
+            return true;
+        }
+        // 地图原始方块：禁止破坏（除床外）
+        if (this.bedWarsMapBlocks.contains(pos)) {
+            return false;
+        }
+        return true; // 玩家放置的方块可破坏
+    }
+
+    /** 床方块所属队伍（按布局床位置距离判断）。 */
+    private int teamOfBed(BlockPos bedPos) {
+        for (int i = 0; i < this.bedWarsLayout.teams().size(); i++) {
+            BedWarsLayout.Team t = this.bedWarsLayout.teams().get(i);
+            BlockPos bed = t.bed.add(this.bedWarsOffset);
+            int dx = bedPos.getX() - bed.getX();
+            int dz = bedPos.getZ() - bed.getZ();
+            if (Math.abs(dx) <= 2 && Math.abs(dz) <= 2 && Math.abs(bedPos.getY() - bed.getY()) <= 2) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** 床战玩家死亡（PvPMod ALLOW_DEATH 调用）：床活 → 延迟重生；床死 → 淘汰。 */
+    public boolean onBedwarsDeath(ServerPlayerEntity player) {
+        if (this.teamBedAlive(player)) {
+            this.bedWarsRespawnTicks.put(player.getUuid(), PvPConfig.INSTANCE.bedWarsRespawnSeconds * 20);
+            return false; // 取消原生死亡，等重生
+        }
+        this.eliminate(player, EliminationCause.DEATH);
+        return false;
+    }
+
+    /** 床战重生：传回队伍岛、满血复活、短暂无敌。 */
+    private void bedWarsRespawnPlayer(ServerPlayerEntity player) {
+        if (this.state != MatchState.ACTIVE) {
+            return;
+        }
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+        int teamIdx = this.teamIndex(player);
+        BedWarsLayout.Team t = this.bedWarsLayout.teams().get(Math.min(Math.max(teamIdx, 0), this.bedWarsLayout.teams().size() - 1));
+        BlockPos spawn = t.spawn.add(this.bedWarsOffset);
+        player.teleport(arena, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, this.faceCenter(spawn), 0);
+        player.setHealth(player.getMaxHealth());
+        player.setFireTicks(0);
+        player.fallDistance = 0;
+        // 3 秒抗性 V（100% 减伤）防围殴，之后正常
+        player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 60, 4, false, false, false));
+        this.bedWarsRespawnTicks.remove(player.getUuid());
+        player.sendMessage(Messages.info("你已复活！"), true);
+    }
+
+    /** 床战右击商店（PvPMod UseBlockCallback 调用）：返回是否处理了（打开商店）。 */
+    public boolean tryOpenBedwarsShop(ServerPlayerEntity player, BlockPos pos) {
+        if (!this.type.isBedWars() || this.state != MatchState.ACTIVE) {
+            return false;
+        }
+        for (int i = 0; i < this.bedWarsLayout.teams().size(); i++) {
+            BedWarsLayout.Team t = this.bedWarsLayout.teams().get(i);
+            BlockPos shop = t.shop.add(this.bedWarsOffset);
+            if (shop.equals(pos)) {
+                BedWarsShopManager.open(player, this, i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 床战超时结算：存活队伍中床存活最多的队伍获胜（并列平局）。 */
+    private MatchTeam bedWarsTimeoutWinner() {
+        MatchTeam best = null;
+        int bestBeds = -1;
+        for (int i = 0; i < this.teams.size(); i++) {
+            MatchTeam team = this.teams.get(i);
+            if (team.isDefeated()) {
+                continue;
+            }
+            int beds = i < this.bedWarsBedAlive.length && this.bedWarsBedAlive[i] ? 1 : 0;
+            if (beds > bestBeds) {
+                bestBeds = beds;
+                best = team;
+            } else if (beds == bestBeds) {
+                best = null;
+            }
+        }
+        return best;
+    }
+
+    /** 床战胜负判定：所有其他队伍被淘汰（或床毁且无人存活）。 */
+    private MatchTeam bedWarsComputeWinner() {
+        List<MatchTeam> aliveTeams = new ArrayList<>();
+        for (MatchTeam team : this.teams) {
+            if (!team.isDefeated()) {
+                aliveTeams.add(team);
+            }
+        }
+        return aliveTeams.size() == 1 ? aliveTeams.get(0) : null;
     }
 
     // ---------- TNT 跑酷 (TNT Run) ----------
@@ -2033,6 +2371,8 @@ public final class Match {
                 mapMaxRadius = this.heartbeatLayout.maxRadius();
             } else if (this.hotPotatoLayout != null) {
                 mapMaxRadius = this.hotPotatoLayout.maxRadius;
+            } else if (this.type.isBedWars()) {
+                mapMaxRadius = PvPConfig.INSTANCE.bedWarsSize / 2;
             } else {
                 mapMaxRadius = 0;
             }
@@ -2253,8 +2593,8 @@ public final class Match {
             this.setupPlayers();
         }
 
-        // 幸运之柱：开局倒计时玩家不能移动（可旋转视角）——把偏离出生点的玩家拉回
-        if (this.type == MatchType.LUCKY_PILLAR || this.type == MatchType.HEARTBEAT) {
+        // 幸运之柱/心跳水立方/床战：开局倒计时锁在出生点/大厅（可转视角）
+        if (this.type == MatchType.LUCKY_PILLAR || this.type == MatchType.HEARTBEAT || this.type.isBedWars()) {
             this.lockPlayersToSpawn();
         }
 
@@ -2278,6 +2618,10 @@ public final class Match {
                     this.giveHotPotato(first);
                 }
             }
+            if (this.type.isBedWars()) {
+                // 起床战争：从大厅传送到队伍岛、发初始羊毛、启动生成器
+                this.startBedWars();
+            }
             this.broadcast(Messages.gold("战斗开始！"));
             this.broadcastTitle("开始！");
             for (ServerPlayerEntity player : this.players) {
@@ -2290,7 +2634,7 @@ public final class Match {
         }
     }
 
-    /** 幸运之柱 / 心跳水立方开局倒计时：把玩家锁在出生点（不能移动，但允许旋转视角——保留 yaw/pitch）。 */
+    /** 幸运之柱 / 心跳水立方 / 床战开局倒计时：把玩家锁在出生点/大厅（不能移动，但允许旋转视角）。 */
     private void lockPlayersToSpawn() {
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena == null) {
@@ -2304,6 +2648,10 @@ public final class Match {
             BlockPos spawn = this.spawns.get(player.getUuid());
             if (spawn == null) {
                 continue;
+            }
+            // 床战：倒计时期间锁在大厅
+            if (this.type.isBedWars() && this.bedWarsLobbyPos != null && !this.bedWarsStarted) {
+                spawn = this.bedWarsLobbyPos;
             }
             double tx = spawn.getX() + 0.5;
             double tz = spawn.getZ() + 0.5;
@@ -2328,6 +2676,43 @@ public final class Match {
         boolean tntRun = this.type == MatchType.TNT_RUN;
         boolean heartbeat = this.type == MatchType.HEARTBEAT;
         boolean hotPotato = this.type == MatchType.HOT_POTATO;
+        boolean bedWars = this.type.isBedWars();
+
+        if (bedWars) {
+            // 起床战争：贴地图 + 放置商店方块（末影箱）
+            BedWarsMapPaster.paste(arena, this.bedWarsMapData, this.template.getCenter(this.regionIndex));
+            for (BedWarsLayout.Team t : this.bedWarsLayout.teams()) {
+                BlockPos shopPos = t.shop.add(this.bedWarsOffset);
+                arena.setBlockState(shopPos, net.minecraft.block.Blocks.ENDER_CHEST.getDefaultState(), 3);
+            }
+            this.createScoreboardTeams();
+            this.broadcast(Messages.info("起床战争开始！地图：§e" + this.bedWarsLayout.mapName()
+                    + "§r，请在等待大厅就绪，摧毁敌方床并淘汰所有人即可获胜！"));
+            // 玩家传送到大厅等待
+            BlockPos lobby = this.bedWarsLobbyPos;
+            for (ServerPlayerEntity player : this.players) {
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online == null) {
+                    continue;
+                }
+                online.getInventory().clear();
+                online.setHealth(online.getMaxHealth());
+                online.getHungerManager().setFoodLevel(20);
+                online.getHungerManager().setSaturationLevel(20f);
+                online.setAbsorptionAmount(0);
+                online.setFireTicks(0);
+                online.fallDistance = 0;
+                online.clearStatusEffects();
+                online.changeGameMode(GameMode.SURVIVAL);
+                online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
+                online.teleport(arena, lobby.getX() + 0.5, lobby.getY(), lobby.getZ() + 0.5, 0, 0);
+                online.setInvulnerable(true);
+                online.setNoGravity(false);
+                online.currentScreenHandler.sendContentUpdates();
+            }
+            return;
+        }
+
         for (ServerPlayerEntity player : this.players) {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online == null) {
@@ -2456,6 +2841,9 @@ public final class Match {
             // 心跳水立方：全员通关全部关卡 → 结算（超时由 timeoutWinner 兜底）
             return this.heartbeatFinished.size() >= this.players.size() ? this.teams.get(0) : null;
         }
+        if (this.type.isBedWars()) {
+            return this.bedWarsComputeWinner();
+        }
         if (this.type.isLastManStanding()) {
             List<ServerPlayerEntity> alive = this.teams.get(0).getAlivePlayers();
             return alive.size() <= 1 ? this.teams.get(0) : null;
@@ -2482,6 +2870,24 @@ public final class Match {
         if (this.type == MatchType.HEARTBEAT) {
             // 心跳水立方：按到达顺序广播完整排名
             this.announceHeartbeatResult();
+            return;
+        }
+        if (this.type.isBedWars()) {
+            // 起床战争：最后存活的队伍获胜（或超时床数最多者）
+            MatchTeam winningTeam = null;
+            for (MatchTeam team : this.teams) {
+                if (!team.isDefeated()) {
+                    winningTeam = team;
+                    break;
+                }
+            }
+            if (winningTeam != null) {
+                MutableText msg = Text.literal(winningTeam.getName()).formatted(winningTeam.getColor())
+                        .append(Text.literal(" 在起床战争中获胜！").formatted(Formatting.GOLD));
+                this.broadcast(Messages.prefix(msg));
+            } else {
+                this.broadcast(Messages.warn("本局平局"));
+            }
             return;
         }
         if (this.type.isBridge()) {
@@ -2719,13 +3125,26 @@ public final class Match {
                         "§7目标：先到 §e" + PvPConfig.INSTANCE.bridgeWinScore + "§7 分获胜", score--);
                 this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
             }
+            if (this.type.isBedWars()) {
+                this.setInfoLine(scoreboard, objective,
+                        "§7目标：摧毁敌方床 + 淘汰所有人", score--);
+                this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
+            }
             for (MatchTeam team : this.teams) {
                 if (score < 0) {
                     break;
                 }
-                String teamLine = this.type.isBridge()
-                        ? team.getColor() + "● " + team.getName() + " §7(" + team.getScore() + "分)"
-                        : team.getColor() + "● " + team.getName() + " §7(" + team.aliveCount() + "/" + team.getPlayers().size() + ")";
+                int idx = this.teams.indexOf(team);
+                boolean bed = idx >= 0 && idx < this.bedWarsBedAlive.length && this.bedWarsBedAlive[idx];
+                String teamLine;
+                if (this.type.isBedWars()) {
+                    teamLine = team.getColor() + "● " + team.getName() + " §7("
+                            + (bed ? "§c床✔" : "§7床✘") + " §7" + team.aliveCount() + "/" + team.getPlayers().size() + ")";
+                } else {
+                    teamLine = this.type.isBridge()
+                            ? team.getColor() + "● " + team.getName() + " §7(" + team.getScore() + "分)"
+                            : team.getColor() + "● " + team.getName() + " §7(" + team.aliveCount() + "/" + team.getPlayers().size() + ")";
+                }
                 this.setInfoLine(scoreboard, objective, teamLine, score--);
                 for (ServerPlayerEntity player : team.getPlayers()) {
                     if (score < 0) {
@@ -2769,6 +3188,8 @@ public final class Match {
             case TNT_RUN -> "§4";
             case HEARTBEAT -> "§b";
             case HOT_POTATO -> "§c";
+            case BED_WARS -> "§d";
+            case BED_WARS_DOUBLES -> "§5";
         };
         return "模式: " + color + this.type.getDisplayName();
     }
@@ -2793,6 +3214,8 @@ public final class Match {
             case DUEL_2V2 -> "§7地图: §e2v2 竞技场";
             case PVP_1_8 -> "§7地图: §e1.8 竞技场";
             case FFA -> "§7地图: §e自由竞技场";
+            case BED_WARS, BED_WARS_DOUBLES -> "§7地图: §e" + (this.bedWarsLayout != null
+                    ? this.bedWarsLayout.mapName() : "-");
         };
     }
 

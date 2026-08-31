@@ -220,6 +220,12 @@ public final class MatchManager {
                     || players.size() > PvPConfig.INSTANCE.hotPotatoMaxPlayers) {
                 return false;
             }
+        } else if (type.isBedWars()) {
+            // 起床战争：最少 2 人；队伍按人数动态启用（Solo 每队 1 人，双人每队 2 人）
+            int perTeam = type.playersPerTeam();
+            if (players.size() < 2 || players.size() > 8 * perTeam) {
+                return false;
+            }
         } else if (type.isBridge()) {
             if (type.isBridgeTeam()) {
                 // 混战：总人数/2 分两队，需要偶数且 ≥ 最少人数
@@ -296,11 +302,11 @@ public final class MatchManager {
         return this.getMatchFor(uuid) != null;
     }
 
-    /** 是否为低版本(1.8)战斗模式：1.8 经典PvP / 空岛战争 / 战桥 / 幸运之柱（无攻击冷却 + 剑格挡）。 */
+    /** 是否为低版本(1.8)战斗模式：1.8 经典PvP / 空岛战争 / 战桥 / 幸运之柱 / 起床战争（无攻击冷却 + 剑格挡）。 */
     public boolean isLegacyCombat(Match match) {
         return match != null && (match.getType() == MatchType.PVP_1_8
                 || match.getType() == MatchType.SKYWARS || match.getType().isBridge()
-                || match.getType() == MatchType.LUCKY_PILLAR);
+                || match.getType() == MatchType.LUCKY_PILLAR || match.getType().isBedWars());
     }
 
     /** 1.8 战斗模式：玩家是否正在剑格挡（供伤害减免 Mixin 调用）。 */
@@ -335,6 +341,9 @@ public final class MatchManager {
         if (match != null) {
             if (match.getType().isBridge()) {
                 return; // 战桥由 ALLOW_DEATH 拦截死亡，这里不做淘汰
+            }
+            if (match.getType().isBedWars()) {
+                return; // 床战由 ALLOW_DEATH 处理（床活重生/床死淘汰）
             }
             match.eliminate(player, EliminationCause.DEATH);
         }
@@ -433,6 +442,7 @@ public final class MatchManager {
             case TNT_RUN -> PvPConfig.INSTANCE.tntRunSize;
             case HEARTBEAT -> PvPConfig.INSTANCE.heartbeatSize;
             case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoSize;
+            case BED_WARS, BED_WARS_DOUBLES -> PvPConfig.INSTANCE.bedWarsSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
@@ -444,11 +454,13 @@ public final class MatchManager {
             case TNT_RUN -> ArenaTemplate.Layout.TNT_RUN;
             case HEARTBEAT -> ArenaTemplate.Layout.HEARTBEAT;
             case HOT_POTATO -> ArenaTemplate.Layout.HOT_POTATO;
+            case BED_WARS, BED_WARS_DOUBLES -> ArenaTemplate.Layout.BED_WARS;
         };
-        // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋无围墙；其地图本身由各自生成器铺
+        // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战无围墙；其地图本身由各自生成器铺
         boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
                 && type != MatchType.LUCKY_PILLAR && type != MatchType.TNT_RUN
-                && type != MatchType.HEARTBEAT && type != MatchType.HOT_POTATO;
+                && type != MatchType.HEARTBEAT && type != MatchType.HOT_POTATO
+                && !type.isBedWars();
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 
@@ -480,6 +492,8 @@ public final class MatchManager {
                         match.bridgeRespawn(player); // 战桥：掉出虚空直接原地重生（兜底）
                     } else if (match.getType() == MatchType.HEARTBEAT) {
                         match.onHeartbeatDeath(player); // 心跳水立方：掉出虚空回当前关塔顶重试（不淘汰）
+                    } else if (match.getType().isBedWars()) {
+                        match.bedWarsVoidFall(player); // 床战：床活延迟重生 / 床死淘汰
                     } else {
                         match.eliminate(player, EliminationCause.VOID);
                     }

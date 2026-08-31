@@ -52,6 +52,9 @@ public final class KitManager {
     /** 烫手山芋哨兵套件：空手开局、冒险模式，仅作队列占位。 */
     private static Kit hotPotatoKit;
 
+    /** 起床战争哨兵套件：生存模式，装备由玩法发放。 */
+    private static Kit bedWarsKit;
+
     /** 附魔注册表：服务器启动后才可用，用于给套件物品加附魔。 */
     private static Registry<Enchantment> enchantmentRegistry;
 
@@ -95,6 +98,11 @@ public final class KitManager {
                 .displayName("烫手山芋")
                 .food(20, 5f)
                 .gamemode(GameMode.ADVENTURE)
+                .build();
+        bedWarsKit = new Kit.Builder("bedwars", KitType.CUSTOM)
+                .displayName("起床战争")
+                .food(20, 20f)
+                .gamemode(GameMode.SURVIVAL)
                 .build();
         KITS.add(buildSwordKit());
         KITS.add(buildBowKit());
@@ -167,6 +175,11 @@ public final class KitManager {
     /** 烫手山芋哨兵套件（不入 KITS 列表，实际空手开局）。 */
     public static Kit hotPotatoKit() {
         return hotPotatoKit;
+    }
+
+    /** 起床战争哨兵套件（不入 KITS 列表，装备由玩法发放）。 */
+    public static Kit bedWarsKit() {
+        return bedWarsKit;
     }
 
     private static Kit buildSwordKit() {
