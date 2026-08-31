@@ -36,15 +36,20 @@ public final class BedWarsLayout {
         public final int index;
         public BlockPos bed;        // 床位置（foot 部分）
         public BlockPos spawn;      // 出生点（床上方）
-        public BlockPos generator;  // 资源生成器
-        public BlockPos shop;       // 商店点
+        public BlockPos iron;       // 铁生成点
+        public BlockPos gold;       // 金生成点
+        public BlockPos shop;       // 普通商店点
+        public BlockPos upgradeShop; // 团队升级商店点
 
-        Team(int index, BlockPos bed, BlockPos spawn, BlockPos generator, BlockPos shop) {
+        Team(int index, BlockPos bed, BlockPos spawn, BlockPos iron, BlockPos gold,
+             BlockPos shop, BlockPos upgradeShop) {
             this.index = index;
             this.bed = bed;
             this.spawn = spawn;
-            this.generator = generator;
+            this.iron = iron;
+            this.gold = gold;
             this.shop = shop;
+            this.upgradeShop = upgradeShop;
         }
     }
 
@@ -53,14 +58,28 @@ public final class BedWarsLayout {
     private final BlockPos lobbySpawn;
     private final BlockPos mapCenter;
     private final int teamCount;
+    private final List<BlockPos> diamonds;   // 中央岛钻石生成点
+    private final List<BlockPos> emeralds;   // 中央岛绿宝石生成点
 
     private BedWarsLayout(String mapName, int teamCount, BlockPos lobbySpawn, BlockPos mapCenter,
-                          List<Team> teams) {
+                          List<Team> teams, List<BlockPos> diamonds, List<BlockPos> emeralds) {
         this.mapName = mapName;
         this.teamCount = teamCount;
         this.lobbySpawn = lobbySpawn;
         this.mapCenter = mapCenter;
         this.teams.addAll(teams);
+        this.diamonds = List.copyOf(diamonds);
+        this.emeralds = List.copyOf(emeralds);
+    }
+
+    /** 中央岛钻石生成点。 */
+    public List<BlockPos> diamonds() {
+        return this.diamonds;
+    }
+
+    /** 中央岛绿宝石生成点。 */
+    public List<BlockPos> emeralds() {
+        return this.emeralds;
     }
 
     public String mapName() {
@@ -83,8 +102,8 @@ public final class BedWarsLayout {
         return this.mapCenter;
     }
 
-    /** 从加载的地图数据自动探测布局。teamCount = 实际启用队伍数（≤8）。 */
-    public static BedWarsLayout detect(String mapName, int teamCount, BedWarsMapLoader.MapData data) {
+    /** 从加载的地图数据探测布局。teamCount = 实际启用队伍数（≤8）。优先读 map.json（有精确点位），否则自动推断。 */
+    public static BedWarsLayout detect(String mapName, int teamCount, BedWarsMapLoader.MapData data, java.nio.file.Path mapDir) {
         // 1. 收集所有红床方块（foot 部分，排除 head 避免重复）
         List<BlockPos> bedFeet = new ArrayList<>();
         for (Map.Entry<BlockPos, BlockState> e : data.blocks.entrySet()) {
@@ -110,23 +129,48 @@ public final class BedWarsLayout {
         BlockPos center = data.centerXZ();
         clusters.sort(Comparator.comparingDouble(b -> Math.atan2(b.getZ() - center.getZ(), b.getX() - center.getX())));
 
-        // 4. 取前 teamCount 队，计算各队附属点
+        // 4. 尝试读 map.json（精确点位）
+        BedWarsMapConfig config = mapDir != null ? BedWarsMapConfig.load(mapDir) : null;
+        List<BlockPos> diamonds = new ArrayList<>();
+        List<BlockPos> emeralds = new ArrayList<>();
+        if (config != null) {
+            diamonds = config.diamonds.stream().map(BedWarsMapConfig.Pos::toBlockPos).toList();
+            emeralds = config.emeralds.stream().map(BedWarsMapConfig.Pos::toBlockPos).toList();
+        }
+
+        // 5. 取前 teamCount 队，计算各队附属点
         List<Team> teams = new ArrayList<>();
         int n = Math.min(teamCount, Math.max(2, clusters.size()));
         for (int i = 0; i < n; i++) {
             BlockPos bed = clusters.get(i);
             BlockPos spawn = new BlockPos(bed.getX(), bed.getY() + 2, bed.getZ());
-            BlockPos generator = findGeneratorPoint(data, bed, center);
-            BlockPos shop = new BlockPos(bed.getX() + 2, bed.getY() + 1, bed.getZ());
-            teams.add(new Team(i, bed, spawn, generator, shop));
+            BlockPos iron;
+            BlockPos gold;
+            BlockPos shop;
+            BlockPos upgradeShop;
+            if (config != null && i < config.irons.size() && i < config.golds.size()
+                    && i < config.shops.size() && i < config.upgradeShops.size()) {
+                iron = config.irons.get(i).toBlockPos();
+                gold = config.golds.get(i).toBlockPos();
+                shop = config.shops.get(i).toBlockPos();
+                upgradeShop = config.upgradeShops.get(i).toBlockPos();
+            } else {
+                BlockPos fallback = findGeneratorPoint(data, bed, center);
+                iron = fallback;
+                gold = fallback;
+                shop = new BlockPos(bed.getX() + 2, bed.getY() + 1, bed.getZ());
+                upgradeShop = new BlockPos(bed.getX() - 2, bed.getY() + 1, bed.getZ());
+            }
+            teams.add(new Team(i, bed, spawn, iron, gold, shop, upgradeShop));
         }
 
         if (teams.size() < 2) {
             LOGGER.warn("[PvP] BedWars 地图 {} 只探测到 {} 个床位置，无法开赛", mapName, teams.size());
         }
-        LOGGER.info("[PvP] BedWars 地图 {} 布局: {} 队, 大厅 {}, 地图中心 {}", mapName, teams.size(),
-                data.lobbySpawn, center);
-        return new BedWarsLayout(mapName, teams.size(), data.lobbySpawn, center, teams);
+        LOGGER.info("[PvP] BedWars 地图 {} 布局: {} 队, 大厅 {}, 地图中心 {}, 钻石点 {}, 绿宝石点 {}（配置{}）",
+                mapName, teams.size(), data.lobbySpawn, center, diamonds.size(), emeralds.size(),
+                config != null ? "精确" : "自动推断");
+        return new BedWarsLayout(mapName, teams.size(), data.lobbySpawn, center, teams, diamonds, emeralds);
     }
 
     /** 床聚簇：水平距离 < 4 的床归为一组，返回每组平均位置。 */

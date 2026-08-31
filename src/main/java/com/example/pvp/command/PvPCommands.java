@@ -6,6 +6,10 @@ import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.bridge.BridgeMapGenerator;
+import com.example.pvp.arena.bedwars.BedWarsEditor;
+import com.example.pvp.arena.bedwars.BedWarsMapLoader;
+import com.example.pvp.arena.bedwars.BedWarsMapPaster;
+import com.example.pvp.arena.bedwars.BedWarsMaps;
 import com.example.pvp.arena.heartbeat.HeartbeatLayout;
 import com.example.pvp.arena.heartbeat.HeartbeatMapGenerator;
 import com.example.pvp.arena.hotpotato.HotPotatoLayout;
@@ -63,6 +67,12 @@ public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> THEME_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(
                     new String[]{"主世界", "地狱", "冰原", "末地", "overworld", "nether", "ice", "end"}, builder);
+
+    private static final SuggestionProvider<ServerCommandSource> BEDWARS_MAP_SUGGESTIONS =
+            (ctx, builder) -> CommandSource.suggestMatching(
+                    com.example.pvp.arena.bedwars.BedWarsMaps.listMaps().stream()
+                            .map(p -> p.getFileName().toString())
+                            .toList(), builder);
 
     private PvPCommands() {
     }
@@ -142,6 +152,17 @@ public final class PvPCommands {
                                         .executes(ctx -> debugHotPotato(ctx)))
                                 .then(CommandManager.literal("bedwars")
                                         .executes(ctx -> debugBedWars(ctx))))
+                        .then(CommandManager.literal("bedwars")
+                                .requires(source -> source.hasPermissionLevel(2))
+                                .then(CommandManager.literal("edit")
+                                        .executes(ctx -> bedwarsEdit(ctx, null))
+                                        .then(CommandManager.argument("map", StringArgumentType.word())
+                                                .suggests(BEDWARS_MAP_SUGGESTIONS)
+                                                .executes(ctx -> bedwarsEdit(ctx, StringArgumentType.getString(ctx, "map")))))
+                                .then(CommandManager.literal("save")
+                                        .executes(ctx -> bedwarsSave(ctx)))
+                                .then(CommandManager.literal("cancel")
+                                        .executes(ctx -> bedwarsCancel(ctx))))
         );
 
         dispatcher.register(CommandManager.literal("hub").executes(ctx -> tpOut(ctx)));   // 返回主城
@@ -723,7 +744,7 @@ public final class PvPCommands {
                 ArenaTemplate.PLATFORM_Y + 1, origin.getZ() + PvPConfig.INSTANCE.bedWarsSize / 2);
         com.example.pvp.arena.bedwars.BedWarsMapPaster.paste(arena, data, center);
         com.example.pvp.arena.bedwars.BedWarsLayout layout =
-                com.example.pvp.arena.bedwars.BedWarsLayout.detect(mapDir.getFileName().toString(), 8, data);
+                com.example.pvp.arena.bedwars.BedWarsLayout.detect(mapDir.getFileName().toString(), 8, data, mapDir);
         BlockPos lobby = data.lobbySpawn.add(
                 com.example.pvp.arena.bedwars.BedWarsMapPaster.offsetFor(data, center));
         player.sendMessage(Messages.info("已加载床战地图 §e" + mapDir.getFileName()
@@ -731,6 +752,117 @@ public final class PvPCommands {
         player.teleport(arena, lobby.getX() + 0.5, lobby.getY() + 20, lobby.getZ() + 0.5, 0, 90);
         arenaManager.addVisitor(player, 180);
         player.sendMessage(Messages.gold("已传送到地图上空（约 3 分钟后自动回城），可下落查看地图"), false);
+        return 1;
+    }
+
+    // ---------- /pvp bedwars edit / save / cancel ----------
+
+    /** 进入床战地图标记模式：加载地图到竞技场，传送到地图上空，发放标记物品。 */
+    private static int bedwarsEdit(CommandContext<ServerCommandSource> ctx, String mapName) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
+        ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
+        if (arena == null) {
+            player.sendMessage(Messages.error("竞技场世界不可用"), false);
+            return 0;
+        }
+        java.util.List<java.nio.file.Path> maps = BedWarsMaps.listMaps();
+        if (maps.isEmpty()) {
+            player.sendMessage(Messages.error("没有可用床战地图（config/pvp/bedwars/maps/ 下无 region/ 目录）"), false);
+            return 0;
+        }
+        java.nio.file.Path mapDir;
+        if (mapName == null || mapName.isBlank()) {
+            mapDir = maps.get(0);
+        } else {
+            mapDir = maps.stream().filter(p -> p.getFileName().toString().equalsIgnoreCase(mapName)).findFirst().orElse(null);
+            if (mapDir == null) {
+                player.sendMessage(Messages.error("未找到地图: " + mapName), false);
+                return 0;
+            }
+        }
+
+        // 加载地图到竞技场远区（region 990）
+        int region = 990;
+        BlockPos origin = new BlockPos(region * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
+        BlockPos center = new BlockPos(origin.getX() + PvPConfig.INSTANCE.bedWarsSize / 2,
+                ArenaTemplate.PLATFORM_Y + 1, origin.getZ() + PvPConfig.INSTANCE.bedWarsSize / 2);
+        BedWarsMapLoader.MapData data = BedWarsMapLoader.load(mapDir);
+        BedWarsMapPaster.paste(arena, data, center);
+
+        // 开始编辑会话
+        BedWarsEditor.Session session = BedWarsEditor.start(mapDir, center);
+
+        // 传送到地图上空
+        BlockPos lobby = data.lobbySpawn.add(BedWarsMapPaster.offsetFor(data, center));
+        player.teleport(arena, lobby.getX() + 0.5, lobby.getY() + 20, lobby.getZ() + 0.5, 0, 90);
+        arenaManager.addVisitor(player, 3600); // 1 小时内不回城
+
+        // 发放标记物品 + 飞行
+        player.getInventory().clear();
+        player.getInventory().setStack(0, markItem(net.minecraft.item.Items.STICK, "§a普通商店标记"));
+        player.getInventory().setStack(1, markItem(net.minecraft.item.Items.IRON_SWORD, "§5团队升级商店标记"));
+        player.getInventory().setStack(2, markItem(net.minecraft.item.Items.IRON_INGOT, "§f铁生成点标记"));
+        player.getInventory().setStack(3, markItem(net.minecraft.item.Items.GOLD_INGOT, "§6金生成点标记"));
+        player.getInventory().setStack(4, markItem(net.minecraft.item.Items.DIAMOND, "§b钻石生成点标记（中央岛）"));
+        player.getInventory().setStack(5, markItem(net.minecraft.item.Items.EMERALD, "§a绿宝石生成点标记（中央岛）"));
+        player.getInventory().setStack(8, markItem(net.minecraft.item.Items.PAPER, "§c保存并退出"));
+        player.changeGameMode(net.minecraft.world.GameMode.CREATIVE);
+        player.getAbilities().allowFlying = true;
+        player.getAbilities().flying = true;
+        player.sendAbilitiesUpdate();
+        player.currentScreenHandler.sendContentUpdates();
+
+        player.sendMessage(Messages.gold("§6=== 床战地图标记模式 ===§r"), false);
+        player.sendMessage(Messages.info("地图 §e" + mapDir.getFileName() + "§r 已加载，检测到 §e"
+                + session.beds.size() + "§r 张床"), false);
+        player.sendMessage(Messages.info("§7左键标记 / 右键取消标记，标记点放在点击方块上方§r"), false);
+        player.sendMessage(Messages.info("§a木棍§r=普通商店  §5铁剑§r=团队升级商店  §f铁锭§r=铁  §6金锭§r=金"), false);
+        player.sendMessage(Messages.info("§b钻石§r=钻石点  §a绿宝石§r=绿宝石点  §c纸§r=保存退出"), false);
+        player.sendMessage(Messages.gold("队伍性质点（商店/升级商店/铁/金）保存时自动认领最近的床"), false);
+        return 1;
+    }
+
+    private static net.minecraft.item.ItemStack markItem(net.minecraft.item.Item item, String name) {
+        net.minecraft.item.ItemStack stack = new net.minecraft.item.ItemStack(item);
+        stack.set(net.minecraft.component.DataComponentTypes.CUSTOM_NAME, net.minecraft.text.Text.literal(name));
+        return stack;
+    }
+
+    /** 保存标记：对称推断 + 写 map.json，退出编辑。 */
+    private static int bedwarsSave(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        BedWarsEditor.Session session = BedWarsEditor.get(player.getUuid());
+        if (session == null) {
+            player.sendMessage(Messages.error("你不在标记模式中（用 /pvp bedwars edit <地图名> 进入）"), false);
+            return 0;
+        }
+        if (!BedWarsEditor.isReady(session)) {
+            player.sendMessage(Messages.warn("标记不完整！需至少标记：普通商店(木棍)、升级商店(铁剑)、铁点(铁锭)、金点(金锭)"), false);
+            return 0;
+        }
+        if (BedWarsEditor.save(session)) {
+            player.sendMessage(Messages.gold("§a已保存地图配置到 map.json！§r共 " + session.beds.size()
+                    + " 队，钻石点 " + session.count(BedWarsEditor.MarkType.DIAMOND)
+                    + " 个，绿宝石点 " + session.count(BedWarsEditor.MarkType.EMERALD) + " 个"), false);
+            BedWarsEditor.remove(player.getUuid());
+            PvPMod.MATCH.teleportToOverworldSpawn(player);
+        } else {
+            player.sendMessage(Messages.error("保存失败"), false);
+        }
+        return 1;
+    }
+
+    /** 取消编辑，退出标记模式。 */
+    private static int bedwarsCancel(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        if (BedWarsEditor.get(player.getUuid()) == null) {
+            player.sendMessage(Messages.error("你不在标记模式中"), false);
+            return 0;
+        }
+        BedWarsEditor.remove(player.getUuid());
+        PvPMod.MATCH.teleportToOverworldSpawn(player);
+        player.sendMessage(Messages.info("已退出标记模式（未保存）"), false);
         return 1;
     }
 

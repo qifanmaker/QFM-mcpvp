@@ -7,9 +7,11 @@ import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.text.Messages;
+import com.mojang.logging.LogUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,6 +25,8 @@ import java.util.UUID;
  * 匹配队列：按（模式, 套件）分组，凑齐人数自动开赛。
  */
 public final class QueueManager {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private final MinecraftServer server;
     private final List<QueueEntry> entries = new ArrayList<>();
     /** 自由乱斗开赛倒计时（tick 数）；null 表示未开始。 */
@@ -713,6 +717,11 @@ public final class QueueManager {
 
     /** 开一场床战：取当前队列所有人（最多 16 人），按模式分队。 */
     private void startBedWarsMatch(MatchManager matchManager) {
+        // 无可用地图时直接放弃开赛，避免 Match 构造抛异常崩服
+        if (com.example.pvp.arena.bedwars.BedWarsMaps.listMaps().isEmpty()) {
+            LOGGER.warn("[PvP] 没有可用的床战地图（config/pvp/bedwars/maps/ 下无 region/ 目录），无法开赛");
+            return;
+        }
         List<ServerPlayerEntity> players = new ArrayList<>();
         List<QueueEntry> toRemove = new ArrayList<>();
         Kit sentinel = KitManager.bedWarsKit();

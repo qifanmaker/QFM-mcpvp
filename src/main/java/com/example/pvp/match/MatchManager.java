@@ -272,7 +272,15 @@ public final class MatchManager {
                 id = this.luckyPillarSeedAvoidingRepeat(template, regionIndex, id, players.size());
             }
         }
-        Match match = Match.create(this, id, type, players, regionIndex, template, kits);
+        Match match;
+        try {
+            match = Match.create(this, id, type, players, regionIndex, template, kits);
+        } catch (Exception e) {
+            // 构造失败（如床战地图加载失败）：释放已分配的区域，避免泄漏与 tick 崩溃
+            LOGGER.error("[PvP] 创建比赛失败（模式 {}），释放场地", type, e);
+            this.allocatedRegions.remove(regionIndex);
+            return false;
+        }
         if (id >= this.nextMatchId) {
             this.nextMatchId = id + 1; // 被跳过后的 id 也要让下一次递增
         }

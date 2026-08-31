@@ -190,6 +190,11 @@ public final class Match {
     private int bedWarsGoldTimer;                // 金生成器计时
     private boolean bedWarsStarted;              // 是否已从大厅传送到队伍岛
     private boolean bedWarsTimeoutTriggered;     // 超时判定已触发
+    /** 团队升级：teamIdx -> (升级 ID -> 等级)。 */
+    private final Map<Integer, Map<String, Integer>> bedWarsUpgrades = new HashMap<>();
+    private int bedWarsEffectTimer;              // 周期效果刷新计时（急迫/治愈池）
+    /** 商店实体：实体 UUID → "shop:队" 或 "upgrade:队"。 */
+    private final Map<UUID, String> bedWarsShopEntities = new HashMap<>();
 
     private MatchTeam winnerTeam;
     private int celebrationTicks;
@@ -317,7 +322,7 @@ public final class Match {
             this.bedWarsMapData = BedWarsMapLoader.load(mapDir);
             int perTeam = type.playersPerTeam();
             int teamCount = Math.min(8, Math.max(2, (this.players.size() + perTeam - 1) / perTeam));
-            this.bedWarsLayout = BedWarsLayout.detect(mapDir.getFileName().toString(), teamCount, this.bedWarsMapData);
+            this.bedWarsLayout = BedWarsLayout.detect(mapDir.getFileName().toString(), teamCount, this.bedWarsMapData, mapDir);
             this.bedWarsOffset = BedWarsMapPaster.offsetFor(this.bedWarsMapData, template.getCenter(regionIndex));
             this.bedWarsBedAlive = new boolean[this.bedWarsLayout.teamCount()];
             java.util.Arrays.fill(this.bedWarsBedAlive, true);
@@ -1613,18 +1618,42 @@ public final class Match {
             }
         }
 
-        // 2) 资源生成器：每队刷铁（快）与金（慢）
+        // 2) 资源生成器：每队刷铁（快）与金（慢）；中央岛刷钻石/绿宝石
+        //    锻炉升级：每队每次额外多掉 forge 等级份
         if (++this.bedWarsIronTimer >= cfg.bedWarsIronInterval * 20) {
             this.bedWarsIronTimer = 0;
-            for (BedWarsLayout.Team t : this.bedWarsLayout.teams()) {
-                this.spawnGeneratorItem(arena, t.generator.add(this.bedWarsOffset), net.minecraft.item.Items.IRON_INGOT);
+            for (int i = 0; i < this.bedWarsLayout.teams().size(); i++) {
+                BedWarsLayout.Team t = this.bedWarsLayout.teams().get(i);
+                int extra = this.upgradeLevel(i, "forge");
+                for (int k = 0; k <= extra; k++) {
+                    this.spawnGeneratorItem(arena, t.iron.add(this.bedWarsOffset), net.minecraft.item.Items.IRON_INGOT);
+                }
             }
         }
         if (++this.bedWarsGoldTimer >= cfg.bedWarsGoldInterval * 20) {
             this.bedWarsGoldTimer = 0;
-            for (BedWarsLayout.Team t : this.bedWarsLayout.teams()) {
-                this.spawnGeneratorItem(arena, t.generator.add(this.bedWarsOffset), net.minecraft.item.Items.GOLD_INGOT);
+            for (int i = 0; i < this.bedWarsLayout.teams().size(); i++) {
+                BedWarsLayout.Team t = this.bedWarsLayout.teams().get(i);
+                int extra = this.upgradeLevel(i, "forge");
+                for (int k = 0; k <= extra; k++) {
+                    this.spawnGeneratorItem(arena, t.gold.add(this.bedWarsOffset), net.minecraft.item.Items.GOLD_INGOT);
+                }
             }
+        }
+        // 钻石/绿宝石：慢速刷（各 30 秒）
+        if (this.ticks % (30 * 20) == 0) {
+            for (BlockPos p : this.bedWarsLayout.diamonds()) {
+                this.spawnGeneratorItem(arena, p.add(this.bedWarsOffset), net.minecraft.item.Items.DIAMOND);
+            }
+            for (BlockPos p : this.bedWarsLayout.emeralds()) {
+                this.spawnGeneratorItem(arena, p.add(this.bedWarsOffset), net.minecraft.item.Items.EMERALD);
+            }
+        }
+
+        // 2.5) 团队升级周期效果：急迫刷新 + 治愈池回血 + 陷阱减速
+        if (++this.bedWarsEffectTimer >= 20) {
+            this.bedWarsEffectTimer = 0;
+            this.tickBedWarsUpgradeEffects(arena);
         }
 
         // 3) 掉出虚空 → 床活则复活，床死则淘汰
@@ -1636,6 +1665,228 @@ public final class Match {
                     this.eliminate(online, EliminationCause.VOID);
                 }
             }
+        }
+    }
+
+    /** 该队锻炉等级（0~4），加速后生成间隔。 */
+    private int forgeInterval(int baseTicks, String upgradeId) {
+        int maxForge = 0;
+        for (int i = 0; i < this.teams.size(); i++) {
+            int lv = this.upgradeLevel(i, "forge");
+            maxForge = Math.max(maxForge, lv);
+        }
+        // 每队锻炉独立加速自己的铁金，这里用全队最高（简化：各队独立）
+        return baseTicks;
+    }
+
+    /** 团队升级周期效果。 */
+    private void tickBedWarsUpgradeEffects(ArenaWorld arena) {
+        for (int i = 0; i < this.teams.size(); i++) {
+            int haste = this.upgradeLevel(i, "haste");
+            int heal = this.upgradeLevel(i, "heal");
+            int trap = this.upgradeLevel(i, "trap");
+            for (ServerPlayerEntity player : this.teams.get(i).getAlivePlayers()) {
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online == null || online.getWorld() != arena) {
+                    continue;
+                }
+                if (haste > 0) {
+                    online.addStatusEffect(new StatusEffectInstance(StatusEffects.HASTE, 40, haste - 1, false, false, false));
+                }
+                if (heal > 0) {
+                    // 治愈池：床附近半径 6 内回血
+                    BedWarsLayout.Team t = this.bedWarsLayout.teams().get(i);
+                    BlockPos bed = t.bed.add(this.bedWarsOffset);
+                    double dx = online.getX() - (bed.getX() + 0.5);
+                    double dz = online.getZ() - (bed.getZ() + 0.5);
+                    if (dx * dx + dz * dz <= 36 && online.getHealth() < online.getMaxHealth()) {
+                        online.heal(0.5f);
+                    }
+                }
+                if (trap > 0) {
+                    // 陷阱：非本队玩家靠近床 → 减速 + 警报
+                    BedWarsLayout.Team t = this.bedWarsLayout.teams().get(i);
+                    BlockPos bed = t.bed.add(this.bedWarsOffset);
+                    double dx = online.getX() - (bed.getX() + 0.5);
+                    double dz = online.getZ() - (bed.getZ() + 0.5);
+                    if (dx * dx + dz * dz <= 25) {
+                        // 已是本队玩家，跳过（上面只遍历本队存活玩家，所以这里其实是本队）
+                    }
+                }
+            }
+        }
+        // 陷阱对敌方生效
+        if (this.hasAnyUpgrade("trap")) {
+            for (ServerPlayerEntity enemy : this.aliveOnlineInArena()) {
+                int teamIdx = this.teamIndex(enemy);
+                for (int i = 0; i < this.teams.size(); i++) {
+                    if (i == teamIdx || this.upgradeLevel(i, "trap") <= 0) {
+                        continue;
+                    }
+                    BedWarsLayout.Team t = this.bedWarsLayout.teams().get(i);
+                    BlockPos bed = t.bed.add(this.bedWarsOffset);
+                    double dx = enemy.getX() - (bed.getX() + 0.5);
+                    double dz = enemy.getZ() - (bed.getZ() + 0.5);
+                    if (dx * dx + dz * dz <= 25) {
+                        enemy.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 60, 0, false, false, true));
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean hasAnyUpgrade(String id) {
+        for (int i = 0; i < this.teams.size(); i++) {
+            if (this.upgradeLevel(i, id) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 该队升级等级。 */
+    private int upgradeLevel(int teamIdx, String id) {
+        Map<String, Integer> ups = this.bedWarsUpgrades.get(teamIdx);
+        return ups == null ? 0 : ups.getOrDefault(id, 0);
+    }
+
+    /** 购买团队升级：记录等级并立即应用。 */
+    public void applyTeamUpgrade(int teamIdx, String id) {
+        Map<String, Integer> ups = this.bedWarsUpgrades.computeIfAbsent(teamIdx, k -> new HashMap<>());
+        int level = ups.getOrDefault(id, 0) + 1;
+        ups.put(id, level);
+        MatchTeam team = teamIdx >= 0 && teamIdx < this.teams.size() ? this.teams.get(teamIdx) : null;
+        if (team != null) {
+            this.broadcast(Messages.gold(team.getColor() + team.getName() + "§r 购买了升级：§e" + upgradeName(id) + "§r 等级 " + level));
+        }
+        // 立即应用一次性/附魔类效果
+        if (id.startsWith("sharp") || id.startsWith("prot")) {
+            applyUpgradeGearToTeam(teamIdx);
+        }
+        if (id.startsWith("haste")) {
+            applyHasteToTeam(teamIdx);
+        }
+        if (id.equals("dragon")) {
+            applyDragonBuff(teamIdx);
+        }
+    }
+
+    /** 升级 ID 中文名。 */
+    private String upgradeName(String id) {
+        if (id.startsWith("sharp")) {
+            return "锋利之剑";
+        }
+        if (id.startsWith("prot")) {
+            return "保护";
+        }
+        if (id.startsWith("haste")) {
+            return "疯狂矿工";
+        }
+        if (id.startsWith("forge")) {
+            return "锻炉";
+        }
+        if (id.equals("heal")) {
+            return "治愈池";
+        }
+        if (id.equals("dragon")) {
+            return "末影龙增益";
+        }
+        if (id.equals("trap")) {
+            return "陷阱";
+        }
+        return id;
+    }
+
+    /** 给该队所有玩家附魔剑/盔甲（锋利/保护）。 */
+    private void applyUpgradeGearToTeam(int teamIdx) {
+        int sharp = this.upgradeLevel(teamIdx, "sharp");
+        int prot = this.protLevel(teamIdx);
+        for (MatchTeam team : this.teams) {
+            if (this.teams.indexOf(team) != teamIdx) {
+                continue;
+            }
+            for (ServerPlayerEntity player : team.getAlivePlayers()) {
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online != null) {
+                    this.applyUpgradeGear(online, sharp, prot);
+                }
+            }
+            return;
+        }
+    }
+
+    /** 保护等级（prot1~prot4 取最大）。 */
+    private int protLevel(int teamIdx) {
+        int max = 0;
+        for (int lv = 1; lv <= 4; lv++) {
+            if (this.upgradeLevel(teamIdx, "prot" + lv) > 0) {
+                max = lv;
+            }
+        }
+        return max;
+    }
+
+    /** 给单个玩家附魔（锋利剑 + 保护盔甲）。 */
+    private void applyUpgradeGear(ServerPlayerEntity player, int sharp, int prot) {
+        if (sharp <= 0 && prot <= 0) {
+            return;
+        }
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            if (sharp > 0 && stack.getItem() instanceof net.minecraft.item.SwordItem) {
+                this.enchant(stack, net.minecraft.enchantment.Enchantments.SHARPNESS, sharp);
+            }
+            if (prot > 0 && stack.getItem() instanceof net.minecraft.item.ArmorItem) {
+                this.enchant(stack, net.minecraft.enchantment.Enchantments.PROTECTION, prot);
+            }
+        }
+    }
+
+    private void enchant(ItemStack stack, net.minecraft.registry.RegistryKey<net.minecraft.enchantment.Enchantment> key, int level) {
+        var server = this.manager.getServer();
+        if (server == null) {
+            return;
+        }
+        var reg = server.getRegistryManager().get(net.minecraft.registry.RegistryKeys.ENCHANTMENT);
+        var entry = reg.getEntry(key).orElse(null);
+        if (entry != null) {
+            stack.addEnchantment(entry, level);
+        }
+    }
+
+    private void applyHasteToTeam(int teamIdx) {
+        int haste = this.upgradeLevel(teamIdx, "haste");
+        for (MatchTeam team : this.teams) {
+            if (this.teams.indexOf(team) != teamIdx) {
+                continue;
+            }
+            for (ServerPlayerEntity player : team.getAlivePlayers()) {
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online != null) {
+                    online.addStatusEffect(new StatusEffectInstance(StatusEffects.HASTE, 200, haste - 1, false, false, false));
+                }
+            }
+            return;
+        }
+    }
+
+    private void applyDragonBuff(int teamIdx) {
+        for (MatchTeam team : this.teams) {
+            if (this.teams.indexOf(team) != teamIdx) {
+                continue;
+            }
+            for (ServerPlayerEntity player : team.getAlivePlayers()) {
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online != null) {
+                    online.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 30 * 20, 0, false, false, true));
+                    online.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 30 * 20, 1, false, false, true));
+                }
+            }
+            return;
         }
     }
 
@@ -1787,20 +2038,27 @@ public final class Match {
         player.sendMessage(Messages.info("你已复活！"), true);
     }
 
-    /** 床战右击商店（PvPMod UseBlockCallback 调用）：返回是否处理了（打开商店）。 */
-    public boolean tryOpenBedwarsShop(ServerPlayerEntity player, BlockPos pos) {
+    /** 床战右击商店实体（PvPMod UseEntityCallback 调用）：村民=普通商店，僵尸=升级商店。 */
+    public boolean tryOpenBedwarsShop(ServerPlayerEntity player, net.minecraft.entity.Entity entity) {
         if (!this.type.isBedWars() || this.state != MatchState.ACTIVE) {
             return false;
         }
-        for (int i = 0; i < this.bedWarsLayout.teams().size(); i++) {
-            BedWarsLayout.Team t = this.bedWarsLayout.teams().get(i);
-            BlockPos shop = t.shop.add(this.bedWarsOffset);
-            if (shop.equals(pos)) {
-                BedWarsShopManager.open(player, this, i);
-                return true;
-            }
+        String tag = this.bedWarsShopEntities.get(entity.getUuid());
+        if (tag == null) {
+            return false;
         }
-        return false;
+        int teamIdx;
+        try {
+            teamIdx = Integer.parseInt(tag.substring(tag.indexOf(':') + 1));
+        } catch (Exception e) {
+            return false;
+        }
+        if (tag.startsWith("shop:")) {
+            BedWarsShopManager.openShop(player, this, teamIdx);
+        } else {
+            BedWarsShopManager.openUpgradeShop(player, this, teamIdx);
+        }
+        return true;
     }
 
     /** 床战超时结算：存活队伍中床存活最多的队伍获胜（并列平局）。 */
@@ -2140,6 +2398,11 @@ public final class Match {
             }
         }
         return -1;
+    }
+
+    /** 玩家所属队伍索引（公开，商店系统调用；-1 表示未找到）。 */
+    public int teamIndexOf(ServerPlayerEntity player) {
+        return this.teamIndex(player);
     }
 
     /** 玩家所属队伍。 */
@@ -2679,11 +2942,36 @@ public final class Match {
         boolean bedWars = this.type.isBedWars();
 
         if (bedWars) {
-            // 起床战争：贴地图 + 放置商店方块（末影箱）
+            // 起床战争：贴地图 + 生成商店实体（村民=普通商店，僵尸=团队升级商店）
             BedWarsMapPaster.paste(arena, this.bedWarsMapData, this.template.getCenter(this.regionIndex));
             for (BedWarsLayout.Team t : this.bedWarsLayout.teams()) {
                 BlockPos shopPos = t.shop.add(this.bedWarsOffset);
-                arena.setBlockState(shopPos, net.minecraft.block.Blocks.ENDER_CHEST.getDefaultState(), 3);
+                BlockPos upgradePos = t.upgradeShop.add(this.bedWarsOffset);
+                // 普通商店村民
+                net.minecraft.entity.passive.VillagerEntity villager =
+                        new net.minecraft.entity.passive.VillagerEntity(
+                                net.minecraft.entity.EntityType.VILLAGER, arena);
+                villager.refreshPositionAndAngles(shopPos.getX() + 0.5, shopPos.getY(), shopPos.getZ() + 0.5, 0, 0);
+                villager.setPersistent();
+                villager.setInvulnerable(true);
+                villager.setSilent(true);
+                villager.setCustomName(net.minecraft.text.Text.literal("§e道具商店"));
+                villager.setCustomNameVisible(true);
+                villager.setAiDisabled(true);
+                arena.spawnEntity(villager);
+                this.bedWarsShopEntities.put(villager.getUuid(), "shop:" + t.index);
+                // 团队升级商店僵尸
+                net.minecraft.entity.mob.ZombieEntity zombie =
+                        new net.minecraft.entity.mob.ZombieEntity(arena);
+                zombie.refreshPositionAndAngles(upgradePos.getX() + 0.5, upgradePos.getY(), upgradePos.getZ() + 0.5, 0, 0);
+                zombie.setPersistent();
+                zombie.setInvulnerable(true);
+                zombie.setSilent(true);
+                zombie.setCustomName(net.minecraft.text.Text.literal("§5团队升级"));
+                zombie.setCustomNameVisible(true);
+                zombie.setAiDisabled(true);
+                arena.spawnEntity(zombie);
+                this.bedWarsShopEntities.put(zombie.getUuid(), "upgrade:" + t.index);
             }
             this.createScoreboardTeams();
             this.broadcast(Messages.info("起床战争开始！地图：§e" + this.bedWarsLayout.mapName()

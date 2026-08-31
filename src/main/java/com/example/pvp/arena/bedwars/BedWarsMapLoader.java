@@ -92,14 +92,30 @@ public final class BedWarsMapLoader {
         }
         List<Path> mcaFiles;
         try (Stream<Path> s = Files.list(regionDir)) {
-            mcaFiles = s.filter(p -> p.getFileName().toString().endsWith(".mca")).toList();
+            mcaFiles = s.filter(p -> p.getFileName().toString().endsWith(".mca"))
+                    .sorted(Comparator.comparing(p -> p.getFileName().toString()))
+                    .collect(java.util.stream.Collectors.toList());
         } catch (IOException e) {
             LOGGER.warn("[PvP] BedWars 读取 region 目录失败: {}", e.toString());
             return data;
         }
-        mcaFiles.sort(Comparator.comparing(p -> p.getFileName().toString()));
         for (Path mca : mcaFiles) {
             readRegion(mca, data);
+        }
+
+        // 统一计算地图范围（min/max），一次 O(n) 而非每 chunk O(n²)
+        for (BlockPos pos : data.blocks.keySet()) {
+            if (data.min == null) {
+                data.min = pos;
+                data.max = pos;
+            } else {
+                data.min = new BlockPos(Math.min(data.min.getX(), pos.getX()),
+                        Math.min(data.min.getY(), pos.getY()),
+                        Math.min(data.min.getZ(), pos.getZ()));
+                data.max = new BlockPos(Math.max(data.max.getX(), pos.getX()),
+                        Math.max(data.max.getY(), pos.getY()),
+                        Math.max(data.max.getZ(), pos.getZ()));
+            }
         }
 
         LOGGER.info("[PvP] BedWars 地图已加载: {} 方块, {} 方块实体, 大厅 {}", 
@@ -177,22 +193,6 @@ public final class BedWarsMapLoader {
             NbtList blockEntities = chunk.getList("block_entities", NbtElement.COMPOUND_TYPE);
             for (int i = 0; i < blockEntities.size(); i++) {
                 data.blockEntities.add(blockEntities.getCompound(i));
-            }
-            // 统计范围
-            if (!data.blocks.isEmpty()) {
-                for (BlockPos pos : data.blocks.keySet()) {
-                    if (data.min == null) {
-                        data.min = pos;
-                        data.max = pos;
-                    } else {
-                        data.min = new BlockPos(Math.min(data.min.getX(), pos.getX()),
-                                Math.min(data.min.getY(), pos.getY()),
-                                Math.min(data.min.getZ(), pos.getZ()));
-                        data.max = new BlockPos(Math.max(data.max.getX(), pos.getX()),
-                                Math.max(data.max.getY(), pos.getY()),
-                                Math.max(data.max.getZ(), pos.getZ()));
-                    }
-                }
             }
         } catch (Exception e) {
             // 单个 chunk 损坏不影响其他

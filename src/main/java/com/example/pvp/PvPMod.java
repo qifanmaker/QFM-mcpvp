@@ -2,6 +2,7 @@ package com.example.pvp;
 
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.VoidChunkGenerator;
+import com.example.pvp.arena.bedwars.BedWarsEditor;
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.skywars.SkyWarsLoot;
@@ -45,6 +46,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
 import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.World;
@@ -118,6 +120,18 @@ public final class PvPMod implements ModInitializer {
         tnt.setFuse(40); // 引信减短（2 秒爆炸）
         world.spawnEntity(tnt);
         stack.decrement(1);
+    }
+
+    /** 床战标记类型的中文名（消息提示用）。 */
+    private static String markTypeName(BedWarsEditor.MarkType type) {
+        return switch (type) {
+            case SHOP -> "普通商店";
+            case UPGRADE_SHOP -> "团队升级商店";
+            case IRON -> "铁生成点";
+            case GOLD -> "金生成点";
+            case DIAMOND -> "钻石生成点";
+            case EMERALD -> "绿宝石生成点";
+        };
     }
 
     @Override
@@ -303,21 +317,55 @@ public final class PvPMod implements ModInitializer {
             throwTnt(sp, world, sp.getStackInHand(hand));
             return ActionResult.SUCCESS;
         });
-        // 起床战争：右击商店方块（末影箱）打开商店 GUI（拦截原版末影箱打开）
+        // 床战地图标记模式：手持标记物品【右键】取消标记
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (!(player instanceof ServerPlayerEntity sp) || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY
-                    || hitResult == null || hitResult.getBlockPos() == null) {
+            if (!(player instanceof ServerPlayerEntity sp) || hitResult == null || hitResult.getBlockPos() == null) {
                 return ActionResult.PASS;
             }
-            Match match = MATCH == null ? null : MATCH.getMatchFor(sp);
-            if (match != null && match.tryOpenBedwarsShop(sp, hitResult.getBlockPos())) {
-                return ActionResult.SUCCESS;
+            BedWarsEditor.Session session = BedWarsEditor.get(sp.getUuid());
+            if (session == null) {
+                return ActionResult.PASS;
             }
-            return ActionResult.PASS;
+            if (BedWarsEditor.markTypeOf(sp.getStackInHand(hand)) == null) {
+                return ActionResult.PASS;
+            }
+            BlockPos pos = hitResult.getBlockPos();
+            BedWarsEditor.MarkType removed = BedWarsEditor.unmark(session, pos, world);
+            if (removed != null) {
+                sp.sendMessage(Messages.warn("§c已取消标记：§r" + markTypeName(removed)), false);
+            }
+            return ActionResult.SUCCESS; // 拦截原版交互
+        });
+        // 床战标记模式：右键纸 = 保存并退出（UseItemCallback 覆盖右键空气）
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            if (!(player instanceof ServerPlayerEntity sp) || !sp.getStackInHand(hand).isOf(Items.PAPER)) {
+                return TypedActionResult.pass(player.getStackInHand(hand));
+            }
+            BedWarsEditor.Session session = BedWarsEditor.get(sp.getUuid());
+            if (session == null) {
+                return TypedActionResult.pass(player.getStackInHand(hand));
+            }
+            if (!BedWarsEditor.isReady(session)) {
+                sp.sendMessage(Messages.warn("标记不完整！需至少标记：商店(木棍)、铁点(铁锭)、金点(金锭)"), false);
+                return TypedActionResult.success(player.getStackInHand(hand));
+            }
+            if (BedWarsEditor.save(session)) {
+                sp.sendMessage(Messages.gold("§a已保存地图配置到 map.json！§r"), false);
+                BedWarsEditor.remove(sp.getUuid());
+                MATCH.teleportToOverworldSpawn(sp);
+            }
+            return TypedActionResult.success(player.getStackInHand(hand));
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
-            if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {
-                return ActionResult.FAIL;
+            if (player instanceof ServerPlayerEntity sp && MATCH != null) {
+                if (MATCH.isEliminated(sp.getUuid())) {
+                    return ActionResult.FAIL;
+                }
+                // 起床战争：右击商店实体（村民=普通商店，僵尸=升级商店）打开 GUI
+                Match match = MATCH.getMatchFor(sp);
+                if (match != null && match.tryOpenBedwarsShop(sp, entity)) {
+                    return ActionResult.SUCCESS;
+                }
             }
             return ActionResult.PASS;
         });
@@ -338,8 +386,24 @@ public final class PvPMod implements ModInitializer {
             return ActionResult.PASS;
         });
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
-            if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {
-                return ActionResult.FAIL;
+            if (player instanceof ServerPlayerEntity sp) {
+                if (MATCH != null && MATCH.isEliminated(sp.getUuid())) {
+                    return ActionResult.FAIL;
+                }
+                // 床战标记模式：手持标记物品【左键】标记
+                BedWarsEditor.Session session = BedWarsEditor.get(sp.getUuid());
+                if (session != null) {
+                    BedWarsEditor.MarkType type = BedWarsEditor.markTypeOf(sp.getStackInHand(hand));
+                    if (type != null) {
+                        if (BedWarsEditor.mark(session, type, pos, world)) {
+                            sp.sendMessage(Messages.gold("§a已标记" + markTypeName(type)
+                                    + "§r @ (" + pos.getX() + "," + pos.getY() + "," + pos.getZ() + ")"), false);
+                        } else {
+                            sp.sendMessage(Messages.warn("该位置已有标记"), false);
+                        }
+                        return ActionResult.SUCCESS;
+                    }
+                }
             }
             return ActionResult.PASS;
         });
