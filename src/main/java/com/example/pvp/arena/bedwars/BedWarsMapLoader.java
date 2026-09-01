@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -115,6 +116,48 @@ public final class BedWarsMapLoader {
                 data.max = new BlockPos(Math.max(data.max.getX(), pos.getX()),
                         Math.max(data.max.getY(), pos.getY()),
                         Math.max(data.max.getZ(), pos.getZ()));
+            }
+        }
+
+        // 删除原世界底部地面层（基岩/泥土/石头等自然方块），避免粘贴到竞技场后形成"地面"而非虚空
+        if (data.min != null) {
+            int groundMaxY = data.min.getY() + 2; // 地面层厚度最多 3 格
+            List<BlockPos> toRemove = new ArrayList<>();
+            for (Map.Entry<BlockPos, BlockState> e : data.blocks.entrySet()) {
+                BlockPos pos = e.getKey();
+                if (pos.getY() > groundMaxY) {
+                    continue;
+                }
+                BlockState s = e.getValue();
+                if (s.isOf(Blocks.BEDROCK) || s.isOf(Blocks.DIRT) || s.isOf(Blocks.GRASS_BLOCK)
+                        || s.isOf(Blocks.STONE) || s.isOf(Blocks.GRAVEL) || s.isOf(Blocks.SAND)
+                        || s.isOf(Blocks.SANDSTONE) || s.isOf(Blocks.DEEPSLATE) || s.isOf(Blocks.TUFF)
+                        || s.isOf(Blocks.CLAY) || s.isOf(Blocks.MUD) || s.isOf(Blocks.PODZOL)
+                        || s.isOf(Blocks.MYCELIUM) || s.isOf(Blocks.COARSE_DIRT) || s.isOf(Blocks.ROOTED_DIRT)) {
+                    toRemove.add(pos);
+                }
+            }
+            for (BlockPos pos : toRemove) {
+                data.blocks.remove(pos);
+            }
+            // 重新计算 min/max（地面层已删）
+            if (!toRemove.isEmpty()) {
+                data.min = null;
+                data.max = null;
+                for (BlockPos pos : data.blocks.keySet()) {
+                    if (data.min == null) {
+                        data.min = pos;
+                        data.max = pos;
+                    } else {
+                        data.min = new BlockPos(Math.min(data.min.getX(), pos.getX()),
+                                Math.min(data.min.getY(), pos.getY()),
+                                Math.min(data.min.getZ(), pos.getZ()));
+                        data.max = new BlockPos(Math.max(data.max.getX(), pos.getX()),
+                                Math.max(data.max.getY(), pos.getY()),
+                                Math.max(data.max.getZ(), pos.getZ()));
+                    }
+                }
+                LOGGER.info("[PvP] BedWars 地图已删除底部地面层: {} 方块", toRemove.size());
             }
         }
 

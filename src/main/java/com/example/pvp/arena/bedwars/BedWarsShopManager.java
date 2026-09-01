@@ -252,22 +252,33 @@ public final class BedWarsShopManager {
     }
 
     /** 尝试购买普通商品。 */
-    public static boolean buy(ServerPlayerEntity player, Match match, ShopItem item) {
+    public static boolean buy(ServerPlayerEntity player, Match match, int teamIndex, ShopItem item) {
         if (!deduct(player, item.currency.item, item.price)) {
             player.sendMessage(Messages.error("资源不足！需要 " + item.currency.displayName + " x" + item.price), false);
             return false;
         }
-        give(player, item);
+        give(player, item, teamIndex);
         player.sendMessage(Messages.info("已购买 " + item.name), false);
         return true;
     }
 
     /** 发放商品（按商品类型特殊处理）。 */
-    private static void give(ServerPlayerEntity player, ShopItem item) {
+    private static void give(ServerPlayerEntity player, ShopItem item, int teamIndex) {
         Item i = item.item;
-        if (i == Items.WHITE_WOOL || i == Items.RED_WOOL) {
-            // 羊毛已被换色，正常发
-            giveStack(player, new ItemStack(i, item.count));
+        if (item.woolColor) {
+            // 按队伍色发羊毛
+            Formatting color = BedWarsLayout.color(teamIndex);
+            Item wool = switch (color) {
+                case RED -> Items.RED_WOOL;
+                case BLUE -> Items.BLUE_WOOL;
+                case YELLOW -> Items.YELLOW_WOOL;
+                case GREEN -> Items.GREEN_WOOL;
+                case AQUA -> Items.CYAN_WOOL;
+                case WHITE -> Items.WHITE_WOOL;
+                case LIGHT_PURPLE -> Items.PINK_WOOL;
+                default -> Items.BLACK_WOOL;
+            };
+            giveStack(player, new ItemStack(wool, item.count));
         } else if (i == Items.STICK && item.name.contains("击退棒")) {
             ItemStack kb = new ItemStack(Items.STICK);
             kb.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§e击退棒"));
@@ -324,9 +335,19 @@ public final class BedWarsShopManager {
         return true;
     }
 
-    /** 扣除资源。 */
+    /** 扣除资源。先确认数量足够再扣，避免不够时扣掉部分。 */
     private static boolean deduct(ServerPlayerEntity player, Item item, int amount) {
         var inventory = player.getInventory();
+        int total = 0;
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (stack.isOf(item)) {
+                total += stack.getCount();
+            }
+        }
+        if (total < amount) {
+            return false;
+        }
         int remaining = amount;
         for (int i = 0; i < inventory.size() && remaining > 0; i++) {
             ItemStack stack = inventory.getStack(i);
@@ -336,7 +357,7 @@ public final class BedWarsShopManager {
                 remaining -= take;
             }
         }
-        return remaining <= 0;
+        return true;
     }
 
     private static void giveStack(ServerPlayerEntity player, ItemStack stack) {
@@ -402,7 +423,7 @@ public final class BedWarsShopManager {
                         }
                     } else {
                         if (slotIndex < ITEMS.size()) {
-                            BedWarsShopManager.buy(sp, match, ITEMS.get(slotIndex));
+                            BedWarsShopManager.buy(sp, match, teamIdx, ITEMS.get(slotIndex));
                         }
                     }
                 }

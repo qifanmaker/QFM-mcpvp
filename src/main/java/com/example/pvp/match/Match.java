@@ -211,7 +211,29 @@ public final class Match {
         this.playerKits = new HashMap<>(kits);
         this.kit = kits.get(players.get(0).getUuid());
         this.players = List.copyOf(players);
-        this.teams = buildTeams(type, this.players);
+        // 床战：先加载地图并探测布局，再按布局分队（保证队伍颜色与岛屿一致）
+        if (type.isBedWars()) {
+            java.nio.file.Path mapDir = null;
+            String forcedMap = manager.consumePendingBedwarsMap();
+            if (forcedMap != null && !forcedMap.isBlank()) {
+                mapDir = BedWarsMaps.listMaps().stream()
+                        .filter(p -> p.getFileName().toString().equalsIgnoreCase(forcedMap))
+                        .findFirst().orElse(null);
+                if (mapDir == null) {
+                    throw new IllegalStateException("未找到强制指定的床战地图: " + forcedMap);
+                }
+            } else {
+                mapDir = BedWarsMaps.randomMap(new Random());
+            }
+            if (mapDir == null) {
+                throw new IllegalStateException("没有可用的床战地图（config/pvp/bedwars/maps/ 下无 region/ 目录）");
+            }
+            this.bedWarsMapData = BedWarsMapLoader.load(mapDir);
+            int perTeam = type.playersPerTeam();
+            int teamCount = Math.min(8, Math.max(2, (this.players.size() + perTeam - 1) / perTeam));
+            this.bedWarsLayout = BedWarsLayout.detect(mapDir.getFileName().toString(), teamCount, this.bedWarsMapData, mapDir);
+        }
+        this.teams = buildTeams(type, this.players, this.bedWarsLayout);
         this.template = template;
         this.regionIndex = regionIndex;
         this.initialCountdownTicks = this.type.isBedWars()
@@ -306,7 +328,7 @@ public final class Match {
             this.hotPotatoLayout = HotPotatoLayout.compute(template.getCenter(regionIndex), cfg, id);
             spawnPositions = this.hotPotatoLayout.spawns;
         } else if (type.isBedWars()) {
-            // 起床战争：OP 可强制指定地图，否则随机加载 → 探测布局 → 出生点 = 各队岛
+            // 起床战争：mapData/layout 已在构造开头加载（分队需要），这里直接用
             this.skywarsLayout = null;
             this.skywarsTheme = null;
             this.skywarsSeed = id;
@@ -315,27 +337,8 @@ public final class Match {
             this.tntRunLayout = null;
             this.heartbeatLayout = null;
             this.hotPotatoLayout = null;
-            java.nio.file.Path mapDir = null;
-            String forcedMap = manager.consumePendingBedwarsMap();
-            if (forcedMap != null && !forcedMap.isBlank()) {
-                mapDir = BedWarsMaps.listMaps().stream()
-                        .filter(p -> p.getFileName().toString().equalsIgnoreCase(forcedMap))
-                        .findFirst().orElse(null);
-                if (mapDir == null) {
-                    throw new IllegalStateException("未找到强制指定的床战地图: " + forcedMap);
-                }
-            } else {
-                mapDir = BedWarsMaps.randomMap(new Random());
-            }
-            if (mapDir == null) {
-                throw new IllegalStateException("没有可用的床战地图（config/pvp/bedwars/maps/ 下无 region/ 目录）");
-            }
-            this.bedWarsMapData = BedWarsMapLoader.load(mapDir);
-            int perTeam = type.playersPerTeam();
-            int teamCount = Math.min(8, Math.max(2, (this.players.size() + perTeam - 1) / perTeam));
-            this.bedWarsLayout = BedWarsLayout.detect(mapDir.getFileName().toString(), teamCount, this.bedWarsMapData, mapDir);
             this.bedWarsOffset = BedWarsMapPaster.offsetFor(this.bedWarsMapData, template.getCenter(regionIndex));
-            this.bedWarsBedAlive = new boolean[this.bedWarsLayout.teamCount()];
+            this.bedWarsBedAlive = new boolean[this.bedWarsLayout.teams().size()];
             java.util.Arrays.fill(this.bedWarsBedAlive, true);
             // 预计算床方块与地图方块（竞技场坐标）
             for (java.util.Map.Entry<BlockPos, net.minecraft.block.BlockState> e : this.bedWarsMapData.blocks.entrySet()) {
@@ -385,7 +388,8 @@ public final class Match {
         return new Match(manager, id, type, players, regionIndex, template, kits);
     }
 
-    private static List<MatchTeam> buildTeams(MatchType type, List<ServerPlayerEntity> players) {
+    private static List<MatchTeam> buildTeams(MatchType type, List<ServerPlayerEntity> players,
+                                              BedWarsLayout bedWarsLayout) {
         List<MatchTeam> teams = new ArrayList<>();
         if (type == MatchType.DUEL_1V1 || type == MatchType.SUMO || type == MatchType.PVP_1_8
                 || type == MatchType.BRIDGE_1V1) {
@@ -402,8 +406,11 @@ public final class Match {
             teams.add(new MatchTeam("黄队", Formatting.YELLOW, List.of(players.get(3))));
         } else if (type.isBedWars()) {
             // 起床战争：按每队人数动态分队（Solo=1，双人=2），最多 8 队
+            // 队伍颜色/名称按布局队伍顺序（与岛屿一致），而非固定索引
             int perTeam = type.playersPerTeam();
-            int teamCount = Math.min(8, Math.max(2, (players.size() + perTeam - 1) / perTeam));
+            int teamCount = bedWarsLayout != null
+                    ? bedWarsLayout.teams().size()
+                    : Math.min(8, Math.max(2, (players.size() + perTeam - 1) / perTeam));
             for (int i = 0; i < teamCount; i++) {
                 int from = i * perTeam;
                 int to = Math.min(players.size(), from + perTeam);
@@ -411,7 +418,10 @@ public final class Match {
                     break;
                 }
                 List<ServerPlayerEntity> members = new ArrayList<>(players.subList(from, to));
-                teams.add(new MatchTeam(BedWarsLayout.name(i), BedWarsLayout.color(i), members));
+                // 用布局中该队的索引取颜色/名称（布局队伍按床位置角度排序，与岛屿对应）
+                int layoutIdx = bedWarsLayout != null && i < bedWarsLayout.teams().size()
+                        ? bedWarsLayout.teams().get(i).index : i;
+                teams.add(new MatchTeam(BedWarsLayout.name(layoutIdx), BedWarsLayout.color(layoutIdx), members));
             }
         } else {
             teams.add(new MatchTeam("全员", Formatting.WHITE, players));
@@ -2034,6 +2044,10 @@ public final class Match {
         if (this.state != MatchState.ACTIVE) {
             return;
         }
+        if (this.eliminated.contains(player.getUuid())) {
+            this.bedWarsRespawnTicks.remove(player.getUuid());
+            return; // 已淘汰（床毁），不复活
+        }
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena == null) {
             return;
@@ -2498,6 +2512,7 @@ public final class Match {
         if (!this.eliminated.add(player.getUuid())) {
             return; // 已淘汰
         }
+        this.bedWarsRespawnTicks.remove(player.getUuid()); // 清除待复活记录，防止幽灵被复活
         for (MatchTeam team : this.teams) {
             team.eliminate(player);
         }
