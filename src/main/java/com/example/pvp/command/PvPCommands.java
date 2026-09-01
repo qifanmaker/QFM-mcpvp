@@ -742,6 +742,10 @@ public final class PvPCommands {
         BlockPos origin = new BlockPos(region * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
         BlockPos center = new BlockPos(origin.getX() + PvPConfig.INSTANCE.bedWarsSize / 2,
                 ArenaTemplate.PLATFORM_Y + 1, origin.getZ() + PvPConfig.INSTANCE.bedWarsSize / 2);
+        // 先清空目标区域，避免上次加载的地图残留叠加
+        int mapRadius = data.min == null || data.max == null ? PvPConfig.INSTANCE.bedWarsSize / 2
+                : Math.max(data.max.getX() - data.min.getX(), data.max.getZ() - data.min.getZ()) / 2 + 1;
+        com.example.pvp.arena.bedwars.BedWarsMapGenerator.clear(arena, region, mapRadius);
         com.example.pvp.arena.bedwars.BedWarsMapPaster.paste(arena, data, center);
         com.example.pvp.arena.bedwars.BedWarsLayout layout =
                 com.example.pvp.arena.bedwars.BedWarsLayout.detect(mapDir.getFileName().toString(), 8, data, mapDir);
@@ -788,6 +792,10 @@ public final class PvPCommands {
         BlockPos center = new BlockPos(origin.getX() + PvPConfig.INSTANCE.bedWarsSize / 2,
                 ArenaTemplate.PLATFORM_Y + 1, origin.getZ() + PvPConfig.INSTANCE.bedWarsSize / 2);
         BedWarsMapLoader.MapData data = BedWarsMapLoader.load(mapDir);
+        // 先清空目标区域，避免上次编辑/调试加载的地图残留叠加
+        int mapRadius = data.min == null || data.max == null ? PvPConfig.INSTANCE.bedWarsSize / 2
+                : Math.max(data.max.getX() - data.min.getX(), data.max.getZ() - data.min.getZ()) / 2 + 1;
+        com.example.pvp.arena.bedwars.BedWarsMapGenerator.clear(arena, region, mapRadius);
         BedWarsMapPaster.paste(arena, data, center);
 
         // 开始编辑会话（传入已加载的数据，避免重复加载导致坐标不一致）
