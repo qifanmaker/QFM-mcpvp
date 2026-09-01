@@ -46,6 +46,8 @@ public final class MatchManager {
     private final Map<UUID, InventorySnapshot> pendingRestores = new ConcurrentHashMap<>();
     /** OP 强制开赛时指定的一次性空岛主题（下一次 SKYWARS 用，用后清除）。 */
     private SkyWarsTheme pendingSkywarsTheme;
+    /** OP 强制开赛时指定的一次性床战地图文件夹名（下一次 BED_WARS 用，用后清除）。 */
+    private String pendingBedwarsMap;
     private int nextMatchId = 0;
     /** 已向其客户端注册过 pvp_info 计分板 objective 的玩家（避免重复发 ADD 包导致客户端崩溃）。 */
     private final Set<UUID> scoreboardObjectiveKnown = ConcurrentHashMap.newKeySet();
@@ -110,6 +112,18 @@ public final class MatchManager {
         SkyWarsTheme theme = this.pendingSkywarsTheme;
         this.pendingSkywarsTheme = null;
         return theme;
+    }
+
+    /** OP 强制开赛前指定下一次床战的强制地图文件夹名（null = 随机）。 */
+    public void setNextBedwarsMap(String mapName) {
+        this.pendingBedwarsMap = mapName;
+    }
+
+    /** 消费一次性强制床战地图（Match 构造时调用）。 */
+    public String consumePendingBedwarsMap() {
+        String name = this.pendingBedwarsMap;
+        this.pendingBedwarsMap = null;
+        return name;
     }
 
     /** OP 强制开赛前指定下一次幸运之柱的强制平台风格（null = 随机）。 */

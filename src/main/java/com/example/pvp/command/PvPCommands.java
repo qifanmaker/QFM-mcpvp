@@ -408,8 +408,20 @@ public final class PvPCommands {
                 }
                 PvPMod.MATCH.setNextLuckyPillarStyle(style);
                 player.sendMessage(Messages.info("已设置强制地图：§e" + style.getDisplayName()), false);
+            } else if (entry.getType().isBedWars()) {
+                java.nio.file.Path mapDir = BedWarsMaps.listMaps().stream()
+                        .filter(p -> p.getFileName().toString().equalsIgnoreCase(themeName))
+                        .findFirst().orElse(null);
+                if (mapDir == null) {
+                    player.sendMessage(Messages.error("未知床战地图: " + themeName
+                            + "（可用: " + String.join(", ", BedWarsMaps.listMaps().stream()
+                                    .map(p -> p.getFileName().toString()).toList()) + "）"), false);
+                    return 0;
+                }
+                PvPMod.MATCH.setNextBedwarsMap(mapDir.getFileName().toString());
+                player.sendMessage(Messages.info("已设置强制地图：§e" + mapDir.getFileName()), false);
             } else {
-                player.sendMessage(Messages.error("只有排空岛战争（主题）或幸运之柱（地图）才能指定"), false);
+                player.sendMessage(Messages.error("只有排空岛战争（主题）、幸运之柱（地图）或起床战争（地图）才能指定"), false);
                 return 0;
             }
         }

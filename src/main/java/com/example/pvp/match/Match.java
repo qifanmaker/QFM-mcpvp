@@ -306,7 +306,7 @@ public final class Match {
             this.hotPotatoLayout = HotPotatoLayout.compute(template.getCenter(regionIndex), cfg, id);
             spawnPositions = this.hotPotatoLayout.spawns;
         } else if (type.isBedWars()) {
-            // 起床战争：随机加载一张地图 → 探测布局 → 出生点 = 各队岛
+            // 起床战争：OP 可强制指定地图，否则随机加载 → 探测布局 → 出生点 = 各队岛
             this.skywarsLayout = null;
             this.skywarsTheme = null;
             this.skywarsSeed = id;
@@ -315,7 +315,18 @@ public final class Match {
             this.tntRunLayout = null;
             this.heartbeatLayout = null;
             this.hotPotatoLayout = null;
-            java.nio.file.Path mapDir = BedWarsMaps.randomMap(new Random());
+            java.nio.file.Path mapDir = null;
+            String forcedMap = manager.consumePendingBedwarsMap();
+            if (forcedMap != null && !forcedMap.isBlank()) {
+                mapDir = BedWarsMaps.listMaps().stream()
+                        .filter(p -> p.getFileName().toString().equalsIgnoreCase(forcedMap))
+                        .findFirst().orElse(null);
+                if (mapDir == null) {
+                    throw new IllegalStateException("未找到强制指定的床战地图: " + forcedMap);
+                }
+            } else {
+                mapDir = BedWarsMaps.randomMap(new Random());
+            }
             if (mapDir == null) {
                 throw new IllegalStateException("没有可用的床战地图（config/pvp/bedwars/maps/ 下无 region/ 目录）");
             }
