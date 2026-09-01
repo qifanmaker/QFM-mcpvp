@@ -37,21 +37,21 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class BedWarsEditor {
 
-    /** 标记类型：可视化方块 + 是否队伍性质 + 中文名。 */
+    /** 标记类型：粒子颜色 + 是否队伍性质 + 中文名。 */
     public enum MarkType {
-        SHOP(Blocks.SEA_LANTERN, true, "普通商店"),
-        UPGRADE_SHOP(Blocks.BEACON, true, "团队升级商店"),
-        IRON(Blocks.IRON_BLOCK, true, "铁生成点"),
-        GOLD(Blocks.GOLD_BLOCK, true, "金生成点"),
-        DIAMOND(Blocks.DIAMOND_BLOCK, false, "钻石生成点"),
-        EMERALD(Blocks.EMERALD_BLOCK, false, "绿宝石生成点");
+        SHOP(0x55FF55, true, "普通商店"),           // 绿色
+        UPGRADE_SHOP(0xAA00AA, true, "团队升级商店"), // 紫色
+        IRON(0xCCCCCC, true, "铁生成点"),           // 白色
+        GOLD(0xFFAA00, true, "金生成点"),           // 金色
+        DIAMOND(0x55FFFF, false, "钻石生成点"),      // 青色
+        EMERALD(0x00AA00, false, "绿宝石生成点");    // 深绿
 
-        public final Block marker;
+        public final int color;
         public final boolean perTeam;
         public final String displayName;
 
-        MarkType(Block marker, boolean perTeam, String displayName) {
-            this.marker = marker;
+        MarkType(int color, boolean perTeam, String displayName) {
+            this.color = color;
             this.perTeam = perTeam;
             this.displayName = displayName;
         }
@@ -110,7 +110,7 @@ public final class BedWarsEditor {
         if (stack.isOf(Items.STICK)) {
             return MarkType.SHOP;
         }
-        if (stack.isOf(Items.IRON_SWORD)) {
+        if (stack.isOf(Items.BLAZE_ROD)) {
             return MarkType.UPGRADE_SHOP;
         }
         if (stack.isOf(Items.IRON_INGOT)) {
@@ -145,23 +145,64 @@ public final class BedWarsEditor {
             return false;
         }
         session.marks.put(markPos, type);
-        world.setBlockState(markPos, type.marker.getDefaultState(), 3);
-        if (world instanceof ServerWorld sw) {
-            sw.spawnParticles(ParticleTypes.HAPPY_VILLAGER,
-                    markPos.getX() + 0.5, markPos.getY() + 1.0, markPos.getZ() + 0.5,
-                    15, 0.3, 0.3, 0.3, 0.05);
-        }
+        spawnMarkParticles(world, markPos, type);
         return true;
     }
 
     /** 取消：移除点击方块上方的标记（若存在）。返回被取消的类型，无则 null。 */
     public static MarkType unmark(Session session, BlockPos clickedBlock, World world) {
         BlockPos markPos = clickedBlock.up();
-        MarkType removed = session.marks.remove(markPos);
-        if (removed != null) {
-            world.setBlockState(markPos, Blocks.AIR.getDefaultState(), 3);
+        return session.marks.remove(markPos);
+    }
+
+    /** 在标记位置生成粒子框。 */
+    private static void spawnMarkParticles(World world, BlockPos pos, MarkType type) {
+        if (!(world instanceof ServerWorld sw)) {
+            return;
         }
-        return removed;
+        // 生成一个 1x1x1 的粒子框（8 个顶点 + 12 条边）
+        double x = pos.getX();
+        double y = pos.getY();
+        double z = pos.getZ();
+        // 8 个顶点
+        spawnParticle(sw, type, x, y, z);
+        spawnParticle(sw, type, x + 1, y, z);
+        spawnParticle(sw, type, x, y, z + 1);
+        spawnParticle(sw, type, x + 1, y, z + 1);
+        spawnParticle(sw, type, x, y + 1, z);
+        spawnParticle(sw, type, x + 1, y + 1, z);
+        spawnParticle(sw, type, x, y + 1, z + 1);
+        spawnParticle(sw, type, x + 1, y + 1, z + 1);
+        // 12 条边（每边 3 个点）
+        for (int i = 1; i <= 2; i++) {
+            double t = i / 3.0;
+            // 底面 4 条边
+            spawnParticle(sw, type, x + t, y, z);
+            spawnParticle(sw, type, x + t, y, z + 1);
+            spawnParticle(sw, type, x, y, z + t);
+            spawnParticle(sw, type, x + 1, y, z + t);
+            // 顶面 4 条边
+            spawnParticle(sw, type, x + t, y + 1, z);
+            spawnParticle(sw, type, x + t, y + 1, z + 1);
+            spawnParticle(sw, type, x, y + 1, z + t);
+            spawnParticle(sw, type, x + 1, y + 1, z + t);
+            // 4 条竖边
+            spawnParticle(sw, type, x, y + t, z);
+            spawnParticle(sw, type, x + 1, y + t, z);
+            spawnParticle(sw, type, x, y + t, z + 1);
+            spawnParticle(sw, type, x + 1, y + t, z + 1);
+        }
+    }
+
+    private static void spawnParticle(ServerWorld world, MarkType type, double x, double y, double z) {
+        // 使用彩色尘埃粒子
+        world.spawnParticles(new net.minecraft.particle.DustParticleEffect(
+                new org.joml.Vector3f(
+                        ((type.color >> 16) & 0xFF) / 255.0f,
+                        ((type.color >> 8) & 0xFF) / 255.0f,
+                        (type.color & 0xFF) / 255.0f
+                ), 1.0f),
+                x, y, z, 1, 0, 0, 0, 0);
     }
 
     /** 检查是否已至少标记必要点位（普通商店/升级商店/铁/金各 ≥1）。 */
@@ -288,6 +329,31 @@ public final class BedWarsEditor {
             }
         }
         return best;
+    }
+
+    /** 每 tick 为所有编辑会话的标记生成粒子（持续显示）。 */
+    public static void tickParticles() {
+        for (Session session : SESSIONS.values()) {
+            if (session.data == null || session.marks.isEmpty()) {
+                continue;
+            }
+            // 获取世界（从第一个标记点所在的世界）
+            World world = null;
+            for (BlockPos pos : session.marks.keySet()) {
+                // 从服务器获取竞技场世界
+                if (com.example.pvp.PvPMod.SERVER != null) {
+                    world = com.example.pvp.PvPMod.SERVER.getWorld(
+                            com.example.pvp.arena.ArenaWorldManager.ARENA_WORLD_KEY);
+                }
+                break;
+            }
+            if (world == null) {
+                continue;
+            }
+            for (Map.Entry<BlockPos, MarkType> e : session.marks.entrySet()) {
+                spawnMarkParticles(world, e.getKey(), e.getValue());
+            }
+        }
     }
 
     private static int distSqXZ(BlockPos a, BlockPos b) {

@@ -801,7 +801,7 @@ public final class PvPCommands {
         // 发放标记物品 + 飞行
         player.getInventory().clear();
         player.getInventory().setStack(0, markItem(net.minecraft.item.Items.STICK, "§a普通商店标记"));
-        player.getInventory().setStack(1, markItem(net.minecraft.item.Items.IRON_SWORD, "§5团队升级商店标记"));
+        player.getInventory().setStack(1, markItem(net.minecraft.item.Items.BLAZE_ROD, "§5团队升级商店标记"));
         player.getInventory().setStack(2, markItem(net.minecraft.item.Items.IRON_INGOT, "§f铁生成点标记"));
         player.getInventory().setStack(3, markItem(net.minecraft.item.Items.GOLD_INGOT, "§6金生成点标记"));
         player.getInventory().setStack(4, markItem(net.minecraft.item.Items.DIAMOND, "§b钻石生成点标记（中央岛）"));
@@ -817,7 +817,7 @@ public final class PvPCommands {
         player.sendMessage(Messages.info("地图 §e" + mapDir.getFileName() + "§r 已加载，检测到 §e"
                 + session.beds.size() + "§r 张床"), false);
         player.sendMessage(Messages.info("§7左键标记 / 右键取消标记，标记点放在点击方块上方§r"), false);
-        player.sendMessage(Messages.info("§a木棍§r=普通商店  §5铁剑§r=团队升级商店  §f铁锭§r=铁  §6金锭§r=金"), false);
+        player.sendMessage(Messages.info("§a木棍§r=普通商店  §5烈焰棒§r=团队升级商店  §f铁锭§r=铁  §6金锭§r=金"), false);
         player.sendMessage(Messages.info("§b钻石§r=钻石点  §a绿宝石§r=绿宝石点  §c纸§r=保存退出"), false);
         player.sendMessage(Messages.gold("队伍性质点（商店/升级商店/铁/金）保存时自动认领最近的床"), false);
         return 1;
@@ -838,7 +838,7 @@ public final class PvPCommands {
             return 0;
         }
         if (!BedWarsEditor.isReady(session)) {
-            player.sendMessage(Messages.warn("标记不完整！需至少标记：普通商店(木棍)、升级商店(铁剑)、铁点(铁锭)、金点(金锭)"), false);
+            player.sendMessage(Messages.warn("标记不完整！需至少标记：普通商店(木棍)、升级商店(烈焰棒)、铁点(铁锭)、金点(金锭)"), false);
             return 0;
         }
         if (BedWarsEditor.save(session)) {

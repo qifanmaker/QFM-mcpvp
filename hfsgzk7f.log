@@ -1,0 +1,318 @@
+[13:19:28] [main/INFO]: Loading Minecraft 1.21.1 with Fabric Loader 0.18.4
+[13:19:28] [ForkJoinPool-1-worker-6/WARN]: Mod com_github_shevek_parallelgzip uses the version af5f5c297e735f3f2df7aa4eb0e19a5810b8aff6 which isn't compatible with Loader's extended semantic version format (Could not parse version number component 'af5f5c297e735f3f2df7aa4eb0e19a5810b8aff6'!), SemVer is recommended for reliably evaluating dependencies and prioritizing newer version
+[13:19:28] [main/WARN]: Warnings were found!
+ - 模组 'Textile Backup' (textile_backup) 3.1.3-1.21 建议安装 modmenu 的 任意版本，但没有安装它！
+	 - 为了最佳体验，您应该安装 modmenu 的 任意版本。
+[13:19:28] [main/INFO]: Loading 68 mods:
+	- cloth-config 15.0.140
+	   \-- cloth-basic-math 0.6.1
+	- easyauth 3.3.6
+	   |-- at_favre_lib_bcrypt 0.10.2
+	   |-- at_favre_lib_bytes 1.6.1
+	   |-- com_mysql_mysql-connector-j 9.2.0
+	   |-- de_mkammerer_argon2-jvm 2.12
+	   |-- de_mkammerer_argon2-jvm-nolibs 2.12
+	   |-- net_java_dev_jna_jna 5.16.0
+	   |-- org_iq80_leveldb_leveldb 0.12
+	   |-- org_iq80_leveldb_leveldb-api 0.12
+	   |-- org_mongodb_bson 5.3.1
+	   |-- org_mongodb_mongodb-driver-core 5.3.1
+	   |-- org_mongodb_mongodb-driver-sync 5.3.1
+	   |-- org_xerial_sqlite-jdbc 3.49.1.0
+	   \-- server_translations_api 2.3.1+1.21-pre2
+	        \-- packet_tweaker 0.5.1+24w03b
+	- fabric-api 0.116.15+1.21.1
+	   |-- fabric-api-base 0.4.42+6573ed8c19
+	   |-- fabric-api-lookup-api-v1 1.6.72+7b3d111d19
+	   |-- fabric-biome-api-v1 13.0.31+d527f9fd19
+	   |-- fabric-block-api-v1 1.1.0+0bc3503219
+	   |-- fabric-block-view-api-v2 1.0.11+ebb2264e19
+	   |-- fabric-blockrenderlayer-v1 1.1.52+0af3f5a719
+	   |-- fabric-client-tags-api-v1 1.2.0+1eb36c0719
+	   |-- fabric-command-api-v1 1.2.49+f71b366f19
+	   |-- fabric-command-api-v2 2.2.28+6ced4dd919
+	   |-- fabric-commands-v0 0.2.66+df3654b319
+	   |-- fabric-content-registries-v0 8.0.19+b559734419
+	   |-- fabric-convention-tags-v1 2.1.7+7f945d5b19
+	   |-- fabric-convention-tags-v2 2.12.0+c3656daa19
+	   |-- fabric-crash-report-info-v1 0.2.29+0af3f5a719
+	   |-- fabric-data-attachment-api-v1 1.4.7+5b36e0f719
+	   |-- fabric-data-generation-api-v1 20.3.0+1eb36c0719
+	   |-- fabric-dimensions-v1 4.0.1+65213ef819
+	   |-- fabric-entity-events-v1 1.8.0+2b27e0a419
+	   |-- fabric-events-interaction-v0 0.7.14+ba9dae0619
+	   |-- fabric-game-rule-api-v1 1.0.53+6ced4dd919
+	   |-- fabric-item-api-v1 11.3.0+467044f319
+	   |-- fabric-item-group-api-v1 4.1.7+def88e3a19
+	   |-- fabric-key-binding-api-v1 1.0.47+0af3f5a719
+	   |-- fabric-keybindings-v0 0.2.45+df3654b319
+	   |-- fabric-lifecycle-events-v1 2.6.0+0865547519
+	   |-- fabric-loot-api-v2 3.0.15+3f89f5a519
+	   |-- fabric-loot-api-v3 1.0.3+3f89f5a519
+	   |-- fabric-message-api-v1 6.0.14+8aaf3aca19
+	   |-- fabric-model-loading-api-v1 2.1.0+b4d813fc19
+	   |-- fabric-networking-api-v1 4.3.1+d30f6a7919
+	   |-- fabric-object-builder-api-v1 15.2.1+40875a9319
+	   |-- fabric-particles-v1 4.0.2+6573ed8c19
+	   |-- fabric-recipe-api-v1 5.0.16+2475392c19
+	   |-- fabric-registry-sync-v0 5.3.2+e3eddc2119
+	   |-- fabric-renderer-api-v1 3.4.1+b4d813fc19
+	   |-- fabric-renderer-indigo 1.7.1+c705a49c19
+	   |-- fabric-renderer-registries-v1 3.2.69+df3654b319
+	   |-- fabric-rendering-data-attachment-v1 0.3.49+73761d2e19
+	   |-- fabric-rendering-fluids-v1 3.1.6+1daea21519
+	   |-- fabric-rendering-v0 1.1.72+df3654b319
+	   |-- fabric-rendering-v1 5.1.0+ab4c25a019
+	   |-- fabric-resource-conditions-api-v1 4.3.0+8dc279b119
+	   |-- fabric-resource-loader-v0 1.3.1+5b5275af19
+	   |-- fabric-screen-api-v1 2.0.26+639b4c0719
+	   |-- fabric-screen-handler-api-v1 1.3.91+b559734419
+	   |-- fabric-sound-api-v1 1.0.23+6573ed8c19
+	   |-- fabric-tag-api-v1 1.3.0+1eb36c0719
+	   |-- fabric-transfer-api-v1 5.4.4+7b3d111d19
+	   \-- fabric-transitive-access-wideners-v1 6.2.0+45b9699719
+	- fabricloader 0.18.4
+	   \-- mixinextras 0.5.0
+	- java 21
+	- lithium 0.15.1+mc1.21.1
+	- minecraft 1.21.1
+	- player-locator-plus 2.2.0
+	- pvp 1.0.0
+	- skinrestorer 2.4.3+1.21-fabric
+	   \-- org_mineskin_java-client 3.0.6-SNAPSHOT
+	- textile_backup 3.1.3-1.21
+	   |-- com_github_shevek_parallelgzip af5f5c297e735f3f2df7aa4eb0e19a5810b8aff6
+	   |-- org_apache_commons_commons-compress 1.26.1
+	   \-- org_tukaani_xz 1.9
+[13:19:28] [main/INFO]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/E:/mc/121-pvp/libraries/net/fabricmc/sponge-mixin/0.17.0+mixin.0.8.7/sponge-mixin-0.17.0+mixin.0.8.7.jar Service=Knot/Fabric Env=SERVER
+[13:19:29] [main/INFO]: Compatibility level set to JAVA_17
+[13:19:29] [main/INFO]: Compatibility level set to JAVA_21
+[13:19:29] [main/INFO]: Option 'mixin.entity.collisions.fluid' requires 'mixin.util.block_tracking=true' but found 'false'. Setting 'mixin.entity.collisions.fluid=false'.
+[13:19:29] [main/INFO]: Option 'mixin.experimental.entity.block_caching.block_support' requires 'mixin.util.block_tracking=true' but found 'false'. Setting 'mixin.experimental.entity.block_caching.block_support=false'.
+[13:19:29] [main/INFO]: Option 'mixin.experimental.entity.block_caching.fluid_pushing' requires 'mixin.util.block_tracking=true' but found 'false'. Setting 'mixin.experimental.entity.block_caching.fluid_pushing=false'.
+[13:19:29] [main/INFO]: Option 'mixin.experimental.entity.block_caching.block_touching' requires 'mixin.util.block_tracking=true' but found 'false'. Setting 'mixin.experimental.entity.block_caching.block_touching=false'.
+[13:19:29] [main/INFO]: Option 'mixin.experimental.entity.block_caching.suffocation' requires 'mixin.util.block_tracking=true' but found 'false'. Setting 'mixin.experimental.entity.block_caching.suffocation=false'.
+[13:19:29] [main/INFO]: Option 'mixin.experimental.entity.block_caching' requires 'mixin.util.block_tracking=true' but found 'false'. Setting 'mixin.experimental.entity.block_caching=false'.
+[13:19:29] [main/INFO]: Loaded configuration file for Lithium: 149 options available, 0 override(s) found
+[13:19:30] [main/INFO]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.0).
+[13:19:39] [main/INFO]: [EasyAuth]: EasyAuth mod by NikitaCartes
+[13:19:40] [main/INFO]: hi!
+[13:19:40] [main/INFO]: [PvP] 正在初始化 PvP 匹配 Mod...
+[13:19:40] [main/INFO]: [PvP] 已加载 9 套装备方案
+[13:19:40] [main/INFO]: [PvP] 初始化完成。使用 /pvp join <模式> <套件> 加入匹配，/duel <玩家> 发起决斗。
+[13:19:40] [main/INFO]: [Textile Backup] Starting Textile Backup 3.1.3-1.21:1.21.1 by Szum123321
+[13:19:40] [main/INFO]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[13:19:42] [main/INFO]: Loaded 1290 recipes
+[13:19:42] [main/INFO]: Loaded 1399 advancements
+[13:19:42] [ForkJoinPool.commonPool-worker-1/INFO]: Loaded 44 translation keys
+[13:19:43] [main/INFO]: Applied 0 biome modifications to 0 of 64 new biomes in 2.279 ms
+[13:19:43] [Server thread/INFO]: Starting minecraft server version 1.21.1
+[13:19:43] [Server thread/INFO]: Loading properties
+[13:19:43] [Server thread/INFO]: Default game type: SURVIVAL
+[13:19:43] [Server thread/INFO]: Generating keypair
+[13:19:43] [Server thread/INFO]: Starting Minecraft server on *:25565
+[13:19:43] [Server thread/INFO]: Using default channel type
+[13:19:43] [Server thread/WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[13:19:43] [Server thread/WARN]: The server will make no attempt to authenticate usernames. Beware.
+[13:19:43] [Server thread/WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[13:19:43] [Server thread/WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[13:19:43] [Server thread/INFO]: Preparing level "world"
+[13:19:44] [Server thread/INFO]: Preparing start region for dimension minecraft:overworld
+[13:19:44] [Worker-Main-4/INFO]: Preparing spawn area: 0%
+[13:19:44] [Server thread/INFO]: Time elapsed: 350 ms
+[13:19:44] [Server thread/INFO]: Done (0.675s)! For help, type "help"
+[13:19:44] [Server thread/WARN]: [EasyAuth]: Disable enforce-secure-profile to allow offline players to join the server
+[13:19:44] [Server thread/WARN]: [EasyAuth]: For more info, see https://github.com/NikitaCartes/EasyAuth/issues/68
+[13:19:44] [Server thread/INFO]: [PvP] 竞技场世界已创建: pvp:arena
+[13:19:44] [Server thread/INFO]: [PvP] 已加载 9 套装备方案
+[13:19:44] [Server thread/INFO]: [PvP] 服务器已就绪，PvP 竞技场可用
+[13:19:46] [Server thread/INFO]: [STDOUT]: Lithium Cached BlockState Flags are disabled!
+[13:19:46] [Server thread/INFO]: qifanmaker[/111.75.6.38:59414] logged in with entity id 10 at (25.087445326415974, -60.0, 3.904397044400869)
+[13:19:46] [Server thread/INFO]: qifanmaker joined the game
+[13:19:47] [Server thread/INFO]: xzyakioi[/111.75.6.38:64154] logged in with entity id 18 at (33.20379017764553, 109.74971791880037, 33.59081793576507)
+[13:19:47] [Server thread/INFO]: xzyakioi joined the game
+[13:19:47] [Server thread/INFO]: Nya[/111.75.6.38:52941] logged in with entity id 19 at (48.16814100844213, 101.0, 29.404081987188363)
+[13:19:47] [Server thread/INFO]: Nya joined the game
+[13:19:49] [Server thread/INFO]: DRheEheAM[/111.75.6.38:50281] logged in with entity id 25 at (-13.490295425922332, -51.833890739061786, -11.268830980070142)
+[13:19:49] [Server thread/INFO]: DRheEheAM joined the game
+[13:19:53] [Server thread/INFO]: [PvP] BedWars 地图已加载: 140238 方块, 32 方块实体, 大厅 class_2338{x=0, y=148, z=0}
+[13:19:55] [Server thread/INFO]: [PvP] BedWars 地图写入竞技场: 140238 方块, 32 方块实体
+[13:19:55] [Server thread/WARN]: Can't keep up! Is the server overloaded? Running 2212ms or 44 ticks behind
+[13:20:00] [Server thread/INFO]: [xzyakioi: Set own game mode to Creative Mode]
+[13:20:01] [Server thread/INFO]: [xzyakioi: Set own game mode to Survival Mode]
+[13:20:08] [Server thread/INFO]: [PvP] BedWars 地图已加载: 120969 方块, 56 方块实体, 大厅 class_2338{x=0, y=118, z=0}
+[13:20:09] [Server thread/INFO]: [PvP] BedWars 地图写入竞技场: 120969 方块, 56 方块实体
+[13:20:09] [Server thread/WARN]: qifanmaker moved too quickly! -0.01230795489391312,-0.3222111197759716,10.104188651906128
+[13:20:09] [Server thread/WARN]: Nya moved too quickly! -6.873949765511625,0.24813599859094637,7.378852254758778
+[13:20:37] [Server thread/INFO]: [xzyakioi: Set own game mode to Survival Mode]
+[13:20:39] [Server thread/INFO]: [xzyakioi: Set own game mode to Creative Mode]
+[13:20:58] [Server thread/INFO]: [PvP] 幸运之柱地图已生成: 2 根基岩柱 + 平台（Y 101，半径 9，风格 LEAVES）
+[13:21:18] [Server thread/INFO]: [PvP] 比赛 #0 已结束并清理
+[13:21:25] [Server thread/INFO]: [PvP] 幸运之柱地图已生成: 2 根基岩柱 + 平台（Y 101，半径 9，风格 SAND_CACTUS）
+[13:21:42] [Server thread/INFO]: DRheEheAM lost connection: Disconnected
+[13:21:42] [Server thread/INFO]: DRheEheAM left the game
+[13:22:26] [Server thread/INFO]: DRheEheAM[/111.75.6.38:56516] logged in with entity id 407 at (253501.01084725157, 118.0, 181.46473198014567)
+[13:22:26] [Server thread/INFO]: DRheEheAM joined the game
+[13:22:53] [Server thread/INFO]: [PvP] 比赛 #1 已结束并清理
+[13:22:58] [Server thread/INFO]: qifanmaker lost connection: Disconnected
+[13:22:58] [Server thread/INFO]: qifanmaker left the game
+[13:23:00] [Server thread/INFO]: qifanmaker[/111.75.6.38:59524] logged in with entity id 516 at (-4.699999988079071, -60.0, 14.71817987906542)
+[13:23:00] [Server thread/INFO]: qifanmaker joined the game
+[13:23:03] [Server thread/INFO]: [PvP] 幸运之柱地图已生成: 4 根基岩柱 + 平台（Y 101，半径 11，风格 TRAPDOOR）
+[13:24:03] [Server thread/ERROR]: Encountered an unexpected exception
+java.util.ConcurrentModificationException: null
+	at java.base/java.util.ArrayList$Itr.checkForComodification(ArrayList.java:1095) ~[?:?]
+	at java.base/java.util.ArrayList$Itr.next(ArrayList.java:1049) ~[?:?]
+	at knot/net.minecraft.class_3509.createAllOfType(class_3509.java:2045) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_3509.method_15216(class_3509.java:2036) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_5572.method_31762(class_5572.java:44) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_5573.method_31778(class_5573.java:126) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_5573.consumeSection(class_5573.java:593) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_5573.forEachInColumn(class_5573.java:574) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_5573.handler$znp000$lithium$forEachInBox(class_5573.java:556) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_5573.method_31777(class_5573.java:54) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_5573.method_31773(class_5573.java:126) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_5578.method_31805(class_5578.java:48) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_1937.method_47575(class_1937.java:725) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_1937.method_47574(class_1937.java:719) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_1937.method_18023(class_1937.java:714) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_1924.method_8390(class_1924.java:27) ~[server-intermediary.jar:?]
+	at knot/com.example.pvp.match.Match.tickGhosts(Match.java:579) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.match.Match.tick(Match.java:556) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.match.MatchManager.tick(MatchManager.java:139) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.PvPMod.lambda$onInitialize$3(PvPMod.java:167) ~[ys0rplsy.jar:?]
+	at knot/net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.lambda$static$2(ServerTickEvents.java:43) ~[fabric-lifecycle-events-v1-2.6.0+0865547519-d987a236c76efa0e.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.handler$zfd000$fabric-lifecycle-events-v1$onEndTick(MinecraftServer.java:2663) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_3748(MinecraftServer.java:940) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_29741(MinecraftServer.java:697) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_29739(MinecraftServer.java:281) ~[server-intermediary.jar:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+[13:24:03] [Server thread/ERROR]: This crash report has been saved to: E:\mc\121-pvp\crash-reports\crash-2026-09-01_13.24.03-server.txt
+[13:24:03] [Server thread/WARN]: [PvP] 无法删除文件 .\world\dimensions\pvp\arena\region
+java.nio.file.DirectoryNotEmptyException: .\world\dimensions\pvp\arena\region
+	at java.base/sun.nio.fs.WindowsFileSystemProvider.implDelete(WindowsFileSystemProvider.java:270) ~[?:?]
+	at java.base/sun.nio.fs.AbstractFileSystemProvider.deleteIfExists(AbstractFileSystemProvider.java:109) ~[?:?]
+	at java.base/java.nio.file.Files.deleteIfExists(Files.java:1191) ~[?:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.lambda$deleteDirectory$4(ArenaWorldManager.java:364) ~[ys0rplsy.jar:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184) ~[?:?]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596) ~[?:?]
+	at java.base/java.util.stream.SortedOps$RefSortingSink.end(SortedOps.java:395) ~[?:?]
+	at java.base/java.util.stream.Sink$ChainedReference.end(Sink.java:261) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596) ~[?:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.deleteDirectory(ArenaWorldManager.java:362) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.onServerStopping(ArenaWorldManager.java:159) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.PvPMod.lambda$onInitialize$2(PvPMod.java:162) ~[ys0rplsy.jar:?]
+	at knot/net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.lambda$static$4(ServerLifecycleEvents.java:63) ~[fabric-lifecycle-events-v1-2.6.0+0865547519-d987a236c76efa0e.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.handler$zfd000$fabric-lifecycle-events-v1$beforeShutdownServer(MinecraftServer.java:2648) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_3782(MinecraftServer.java) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_3176.method_3782(class_3176.java:561) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_29741(MinecraftServer.java:735) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_29739(MinecraftServer.java:281) ~[server-intermediary.jar:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+[13:24:03] [Server thread/WARN]: [PvP] 无法删除文件 .\world\dimensions\pvp\arena\poi
+java.nio.file.DirectoryNotEmptyException: .\world\dimensions\pvp\arena\poi
+	at java.base/sun.nio.fs.WindowsFileSystemProvider.implDelete(WindowsFileSystemProvider.java:270) ~[?:?]
+	at java.base/sun.nio.fs.AbstractFileSystemProvider.deleteIfExists(AbstractFileSystemProvider.java:109) ~[?:?]
+	at java.base/java.nio.file.Files.deleteIfExists(Files.java:1191) ~[?:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.lambda$deleteDirectory$4(ArenaWorldManager.java:364) ~[ys0rplsy.jar:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184) ~[?:?]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596) ~[?:?]
+	at java.base/java.util.stream.SortedOps$RefSortingSink.end(SortedOps.java:395) ~[?:?]
+	at java.base/java.util.stream.Sink$ChainedReference.end(Sink.java:261) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596) ~[?:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.deleteDirectory(ArenaWorldManager.java:362) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.onServerStopping(ArenaWorldManager.java:159) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.PvPMod.lambda$onInitialize$2(PvPMod.java:162) ~[ys0rplsy.jar:?]
+	at knot/net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.lambda$static$4(ServerLifecycleEvents.java:63) ~[fabric-lifecycle-events-v1-2.6.0+0865547519-d987a236c76efa0e.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.handler$zfd000$fabric-lifecycle-events-v1$beforeShutdownServer(MinecraftServer.java:2648) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_3782(MinecraftServer.java) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_3176.method_3782(class_3176.java:561) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_29741(MinecraftServer.java:735) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_29739(MinecraftServer.java:281) ~[server-intermediary.jar:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+[13:24:03] [Server thread/WARN]: [PvP] 无法删除文件 .\world\dimensions\pvp\arena\entities
+java.nio.file.DirectoryNotEmptyException: .\world\dimensions\pvp\arena\entities
+	at java.base/sun.nio.fs.WindowsFileSystemProvider.implDelete(WindowsFileSystemProvider.java:270) ~[?:?]
+	at java.base/sun.nio.fs.AbstractFileSystemProvider.deleteIfExists(AbstractFileSystemProvider.java:109) ~[?:?]
+	at java.base/java.nio.file.Files.deleteIfExists(Files.java:1191) ~[?:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.lambda$deleteDirectory$4(ArenaWorldManager.java:364) ~[ys0rplsy.jar:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184) ~[?:?]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596) ~[?:?]
+	at java.base/java.util.stream.SortedOps$RefSortingSink.end(SortedOps.java:395) ~[?:?]
+	at java.base/java.util.stream.Sink$ChainedReference.end(Sink.java:261) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596) ~[?:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.deleteDirectory(ArenaWorldManager.java:362) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.onServerStopping(ArenaWorldManager.java:159) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.PvPMod.lambda$onInitialize$2(PvPMod.java:162) ~[ys0rplsy.jar:?]
+	at knot/net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.lambda$static$4(ServerLifecycleEvents.java:63) ~[fabric-lifecycle-events-v1-2.6.0+0865547519-d987a236c76efa0e.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.handler$zfd000$fabric-lifecycle-events-v1$beforeShutdownServer(MinecraftServer.java:2648) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_3782(MinecraftServer.java) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_3176.method_3782(class_3176.java:561) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_29741(MinecraftServer.java:735) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_29739(MinecraftServer.java:281) ~[server-intermediary.jar:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+[13:24:03] [Server thread/WARN]: [PvP] 无法删除文件 .\world\dimensions\pvp\arena
+java.nio.file.DirectoryNotEmptyException: .\world\dimensions\pvp\arena
+	at java.base/sun.nio.fs.WindowsFileSystemProvider.implDelete(WindowsFileSystemProvider.java:270) ~[?:?]
+	at java.base/sun.nio.fs.AbstractFileSystemProvider.deleteIfExists(AbstractFileSystemProvider.java:109) ~[?:?]
+	at java.base/java.nio.file.Files.deleteIfExists(Files.java:1191) ~[?:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.lambda$deleteDirectory$4(ArenaWorldManager.java:364) ~[ys0rplsy.jar:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184) ~[?:?]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596) ~[?:?]
+	at java.base/java.util.stream.SortedOps$RefSortingSink.end(SortedOps.java:395) ~[?:?]
+	at java.base/java.util.stream.Sink$ChainedReference.end(Sink.java:261) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:510) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151) ~[?:?]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174) ~[?:?]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234) ~[?:?]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596) ~[?:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.deleteDirectory(ArenaWorldManager.java:362) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.arena.ArenaWorldManager.onServerStopping(ArenaWorldManager.java:159) ~[ys0rplsy.jar:?]
+	at knot/com.example.pvp.PvPMod.lambda$onInitialize$2(PvPMod.java:162) ~[ys0rplsy.jar:?]
+	at knot/net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.lambda$static$4(ServerLifecycleEvents.java:63) ~[fabric-lifecycle-events-v1-2.6.0+0865547519-d987a236c76efa0e.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.handler$zfd000$fabric-lifecycle-events-v1$beforeShutdownServer(MinecraftServer.java:2648) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_3782(MinecraftServer.java) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.class_3176.method_3782(class_3176.java:561) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_29741(MinecraftServer.java:735) ~[server-intermediary.jar:?]
+	at knot/net.minecraft.server.MinecraftServer.method_29739(MinecraftServer.java:281) ~[server-intermediary.jar:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+[13:24:03] [Server thread/INFO]: Stopping server
+[13:24:03] [Server thread/INFO]: Saving players
+[13:24:03] [Server thread/INFO]: xzyakioi lost connection: Server closed
+[13:24:03] [Server thread/INFO]: xzyakioi left the game
+[13:24:03] [Server thread/INFO]: qifanmaker lost connection: Server closed
+[13:24:03] [Server thread/INFO]: qifanmaker left the game
+[13:24:03] [Server thread/INFO]: Saving worlds
+[13:24:03] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[13:24:03] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[13:24:03] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[13:24:03] [Server thread/INFO]: Saving chunks for level 'ServerLevel[world]'/pvp:arena
+[13:24:03] [Server thread/INFO]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[13:24:03] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[13:24:03] [Server thread/INFO]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[13:24:03] [Server thread/INFO]: ThreadedAnvilChunkStorage (arena): All chunks are saved
+[13:24:03] [Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved
+[13:24:03] [Server thread/INFO]: [EasyAuth]: Shutting down EasyAuth.
+[13:24:03] [Server thread/INFO]: [EasyAuth]: SQLite database connection closed successfully.
+[13:24:03] [Server thread/INFO]: [Textile Backup] Warning! Server backup will begin shortly. You may experience some lag.
+[13:24:03] [Server thread/INFO]: [Textile Backup] Backup started by: Server Shutdown on: 2026.09.01_13-24-03
+[13:24:03] [Server thread/INFO]: [Textile Backup] Starting backup
+[13:24:03] [Server thread/INFO]: [Textile Backup] Compression took: 00.429 seconds.
+[13:24:03] [Server thread/INFO]: [Textile Backup] Deleted: E:\mc\121-pvp\backup\world\2026.08.31_14-12-05#shutdown.zip
+[13:24:03] [Server thread/INFO]: [Textile Backup] Done!
