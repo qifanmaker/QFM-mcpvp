@@ -576,8 +576,10 @@ public final class Match {
                     || !arena.getBlockState(feet.down()).isAir()
                     || !arena.getBlockState(feet.down(2)).isAir();
             // 2) 附近有掉落物（幽灵会吸取）→ 弹开
-            boolean itemsNearby = !arena.getEntitiesByClass(ItemEntity.class,
-                    online.getBoundingBox().expand(1.0), e -> true).isEmpty();
+            // 注意：getEntitiesByClass 内部遍历可能因实体变动抛 ConcurrentModificationException，先复制结果
+            List<ItemEntity> nearbyItems = new ArrayList<>(arena.getEntitiesByClass(ItemEntity.class,
+                    online.getBoundingBox().expand(1.0), e -> true));
+            boolean itemsNearby = !nearbyItems.isEmpty();
             if (solidBelow || itemsNearby) {
                 this.knockGhostAway(online);
             }
