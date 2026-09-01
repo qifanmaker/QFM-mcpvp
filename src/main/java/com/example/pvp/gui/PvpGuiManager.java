@@ -568,6 +568,57 @@ public final class PvpGuiManager {
         });
     }
 
+    /** OP 立即开始时的幸运之柱地图选择页（仅排队幸运之柱时出现）。 */
+    private void openLuckyPillarMapPage(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.LUCKY_PILLAR_MAP;
+        this.openPage(player, ctx, "§6选择幸运之柱地图（立即开始）", inv -> {
+            com.example.pvp.arena.luckypillar.LuckyPillarLayout.PlatformStyle[] styles =
+                    com.example.pvp.arena.luckypillar.LuckyPillarLayout.PlatformStyle.values();
+            int slot = 9;
+            for (com.example.pvp.arena.luckypillar.LuckyPillarLayout.PlatformStyle style : styles) {
+                if (slot >= 26) {
+                    break;
+                }
+                inv.setStack(slot++, makeButton(iconForLuckyPillarStyle(style), "§e" + style.getDisplayName(), "点击指定该地图"));
+            }
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+        });
+    }
+
+    /** OP 立即开始时的床战地图选择页（仅排队床战时出现）。 */
+    private void openBedwarsMapPage(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.BEDWARS_MAP;
+        this.openPage(player, ctx, "§6选择床战地图（立即开始）", inv -> {
+            java.util.List<java.nio.file.Path> maps = com.example.pvp.arena.bedwars.BedWarsMaps.listMaps();
+            int slot = 9;
+            for (java.nio.file.Path mapDir : maps) {
+                if (slot >= 26) {
+                    break;
+                }
+                inv.setStack(slot++, makeButton(Items.RED_BED, "§e" + mapDir.getFileName().toString(), "点击指定该地图"));
+            }
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+        });
+    }
+
+    /** 幸运之柱地图风格对应的展示图标。 */
+    private static net.minecraft.item.Item iconForLuckyPillarStyle(com.example.pvp.arena.luckypillar.LuckyPillarLayout.PlatformStyle style) {
+        return switch (style) {
+            case MAGMA -> Items.MAGMA_BLOCK;
+            case LAVA_CAULDRON -> Items.CAULDRON;
+            case SNOW_POWDER -> Items.SNOW_BLOCK;
+            case COBWEB -> Items.COBWEB;
+            case SAND_CACTUS -> Items.CACTUS;
+            case LEAVES -> Items.OAK_LEAVES;
+            case TRAPDOOR -> Items.OAK_TRAPDOOR;
+            case SLAB -> Items.SMOOTH_STONE_SLAB;
+            case SLIME_HONEY -> Items.SLIME_BLOCK;
+            case VOID -> Items.BLACK_STAINED_GLASS;
+        };
+    }
+
     private void openKitInfoPage(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.KIT_INFO;
@@ -607,6 +658,8 @@ public final class PvpGuiManager {
             case KIT -> this.onClickKit(player, ctx, slotIndex);
             case DUEL_TARGET -> this.onClickDuelTarget(player, ctx, slotIndex);
             case THEME -> this.onClickTheme(player, ctx, slotIndex);
+            case LUCKY_PILLAR_MAP -> this.onClickLuckyPillarMap(player, ctx, slotIndex);
+            case BEDWARS_MAP -> this.onClickBedwarsMap(player, ctx, slotIndex);
             case STATS, KIT_INFO -> {
                 if (slotIndex == 26) {
                     this.openMainMenu(player);
@@ -636,10 +689,14 @@ public final class PvpGuiManager {
             case 15 -> this.openStatsPage(player);
             case 16 -> this.openKitInfoPage(player);
             case 21 -> {
-                // OP 立即开始：排队空岛战争时可先选主题，其余模式直接开
+                // OP 立即开始：排队空岛/幸运之柱/床战时可先选地图/主题，其余模式直接开
                 QueueEntry entry = PvPMod.QUEUE.getEntry(player);
                 if (entry != null && entry.getType() == MatchType.SKYWARS) {
                     this.openThemePage(player);
+                } else if (entry != null && entry.getType() == MatchType.LUCKY_PILLAR) {
+                    this.openLuckyPillarMapPage(player);
+                } else if (entry != null && entry.getType().isBedWars()) {
+                    this.openBedwarsMapPage(player);
                 } else {
                     this.doForceStart(player);
                 }
@@ -795,6 +852,41 @@ public final class PvpGuiManager {
         this.doForceStart(player);
     }
 
+    /** 幸运之柱地图选择页点击：选地图 → 立即开赛。 */
+    private void onClickLuckyPillarMap(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        com.example.pvp.arena.luckypillar.LuckyPillarLayout.PlatformStyle[] styles =
+                com.example.pvp.arena.luckypillar.LuckyPillarLayout.PlatformStyle.values();
+        int index = slot - 9;
+        if (index < 0 || index >= styles.length) {
+            return;
+        }
+        if (PvPMod.MATCH != null) {
+            PvPMod.MATCH.setNextLuckyPillarStyle(styles[index]);
+        }
+        this.doForceStart(player);
+    }
+
+    /** 床战地图选择页点击：选地图 → 立即开赛。 */
+    private void onClickBedwarsMap(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        java.util.List<java.nio.file.Path> maps = com.example.pvp.arena.bedwars.BedWarsMaps.listMaps();
+        int index = slot - 9;
+        if (index < 0 || index >= maps.size()) {
+            return;
+        }
+        if (PvPMod.MATCH != null) {
+            PvPMod.MATCH.setNextBedwarsMap(maps.get(index).getFileName().toString());
+        }
+        this.doForceStart(player);
+    }
+
     /** OP 立即开赛：用当前队列人数开赛并返回主菜单。 */
     private void doForceStart(ServerPlayerEntity player) {
         if (PvPMod.QUEUE.forceStart(PvPMod.MATCH, player)) {
@@ -944,7 +1036,7 @@ public final class PvpGuiManager {
 
     private enum Page {
         MAIN, PVP_CATEGORY, BRIDGE_CATEGORY, GAMES_CATEGORY, BED_WARS_CATEGORY,
-        KIT, DUEL_TARGET, STATS, KIT_INFO, THEME
+        KIT, DUEL_TARGET, STATS, KIT_INFO, THEME, LUCKY_PILLAR_MAP, BEDWARS_MAP
     }
 
     private static final class GuiContext {
