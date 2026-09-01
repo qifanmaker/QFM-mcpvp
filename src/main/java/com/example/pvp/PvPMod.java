@@ -318,6 +318,23 @@ public final class PvPMod implements ModInitializer {
             throwTnt(sp, world, sp.getStackInHand(hand));
             return ActionResult.SUCCESS;
         });
+        // 床战对局中：记录玩家放置的方块位置（供赛后精确清理，避免扫整个区域太慢）
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (!(player instanceof ServerPlayerEntity sp) || hitResult == null || hitResult.getBlockPos() == null) {
+                return ActionResult.PASS;
+            }
+            if (MATCH == null) {
+                return ActionResult.PASS;
+            }
+            Match match = MATCH.getMatchFor(sp);
+            if (match == null || !match.getType().isBedWars() || match.getState() != MatchState.ACTIVE) {
+                return ActionResult.PASS;
+            }
+            // 预测放置位置（目标方块 + 点击面），记录到 bedWarsPlaced
+            BlockPos placePos = hitResult.getBlockPos().offset(hitResult.getSide());
+            match.recordBedwarsPlaced(placePos);
+            return ActionResult.PASS; // 不拦截，让原版放置
+        });
         // 床战地图标记模式：手持标记物品【右键】取消标记
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (!(player instanceof ServerPlayerEntity sp) || hitResult == null || hitResult.getBlockPos() == null) {

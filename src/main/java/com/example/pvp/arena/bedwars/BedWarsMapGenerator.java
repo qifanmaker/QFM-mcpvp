@@ -19,8 +19,9 @@ public final class BedWarsMapGenerator {
         BlockPos origin = new BlockPos(regionIndex * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
         BlockPos center = new BlockPos(origin.getX() + PvPConfig.INSTANCE.bedWarsSize / 2,
                 ArenaTemplate.PLATFORM_Y + 1, origin.getZ() + PvPConfig.INSTANCE.bedWarsSize / 2);
-        int minY = world.getBottomY();
-        int maxY = world.getTopY() - 1;
+        // Y 范围：平台下方一点到世界最高可搭建 Y（和其他模式一致），避免全高度扫描拖慢清场
+        int minY = ArenaTemplate.PLATFORM_Y - 16;
+        int maxY = Math.min(world.getTopY() - 1, ArenaTemplate.PLATFORM_Y + 320);
         for (int dx = -half; dx <= half; dx++) {
             for (int dz = -half; dz <= half; dz++) {
                 int x = center.getX() + dx;

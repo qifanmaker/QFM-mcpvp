@@ -2012,6 +2012,7 @@ public final class Match {
         if (this.bedWarsMapBlocks.contains(pos)) {
             return false;
         }
+        this.bedWarsPlaced.remove(pos); // 玩家破坏自己放置的方块，从记录中移除
         return true; // 玩家放置的方块可破坏
     }
 
@@ -2027,6 +2028,13 @@ public final class Match {
             }
         }
         return -1;
+    }
+
+    /** 床战：记录玩家放置的方块位置（供赛后精确清理）。 */
+    public void recordBedwarsPlaced(BlockPos pos) {
+        if (this.type.isBedWars()) {
+            this.bedWarsPlaced.add(pos);
+        }
     }
 
     /** 床战玩家死亡（PvPMod ALLOW_DEATH 调用）：床活 → 延迟重生；床死 → 淘汰。 */
@@ -2663,7 +2671,37 @@ public final class Match {
             } else if (this.hotPotatoLayout != null) {
                 mapMaxRadius = this.hotPotatoLayout.maxRadius;
             } else if (this.type.isBedWars()) {
-                mapMaxRadius = PvPConfig.INSTANCE.bedWarsSize / 2;
+                // 床战：精确清理（地图原始方块 + 玩家放置方块），避免扫整个区域太慢导致残留
+                ArenaWorld arena = this.manager.getArenaManager().getWorld();
+                if (arena != null) {
+                    for (BlockPos pos : this.bedWarsMapBlocks) {
+                        if (!arena.getBlockState(pos).isAir()) {
+                            arena.setBlockState(pos, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                        }
+                    }
+                    for (BlockPos pos : this.bedWarsPlaced) {
+                        if (!arena.getBlockState(pos).isAir()) {
+                            arena.setBlockState(pos, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                        }
+                    }
+                    // 清掉落物/实体（范围按地图实际半径）
+                    int spanX = this.bedWarsMapData != null && this.bedWarsMapData.min != null && this.bedWarsMapData.max != null
+                            ? this.bedWarsMapData.max.getX() - this.bedWarsMapData.min.getX() : PvPConfig.INSTANCE.bedWarsSize;
+                    int spanZ = this.bedWarsMapData != null && this.bedWarsMapData.min != null && this.bedWarsMapData.max != null
+                            ? this.bedWarsMapData.max.getZ() - this.bedWarsMapData.min.getZ() : PvPConfig.INSTANCE.bedWarsSize;
+                    int half = Math.max(spanX, spanZ) / 2 + 16;
+                    BlockPos center = this.template.getCenter(this.regionIndex);
+                    net.minecraft.util.math.Box box = new net.minecraft.util.math.Box(
+                            center.getX() - half, arena.getBottomY(), center.getZ() - half,
+                            center.getX() + half, arena.getTopY(), center.getZ() + half);
+                    for (net.minecraft.entity.Entity entity : arena.getEntitiesByClass(net.minecraft.entity.Entity.class, box,
+                            e -> !(e instanceof ServerPlayerEntity))) {
+                        entity.discard();
+                    }
+                }
+                this.manager.cleanupMatch(this);
+                LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
+                return; // 床战已精确清理，不走通用 clearArena
             } else {
                 mapMaxRadius = 0;
             }
