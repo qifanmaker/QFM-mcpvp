@@ -385,15 +385,15 @@ public final class PvPMod implements ModInitializer {
             }
             return ActionResult.PASS;
         });
-        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+        // 床战标记模式：手持标记物品【左键】标记（创造模式下左键破坏方块前触发）
+        PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
             if (player instanceof ServerPlayerEntity sp) {
                 if (MATCH != null && MATCH.isEliminated(sp.getUuid())) {
-                    return ActionResult.FAIL;
+                    return false;
                 }
-                // 床战标记模式：手持标记物品【左键】标记
                 BedWarsEditor.Session session = BedWarsEditor.get(sp.getUuid());
                 if (session != null) {
-                    BedWarsEditor.MarkType type = BedWarsEditor.markTypeOf(sp.getStackInHand(hand));
+                    BedWarsEditor.MarkType type = BedWarsEditor.markTypeOf(sp.getStackInHand(player.getActiveHand()));
                     if (type != null) {
                         if (BedWarsEditor.mark(session, type, pos, world)) {
                             sp.sendMessage(Messages.gold("§a已标记" + markTypeName(type)
@@ -401,11 +401,11 @@ public final class PvPMod implements ModInitializer {
                         } else {
                             sp.sendMessage(Messages.warn("该位置已有标记"), false);
                         }
-                        return ActionResult.SUCCESS;
+                        return false; // 阻止破坏方块
                     }
                 }
             }
-            return ActionResult.PASS;
+            return true;
         });
         // 幽灵造成的伤害全部拦截（含箭/投掷物，源攻击者为幽灵）
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
