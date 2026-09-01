@@ -128,14 +128,13 @@ public final class BedWarsEditor {
         return null;
     }
 
-    /** 开始编辑：加载地图、探测床、记录偏移。 */
-    public static Session start(Path mapDir, BlockPos arenaCenter) {
-        BedWarsMapLoader.MapData data = BedWarsMapLoader.load(mapDir);
+    /** 开始编辑：记录已加载的地图数据、探测床、记录偏移。 */
+    public static Session start(UUID playerUuid, Path mapDir, BedWarsMapLoader.MapData data, BlockPos arenaCenter) {
         List<BlockPos> beds = detectBeds(data);
         BlockPos center = centroid(beds);
         BlockPos offset = BedWarsMapPaster.offsetFor(data, arenaCenter);
         Session session = new Session(mapDir.getFileName().toString(), mapDir, data, beds, center, offset);
-        SESSIONS.put(UUID.randomUUID(), session);
+        SESSIONS.put(playerUuid, session);
         return session;
     }
 

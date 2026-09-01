@@ -790,8 +790,8 @@ public final class PvPCommands {
         BedWarsMapLoader.MapData data = BedWarsMapLoader.load(mapDir);
         BedWarsMapPaster.paste(arena, data, center);
 
-        // 开始编辑会话
-        BedWarsEditor.Session session = BedWarsEditor.start(mapDir, center);
+        // 开始编辑会话（传入已加载的数据，避免重复加载导致坐标不一致）
+        BedWarsEditor.Session session = BedWarsEditor.start(player.getUuid(), mapDir, data, center);
 
         // 传送到地图上空
         BlockPos lobby = data.lobbySpawn.add(BedWarsMapPaster.offsetFor(data, center));
@@ -807,7 +807,7 @@ public final class PvPCommands {
         player.getInventory().setStack(4, markItem(net.minecraft.item.Items.DIAMOND, "§b钻石生成点标记（中央岛）"));
         player.getInventory().setStack(5, markItem(net.minecraft.item.Items.EMERALD, "§a绿宝石生成点标记（中央岛）"));
         player.getInventory().setStack(8, markItem(net.minecraft.item.Items.PAPER, "§c保存并退出"));
-        player.changeGameMode(net.minecraft.world.GameMode.CREATIVE);
+        player.changeGameMode(net.minecraft.world.GameMode.ADVENTURE);
         player.getAbilities().allowFlying = true;
         player.getAbilities().flying = true;
         player.sendAbilitiesUpdate();

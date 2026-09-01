@@ -253,7 +253,8 @@ public final class BedWarsMapLoader {
             int baseZ = chunkZ * 16;
             int baseY = sectionY * 16;
             for (int i = 0; i < 4096; i++) {
-                out.put(new BlockPos(baseX + (i & 15), baseY + ((i >> 4) & 15), baseZ + ((i >> 8) & 15)), state);
+                // YZX 顺序：i = y*256 + z*16 + x
+                out.put(new BlockPos(baseX + (i & 15), baseY + ((i >> 8) & 15), baseZ + ((i >> 4) & 15)), state);
             }
             return;
         }
@@ -271,7 +272,8 @@ public final class BedWarsMapLoader {
             if (state.isAir()) {
                 continue;
             }
-            out.put(new BlockPos(baseX + (i & 15), baseY + ((i >> 4) & 15), baseZ + ((i >> 8) & 15)), state);
+            // YZX 顺序：i = y*256 + z*16 + x
+            out.put(new BlockPos(baseX + (i & 15), baseY + ((i >> 8) & 15), baseZ + ((i >> 4) & 15)), state);
         }
     }
 }
