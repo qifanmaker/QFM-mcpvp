@@ -2088,6 +2088,8 @@ public final class Match {
         player.setHealth(player.getMaxHealth());
         player.setFireTicks(0);
         player.fallDistance = 0;
+        // 清空物品栏：保留永久装备（盔甲+剪刀），工具/武器降级，其余清空
+        this.clearBedwarsInventory(player);
         // 3 秒抗性 V（100% 减伤）防围殴，之后正常
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 60, 4, false, false, false));
         this.bedWarsRespawnTicks.remove(player.getUuid());
@@ -2095,6 +2097,46 @@ public final class Match {
     }
 
     /** 床战右击商店实体（PvPMod UseEntityCallback 调用）：村民=普通商店，僵尸=升级商店。 */
+
+    /** 床战死亡后清空物品栏：保留永久装备（盔甲+剪刀），工具/武器降级，其余清空。 */
+    private void clearBedwarsInventory(ServerPlayerEntity player) {
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.main.size(); i++) {
+            ItemStack stack = inventory.main.get(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            if (stack.isOf(Items.SHEARS)) {
+                continue; // 永久剪刀保留
+            }
+            // 工具/武器降级：钻石→铁→石→木→无
+            Item downgraded = downgradeTool(stack.getItem());
+            inventory.main.set(i, downgraded != null ? new ItemStack(downgraded) : ItemStack.EMPTY);
+        }
+    }
+
+    /** 工具/武器降级：钻石→铁→石→木→无。 */
+    private static Item downgradeTool(Item item) {
+        // 剑
+        if (item == Items.DIAMOND_SWORD) return Items.IRON_SWORD;
+        if (item == Items.IRON_SWORD) return Items.STONE_SWORD;
+        if (item == Items.STONE_SWORD) return Items.WOODEN_SWORD;
+        if (item == Items.WOODEN_SWORD) return null;
+        // 镐
+        if (item == Items.DIAMOND_PICKAXE) return Items.IRON_PICKAXE;
+        if (item == Items.IRON_PICKAXE) return Items.WOODEN_PICKAXE;
+        if (item == Items.GOLDEN_PICKAXE) return Items.WOODEN_PICKAXE;
+        if (item == Items.WOODEN_PICKAXE) return null;
+        // 斧
+        if (item == Items.DIAMOND_AXE) return Items.IRON_AXE;
+        if (item == Items.IRON_AXE) return Items.WOODEN_AXE;
+        if (item == Items.GOLDEN_AXE) return Items.WOODEN_AXE;
+        if (item == Items.WOODEN_AXE) return null;
+        // 弓
+        if (item == Items.BOW) return null;
+        // 其他（方块/药水/道具等）直接清空
+        return null;
+    }
     public boolean tryOpenBedwarsShop(ServerPlayerEntity player, net.minecraft.entity.Entity entity) {
         if (!this.type.isBedWars() || this.state != MatchState.ACTIVE) {
             return false;
