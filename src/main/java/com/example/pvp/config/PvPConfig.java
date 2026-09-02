@@ -183,9 +183,17 @@ public final class PvPConfig {
     /** 区域覆盖边长（生成/清理边界，需覆盖整张地图；Hypixel 图约 100 格）。 */
     public int bedWarsSize = 200;
     /** 每队铁生成器间隔（秒）。 */
-    public int bedWarsIronInterval = 2;
+    public int bedWarsIronInterval = 1;
     /** 每队金生成器间隔（秒）。 */
-    public int bedWarsGoldInterval = 6;
+    public int bedWarsGoldInterval = 2;
+    /** 铁生成器每次掉 2 个的概率（0~1，默认 0.35；与 3/4 个概率为累计阈值）。 */
+    public double bedWarsIronExtraChance = 0.35;
+    /** 铁生成器每次掉 3 个的概率（0~1，默认 0.15；须不大于掉 2 个概率）。 */
+    public double bedWarsIronTripleChance = 0.15;
+    /** 铁生成器每次掉 4 个的概率（0~1，默认 0.05；须不大于掉 3 个概率）。 */
+    public double bedWarsIronQuadChance = 0.05;
+    /** 金生成器每次额外多掉 1 个的概率（0~1，默认 0.25）。 */
+    public double bedWarsGoldExtraChance = 0.25;
     /** 死亡后复活延迟（秒）。 */
     public int bedWarsRespawnSeconds = 5;
     /** 开局初始羊毛数量（每队玩家）。 */

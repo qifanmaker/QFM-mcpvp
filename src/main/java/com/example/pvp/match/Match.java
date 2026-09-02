@@ -1676,13 +1676,17 @@ public final class Match {
         }
 
         // 2) 资源生成器：每队刷铁（快）与金（慢）；中央岛刷钻石/绿宝石
-        //    锻炉升级：每队每次额外多掉 forge 等级份
+        //    锻炉升级：每队每次额外多掉 forge 等级份；铁有概率一次掉 2/3/4 个，金有概率多掉 1 个
         if (++this.bedWarsIronTimer >= cfg.bedWarsIronInterval * 20) {
             this.bedWarsIronTimer = 0;
             for (int i = 0; i < this.bedWarsLayout.teams().size(); i++) {
                 BedWarsLayout.Team t = this.bedWarsLayout.teams().get(i);
-                int extra = this.upgradeLevel(i, "forge");
-                for (int k = 0; k <= extra; k++) {
+                double r = this.random.nextDouble();
+                int bonus = r < cfg.bedWarsIronQuadChance ? 3
+                        : r < cfg.bedWarsIronTripleChance ? 2
+                        : r < cfg.bedWarsIronExtraChance ? 1 : 0;
+                int count = 1 + this.upgradeLevel(i, "forge") + bonus;
+                for (int k = 0; k < count; k++) {
                     this.spawnGeneratorItem(arena, t.iron.add(this.bedWarsOffset), net.minecraft.item.Items.IRON_INGOT);
                 }
             }
@@ -1691,8 +1695,9 @@ public final class Match {
             this.bedWarsGoldTimer = 0;
             for (int i = 0; i < this.bedWarsLayout.teams().size(); i++) {
                 BedWarsLayout.Team t = this.bedWarsLayout.teams().get(i);
-                int extra = this.upgradeLevel(i, "forge");
-                for (int k = 0; k <= extra; k++) {
+                int count = 1 + this.upgradeLevel(i, "forge")
+                        + (this.random.nextDouble() < cfg.bedWarsGoldExtraChance ? 1 : 0);
+                for (int k = 0; k < count; k++) {
                     this.spawnGeneratorItem(arena, t.gold.add(this.bedWarsOffset), net.minecraft.item.Items.GOLD_INGOT);
                 }
             }
