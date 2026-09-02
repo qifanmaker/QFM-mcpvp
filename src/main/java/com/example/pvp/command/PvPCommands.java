@@ -46,7 +46,6 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -489,12 +488,11 @@ public final class PvPCommands {
 
     private static int showTop(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-        List<Map.Entry<String, PlayerStats>> sorted = StatsStore.INSTANCE.getStatsMap().entrySet().stream()
-                .sorted(Comparator.comparingInt((Map.Entry<String, PlayerStats> e) -> e.getValue().wins).reversed())
+        List<Map.Entry<String, PlayerStats>> sorted = StatsStore.INSTANCE.getLeaderboard().stream()
                 .limit(10)
                 .toList();
 
-        player.sendMessage(Messages.gold("§6PvP 胜场排行榜 (前 10)§r"), false);
+        player.sendMessage(Messages.gold("§6PvP 胜率排行榜 (前 10)§r"), false);
         if (sorted.isEmpty()) {
             player.sendMessage(Messages.warn("暂无数据"), false);
             return 0;
@@ -502,8 +500,9 @@ public final class PvPCommands {
         int rank = 1;
         for (Map.Entry<String, PlayerStats> entry : sorted) {
             String name = resolveName(UUID.fromString(entry.getKey()));
-            player.sendMessage(Messages.info("#" + rank + " §e" + name + "§r 胜 " + entry.getValue().wins
-                    + " | 总场次 " + entry.getValue().matches), false);
+            player.sendMessage(Messages.info("#" + rank + " §e" + name + "§r 胜率 "
+                    + String.format(java.util.Locale.ROOT, "%.1f%%", entry.getValue().winRate() * 100)
+                    + " §7(胜 " + entry.getValue().wins + " / 总 " + entry.getValue().matches + ")"), false);
             rank++;
         }
         return 1;

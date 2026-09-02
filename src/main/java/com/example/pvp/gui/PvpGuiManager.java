@@ -32,7 +32,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -518,40 +517,69 @@ public final class PvpGuiManager {
         });
     }
 
+    /** 战绩排行榜页：顶部显示我的战绩，中间按胜率排名（玩家头颅），底部翻页。 */
     private void openStatsPage(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.STATS;
-        this.openPage(player, ctx, "§6我的战绩", inv -> {
-            PlayerStats stats = StatsStore.INSTANCE.getStats(player.getUuid());
-            inv.setStack(11, makeButton(Items.BOOK, "§a我的战绩",
-                    "胜：" + stats.getWins(),
-                    "负：" + stats.getLosses(),
-                    "总场次：" + stats.getMatches()));
+        this.openPage(player, ctx, "§6战绩排行榜（按胜率）", inv -> this.fillStatsPage(inv, player, ctx));
+    }
 
-            List<Map.Entry<String, PlayerStats>> sorted = StatsStore.INSTANCE.getStatsMap().entrySet().stream()
-                    .sorted(Comparator.comparingInt((Map.Entry<String, PlayerStats> e) -> e.getValue().wins).reversed())
-                    .limit(5)
-                    .toList();
+    /** 战绩排行榜页填充（每页 18 名，底部上一页/页码/下一页/返回）。 */
+    private void fillStatsPage(SimpleInventory inv, ServerPlayerEntity player, GuiContext ctx) {
+        for (int slot = 0; slot < 36; slot++) {
+            inv.setStack(slot, makeButton(Items.GRAY_STAINED_GLASS_PANE, " "));
+        }
+        // 顶部中央：我的战绩
+        PlayerStats mine = StatsStore.INSTANCE.getStats(player.getUuid());
+        inv.setStack(4, makeButton(Items.BOOK, "§a我的战绩",
+                "胜 " + mine.getWins() + " / 负 " + mine.getLosses() + " / 总 " + mine.getMatches(),
+                "胜率 " + formatRate(mine.winRate())));
 
-            int slot = 13;
-            int rank = 1;
-            for (Map.Entry<String, PlayerStats> entry : sorted) {
-                if (slot >= 26) {
-                    break;
-                }
+        List<Map.Entry<String, PlayerStats>> board = StatsStore.INSTANCE.getLeaderboard();
+        if (board.isEmpty()) {
+            inv.setStack(13, makeButton(Items.PAPER, "§7暂无战绩数据"));
+        } else {
+            int perPage = 18; // 第 2~3 行（槽 9~26）
+            int pages = (board.size() + perPage - 1) / perPage;
+            if (ctx.statsPage >= pages) {
+                ctx.statsPage = pages - 1;
+            }
+            int start = ctx.statsPage * perPage;
+            int slot = 9;
+            for (int i = start; i < Math.min(board.size(), start + perPage); i++, slot++) {
+                Map.Entry<String, PlayerStats> entry = board.get(i);
                 String name;
                 try {
                     name = resolveName(UUID.fromString(entry.getKey()));
                 } catch (IllegalArgumentException e) {
                     continue;
                 }
-                inv.setStack(slot++, makeButton(Items.PAPER, "#" + rank + " §e" + name,
-                        "胜 " + entry.getValue().wins + " | 负 " + entry.getValue().losses + " | 总 " + entry.getValue().matches));
-                rank++;
+                PlayerStats s = entry.getValue();
+                boolean self = entry.getKey().equals(player.getUuid().toString());
+                ItemStack head = makeButton(Items.PLAYER_HEAD,
+                        (self ? "§a" : "§e") + "#" + (i + 1) + " " + name,
+                        "胜率 " + formatRate(s.winRate()),
+                        "胜 " + s.wins + " / 负 " + s.losses + " / 总 " + s.matches);
+                if (self) {
+                    head.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+                }
+                inv.setStack(slot, head);
             }
+            // 底部：翻页与返回
+            inv.setStack(27, makeButton(Items.ARROW, "§c← 返回主菜单"));
+            if (ctx.statsPage > 0) {
+                inv.setStack(30, makeButton(Items.ARROW, "§7← 上一页"));
+            }
+            inv.setStack(31, makeButton(Items.PAPER, "§e第 " + (ctx.statsPage + 1) + " / " + pages + " 页",
+                    "共 " + board.size() + " 名玩家"));
+            if (start + perPage < board.size()) {
+                inv.setStack(32, makeButton(Items.ARROW, "§7下一页 →"));
+            }
+        }
+    }
 
-            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
-        });
+    private static String formatRate(double rate) {
+        return String.format(java.util.Locale.ROOT, "%.1f%%", rate * 100);
     }
 
     /** OP 立即开始时的主题选择页（仅排队空岛战争时出现）。 */
@@ -660,7 +688,18 @@ public final class PvpGuiManager {
             case THEME -> this.onClickTheme(player, ctx, slotIndex);
             case LUCKY_PILLAR_MAP -> this.onClickLuckyPillarMap(player, ctx, slotIndex);
             case BEDWARS_MAP -> this.onClickBedwarsMap(player, ctx, slotIndex);
-            case STATS, KIT_INFO -> {
+            case STATS -> {
+                if (slotIndex == 27) {
+                    this.openMainMenu(player);
+                } else if (slotIndex == 30 && ctx.statsPage > 0) {
+                    ctx.statsPage--;
+                    this.openStatsPage(player);
+                } else if (slotIndex == 32) {
+                    ctx.statsPage++;
+                    this.openStatsPage(player); // fillStatsPage 内部会夹紧到最后一页
+                }
+            }
+            case KIT_INFO -> {
                 if (slotIndex == 26) {
                     this.openMainMenu(player);
                 }
@@ -1045,6 +1084,7 @@ public final class PvpGuiManager {
         MatchType pendingMode;
         UUID duelTargetUuid;
         int duelTargetPage;
+        int statsPage; // 战绩排行榜当前页码
         boolean navigating;
     }
 }

@@ -67,6 +67,16 @@ public final class StatsStore {
         return Map.copyOf(this.stats);
     }
 
+    /** 排行榜：按胜率降序，同胜率依次按胜场、总场次降序。 */
+    public java.util.List<Map.Entry<String, PlayerStats>> getLeaderboard() {
+        return this.stats.entrySet().stream()
+                .sorted(java.util.Comparator
+                        .comparingDouble((Map.Entry<String, PlayerStats> e) -> e.getValue().winRate()).reversed()
+                        .thenComparing(e -> e.getValue().wins, java.util.Comparator.reverseOrder())
+                        .thenComparing(e -> e.getValue().matches, java.util.Comparator.reverseOrder()))
+                .toList();
+    }
+
     /** 记录一场比赛结果，won=true 表示胜利。 */
     public void recordResult(UUID uuid, boolean won) {
         PlayerStats s = this.getStats(uuid);

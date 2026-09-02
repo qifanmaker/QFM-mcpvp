@@ -28,4 +28,9 @@ public class PlayerStats {
     public int getMatches() {
         return this.matches;
     }
+
+    /** 胜率（0~1；无场次为 0）。 */
+    public double winRate() {
+        return this.matches <= 0 ? 0 : (double) this.wins / this.matches;
+    }
 }
