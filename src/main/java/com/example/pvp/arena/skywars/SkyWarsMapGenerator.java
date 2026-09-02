@@ -145,7 +145,7 @@ public final class SkyWarsMapGenerator {
     /**
      * 一座岛上一个箱子的实际落位（与 {@link #buildIsland} 完全一致）：
      * 末地中央主岛(空心环)会把落在环内的箱子沿角度外推至环内缘；中岛群前两个箱子上 3 格立柱。
-     * 生成与"5 分钟物资刷新"共用，保证重刷时能找到生成时真正落位的箱子。
+     * 生成与"物资刷新"共用，保证重刷时能找到生成时真正落位的箱子。
      */
     private static BlockPos islandChestPos(SkyWarsLayout.Island island, int chestIndex, boolean middle,
                                            boolean ring, SkyWarsTheme theme) {
@@ -169,7 +169,7 @@ public final class SkyWarsMapGenerator {
     }
 
     /**
-     * "5 分钟物资刷新"事件：清空并重新塞满全图所有箱子（含已被开过的）。
+     * "物资刷新"事件：清空并重新塞满全图所有箱子（含已被开过的）。
      * 需要与生成时相同的布局/主题/弱势补偿，逐岛按生成顺序定位箱子并重填战利品；
      * 被玩家/缩圈拆掉的箱子不复活（找不到方块实体即跳过）。
      *

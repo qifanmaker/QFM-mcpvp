@@ -73,8 +73,8 @@ public final class PvPConfig {
     public int skywarsShrinkIntervalSeconds = 30;
     public int skywarsShrinkBlocksPerStage = 4;
     public int skywarsShrinkMinRadius = 8;
-    /** 开赛多少秒后触发"物资刷新"事件：清空并重新塞满全图所有箱子（默认 240s=4 分钟）。 */
-    public int skywarsRefillSeconds = 240;
+    /** 开赛多少秒后触发"物资刷新"事件：清空并重新塞满全图所有箱子（默认 180s=3 分钟）。 */
+    public int skywarsRefillSeconds = 180;
 
     // ---------- 战桥 (Bridge) ----------
     /** 区域覆盖边长（生成/清理边界，需覆盖整张地图）。 */
@@ -276,8 +276,8 @@ public final class PvPConfig {
         if (this.skywarsRefillSeconds <= 0) {
             this.skywarsRefillSeconds = defaults.skywarsRefillSeconds;
             changed = true;
-        } else if (this.skywarsRefillSeconds == 300) {
-            // 旧默认 300s(5 分钟) 改为新默认 240s(4 分钟)
+        } else if (this.skywarsRefillSeconds == 300 || this.skywarsRefillSeconds == 240) {
+            // 旧默认 300s(5 分钟)/240s(4 分钟) 改为新默认 180s(3 分钟)
             this.skywarsRefillSeconds = defaults.skywarsRefillSeconds;
             changed = true;
         }

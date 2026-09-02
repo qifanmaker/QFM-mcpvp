@@ -169,7 +169,8 @@ Bed Wars 地图的商店 / 铁金生成点 / 钻石绿宝石生成点需要精�
   "skywarsShrinkStartSeconds": 180, // 开赛后多少秒开始缩圈
   "skywarsShrinkIntervalSeconds": 30, // 每圈间隔（秒）
   "skywarsShrinkBlocksPerStage": 4,   // 每圈塌掉几格
-  "skywarsShrinkMinRadius": 8   // 最小安全半径
+  "skywarsShrinkMinRadius": 8,  // 最小安全半径
+  "skywarsRefillSeconds": 180,  // 开赛多少秒后触发"物资刷新"事件（重置全图箱子物资）
 
   // ---- 战桥 (Bridge) ----
   "bridgeSize": 101,            // 区域覆盖边长（生成/清理边界）
