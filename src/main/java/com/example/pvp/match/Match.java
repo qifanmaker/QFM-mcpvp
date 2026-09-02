@@ -1812,6 +1812,11 @@ public final class Match {
         return ups == null ? 0 : ups.getOrDefault(id, 0);
     }
 
+    /** 该队某升级当前等级（床战商店显示/购买校验用）。 */
+    public int teamUpgradeLevel(int teamIdx, String id) {
+        return this.upgradeLevel(teamIdx, id);
+    }
+
     /** 购买团队升级：记录等级并立即应用。 */
     public void applyTeamUpgrade(int teamIdx, String id) {
         Map<String, Integer> ups = this.bedWarsUpgrades.computeIfAbsent(teamIdx, k -> new HashMap<>());
@@ -1877,15 +1882,9 @@ public final class Match {
         }
     }
 
-    /** 保护等级（prot1~prot4 取最大）。 */
+    /** 保护等级（prot 基础 ID 直接存等级 0~4）。 */
     private int protLevel(int teamIdx) {
-        int max = 0;
-        for (int lv = 1; lv <= 4; lv++) {
-            if (this.upgradeLevel(teamIdx, "prot" + lv) > 0) {
-                max = lv;
-            }
-        }
-        return max;
+        return this.upgradeLevel(teamIdx, "prot");
     }
 
     /** 给单个玩家附魔（锋利剑 + 保护盔甲）。 */
