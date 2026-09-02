@@ -219,6 +219,11 @@ public final class ArenaWorldManager {
             return;
         }
 
+        // 起床战争：地图由 BedWarsMapPaster 粘贴，不铺平台地板（否则地图下方会有磨制深板岩地面）
+        if (template.getLayout() == ArenaTemplate.Layout.BED_WARS) {
+            return;
+        }
+
         BlockPos origin = template.getRegionOrigin(regionIndex);
         int size = template.getSize();
 
