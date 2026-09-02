@@ -41,7 +41,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.block.entity.DispenserBlockEntity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.TntEntity;
-import net.minecraft.entity.projectile.SmallFireballEntity;
+import net.minecraft.entity.projectile.FireballEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.item.SwordItem;
@@ -80,14 +80,6 @@ public final class PvPMod implements ModInitializer {
     /** 幸运之柱"一击必杀"全局标记：开启时对应对局内所有伤害致死（LivingEntityMixin 检查）。 */
     public static volatile boolean oneHitKillActive = false;
 
-    /** 被烈焰弹击退后免疫第一次摔落伤害的玩家（一次性，落地后消耗）。 */
-    public static final Set<UUID> fireballNoFallOnce = new HashSet<>();
-
-    /** 消耗一次"烈焰弹免摔"次数（返回是否有）。 */
-    public static boolean consumeFireballNoFall(ServerPlayerEntity player) {
-        return fireballNoFallOnce.remove(player.getUuid());
-    }
-
     /** 主城内需自动补 TNT 的发射器（仅主世界，加载/卸载自动增删）。 */
     private static final Set<DispenserBlockEntity> TNT_DISPENSERS = new HashSet<>();
 
@@ -99,10 +91,10 @@ public final class PvPMod implements ModInitializer {
                 .orElse("?");
     }
 
-    /** 发射一颗火焰弹（空岛战争）：沿视线方向生成小火焰弹，落地/命中会爆炸击退。 */
+    /** 发射一颗火焰弹：沿视线方向生成原版恶魂火球（爆炸威力 1，原版机制不改动）。 */
     public static void launchFireCharge(ServerPlayerEntity player, World world) {
         Vec3d look = player.getRotationVector();
-        SmallFireballEntity fireball = new SmallFireballEntity(world, player, look);
+        FireballEntity fireball = new FireballEntity(world, player, look, 1);
         fireball.setPosition(player.getX(), player.getEyeY() - 0.1, player.getZ());
         fireball.setVelocity(look.multiply(1.5)); // 覆盖构造时的 0.1 倍速，飞得更快
         world.spawnEntity(fireball);
