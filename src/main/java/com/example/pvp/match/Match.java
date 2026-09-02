@@ -1631,7 +1631,7 @@ public final class Match {
             return;
         }
 
-        // 1) 复活：床存活队伍的死亡玩家延迟重生
+        // 1) 复活：床存活队伍的死亡玩家延迟重生，等待期间每秒标题提示
         for (UUID uuid : List.copyOf(this.bedWarsRespawnTicks.keySet())) {
             int left = this.bedWarsRespawnTicks.get(uuid) - 1;
             if (left <= 0) {
@@ -1642,6 +1642,14 @@ public final class Match {
                 }
             } else {
                 this.bedWarsRespawnTicks.put(uuid, left);
+                if (left % 20 == 0) {
+                    ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
+                    if (online != null) {
+                        online.networkHandler.sendPacket(new TitleFadeS2CPacket(0, 25, 0));
+                        online.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("§c§l你死了！")));
+                        online.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("§e" + (left / 20) + " 秒后重生")));
+                    }
+                }
             }
         }
 
@@ -1683,11 +1691,11 @@ public final class Match {
             this.tickBedWarsUpgradeEffects(arena);
         }
 
-        // 3) 掉出虚空 → 床活则复活，床死则淘汰
+        // 3) 掉出虚空 → 床活则旁观者等待重生，床死则淘汰
         for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
             if (online.getY() < ArenaTemplate.PLATFORM_Y - 20) {
                 if (this.teamBedAlive(online)) {
-                    this.bedWarsRespawnTicks.putIfAbsent(online.getUuid(), cfg.bedWarsRespawnSeconds * 20);
+                    this.beginBedwarsRespawnWait(online);
                 } else {
                     this.eliminate(online, EliminationCause.VOID);
                 }
@@ -1990,14 +1998,14 @@ public final class Match {
         return idx >= 0 && idx < this.bedWarsBedAlive.length && this.bedWarsBedAlive[idx];
     }
 
-    /** 床战掉出虚空（MatchManager sweep 兜底调用）：床活 → 延迟重生；床死 → 淘汰。 */
+    /** 床战掉出虚空（MatchManager sweep 兜底调用）：床活 → 旁观者等待重生；床死 → 淘汰。 */
     public void bedWarsVoidFall(ServerPlayerEntity player) {
         if (this.state != MatchState.ACTIVE) {
             this.teleportToSpawn(player);
             return;
         }
         if (this.teamBedAlive(player)) {
-            this.bedWarsRespawnTicks.putIfAbsent(player.getUuid(), PvPConfig.INSTANCE.bedWarsRespawnSeconds * 20);
+            this.beginBedwarsRespawnWait(player);
         } else {
             this.eliminate(player, EliminationCause.VOID);
         }
@@ -2058,14 +2066,44 @@ public final class Match {
         }
     }
 
-    /** 床战玩家死亡（PvPMod ALLOW_DEATH 调用）：床活 → 延迟重生；床死 → 淘汰。 */
+    /** 床战玩家死亡（PvPMod ALLOW_DEATH 调用）：床活 → 旁观者等待重生；床死 → 淘汰。 */
     public boolean onBedwarsDeath(ServerPlayerEntity player) {
-        if (this.teamBedAlive(player)) {
-            this.bedWarsRespawnTicks.put(player.getUuid(), PvPConfig.INSTANCE.bedWarsRespawnSeconds * 20);
-            return false; // 取消原生死亡，等重生
+        if (this.state != MatchState.ACTIVE) {
+            // 倒计时/庆祝中：只回血防原生死亡界面，不排队重生
+            player.setHealth(player.getMaxHealth());
+            player.setFireTicks(0);
+            player.fallDistance = 0;
+            return false;
         }
-        this.eliminate(player, EliminationCause.DEATH);
+        if (this.teamBedAlive(player)) {
+            this.beginBedwarsRespawnWait(player);
+        } else {
+            this.eliminate(player, EliminationCause.DEATH);
+        }
         return false;
+    }
+
+    /** 床战进入重生等待：立即回血防死亡界面 → 旁观者模式传送回本队岛屿（可自由飞行）→ 倒数重生。 */
+    private void beginBedwarsRespawnWait(ServerPlayerEntity player) {
+        if (this.bedWarsRespawnTicks.containsKey(player.getUuid())) {
+            return; // 已在等待重生，不重置计时
+        }
+        int seconds = PvPConfig.INSTANCE.bedWarsRespawnSeconds;
+        player.setHealth(player.getMaxHealth());
+        player.setFireTicks(0);
+        player.fallDistance = 0;
+        player.clearStatusEffects();
+        this.bedWarsRespawnTicks.put(player.getUuid(), seconds * 20);
+        player.changeGameMode(GameMode.SPECTATOR);
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        int teamIdx = this.teamIndex(player);
+        if (arena != null && this.bedWarsLayout != null && teamIdx >= 0 && teamIdx < this.bedWarsLayout.teams().size()) {
+            BlockPos spawn = this.bedWarsLayout.teams().get(teamIdx).spawn().add(this.bedWarsOffset);
+            player.teleport(arena, spawn.getX() + 0.5, spawn.getY() + 1, spawn.getZ() + 0.5, this.faceCenter(spawn), 0);
+        }
+        player.networkHandler.sendPacket(new TitleFadeS2CPacket(0, 30, 5));
+        player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("§c§l你死了！")));
+        player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("§e" + seconds + " 秒后重生")));
     }
 
     /** 床战重生：传回队伍岛、满血复活、短暂无敌。 */
@@ -2077,6 +2115,11 @@ public final class Match {
             this.bedWarsRespawnTicks.remove(player.getUuid());
             return; // 已淘汰（床毁），不复活
         }
+        if (!this.teamBedAlive(player)) {
+            this.bedWarsRespawnTicks.remove(player.getUuid());
+            this.eliminate(player, EliminationCause.DEATH); // 等待期间床被摧毁 → 直接淘汰
+            return;
+        }
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena == null) {
             return;
@@ -2084,6 +2127,7 @@ public final class Match {
         int teamIdx = this.teamIndex(player);
         BedWarsLayout.Team t = this.bedWarsLayout.teams().get(Math.min(Math.max(teamIdx, 0), this.bedWarsLayout.teams().size() - 1));
         BlockPos spawn = t.spawn.add(this.bedWarsOffset);
+        player.changeGameMode(GameMode.SURVIVAL);
         player.teleport(arena, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, this.faceCenter(spawn), 0);
         player.setHealth(player.getMaxHealth());
         player.setFireTicks(0);
@@ -2093,6 +2137,8 @@ public final class Match {
         // 3 秒抗性 V（100% 减伤）防围殴，之后正常
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 60, 4, false, false, false));
         this.bedWarsRespawnTicks.remove(player.getUuid());
+        player.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 20, 5));
+        player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("§a§l你已复活！")));
         player.sendMessage(Messages.info("你已复活！"), true);
     }
 
