@@ -1871,6 +1871,23 @@ public final class Match {
                 this.enchant(stack, net.minecraft.enchantment.Enchantments.PROTECTION, prot);
             }
         }
+        // 装备栏也扫（盔甲穿在身上）
+        for (ItemStack stack : player.getArmorItems()) {
+            if (!stack.isEmpty() && prot > 0 && stack.getItem() instanceof net.minecraft.item.ArmorItem) {
+                this.enchant(stack, net.minecraft.enchantment.Enchantments.PROTECTION, prot);
+            }
+        }
+    }
+
+    /** 给单个玩家应用该队当前升级（新购买装备后调用）。 */
+    public void applyUpgradeGearToPlayer(ServerPlayerEntity player) {
+        int teamIdx = this.teamIndex(player);
+        if (teamIdx < 0) {
+            return;
+        }
+        int sharp = this.upgradeLevel(teamIdx, "sharp");
+        int prot = this.protLevel(teamIdx);
+        this.applyUpgradeGear(player, sharp, prot);
     }
 
     private void enchant(ItemStack stack, net.minecraft.registry.RegistryKey<net.minecraft.enchantment.Enchantment> key, int level) {

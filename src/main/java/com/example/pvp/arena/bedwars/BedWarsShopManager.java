@@ -258,6 +258,8 @@ public final class BedWarsShopManager {
             return false;
         }
         give(player, item, teamIndex);
+        // 新购买的装备应用团队升级（锋利/保护）
+        match.applyUpgradeGearToPlayer(player);
         player.sendMessage(Messages.info("已购买 " + item.name), false);
         return true;
     }
@@ -285,18 +287,18 @@ public final class BedWarsShopManager {
             applyEnchant(kb, player, Enchantments.KNOCKBACK, 1);
             giveStack(player, kb);
         } else if (i == Items.CHAINMAIL_LEGGINGS) {
-            giveStack(player, new ItemStack(Items.CHAINMAIL_LEGGINGS));
-            giveStack(player, new ItemStack(Items.CHAINMAIL_BOOTS));
+            equipArmor(player, new ItemStack(Items.CHAINMAIL_LEGGINGS), 2); // 护腿
+            equipArmor(player, new ItemStack(Items.CHAINMAIL_BOOTS), 0);   // 靴子
         } else if (i == Items.IRON_CHESTPLATE) {
-            giveStack(player, new ItemStack(Items.IRON_HELMET));
-            giveStack(player, new ItemStack(Items.IRON_CHESTPLATE));
-            giveStack(player, new ItemStack(Items.IRON_LEGGINGS));
-            giveStack(player, new ItemStack(Items.IRON_BOOTS));
+            equipArmor(player, new ItemStack(Items.IRON_HELMET), 3);     // 头盔
+            equipArmor(player, new ItemStack(Items.IRON_CHESTPLATE), 2); // 胸甲
+            equipArmor(player, new ItemStack(Items.IRON_LEGGINGS), 1);   // 护腿
+            equipArmor(player, new ItemStack(Items.IRON_BOOTS), 0);      // 靴子
         } else if (i == Items.DIAMOND_CHESTPLATE) {
-            giveStack(player, new ItemStack(Items.DIAMOND_HELMET));
-            giveStack(player, new ItemStack(Items.DIAMOND_CHESTPLATE));
-            giveStack(player, new ItemStack(Items.DIAMOND_LEGGINGS));
-            giveStack(player, new ItemStack(Items.DIAMOND_BOOTS));
+            equipArmor(player, new ItemStack(Items.DIAMOND_HELMET), 3);
+            equipArmor(player, new ItemStack(Items.DIAMOND_CHESTPLATE), 2);
+            equipArmor(player, new ItemStack(Items.DIAMOND_LEGGINGS), 1);
+            equipArmor(player, new ItemStack(Items.DIAMOND_BOOTS), 0);
         } else if (i == Items.SHEARS) {
             ItemStack s = new ItemStack(Items.SHEARS);
             s.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§f永久剪刀"));
@@ -365,6 +367,18 @@ public final class BedWarsShopManager {
             player.getWorld().spawnEntity(new net.minecraft.entity.ItemEntity(
                     player.getWorld(), player.getX(), player.getY(), player.getZ(), stack));
         }
+    }
+
+    /** 装备盔甲到指定槽位（0=靴子 1=护腿 2=胸甲 3=头盔），旧装备掉落。 */
+    private static void equipArmor(ServerPlayerEntity player, ItemStack stack, int slot) {
+        var inventory = player.getInventory();
+        ItemStack old = inventory.armor.get(slot);
+        if (!old.isEmpty()) {
+            // 旧装备掉落
+            player.getWorld().spawnEntity(new net.minecraft.entity.ItemEntity(
+                    player.getWorld(), player.getX(), player.getY(), player.getZ(), old.copy()));
+        }
+        inventory.armor.set(slot, stack);
     }
 
     private static void applyEnchant(ItemStack stack, ServerPlayerEntity player,
