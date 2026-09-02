@@ -13,6 +13,7 @@
     "FireChargeItemMixin",
     "SmallFireballEntityMixin",
     "SnowballEntityMixin",
+    "ProjectileEntityMixin",
     "TntEntityMixin",
     "ExplosionMixin",
     "registry.DimensionOptionsMixin",
