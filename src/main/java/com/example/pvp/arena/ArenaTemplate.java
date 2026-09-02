@@ -12,7 +12,9 @@ import java.util.List;
  */
 public class ArenaTemplate {
     public static final int PLATFORM_Y = 100;
-    public static final int REGION_SPACING = 256;
+    /** 区域间距（x 方向偏移）。空岛战争地图放大后，相邻两场的最大半径需要留足空间：原 256 只容半径<128，
+     *  大图（中岛群+出生岛间距拉到 ~147）必须更宽，避免相邻场地/清场实体盒互相干扰。 */
+    public static final int REGION_SPACING = 384;
     public static final int WALL_HEIGHT = 3;
 
     public enum Layout {

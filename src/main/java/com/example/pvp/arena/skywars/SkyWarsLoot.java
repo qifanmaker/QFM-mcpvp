@@ -299,9 +299,16 @@ public final class SkyWarsLoot {
         return stack;
     }
 
+    /** 弓：力量随附魔概率走；在此基础上低概率叠加冲击 II / 火矢（各 10%，与力量相互独立）。 */
     private static ItemStack bow(Random random, int enchantChance) {
         ItemStack stack = new ItemStack(Items.BOW);
         maybeEnchant(stack, random, enchantChance);
+        if (random.nextInt(100) < 10) {
+            applyEnchant(stack, Enchantments.PUNCH, 2); // 冲击 II：低概率词缀
+        }
+        if (random.nextInt(100) < 10) {
+            applyEnchant(stack, Enchantments.FLAME, 1); // 火矢：低概率词缀
+        }
         return stack;
     }
 

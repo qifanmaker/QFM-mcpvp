@@ -88,10 +88,10 @@ public abstract class PlayerEntityMixin {
                 d = 0.01;
             }
             // 直接施加速度：takeKnockback 的方向约定相反（传"指向目标"会把人往攻击者方向拉），这里显式推离
-            // 空岛战争击退球：水平 1.5 → 1.0、竖直 0.3 → 0.2（*2/3）；其他模式（幸运之柱随机掉落）保持原强度
+            // 空岛战争击退球：水平 1.5 → 1.0(*2/3) → 0.6(*3/5)、竖直 0.3 → 0.2 → 0.12；其他模式（幸运之柱随机掉落）保持原强度
             boolean skywars = match.getType() == MatchType.SKYWARS;
-            double strength = skywars ? 1.0 : 2.0;
-            double up = skywars ? 0.2 : 0.4;
+            double strength = skywars ? 0.6 : 2.0;
+            double up = skywars ? 0.12 : 0.4;
             victim.setVelocity(
                     victim.getVelocity().x + dx / d * strength,
                     victim.getVelocity().y + up,
