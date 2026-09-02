@@ -133,7 +133,17 @@ public final class BedWarsMapLoader {
                         || s.isOf(Blocks.STONE) || s.isOf(Blocks.GRAVEL) || s.isOf(Blocks.SAND)
                         || s.isOf(Blocks.SANDSTONE) || s.isOf(Blocks.DEEPSLATE) || s.isOf(Blocks.TUFF)
                         || s.isOf(Blocks.CLAY) || s.isOf(Blocks.MUD) || s.isOf(Blocks.PODZOL)
-                        || s.isOf(Blocks.MYCELIUM) || s.isOf(Blocks.COARSE_DIRT) || s.isOf(Blocks.ROOTED_DIRT)) {
+                        || s.isOf(Blocks.MYCELIUM) || s.isOf(Blocks.COARSE_DIRT) || s.isOf(Blocks.ROOTED_DIRT)
+                        || s.isOf(Blocks.POLISHED_DEEPSLATE) || s.isOf(Blocks.DEEPSLATE_BRICKS)
+                        || s.isOf(Blocks.DEEPSLATE_TILES) || s.isOf(Blocks.CRACKED_DEEPSLATE_BRICKS)
+                        || s.isOf(Blocks.CRACKED_DEEPSLATE_TILES) || s.isOf(Blocks.CHISELED_DEEPSLATE)
+                        || s.isOf(Blocks.COBBLED_DEEPSLATE) || s.isOf(Blocks.POLISHED_BASALT)
+                        || s.isOf(Blocks.BASALT) || s.isOf(Blocks.SMOOTH_BASALT)
+                        || s.isOf(Blocks.ANDESITE) || s.isOf(Blocks.DIORITE) || s.isOf(Blocks.GRANITE)
+                        || s.isOf(Blocks.POLISHED_ANDESITE) || s.isOf(Blocks.POLISHED_DIORITE)
+                        || s.isOf(Blocks.POLISHED_GRANITE) || s.isOf(Blocks.CALCITE)
+                        || s.isOf(Blocks.DRIPSTONE_BLOCK) || s.isOf(Blocks.MOSS_BLOCK)
+                        || s.isOf(Blocks.MOSSY_COBBLESTONE) || s.isOf(Blocks.MOSSY_STONE_BRICKS)) {
                     toRemove.add(pos);
                 }
             }

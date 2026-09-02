@@ -344,7 +344,7 @@ public final class Match {
             for (java.util.Map.Entry<BlockPos, net.minecraft.block.BlockState> e : this.bedWarsMapData.blocks.entrySet()) {
                 BlockPos arenaPos = e.getKey().add(this.bedWarsOffset);
                 this.bedWarsMapBlocks.add(arenaPos);
-                if (e.getValue().isOf(net.minecraft.block.Blocks.RED_BED)) {
+                if (e.getValue().getBlock() instanceof net.minecraft.block.BedBlock) {
                     this.bedWarsBedBlocks.add(arenaPos);
                 }
             }

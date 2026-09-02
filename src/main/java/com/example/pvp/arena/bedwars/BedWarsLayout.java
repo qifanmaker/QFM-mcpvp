@@ -104,19 +104,19 @@ public final class BedWarsLayout {
 
     /** 从加载的地图数据探测布局。teamCount = 实际启用队伍数（≤8）。优先读 map.json（有精确点位），否则自动推断。 */
     public static BedWarsLayout detect(String mapName, int teamCount, BedWarsMapLoader.MapData data, java.nio.file.Path mapDir) {
-        // 1. 收集所有红床方块（foot 部分，排除 head 避免重复）
+        // 1. 收集所有床方块（foot 部分，排除 head 避免重复）——支持所有颜色的床
         List<BlockPos> bedFeet = new ArrayList<>();
         for (Map.Entry<BlockPos, BlockState> e : data.blocks.entrySet()) {
             BlockState state = e.getValue();
-            if (state.isOf(Blocks.RED_BED) && state.get(net.minecraft.block.BedBlock.PART)
-                    == net.minecraft.block.enums.BedPart.HEAD) {
+            if (state.getBlock() instanceof net.minecraft.block.BedBlock
+                    && state.get(net.minecraft.block.BedBlock.PART) == net.minecraft.block.enums.BedPart.HEAD) {
                 bedFeet.add(e.getKey()); // head 相邻的 foot
             }
         }
         // 若没有 head 信息，直接用所有床位置
         if (bedFeet.isEmpty()) {
             for (Map.Entry<BlockPos, BlockState> e : data.blocks.entrySet()) {
-                if (e.getValue().isOf(Blocks.RED_BED)) {
+                if (e.getValue().getBlock() instanceof net.minecraft.block.BedBlock) {
                     bedFeet.add(e.getKey());
                 }
             }
