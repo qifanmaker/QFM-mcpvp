@@ -168,24 +168,47 @@ public final class MatchManager {
             if (player.getWorld().getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
                 continue;
             }
-            GameMode mode = player.interactionManager.getGameMode();
-            if (mode == GameMode.SURVIVAL) {
-                player.changeGameMode(GameMode.ADVENTURE);
-                mode = GameMode.ADVENTURE;
-            }
-            player.setInvulnerable(true);
-            // 强制非幽灵：显形 + 正常重力 + 取消幽灵飞行（创造/旁观者保留自然飞行）
+            this.applyLobbyProtectionTo(player);
+        }
+    }
+
+    /**
+     * 立即对单个玩家施加大厅保护并清理幽灵残留状态。
+     * 供 /hub、/pvp tpout 等主动回城调用，避免等待下一 tick 的 applyLobbyProtection。
+     */
+    public void applyLobbyProtectionTo(ServerPlayerEntity player) {
+        if (player.getWorld().getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
+            return;
+        }
+        if (!PvPConfig.INSTANCE.lobbyProtection) {
+            // 即使大厅保护关闭，也清理幽灵残留的危险状态（飞行、无重力、隐身）
             player.setInvisible(false);
             player.setNoGravity(false);
-            if (mode != GameMode.CREATIVE && mode != GameMode.SPECTATOR
-                    && (player.getAbilities().allowFlying || player.getAbilities().flying)) {
+            if (player.interactionManager.getGameMode() != GameMode.CREATIVE
+                    && player.interactionManager.getGameMode() != GameMode.SPECTATOR) {
                 player.getAbilities().allowFlying = false;
                 player.getAbilities().flying = false;
                 player.sendAbilitiesUpdate();
             }
-            player.getHungerManager().setFoodLevel(20);
-            player.getHungerManager().setSaturationLevel(20f);
+            return;
         }
+        GameMode mode = player.interactionManager.getGameMode();
+        if (mode == GameMode.SURVIVAL) {
+            player.changeGameMode(GameMode.ADVENTURE);
+            mode = GameMode.ADVENTURE;
+        }
+        player.setInvulnerable(true);
+        // 强制非幽灵：显形 + 正常重力 + 取消幽灵飞行（创造/旁观者保留自然飞行）
+        player.setInvisible(false);
+        player.setNoGravity(false);
+        if (mode != GameMode.CREATIVE && mode != GameMode.SPECTATOR
+                && (player.getAbilities().allowFlying || player.getAbilities().flying)) {
+            player.getAbilities().allowFlying = false;
+            player.getAbilities().flying = false;
+            player.sendAbilitiesUpdate();
+        }
+        player.getHungerManager().setFoodLevel(20);
+        player.getHungerManager().setSaturationLevel(20f);
     }
 
     /** 尝试开一场比赛（所有人同一套件），成功返回 true。 */

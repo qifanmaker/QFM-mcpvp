@@ -117,6 +117,7 @@ public final class Match {
     private final Map<UUID, Integer> blockingRefresh = new HashMap<>(); // 格挡刷新倒计时
     private final Set<UUID> leftEarly = new HashSet<>(); // 旁观者提前离场
     private final Set<String> infoLines = new HashSet<>(); // 计分板信息栏行
+    private final Set<UUID> scoreboardCleaned = new HashSet<>(); // 已清空计分板的玩家（提前离场后不再接收本场计分板包）
     private final int initialCountdownTicks;
 
     /** 空岛战争地图布局（仅在 SKYWARS 模式非空，缩圈用）。 */
@@ -2906,7 +2907,6 @@ public final class Match {
         player.getInventory().clear();
         player.setInvulnerable(true);
         player.setHealth(20f);
-        player.setNoGravity(true);
         player.clearStatusEffects();
         player.setInvisible(true); // 冗余保险（旁观者天然隐身）
         player.getAbilities().allowFlying = true;
@@ -2977,7 +2977,9 @@ public final class Match {
             return;
         }
         this.eliminate(player, EliminationCause.FORFEIT);
-        // 还原赛前状态（转幽灵后还原为正常玩家）、隐藏侧边栏、标记已提前离场
+        // 清空计分板并隐藏侧边栏，防止旧对局残留项进入新对局
+        this.resetInfoScoreboardFor(player);
+        // 还原赛前状态（转幽灵后还原为正常玩家）、标记已提前离场
         InventorySnapshot snapshot = this.snapshots.get(player.getUuid());
         if (snapshot != null) {
             snapshot.restore(player);
@@ -2985,9 +2987,6 @@ public final class Match {
             this.manager.teleportToOverworldSpawn(player);
         }
         this.leftEarly.add(player.getUuid());
-        if (player.networkHandler != null) {
-            player.networkHandler.sendPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
-        }
     }
 
     /** 旁观者提前离场：requeue=true 立即重排当前模式，false 回主城。 */
@@ -2995,10 +2994,8 @@ public final class Match {
         if (!this.leftEarly.add(player.getUuid())) {
             return;
         }
-        // 离开本场回到主城：隐藏侧边栏
-        if (player.networkHandler != null) {
-            player.networkHandler.sendPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
-        }
+        // 清空计分板并隐藏侧边栏，防止旧对局残留项进入新对局
+        this.resetInfoScoreboardFor(player);
         InventorySnapshot snapshot = this.snapshots.get(player.getUuid());
         if (snapshot != null) {
             snapshot.restore(player);
@@ -3678,13 +3675,8 @@ public final class Match {
             }
         }
 
-        // 只给本场参战玩家显示侧边栏（回主城后自然隐藏）
-        for (ServerPlayerEntity player : this.players) {
-            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-            if (online != null && online.networkHandler != null) {
-                online.networkHandler.sendPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, objective));
-            }
-        }
+        // 只给本场参战玩家显示侧边栏（已提前离场的玩家不再显示，防止干扰新对局）
+        this.sendToMatchPlayers(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, objective));
     }
 
     /** 模式行：按模式着色。 */
@@ -3796,6 +3788,10 @@ public final class Match {
     /** 给本场所有在线玩家发送同一个计分板包（包为不可变 record，可复用）。 */
     private void sendToMatchPlayers(net.minecraft.network.packet.Packet<?> packet) {
         for (ServerPlayerEntity player : this.players) {
+            // 已提前离场的玩家客户端已清空，不再发本场计分板包，避免干扰新对局
+            if (this.scoreboardCleaned.contains(player.getUuid())) {
+                continue;
+            }
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online != null && online.networkHandler != null) {
                 online.networkHandler.sendPacket(packet);
@@ -3820,6 +3816,18 @@ public final class Match {
         this.infoLines.clear();
         // 本场玩家回到主城后隐藏侧边栏（按玩家发送空显示）
         this.sendToMatchPlayers(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
+    }
+
+    /** 为单个提前离场的玩家清空本场计分板行并隐藏侧边栏，防止进入新对局后看到旧对局的残留项。 */
+    private void resetInfoScoreboardFor(ServerPlayerEntity player) {
+        if (player.networkHandler == null) {
+            return;
+        }
+        this.scoreboardCleaned.add(player.getUuid());
+        for (String line : this.infoLines) {
+            player.networkHandler.sendPacket(new ScoreboardScoreResetS2CPacket(line, INFO_OBJECTIVE));
+        }
+        player.networkHandler.sendPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
     }
 
     private float faceCenter(BlockPos spawn) {

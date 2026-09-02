@@ -327,12 +327,10 @@ public final class PvPCommands {
             match.leaveMatch(player);
         } else {
             PvPMod.MATCH.getArenaManager().removeVisitor(player.getUuid());
-            // 访客可能被开启了飞行，返回主城时还原
-            player.getAbilities().allowFlying = false;
-            player.getAbilities().flying = false;
-            player.sendAbilitiesUpdate();
         }
         PvPMod.MATCH.teleportToOverworldSpawn(player);
+        // 立即施加大厅保护（清理幽灵残留：飞行/无重力/隐身/无敌等），避免等待下一 tick
+        PvPMod.MATCH.applyLobbyProtectionTo(player);
         player.sendMessage(Messages.info("已回到主城"), false);
         return 1;
     }
