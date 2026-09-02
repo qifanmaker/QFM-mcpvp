@@ -66,6 +66,8 @@ import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.network.packet.s2c.play.ScoreboardDisplayS2CPacket;
+import net.minecraft.network.packet.s2c.play.ScoreboardScoreResetS2CPacket;
+import net.minecraft.network.packet.s2c.play.ScoreboardScoreUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
@@ -3554,9 +3556,10 @@ public final class Match {
                     Text.literal("§6§lPvP 对局"), ScoreboardCriterion.RenderType.INTEGER, true, null);
         }
 
-        // 清掉上一帧的行（分数存于全局计分板，仅本场重绘）
+        // 清掉上一帧的行（服务端计分板 + 逐玩家发送重置包）
         for (String line : this.infoLines) {
             scoreboard.removeScore(ScoreHolder.fromName(line), objective);
+            this.sendToMatchPlayers(new ScoreboardScoreResetS2CPacket(line, INFO_OBJECTIVE));
         }
         this.infoLines.clear();
 
@@ -3783,6 +3786,21 @@ public final class Match {
     private void setInfoLine(Scoreboard scoreboard, ScoreboardObjective objective, String text, int score) {
         scoreboard.getOrCreateScore(ScoreHolder.fromName(text), objective).setScore(score);
         this.infoLines.add(text);
+        // 关键：ServerScoreboard.updateScore 只在 objective 已被"注册同步"时才广播分数包，
+        // 而原版从未为我们的 objective 注册（addScoreboardObjective 无任何调用方），
+        // 所以必须手动给本场玩家逐人发送分数包，否则客户端只有 objective 没有行，侧边栏完全不显示。
+        this.sendToMatchPlayers(new ScoreboardScoreUpdateS2CPacket(
+                text, INFO_OBJECTIVE, score, Optional.empty(), Optional.empty()));
+    }
+
+    /** 给本场所有在线玩家发送同一个计分板包（包为不可变 record，可复用）。 */
+    private void sendToMatchPlayers(net.minecraft.network.packet.Packet<?> packet) {
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null && online.networkHandler != null) {
+                online.networkHandler.sendPacket(packet);
+            }
+        }
     }
 
     private void removeInfoScoreboard() {
@@ -3797,15 +3815,11 @@ public final class Match {
         }
         for (String line : this.infoLines) {
             scoreboard.removeScore(ScoreHolder.fromName(line), objective);
+            this.sendToMatchPlayers(new ScoreboardScoreResetS2CPacket(line, INFO_OBJECTIVE));
         }
         this.infoLines.clear();
         // 本场玩家回到主城后隐藏侧边栏（按玩家发送空显示）
-        for (ServerPlayerEntity player : this.players) {
-            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-            if (online != null && online.networkHandler != null) {
-                online.networkHandler.sendPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
-            }
-        }
+        this.sendToMatchPlayers(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
     }
 
     private float faceCenter(BlockPos spawn) {
