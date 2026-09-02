@@ -418,10 +418,14 @@ public final class Match {
                     break;
                 }
                 List<ServerPlayerEntity> members = new ArrayList<>(players.subList(from, to));
-                // 用布局中该队的索引取颜色/名称（布局队伍按床位置角度排序，与岛屿对应）
-                int layoutIdx = bedWarsLayout != null && i < bedWarsLayout.teams().size()
-                        ? bedWarsLayout.teams().get(i).index : i;
-                teams.add(new MatchTeam(BedWarsLayout.name(layoutIdx), BedWarsLayout.color(layoutIdx), members));
+                // 用布局中该队的颜色（从 map.json 或岛屿方块探测），保证队伍颜色与岛屿一致
+                Formatting color = bedWarsLayout != null && i < bedWarsLayout.teams().size()
+                        ? bedWarsLayout.teams().get(i).color
+                        : BedWarsLayout.color(i);
+                String name = bedWarsLayout != null && i < bedWarsLayout.teams().size()
+                        ? BedWarsLayout.colorName(bedWarsLayout.teams().get(i).color)
+                        : BedWarsLayout.name(i);
+                teams.add(new MatchTeam(name, color, members));
             }
         } else {
             teams.add(new MatchTeam("全员", Formatting.WHITE, players));

@@ -44,7 +44,15 @@ public final class BedWarsEditor {
         IRON(0xCCCCCC, true, "铁生成点"),           // 白色
         GOLD(0xFFAA00, true, "金生成点"),           // 金色
         DIAMOND(0x55FFFF, false, "钻石生成点"),      // 青色
-        EMERALD(0x00AA00, false, "绿宝石生成点");    // 深绿
+        EMERALD(0x00AA00, false, "绿宝石生成点"),    // 深绿
+        COLOR_RED(0xFF0000, true, "红色队伍"),       // 红
+        COLOR_BLUE(0x0000FF, true, "蓝色队伍"),      // 蓝
+        COLOR_YELLOW(0xFFFF00, true, "黄色队伍"),    // 黄
+        COLOR_GREEN(0x00FF00, true, "绿色队伍"),     // 绿
+        COLOR_AQUA(0x00FFFF, true, "青色队伍"),      // 青
+        COLOR_WHITE(0xFFFFFF, true, "白色队伍"),     // 白
+        COLOR_PINK(0xFF69B4, true, "粉色队伍"),      // 粉
+        COLOR_BLACK(0x000000, true, "黑色队伍");     // 黑
 
         public final int color;
         public final boolean perTeam;
@@ -125,6 +133,31 @@ public final class BedWarsEditor {
         if (stack.isOf(Items.EMERALD)) {
             return MarkType.EMERALD;
         }
+        // 颜色标记：彩色羊毛
+        if (stack.isOf(Items.RED_WOOL)) {
+            return MarkType.COLOR_RED;
+        }
+        if (stack.isOf(Items.BLUE_WOOL)) {
+            return MarkType.COLOR_BLUE;
+        }
+        if (stack.isOf(Items.YELLOW_WOOL)) {
+            return MarkType.COLOR_YELLOW;
+        }
+        if (stack.isOf(Items.GREEN_WOOL)) {
+            return MarkType.COLOR_GREEN;
+        }
+        if (stack.isOf(Items.CYAN_WOOL)) {
+            return MarkType.COLOR_AQUA;
+        }
+        if (stack.isOf(Items.WHITE_WOOL)) {
+            return MarkType.COLOR_WHITE;
+        }
+        if (stack.isOf(Items.PINK_WOOL)) {
+            return MarkType.COLOR_PINK;
+        }
+        if (stack.isOf(Items.BLACK_WOOL)) {
+            return MarkType.COLOR_BLACK;
+        }
         return null;
     }
 
@@ -138,8 +171,22 @@ public final class BedWarsEditor {
         return session;
     }
 
-    /** 标记：在点击方块上方记录一个标记点。返回是否成功（false = 该位置已标记）。 */
+    /** 标记：在点击方块上方记录一个标记点。颜色标记时记录到最近床。返回是否成功。 */
     public static boolean mark(Session session, MarkType type, BlockPos clickedBlock, World world) {
+        if (type.name().startsWith("COLOR_")) {
+            // 颜色标记：记录到最近床（一个床只能标一次颜色，覆盖旧颜色）
+            BlockPos markPos = clickedBlock.up();
+            int bedIdx = nearestBedIndex(session.beds, markPos.subtract(session.offset));
+            if (bedIdx < 0) {
+                return false;
+            }
+            // 移除该床的旧颜色标记
+            session.marks.entrySet().removeIf(e -> e.getValue().name().startsWith("COLOR_")
+                    && nearestBedIndex(session.beds, e.getKey().subtract(session.offset)) == bedIdx);
+            session.marks.put(markPos, type);
+            spawnMarkParticles(world, markPos, type);
+            return true;
+        }
         BlockPos markPos = clickedBlock.up();
         if (session.marks.containsKey(markPos)) {
             return false;
@@ -227,8 +274,45 @@ public final class BedWarsEditor {
         cfg.golds = assignPerTeam(session, MarkType.GOLD);
         cfg.diamonds = collectGlobal(session, MarkType.DIAMOND);
         cfg.emeralds = collectGlobal(session, MarkType.EMERALD);
+        cfg.colors = assignColors(session);
         cfg.save(session.mapDir);
         return true;
+    }
+
+    /** 颜色标记按最近床认领队伍，输出 0..beds-1 顺序的颜色名（未标记的队用默认）。 */
+    private static List<String> assignColors(Session session) {
+        String[] byTeam = new String[session.beds.size()];
+        for (Map.Entry<BlockPos, MarkType> e : session.marks.entrySet()) {
+            MarkType type = e.getValue();
+            if (!type.name().startsWith("COLOR_")) {
+                continue;
+            }
+            BlockPos mark = e.getKey().subtract(session.offset); // 转地图坐标
+            int bedIdx = nearestBedIndex(session.beds, mark);
+            if (bedIdx >= 0) {
+                byTeam[bedIdx] = colorNameOf(type);
+            }
+        }
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < session.beds.size(); i++) {
+            result.add(byTeam[i] != null ? byTeam[i] : BedWarsLayout.TEAM_COLORS[Math.min(i, BedWarsLayout.TEAM_COLORS.length - 1)].name().toLowerCase());
+        }
+        return result;
+    }
+
+    /** 标记类型 → 颜色名（red/blue/...）。 */
+    private static String colorNameOf(MarkType type) {
+        return switch (type) {
+            case COLOR_RED -> "red";
+            case COLOR_BLUE -> "blue";
+            case COLOR_YELLOW -> "yellow";
+            case COLOR_GREEN -> "green";
+            case COLOR_AQUA -> "aqua";
+            case COLOR_WHITE -> "white";
+            case COLOR_PINK -> "pink";
+            case COLOR_BLACK -> "black";
+            default -> "red";
+        };
     }
 
     /** 收集某类型所有标记（转地图坐标），按最近床认领队伍，输出 0..beds-1 顺序。 */

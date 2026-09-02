@@ -131,6 +131,14 @@ public final class PvPMod implements ModInitializer {
             case GOLD -> "金生成点";
             case DIAMOND -> "钻石生成点";
             case EMERALD -> "绿宝石生成点";
+            case COLOR_RED -> "红色队伍";
+            case COLOR_BLUE -> "蓝色队伍";
+            case COLOR_YELLOW -> "黄色队伍";
+            case COLOR_GREEN -> "绿色队伍";
+            case COLOR_AQUA -> "青色队伍";
+            case COLOR_WHITE -> "白色队伍";
+            case COLOR_PINK -> "粉色队伍";
+            case COLOR_BLACK -> "黑色队伍";
         };
     }
 

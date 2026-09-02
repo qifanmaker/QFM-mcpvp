@@ -30,6 +30,8 @@ public final class BedWarsMapConfig {
     public List<Pos> golds = new ArrayList<>();
     public List<Pos> diamonds = new ArrayList<>();
     public List<Pos> emeralds = new ArrayList<>();
+    /** 每队颜色（red/blue/yellow/green/aqua/white/pink/black），按队伍顺序。 */
+    public List<String> colors = new ArrayList<>();
 
     /** 坐标对象（Gson 序列化用）。 */
     public static final class Pos {

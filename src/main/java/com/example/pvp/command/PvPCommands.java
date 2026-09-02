@@ -827,6 +827,15 @@ public final class PvPCommands {
         player.getInventory().setStack(4, markItem(net.minecraft.item.Items.DIAMOND, "§b钻石生成点标记（中央岛）"));
         player.getInventory().setStack(5, markItem(net.minecraft.item.Items.EMERALD, "§a绿宝石生成点标记（中央岛）"));
         player.getInventory().setStack(8, markItem(net.minecraft.item.Items.PAPER, "§c保存并退出"));
+        // 颜色标记羊毛（放背包，手持后左键点击床标记该队颜色）
+        player.getInventory().setStack(9, markItem(net.minecraft.item.Items.RED_WOOL, "§c红色队伍标记"));
+        player.getInventory().setStack(10, markItem(net.minecraft.item.Items.BLUE_WOOL, "§9蓝色队伍标记"));
+        player.getInventory().setStack(11, markItem(net.minecraft.item.Items.YELLOW_WOOL, "§e黄色队伍标记"));
+        player.getInventory().setStack(12, markItem(net.minecraft.item.Items.GREEN_WOOL, "§a绿色队伍标记"));
+        player.getInventory().setStack(13, markItem(net.minecraft.item.Items.CYAN_WOOL, "§b青色队伍标记"));
+        player.getInventory().setStack(14, markItem(net.minecraft.item.Items.WHITE_WOOL, "§f白色队伍标记"));
+        player.getInventory().setStack(15, markItem(net.minecraft.item.Items.PINK_WOOL, "§d粉色队伍标记"));
+        player.getInventory().setStack(16, markItem(net.minecraft.item.Items.BLACK_WOOL, "§8黑色队伍标记"));
         player.changeGameMode(net.minecraft.world.GameMode.CREATIVE);
         player.getAbilities().allowFlying = true;
         player.getAbilities().flying = true;
@@ -839,6 +848,7 @@ public final class PvPCommands {
         player.sendMessage(Messages.info("§7左键标记 / 右键取消标记，标记点放在点击方块上方§r"), false);
         player.sendMessage(Messages.info("§a木棍§r=普通商店  §5烈焰棒§r=团队升级商店  §f铁锭§r=铁  §6金锭§r=金"), false);
         player.sendMessage(Messages.info("§b钻石§r=钻石点  §a绿宝石§r=绿宝石点  §c纸§r=保存退出"), false);
+        player.sendMessage(Messages.info("§c红§9蓝§e黄§a绿§b青§f白§d粉§8黑§r羊毛=标记队伍颜色（左键点击床）"), false);
         player.sendMessage(Messages.gold("队伍性质点（商店/升级商店/铁/金）保存时自动认领最近的床"), false);
         return 1;
     }
