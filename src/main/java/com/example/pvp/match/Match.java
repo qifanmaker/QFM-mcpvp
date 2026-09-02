@@ -2034,6 +2034,19 @@ public final class Match {
                 this.broadcast(Messages.error("§c" + BedWarsLayout.name(teamIdx) + "§r 的床被 "
                         + player.getGameProfile().getName() + " 摧毁了！该队无法再复活！"));
                 player.playSoundToPlayer(SoundEvents.ENTITY_WITHER_BREAK_BLOCK, SoundCategory.PLAYERS, 1.0F, 1.0F);
+                // 被摧毁队伍全员标题警告 + 音效
+                if (teamIdx < this.teams.size()) {
+                    for (ServerPlayerEntity member : this.teams.get(teamIdx).getPlayers()) {
+                        ServerPlayerEntity online = this.manager.getOnlinePlayer(member.getUuid());
+                        if (online == null || online.networkHandler == null) {
+                            continue;
+                        }
+                        online.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 40, 10));
+                        online.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("§c§l床被摧毁！")));
+                        online.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("§e你将无法重生！")));
+                        online.playSoundToPlayer(SoundEvents.ENTITY_ENDER_DRAGON_GROWL, SoundCategory.PLAYERS, 1.0F, 1.0F);
+                    }
+                }
             }
             return true;
         }
@@ -2098,7 +2111,7 @@ public final class Match {
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         int teamIdx = this.teamIndex(player);
         if (arena != null && this.bedWarsLayout != null && teamIdx >= 0 && teamIdx < this.bedWarsLayout.teams().size()) {
-            BlockPos spawn = this.bedWarsLayout.teams().get(teamIdx).spawn().add(this.bedWarsOffset);
+            BlockPos spawn = this.bedWarsLayout.teams().get(teamIdx).spawn.add(this.bedWarsOffset);
             player.teleport(arena, spawn.getX() + 0.5, spawn.getY() + 1, spawn.getZ() + 0.5, this.faceCenter(spawn), 0);
         }
         player.networkHandler.sendPacket(new TitleFadeS2CPacket(0, 30, 5));
