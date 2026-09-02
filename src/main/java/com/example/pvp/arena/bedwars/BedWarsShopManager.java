@@ -369,16 +369,9 @@ public final class BedWarsShopManager {
         }
     }
 
-    /** 装备盔甲到指定槽位（0=靴子 1=护腿 2=胸甲 3=头盔），旧装备掉落。 */
+    /** 装备盔甲到指定槽位（0=靴子 1=护腿 2=胸甲 3=头盔），旧装备直接覆盖。 */
     private static void equipArmor(ServerPlayerEntity player, ItemStack stack, int slot) {
-        var inventory = player.getInventory();
-        ItemStack old = inventory.armor.get(slot);
-        if (!old.isEmpty()) {
-            // 旧装备掉落
-            player.getWorld().spawnEntity(new net.minecraft.entity.ItemEntity(
-                    player.getWorld(), player.getX(), player.getY(), player.getZ(), old.copy()));
-        }
-        inventory.armor.set(slot, stack);
+        player.getInventory().armor.set(slot, stack);
     }
 
     private static void applyEnchant(ItemStack stack, ServerPlayerEntity player,
