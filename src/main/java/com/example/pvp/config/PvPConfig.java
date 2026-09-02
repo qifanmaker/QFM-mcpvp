@@ -190,7 +190,7 @@ public final class PvPConfig {
     /** 对局超时（秒）：超过后按存活队伍/床数判定。 */
     public int bedWarsTimeoutSeconds = 900;
     /** 开赛倒计时（秒，大厅等待）。 */
-    public int bedWarsCountdownSeconds = 30;
+    public int bedWarsCountdownSeconds = 5;
     private PvPConfig() {
     }
 

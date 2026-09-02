@@ -2985,8 +2985,8 @@ public final class Match {
             this.setupPlayers();
         }
 
-        // 幸运之柱/心跳水立方/床战：开局倒计时锁在出生点/大厅（可转视角）
-        if (this.type == MatchType.LUCKY_PILLAR || this.type == MatchType.HEARTBEAT || this.type.isBedWars()) {
+        // 幸运之柱/心跳水立方：开局倒计时锁在出生点/大厅（可转视角）。床战倒计时期间允许移动。
+        if (this.type == MatchType.LUCKY_PILLAR || this.type == MatchType.HEARTBEAT) {
             this.lockPlayersToSpawn();
         }
 
