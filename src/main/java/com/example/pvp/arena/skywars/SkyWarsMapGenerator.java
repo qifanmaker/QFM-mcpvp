@@ -105,29 +105,14 @@ public final class SkyWarsMapGenerator {
         }
 
         // 箱子（中间岛前两个放 3 格高石砖柱上；末地环上把落进空心的箱子挪到环内缘，避免浮空）
-        java.util.List<BlockPos> chests = island.chests();
+        List<BlockPos> chests = island.chests();
         for (int i = 0; i < chests.size(); i++) {
-            BlockPos chestPos = chests.get(i);
-            int cx = chestPos.getX();
-            int cz = chestPos.getZ();
-            if (ring) {
-                double d = Math.hypot(cx - c.getX(), cz - c.getZ());
-                if (d < innerR + 1) {
-                    double ang = Math.atan2(cz - c.getZ(), cx - c.getX());
-                    cx = c.getX() + (int) Math.round(Math.cos(ang) * (innerR + 1));
-                    cz = c.getZ() + (int) Math.round(Math.sin(ang) * (innerR + 1));
-                }
-            }
-            int y;
+            BlockPos pos = islandChestPos(island, i, middle, ring, theme);
             if (middle && i < 2) {
                 // 立柱：Y+1、Y+2 石砖，箱子在 Y+3
-                world.setBlockState(new BlockPos(cx, c.getY() + 1, cz), Blocks.STONE_BRICKS.getDefaultState(), 3);
-                world.setBlockState(new BlockPos(cx, c.getY() + 2, cz), Blocks.STONE_BRICKS.getDefaultState(), 3);
-                y = c.getY() + 3;
-            } else {
-                y = chestPos.getY();
+                world.setBlockState(pos.down(2), Blocks.STONE_BRICKS.getDefaultState(), 3);
+                world.setBlockState(pos.down(), Blocks.STONE_BRICKS.getDefaultState(), 3);
             }
-            BlockPos pos = new BlockPos(cx, y, cz);
             world.setBlockState(pos, Blocks.CHEST.getDefaultState(), 3);
             BlockEntity be = world.getBlockEntity(pos);
             if (be instanceof ChestBlockEntity chest) {
@@ -153,6 +138,76 @@ public final class SkyWarsMapGenerator {
                 case ICE -> buildSmallTree(world, random, treeBase, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES);
                 case END -> buildChorus(world, random, treeBase);
                 default -> buildSmallTree(world, random, treeBase, Blocks.OAK_LOG, Blocks.OAK_LEAVES);
+            }
+        }
+    }
+
+    /**
+     * 一座岛上一个箱子的实际落位（与 {@link #buildIsland} 完全一致）：
+     * 末地中央主岛(空心环)会把落在环内的箱子沿角度外推至环内缘；中岛群前两个箱子上 3 格立柱。
+     * 生成与"5 分钟物资刷新"共用，保证重刷时能找到生成时真正落位的箱子。
+     */
+    private static BlockPos islandChestPos(SkyWarsLayout.Island island, int chestIndex, boolean middle,
+                                           boolean ring, SkyWarsTheme theme) {
+        BlockPos chestPos = island.chests().get(chestIndex);
+        int cx = chestPos.getX();
+        int cz = chestPos.getZ();
+        int cX = island.center.getX();
+        int cZ = island.center.getZ();
+        boolean applyRing = ring && theme.ringMiddle();
+        int innerR = applyRing ? (int) (island.radius * theme.ringInnerRatio()) : 0;
+        if (ring) {
+            double d = Math.hypot(cx - cX, cz - cZ);
+            if (d < innerR + 1) {
+                double ang = Math.atan2(cz - cZ, cx - cX);
+                cx = cX + (int) Math.round(Math.cos(ang) * (innerR + 1));
+                cz = cZ + (int) Math.round(Math.sin(ang) * (innerR + 1));
+            }
+        }
+        int y = (middle && chestIndex < 2) ? island.center.getY() + 3 : chestPos.getY();
+        return new BlockPos(cx, y, cz);
+    }
+
+    /**
+     * "5 分钟物资刷新"事件：清空并重新塞满全图所有箱子（含已被开过的）。
+     * 需要与生成时相同的布局/主题/弱势补偿，逐岛按生成顺序定位箱子并重填战利品；
+     * 被玩家/缩圈拆掉的箱子不复活（找不到方块实体即跳过）。
+     *
+     * @param players 本场原始玩家列表（重新计算弱势补偿，结果与生成时一致）
+     */
+    public static void refillChests(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
+                                    List<ServerPlayerEntity> players) {
+        if (world == null || layout == null) {
+            return;
+        }
+        int[] handicaps = players == null ? new int[0] : SkyWarsLoot.handicapForMatch(players);
+
+        List<SkyWarsLayout.Island> spawnIslands = layout.spawnIslands();
+        for (int i = 0; i < spawnIslands.size(); i++) {
+            refillIslandChests(world, spawnIslands.get(i), false, false, theme, handicapAt(handicaps, i));
+        }
+        List<SkyWarsLayout.Island> midIslands = layout.midIslands();
+        for (int i = 0; i < midIslands.size(); i++) {
+            refillIslandChests(world, midIslands.get(i), false, false, theme, handicapAt(handicaps, i));
+        }
+        List<SkyWarsLayout.Island> middleIslands = layout.middleIslands();
+        for (int i = 0; i < middleIslands.size(); i++) {
+            refillIslandChests(world, middleIslands.get(i), true, i == 0, theme, 0);
+        }
+    }
+
+    private static int handicapAt(int[] handicaps, int i) {
+        return i >= 0 && i < handicaps.length ? handicaps[i] : 0;
+    }
+
+    private static void refillIslandChests(ArenaWorld world, SkyWarsLayout.Island island, boolean middle,
+                                           boolean ring, SkyWarsTheme theme, int handicap) {
+        for (int i = 0; i < island.chests().size(); i++) {
+            BlockPos pos = islandChestPos(island, i, middle, ring, theme);
+            BlockEntity be = world.getBlockEntity(pos);
+            if (be instanceof ChestBlockEntity chest) {
+                chest.clear(); // 清空旧物资，再重新塞满全新随机战利品
+                SkyWarsLoot.populate(chest, middle, handicap);
             }
         }
     }

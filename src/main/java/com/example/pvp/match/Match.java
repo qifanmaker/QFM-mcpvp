@@ -125,6 +125,7 @@ public final class Match {
     private final int skywarsSeed;
     private int skywarsShrinkStage; // 已执行的缩圈档数
     private int skywarsLastKeepRadius = Integer.MAX_VALUE; // 上一档安全半径
+    private boolean skywarsChestRefilled; // 5 分钟"物资刷新"事件是否已触发（每场一次）
 
     /** 战桥地图布局（仅战桥模式非空，进球判定/重生/清理用）。 */
     private final BridgeLayout bridgeLayout;
@@ -555,6 +556,7 @@ public final class Match {
                     this.tickSkywarsShrink();
                     this.tickSkywarsTotem();
                     this.tickSkywarsCompass();
+                    this.tickSkywarsChestRefill();
                 }
                 if (this.type == MatchType.LUCKY_PILLAR) {
                     this.tickLuckyPillar();
@@ -677,6 +679,26 @@ public final class Match {
                 }
             }
         }
+    }
+
+    /** 空岛战争事件：开赛满 4 分钟（skywarsRefillSeconds）触发一次——清空并重新塞满全图箱子物资。 */
+    private void tickSkywarsChestRefill() {
+        if (this.skywarsChestRefilled) {
+            return;
+        }
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int elapsed = this.ticks - this.initialCountdownTicks;
+        if (elapsed < cfg.skywarsRefillSeconds * 20) {
+            return;
+        }
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return; // 场地未就绪，下一 tick 再试
+        }
+        this.skywarsChestRefilled = true;
+        SkyWarsMapGenerator.refillChests(arena, this.skywarsLayout, this.skywarsTheme, this.players);
+        this.broadcastTitleBig("§6§l物资刷新！", "§f全图箱子已重置新物资");
+        this.broadcast(Text.literal("§e[空岛战争] §f4 分钟已到，所有箱子物资已刷新！"));
     }
 
     /** 空岛战争：掉入虚空且持有不死图腾 → 消耗一个，把玩家传送到中岛中心救回。 */
