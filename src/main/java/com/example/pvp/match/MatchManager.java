@@ -391,6 +391,9 @@ public final class MatchManager {
 
     /** 玩家断线事件。 */
     public void onPlayerDisconnect(ServerPlayerEntity player) {
+        // 会话结束，清除"已注册计分板 objective"标记：重进后需重新发 ADD 包，
+        // 否则客户端不知道 pvp_info 存在，侧边栏永远不显示
+        this.scoreboardObjectiveKnown.remove(player.getUuid());
         this.getArenaManager().removeVisitor(player.getUuid());
         Match match = this.getMatchFor(player);
         if (match != null) {
