@@ -2,14 +2,12 @@ package com.example.pvp.arena.bedwars;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -166,13 +164,13 @@ public final class BedWarsLayout {
             teams.add(new Team(i, bed, spawn, iron, gold, shop, upgradeShop));
         }
 
-        // 6. 探测每队岛屿颜色：优先读 map.json 的颜色配置，否则扫床周围 15 格内的彩色方块
+        // 6. 队伍颜色：优先读 map.json 的颜色配置，无配置则按索引取默认调色板（保证每队不同色）
         for (int i = 0; i < teams.size(); i++) {
             Team team = teams.get(i);
             if (config != null && i < config.colors.size()) {
                 team.color = parseColor(config.colors.get(i), i);
             } else {
-                team.color = detectTeamColor(data, team.bed);
+                team.color = TEAM_COLORS[Math.min(i, TEAM_COLORS.length - 1)];
             }
         }
 
@@ -270,60 +268,6 @@ public final class BedWarsLayout {
             case "black" -> Formatting.BLACK;
             default -> TEAM_COLORS[Math.min(fallbackIndex, TEAM_COLORS.length - 1)];
         };
-    }
-
-    /** 探测队伍岛屿颜色：扫床周围 15 格内的彩色方块（混凝土/羊毛/玻璃/陶瓦），取最多的颜色。 */
-    private static Formatting detectTeamColor(BedWarsMapLoader.MapData data, BlockPos bed) {
-        Map<Formatting, Integer> counts = new HashMap<>();
-        int r = 15;
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dz = -r; dz <= r; dz++) {
-                for (int dy = -5; dy <= 5; dy++) {
-                    BlockPos p = bed.add(dx, dy, dz);
-                    BlockState s = data.blocks.get(p);
-                    if (s == null) {
-                        continue;
-                    }
-                    Formatting color = colorOfBlock(s.getBlock());
-                    if (color != null) {
-                        counts.merge(color, 1, Integer::sum);
-                    }
-                }
-            }
-        }
-        return counts.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
-                .orElse(TEAM_COLORS[0]);
-    }
-
-    /** 方块 → 队伍颜色（只认彩色混凝土/羊毛/玻璃/陶瓦）。 */
-    private static Formatting colorOfBlock(net.minecraft.block.Block block) {
-        if (block == Blocks.RED_CONCRETE || block == Blocks.RED_WOOL || block == Blocks.RED_STAINED_GLASS || block == Blocks.RED_TERRACOTTA) {
-            return Formatting.RED;
-        }
-        if (block == Blocks.BLUE_CONCRETE || block == Blocks.BLUE_WOOL || block == Blocks.BLUE_STAINED_GLASS || block == Blocks.BLUE_TERRACOTTA) {
-            return Formatting.BLUE;
-        }
-        if (block == Blocks.YELLOW_CONCRETE || block == Blocks.YELLOW_WOOL || block == Blocks.YELLOW_STAINED_GLASS || block == Blocks.YELLOW_TERRACOTTA) {
-            return Formatting.YELLOW;
-        }
-        if (block == Blocks.GREEN_CONCRETE || block == Blocks.GREEN_WOOL || block == Blocks.GREEN_STAINED_GLASS || block == Blocks.GREEN_TERRACOTTA) {
-            return Formatting.GREEN;
-        }
-        if (block == Blocks.CYAN_CONCRETE || block == Blocks.CYAN_WOOL || block == Blocks.CYAN_STAINED_GLASS || block == Blocks.CYAN_TERRACOTTA) {
-            return Formatting.AQUA;
-        }
-        if (block == Blocks.WHITE_CONCRETE || block == Blocks.WHITE_WOOL || block == Blocks.WHITE_STAINED_GLASS || block == Blocks.WHITE_TERRACOTTA) {
-            return Formatting.WHITE;
-        }
-        if (block == Blocks.PINK_CONCRETE || block == Blocks.PINK_WOOL || block == Blocks.PINK_STAINED_GLASS || block == Blocks.PINK_TERRACOTTA) {
-            return Formatting.LIGHT_PURPLE;
-        }
-        if (block == Blocks.BLACK_CONCRETE || block == Blocks.BLACK_WOOL || block == Blocks.BLACK_STAINED_GLASS || block == Blocks.BLACK_TERRACOTTA) {
-            return Formatting.BLACK;
-        }
-        return null;
     }
 
     /** 队伍名。 */

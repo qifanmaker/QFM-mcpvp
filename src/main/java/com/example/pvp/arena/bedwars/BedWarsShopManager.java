@@ -193,7 +193,8 @@ public final class BedWarsShopManager {
 
     /** 打开普通商店（顶部分类标签页）。 */
     public static void openShop(ServerPlayerEntity player, Match match, int teamIndex) {
-        Formatting color = BedWarsLayout.color(teamIndex);
+        // 用 Match 分队的实际颜色（与名字颜色/出生岛一致），不能用静态索引调色板
+        Formatting color = match.teamColorOf(teamIndex);
         NamedScreenHandlerFactory factory = new NamedScreenHandlerFactory() {
             @Override
             public Text getDisplayName() {
@@ -305,19 +306,19 @@ public final class BedWarsShopManager {
             player.sendMessage(Messages.error("资源不足！需要 " + item.currency.displayName + " x" + item.price), false);
             return false;
         }
-        give(player, item, teamIndex);
+        give(player, item, match.teamColorOf(teamIndex));
         // 新购买的装备应用团队升级（锋利/保护）
         match.applyUpgradeGearToPlayer(player);
         player.sendMessage(Messages.info("已购买 " + item.name), false);
         return true;
     }
 
-    /** 发放商品（按商品类型特殊处理）。 */
-    private static void give(ServerPlayerEntity player, ShopItem item, int teamIndex) {
+    /** 发放商品（按商品类型特殊处理；teamColor 为队伍实际颜色）。 */
+    private static void give(ServerPlayerEntity player, ShopItem item, Formatting teamColor) {
         Item i = item.item;
         if (item.woolColor) {
             // 按队伍色发羊毛
-            giveStack(player, new ItemStack(woolFor(BedWarsLayout.color(teamIndex)), item.count));
+            giveStack(player, new ItemStack(woolFor(teamColor), item.count));
         } else if (i == Items.STICK && item.name.contains("击退棒")) {
             ItemStack kb = new ItemStack(Items.STICK);
             kb.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§e击退棒"));

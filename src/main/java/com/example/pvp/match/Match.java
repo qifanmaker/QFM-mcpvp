@@ -1991,9 +1991,9 @@ public final class Match {
             online.getHungerManager().setSaturationLevel(20f);
             online.clearStatusEffects();
             online.fallDistance = 0;
-            // 初始羊毛（队伍色）+ 木剑
+            // 初始羊毛（队伍实际颜色，与名字/出生岛一致）+ 木剑
             online.getInventory().clear();
-            net.minecraft.item.Item wool = switch (BedWarsLayout.color(teamIdx)) {
+            net.minecraft.item.Item wool = switch (this.teamColorOf(teamIdx)) {
                 case RED -> net.minecraft.item.Items.RED_WOOL;
                 case BLUE -> net.minecraft.item.Items.BLUE_WOOL;
                 case YELLOW -> net.minecraft.item.Items.YELLOW_WOOL;
@@ -2057,7 +2057,10 @@ public final class Match {
                         this.bedWarsBedBlocks.remove(bed);
                     }
                 }
-                this.broadcast(Messages.error("§c" + BedWarsLayout.name(teamIdx) + "§r 的床被 "
+                MatchTeam victimTeam = teamIdx < this.teams.size() ? this.teams.get(teamIdx) : null;
+                String teamLabel = victimTeam != null
+                        ? victimTeam.getColor() + victimTeam.getName() : BedWarsLayout.name(teamIdx);
+                this.broadcast(Messages.error(teamLabel + "§r 的床被 "
                         + player.getGameProfile().getName() + " 摧毁了！该队无法再复活！"));
                 player.playSoundToPlayer(SoundEvents.ENTITY_WITHER_BREAK_BLOCK, SoundCategory.PLAYERS, 1.0F, 1.0F);
                 // 被摧毁队伍全员标题警告 + 音效
@@ -2586,6 +2589,14 @@ public final class Match {
     /** 玩家所属队伍索引（公开，商店系统调用；-1 表示未找到）。 */
     public int teamIndexOf(ServerPlayerEntity player) {
         return this.teamIndex(player);
+    }
+
+    /** 该队颜色（分队时按地图布局/配置确定，供商店羊毛等队伍色物品使用）。 */
+    public Formatting teamColorOf(int teamIdx) {
+        if (teamIdx >= 0 && teamIdx < this.teams.size()) {
+            return this.teams.get(teamIdx).getColor();
+        }
+        return Formatting.WHITE;
     }
 
     /** 玩家所属队伍。 */
