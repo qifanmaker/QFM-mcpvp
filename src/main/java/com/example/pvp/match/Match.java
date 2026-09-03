@@ -1755,6 +1755,10 @@ public final class Match {
                 if (online == null || online.getWorld() != arena) {
                     continue;
                 }
+                // 全程饱和：不掉饥饿（每秒刷新，防止牛奶/指令清掉后失效）
+                if (!online.hasStatusEffect(StatusEffects.SATURATION)) {
+                    online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
+                }
                 if (haste > 0) {
                     online.addStatusEffect(new StatusEffectInstance(StatusEffects.HASTE, 40, haste - 1, false, false, false));
                 }
@@ -1993,6 +1997,8 @@ public final class Match {
             online.getHungerManager().setFoodLevel(20);
             online.getHungerManager().setSaturationLevel(20f);
             online.clearStatusEffects();
+            // 起床战争全程饱和：不掉饥饿
+            online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
             online.fallDistance = 0;
             // 初始羊毛（队伍实际颜色，与名字/出生岛一致）+ 木剑
             online.getInventory().clear();
@@ -2179,8 +2185,9 @@ public final class Match {
         player.fallDistance = 0;
         // 清空物品栏：保留永久装备（盔甲+剪刀），工具/武器降级，其余清空
         this.clearBedwarsInventory(player);
-        // 3 秒抗性 V（100% 减伤）防围殴，之后正常
+        // 3 秒抗性 V（100% 减伤）防围殴，之后正常；恢复全程饱和效果
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 60, 4, false, false, false));
+        player.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
         this.bedWarsRespawnTicks.remove(player.getUuid());
         player.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 20, 5));
         player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("§a§l你已复活！")));
