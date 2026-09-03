@@ -187,6 +187,11 @@ public final class PvpGuiManager {
         return c.contains(SPECTATE_TAG) || c.contains(REQUEUE_TAG) || c.contains(EXIT_TAG);
     }
 
+    /** 是否是任意 UI 工具（菜单/排队/观战）。 */
+    public static boolean isUiItem(ItemStack stack) {
+        return isMenuItem(stack) || isQueueItem(stack) || isSpectatorUiItem(stack);
+    }
+
     public static String getSpectatorTag(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return "";

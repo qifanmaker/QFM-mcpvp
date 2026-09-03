@@ -15,6 +15,7 @@
     "ProjectileEntityMixin",
     "TntEntityMixin",
     "ExplosionMixin",
+    "ScreenHandlerMixin",
     "registry.DimensionOptionsMixin",
     "registry.SimpleRegistryMixin",
     "registry.WorldGenSettingsMixin"

@@ -2,6 +2,7 @@ package com.example.pvp.mixin;
 
 import com.example.pvp.gui.PvpGuiManager;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,9 +20,16 @@ public abstract class ServerPlayerEntityMixin {
     @Inject(method = "dropItem(Lnet/minecraft/item/ItemStack;ZZ)Lnet/minecraft/entity/ItemEntity;", at = @At("HEAD"), cancellable = true)
     private void pvp$preventDropUiItems(ItemStack stack, boolean throwRandomly, boolean retainOwnership, CallbackInfoReturnable<ItemEntity> cir) {
         if (PvpGuiManager.isMenuItem(stack) || PvpGuiManager.isQueueItem(stack) || PvpGuiManager.isSpectatorUiItem(stack)) {
-            // 调用方已把物品从背包/光标移除，放回背包防止 UI 工具丢失
+            // 调用方已把物品从背包/光标移除，优先放回当前选中的快捷栏格（即原来的位置），
+            // 若该格已被占用再使用 insertStack 兜底，防止 UI 工具丢失或乱跑。
             ServerPlayerEntity self = (ServerPlayerEntity) (Object) this;
-            self.getInventory().insertStack(stack);
+            PlayerInventory inventory = self.getInventory();
+            int selected = inventory.selectedSlot;
+            if (inventory.getStack(selected).isEmpty()) {
+                inventory.setStack(selected, stack);
+            } else {
+                inventory.insertStack(stack);
+            }
             self.currentScreenHandler.sendContentUpdates();
             cir.setReturnValue(null);
         }
