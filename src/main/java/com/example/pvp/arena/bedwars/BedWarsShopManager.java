@@ -249,6 +249,22 @@ public final class BedWarsShopManager {
         }
         ItemStack stack = new ItemStack(itemBase, item.count);
         stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal(item.name));
+        // 药水商品：展示时带上实际药水内容与颜色（客户端 tooltip 可见效果）
+        if (item.item == Items.POTION) {
+            if (item.name.contains("速度")) {
+                stack.set(DataComponentTypes.POTION_CONTENTS, new net.minecraft.component.type.PotionContentsComponent(
+                        java.util.Optional.empty(), java.util.Optional.of(0x33EBFF),
+                        List.of(new StatusEffectInstance(StatusEffects.SPEED, 45 * 20, 1))));
+            } else if (item.name.contains("跳跃")) {
+                stack.set(DataComponentTypes.POTION_CONTENTS, new net.minecraft.component.type.PotionContentsComponent(
+                        java.util.Optional.empty(), java.util.Optional.of(0x22FF4C),
+                        List.of(new StatusEffectInstance(StatusEffects.JUMP_BOOST, 45 * 20, 4))));
+            } else if (item.name.contains("隐身")) {
+                stack.set(DataComponentTypes.POTION_CONTENTS, new net.minecraft.component.type.PotionContentsComponent(
+                        java.util.Optional.empty(), java.util.Optional.of(0x7F8392),
+                        List.of(new StatusEffectInstance(StatusEffects.INVISIBILITY, 30 * 20, 0))));
+            }
+        }
         List<Text> lore = new ArrayList<>();
         for (String line : item.lore) {
             lore.add(Text.literal("§7" + line));
@@ -351,17 +367,29 @@ public final class BedWarsShopManager {
             applyEnchant(b, player, Enchantments.POWER, 1);
             giveStack(player, b);
         } else if (i == Items.POTION && item.name.contains("速度")) {
-            player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 45 * 20, 1, false, false, true));
+            giveStack(player, makePotion(item.name, 0x33EBFF,
+                    new StatusEffectInstance(StatusEffects.SPEED, 45 * 20, 1)));
         } else if (i == Items.POTION && item.name.contains("跳跃")) {
-            player.addStatusEffect(new StatusEffectInstance(StatusEffects.JUMP_BOOST, 45 * 20, 4, false, false, true));
+            giveStack(player, makePotion(item.name, 0x22FF4C,
+                    new StatusEffectInstance(StatusEffects.JUMP_BOOST, 45 * 20, 4)));
         } else if (i == Items.POTION && item.name.contains("隐身")) {
-            player.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, 30 * 20, 0, false, false, true));
+            giveStack(player, makePotion(item.name, 0x7F8392,
+                    new StatusEffectInstance(StatusEffects.INVISIBILITY, 30 * 20, 0)));
         } else if (i == Items.MILK_BUCKET) {
             player.clearStatusEffects();
         } else {
             giveStack(player, new ItemStack(i, item.count));
         }
         player.currentScreenHandler.sendContentUpdates();
+    }
+
+    /** 制作一瓶自定义药水（可饮用的药水瓶，含效果与颜色）。 */
+    private static ItemStack makePotion(String name, int color, StatusEffectInstance effect) {
+        ItemStack stack = new ItemStack(Items.POTION);
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal(name));
+        stack.set(DataComponentTypes.POTION_CONTENTS, new net.minecraft.component.type.PotionContentsComponent(
+                java.util.Optional.empty(), java.util.Optional.of(color), List.of(effect)));
+        return stack;
     }
 
     /** 尝试购买团队升级（按序逐级：当前等级即已购级数，买下一级）。 */
