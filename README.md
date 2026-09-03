@@ -182,6 +182,9 @@ Bed Wars 地图的商店 / 铁金生成点 / 钻石绿宝石生成点需要精�
   "duel2v2Size": 71,            // 2v2 平台边长
   "ffaSize": 101,               // FFA 平台边长
   "sumoSize": 11,               // 相扑平台边长
+  "fireballKnockbackHorizontal": 2.0,  // 竞技场恶魂火焰弹爆炸击退·横向倍率（1.0=原版）
+  "fireballKnockbackVertical": 2.0,    // 竞技场恶魂火焰弹爆炸击退·纵向倍率（1.0=原版）
+  "fireballExplosionPower": 1,  // 恶魂火焰弹爆炸威力（0=禁用爆炸破坏方块）
 
   // ---- 空岛战争 (SkyWars) ----
   "skywarsMinPlayers": 2,       // 最少人数（2 人即可开）
