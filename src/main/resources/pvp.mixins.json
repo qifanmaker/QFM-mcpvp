@@ -12,6 +12,7 @@
     "FishingBobberEntityMixin",
     "FireChargeItemMixin",
     "FireballEntityMixin",
+    "HungerManagerMixin",
     "SnowballEntityMixin",
     "ProjectileEntityMixin",
     "TntEntityMixin",
