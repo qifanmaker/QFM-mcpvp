@@ -53,8 +53,8 @@ public final class SkyWarsLoot {
         enchantmentRegistry = server.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
     }
 
-    /** 一条加权战利品条目：weight 权重，factory(random, 附魔概率%) 生成物品。 */
-    private record LootEntry(int weight, BiFunction<Random, Integer, ItemStack> factory) {
+    /** 一条加权战利品条目：weight 权重（可为小数），factory(random, 附魔概率%) 生成物品。 */
+    private record LootEntry(double weight, BiFunction<Random, Integer, ItemStack> factory) {
     }
 
     /** 各套护甲部位。 */
@@ -81,7 +81,7 @@ public final class SkyWarsLoot {
             new LootEntry(32, (r, c) -> armor(r, c, false)),
             new LootEntry(10, (r, c) -> armor(r, c, true)),
             new LootEntry(8, (r, c) -> food(r)),
-            new LootEntry(8, (r, c) -> stack(Items.GOLDEN_APPLE, 1 + r.nextInt(2))),
+            new LootEntry(12, (r, c) -> stack(Items.GOLDEN_APPLE, 1 + r.nextInt(2))),
             new LootEntry(5, (r, c) -> stack(Items.ENDER_PEARL, 1 + r.nextInt(2))),
             new LootEntry(3, (r, c) -> stack(Items.WATER_BUCKET, 1)),
             new LootEntry(3, (r, c) -> stack(Items.LAVA_BUCKET, 1)),
@@ -95,11 +95,11 @@ public final class SkyWarsLoot {
             new LootEntry(5, (r, c) -> stack(Items.FISHING_ROD, 1)),
             new LootEntry(5, (r, c) -> trackingCompass()),
             new LootEntry(6, (r, c) -> stack(Items.SNOWBALL, 16)),
-            new LootEntry(1, (r, c) -> slimeBall()), // 粘液球：击退IV 近战武器（刷新率减半，每次只出 1 个）
+            new LootEntry(0.2, (r, c) -> slimeBall()), // 粘液球：击退IV 近战武器（刷新率极低，每次只出 1 个）
             new LootEntry(3, (r, c) -> stack(Items.ANVIL, 1)),
             new LootEntry(8, (r, c) -> goldenAxe(r)),
             new LootEntry(6, (r, c) -> junkIron(r)),
-            new LootEntry(10, (r, c) -> bridgeBlocks(r))
+            new LootEntry(16, (r, c) -> bridgeBlocks(r)) // 搭桥方块：刷新率上调
     );
 
     /** 中间主岛箱子战利品：以钻石装为主，金苹果/末影珍珠更常见。 */
@@ -113,12 +113,12 @@ public final class SkyWarsLoot {
             new LootEntry(12, (r, c) -> arrow(12 + r.nextInt(20))),
             new LootEntry(30, (r, c) -> armor(r, c, true)),
             new LootEntry(10, (r, c) -> armor(r, c, false)),
-            new LootEntry(10, (r, c) -> stack(Items.GOLDEN_APPLE, 2 + r.nextInt(3))),
+            new LootEntry(15, (r, c) -> stack(Items.GOLDEN_APPLE, 2 + r.nextInt(3))),
             new LootEntry(8, (r, c) -> stack(Items.ENDER_PEARL, 2 + r.nextInt(3))),
             new LootEntry(6, (r, c) -> food(r)),
             new LootEntry(2, (r, c) -> stack(Items.WATER_BUCKET, 1)),
             new LootEntry(2, (r, c) -> stack(Items.LAVA_BUCKET, 1)),
-            new LootEntry(6, (r, c) -> bridgeBlocks(r)),
+            new LootEntry(10, (r, c) -> bridgeBlocks(r)), // 搭桥方块：刷新率上调
             new LootEntry(6, (r, c) -> stack(Items.TNT, 2 + r.nextInt(2))),
             new LootEntry(8, (r, c) -> weapon(Items.MACE, r, c)),
             new LootEntry(6, (r, c) -> stack(Items.WIND_CHARGE, 2 + r.nextInt(3))),
@@ -128,7 +128,7 @@ public final class SkyWarsLoot {
             new LootEntry(8, (r, c) -> stack(Items.EXPERIENCE_BOTTLE, 12 + r.nextInt(13))),
             new LootEntry(6, (r, c) -> trackingCompass()),
             new LootEntry(6, (r, c) -> stack(Items.SNOWBALL, 16)),
-            new LootEntry(1, (r, c) -> slimeBall()), // 粘液球：只刷击退 IV（刷新率减半，不刷无击退的普通球）
+            new LootEntry(0.2, (r, c) -> slimeBall()), // 粘液球：只刷击退 IV（刷新率极低，不刷无击退的普通球）
             new LootEntry(4, (r, c) -> stack(Items.ANVIL, 1)),
             new LootEntry(6, (r, c) -> goldenAxe(r))
     );
@@ -204,11 +204,11 @@ public final class SkyWarsLoot {
     }
 
     private static ItemStack roll(List<LootEntry> table, Random random, int enchantChance) {
-        int total = 0;
+        double total = 0;
         for (LootEntry entry : table) {
             total += entry.weight();
         }
-        int roll = random.nextInt(total);
+        double roll = random.nextDouble() * total;
         for (LootEntry entry : table) {
             roll -= entry.weight();
             if (roll < 0) {
