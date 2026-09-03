@@ -38,7 +38,12 @@ public abstract class FireballEntityMixin {
                 return Math.max(0.0f, PvPConfig.INSTANCE.fireballKnockbackMultiplier);
             }
         };
-        return world.createExplosion(entity, world.getDamageSources().explosion(entity, self.getOwner()),
+        Explosion explosion = world.createExplosion(entity, world.getDamageSources().explosion(entity, self.getOwner()),
                 behavior, x, y, z, power, createFire, effectiveType);
+        // 仅投掷者本人：被自己的火球弹飞后免疫第一次摔落伤害
+        if (self.getOwner() instanceof ServerPlayerEntity owner) {
+            com.example.pvp.PvPMod.fireballNoFallOnce.add(owner.getUuid());
+        }
+        return explosion;
     }
 }

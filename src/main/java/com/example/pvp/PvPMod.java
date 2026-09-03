@@ -80,6 +80,14 @@ public final class PvPMod implements ModInitializer {
     /** 幸运之柱"一击必杀"全局标记：开启时对应对局内所有伤害致死（LivingEntityMixin 检查）。 */
     public static volatile boolean oneHitKillActive = false;
 
+    /** 被烈焰弹爆炸击退后免疫第一次摔落伤害的玩家（一次性，落地后消耗）。 */
+    public static final Set<UUID> fireballNoFallOnce = new HashSet<>();
+
+    /** 消耗一次"烈焰弹免摔"次数（返回是否有）。 */
+    public static boolean consumeFireballNoFall(ServerPlayerEntity player) {
+        return fireballNoFallOnce.remove(player.getUuid());
+    }
+
     /** 主城内需自动补 TNT 的发射器（仅主世界，加载/卸载自动增删）。 */
     private static final Set<DispenserBlockEntity> TNT_DISPENSERS = new HashSet<>();
 
