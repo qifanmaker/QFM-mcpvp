@@ -497,7 +497,16 @@ public final class MatchManager {
             if (match.getType().isBedWars()) {
                 return; // 床战由 ALLOW_DEATH 处理（床活重生/床死淘汰）
             }
-            match.eliminate(player, EliminationCause.DEATH);
+            match.eliminate(player, EliminationCause.DEATH, specificDeathMessage(player));
+        }
+    }
+
+    /** 具体死亡信息：用原版死亡消息（含击杀者/死因，如"X 被 Y 杀死了"），异常时回退 null 走通用提示。 */
+    public static Text specificDeathMessage(ServerPlayerEntity player) {
+        try {
+            return player.getDamageTracker().getDeathMessage();
+        } catch (Exception e) {
+            return null;
         }
     }
 

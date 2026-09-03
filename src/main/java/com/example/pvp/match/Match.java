@@ -2129,7 +2129,7 @@ public final class Match {
         if (this.teamBedAlive(player)) {
             this.beginBedwarsRespawnWait(player);
         } else {
-            this.eliminate(player, EliminationCause.DEATH);
+            this.eliminate(player, EliminationCause.DEATH, MatchManager.specificDeathMessage(player));
         }
         return false;
     }
@@ -2683,6 +2683,11 @@ public final class Match {
 
     /** 淘汰一名玩家（仅在 ACTIVE 阶段生效）。 */
     public void eliminate(ServerPlayerEntity player, EliminationCause cause) {
+        this.eliminate(player, cause, null);
+    }
+
+    /** 淘汰玩家；deathMessage 非空时广播具体死亡信息（如"X 被 Y 杀死了"），否则用通用提示。 */
+    public void eliminate(ServerPlayerEntity player, EliminationCause cause, Text deathMessage) {
         if (this.state != MatchState.ACTIVE) {
             return;
         }
@@ -2700,7 +2705,11 @@ public final class Match {
             this.makeGhost(online);
         }
 
-        this.broadcast(Messages.warn("§e" + player.getGameProfile().getName() + "§r 被淘汰（" + cause.getDisplayName() + "）"));
+        if (deathMessage != null) {
+            this.broadcast(deathMessage);
+        } else {
+            this.broadcast(Messages.warn("§e" + player.getGameProfile().getName() + "§r 被淘汰（" + cause.getDisplayName() + "）"));
+        }
 
         this.checkWinCondition();
     }
