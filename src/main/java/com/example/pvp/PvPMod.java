@@ -91,10 +91,11 @@ public final class PvPMod implements ModInitializer {
                 .orElse("?");
     }
 
-    /** 发射一颗火焰弹：沿视线方向生成原版恶魂火球（爆炸威力 1，原版机制不改动）。 */
+    /** 发射一颗火焰弹：沿视线方向生成原版恶魂火球（爆炸威力可配置，原版机制不改动）。 */
     public static void launchFireCharge(ServerPlayerEntity player, World world) {
         Vec3d look = player.getRotationVector();
-        FireballEntity fireball = new FireballEntity(world, player, look, 1);
+        FireballEntity fireball = new FireballEntity(world, player, look,
+                Math.max(0, com.example.pvp.config.PvPConfig.INSTANCE.fireballExplosionPower));
         fireball.setPosition(player.getX(), player.getEyeY() - 0.1, player.getZ());
         fireball.setVelocity(look.multiply(1.5)); // 覆盖构造时的 0.1 倍速，飞得更快
         world.spawnEntity(fireball);

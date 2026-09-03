@@ -11,6 +11,7 @@
     "ServerPlayerEntityMixin",
     "FishingBobberEntityMixin",
     "FireChargeItemMixin",
+    "FireballEntityMixin",
     "SnowballEntityMixin",
     "ProjectileEntityMixin",
     "TntEntityMixin",
