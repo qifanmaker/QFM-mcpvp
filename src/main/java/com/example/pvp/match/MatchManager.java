@@ -5,15 +5,22 @@ import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
+import com.example.pvp.config.PlayerStats;
 import com.example.pvp.config.PvPConfig;
+import com.example.pvp.config.StatsStore;
 import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.InventorySnapshot;
 import com.example.pvp.kit.Kit;
+import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
+import net.minecraft.network.packet.s2c.play.ScoreboardDisplayS2CPacket;
 import net.minecraft.network.packet.s2c.play.ScoreboardObjectiveUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.ScoreboardScoreResetS2CPacket;
+import net.minecraft.network.packet.s2c.play.ScoreboardScoreUpdateS2CPacket;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardCriterion;
+import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -51,6 +58,13 @@ public final class MatchManager {
     private int nextMatchId = 0;
     /** 已向其客户端注册过 pvp_info 计分板 objective 的玩家（避免重复发 ADD 包导致客户端崩溃）。 */
     private final Set<UUID> scoreboardObjectiveKnown = ConcurrentHashMap.newKeySet();
+    /** 大厅计分板 objective 名（与对局的 pvp_info 分开，标题不同）。 */
+    public static final String LOBBY_OBJECTIVE = "pvp_lobby";
+    /** 已注册过大厅 objective 的玩家（同会话只发一次 ADD）。 */
+    private final Set<UUID> lobbyObjectiveKnown = ConcurrentHashMap.newKeySet();
+    /** 大厅计分板每名玩家上一帧的行（用于发重置包）。 */
+    private final Map<UUID, List<String>> lobbyLines = new ConcurrentHashMap<>();
+    private int lobbyScoreboardTimer;
 
     /**
      * 确保玩家客户端已注册计分板 objective：首次发给该玩家 ADD 包（客户端对重复 ADD 会抛异常崩溃），
@@ -156,6 +170,99 @@ public final class MatchManager {
         this.sweepArenaWorld();
         this.getArenaManager().tickVisitors();
         this.applyLobbyProtection();
+        // 大厅计分板每秒刷新
+        if (++this.lobbyScoreboardTimer >= 20) {
+            this.lobbyScoreboardTimer = 0;
+            this.updateLobbyScoreboard();
+        }
+    }
+
+    /** 大厅计分板：显示大厅人数/在线人数/个人战绩胜率；排队中额外显示排队内容与人数。 */
+    private void updateLobbyScoreboard() {
+        MinecraftServer server = this.server;
+        if (server == null) {
+            return;
+        }
+        Scoreboard scoreboard = server.getScoreboard();
+        ScoreboardObjective objective = scoreboard.getNullableObjective(LOBBY_OBJECTIVE);
+        if (objective == null) {
+            objective = scoreboard.addObjective(LOBBY_OBJECTIVE, ScoreboardCriterion.DUMMY,
+                    Text.literal("§6§lPvP 大厅"), ScoreboardCriterion.RenderType.INTEGER, true, null);
+        }
+        List<ServerPlayerEntity> online = server.getPlayerManager().getPlayerList();
+        int total = online.size();
+        int lobby = 0;
+        for (ServerPlayerEntity p : online) {
+            if (!this.isInMatch(p.getUuid())) {
+                lobby++;
+            }
+        }
+        for (ServerPlayerEntity player : online) {
+            UUID uuid = player.getUuid();
+            if (player.networkHandler == null || this.isInMatch(uuid)) {
+                continue; // 对局中由 Match 的对局计分板接管侧边栏
+            }
+            // 首次发 ADD 包注册 objective（同会话只发一次，重复会让客户端崩溃）
+            if (this.lobbyObjectiveKnown.add(uuid)) {
+                player.networkHandler.sendPacket(new ScoreboardObjectiveUpdateS2CPacket(objective, 0));
+            }
+            // 清掉上一帧的行
+            List<String> prev = this.lobbyLines.getOrDefault(uuid, List.of());
+            for (String line : prev) {
+                player.networkHandler.sendPacket(new ScoreboardScoreResetS2CPacket(line, LOBBY_OBJECTIVE));
+            }
+            // 构建本帧行（按分数从高到低显示）
+            List<String> lines = new ArrayList<>();
+            lines.add("§e大厅人数: §f" + lobby);
+            lines.add("§e在线人数: §f" + total);
+            lines.add("§8----------------");
+            PlayerStats stats = StatsStore.INSTANCE.getStats(uuid);
+            lines.add("§b战绩: §f胜 " + stats.getWins() + " §7/§c 负 " + stats.getLosses());
+            lines.add("§b胜率: §f" + String.format(java.util.Locale.ROOT, "%.1f%%", stats.winRate() * 100));
+            lines.add("§b总场次: §f" + stats.getMatches());
+            if (com.example.pvp.PvPMod.QUEUE != null) {
+                QueueEntry entry = com.example.pvp.PvPMod.QUEUE.getEntry(player);
+                if (entry != null) {
+                    lines.add("§8-----------------");
+                    String queuing = "§a排队中: §f" + entry.getType().getDisplayName();
+                    // 只有需要套件的对战模式才显示套件名
+                    if (switch (entry.getType()) {
+                        case DUEL_1V1, DUEL_2V2, FFA, SUMO, PVP_1_8 -> true;
+                        default -> false;
+                    }) {
+                        queuing += " §7/§f " + entry.getKit().getDisplayName();
+                    }
+                    lines.add(queuing);
+                    lines.add("§a排队人数: §f"
+                            + com.example.pvp.PvPMod.QUEUE.queuedCount(entry.getType(), entry.getKit()));
+                }
+            }
+            int score = lines.size();
+            for (String line : lines) {
+                player.networkHandler.sendPacket(new ScoreboardScoreUpdateS2CPacket(
+                        line, LOBBY_OBJECTIVE, score--, java.util.Optional.empty(), java.util.Optional.empty()));
+            }
+            this.lobbyLines.put(uuid, lines);
+            player.networkHandler.sendPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, objective));
+        }
+        // 清理已进入对局或下线的玩家的行记录：进对局的玩家需发重置包清掉客户端残留的大厅行，
+        // 否则对局结束后旧行会和新行叠加显示
+        for (UUID uuid : List.copyOf(this.lobbyLines.keySet())) {
+            ServerPlayerEntity player = server.getPlayerManager().getPlayer(uuid);
+            List<String> lines = this.lobbyLines.get(uuid);
+            if (player == null) {
+                this.lobbyLines.remove(uuid);
+                continue;
+            }
+            if (this.isInMatch(uuid)) {
+                if (player.networkHandler != null) {
+                    for (String line : lines) {
+                        player.networkHandler.sendPacket(new ScoreboardScoreResetS2CPacket(line, LOBBY_OBJECTIVE));
+                    }
+                }
+                this.lobbyLines.remove(uuid);
+            }
+        }
     }
 
     /** 大厅保护：不在对局中的玩家 → 冒险模式 + 无敌 + 饱食度不掉，并强制解除幽灵状态。 */
@@ -417,6 +524,8 @@ public final class MatchManager {
         // 会话结束，清除"已注册计分板 objective"标记：重进后需重新发 ADD 包，
         // 否则客户端不知道 pvp_info 存在，侧边栏永远不显示
         this.scoreboardObjectiveKnown.remove(player.getUuid());
+        this.lobbyObjectiveKnown.remove(player.getUuid());
+        this.lobbyLines.remove(player.getUuid());
         this.getArenaManager().removeVisitor(player.getUuid());
         Match match = this.getMatchFor(player);
         if (match != null) {
