@@ -12,13 +12,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 保存并恢复玩家在战斗前的完整状态：背包/护甲/副手/经验/生命/饥饿/效果/游戏模式/位置。
+ * 保存并恢复玩家在战斗前的完整状态：背包/护甲/副手/末影箱/经验/生命/饥饿/效果/游戏模式/位置。
+ * 末影箱必须一并快照：床战等模式会把装备存入末影箱，若不恢复，赛后残留装备会带进其他模式。
  */
 public final class InventorySnapshot {
     private static final int MAIN_SIZE = 36;
     private static final int ARMOR_SIZE = 4;
+    private static final int ENDER_CHEST_SIZE = 27;
 
     private final ItemStack[] main = new ItemStack[MAIN_SIZE];
+    private final ItemStack[] enderChest = new ItemStack[ENDER_CHEST_SIZE];
     private final ItemStack[] armor = new ItemStack[ARMOR_SIZE];
     private final ItemStack offhand;
     private final int selectedSlot;
@@ -51,6 +54,11 @@ public final class InventorySnapshot {
         }
         this.offhand = inventory.offHand.get(0).copy();
         this.selectedSlot = inventory.selectedSlot;
+
+        var enderChestInv = player.getEnderChestInventory();
+        for (int i = 0; i < ENDER_CHEST_SIZE; i++) {
+            this.enderChest[i] = enderChestInv.getStack(i).copy();
+        }
 
         this.experienceLevel = player.experienceLevel;
         this.experienceProgress = player.experienceProgress;
@@ -103,6 +111,13 @@ public final class InventorySnapshot {
         }
         inventory.offHand.set(0, this.offhand);
         inventory.selectedSlot = this.selectedSlot;
+
+        // 清空并还原末影箱：防止床战等模式存入的装备残留到赛后（可被带进其他模式）
+        var enderChestInv = player.getEnderChestInventory();
+        enderChestInv.clear();
+        for (int i = 0; i < ENDER_CHEST_SIZE; i++) {
+            enderChestInv.setStack(i, this.enderChest[i]);
+        }
 
         player.setHealth(Math.max(1f, this.health));
         player.getHungerManager().setFoodLevel(this.food);
