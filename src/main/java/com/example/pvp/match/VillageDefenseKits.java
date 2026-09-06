@@ -120,6 +120,11 @@ public final class VillageDefenseKits {
             }
             player.getInventory().setStack(slot++, sp);
         }
+        if ("wizard".equals(spec.id())) {
+            ItemStack dye = new ItemStack(Items.INK_SAC, 4);
+            dye.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§eDark essence"));
+            player.getInventory().setStack(slot++, dye);
+        }
 
         // 护甲
         Item helmet = Items.AIR, chest = Items.AIR, legs = Items.AIR, boots = Items.AIR;

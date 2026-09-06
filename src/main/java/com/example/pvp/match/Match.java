@@ -199,9 +199,10 @@ public final class Match {
     private final List<BlockPos> vdWellHoppers = new ArrayList<>();
     private int vdFleshAmount;
     private int vdFleshLevel;
-    /** Kit 技能冷却（玩家 uuid → 剩余 tick）与场上屏障/龙卷。 */
-    private final Map<UUID, Integer> vdKitCooldown = new HashMap<>();
-    private final List<BlockPos> vdBarriers = new ArrayList<>();
+    /** Kit 技能冷却（key=玩家uuid+"|"+技能 → 剩余 tick）与场上屏障/龙卷。 */
+    private final Map<String, Integer> vdKitCooldown = new HashMap<>();
+    private final Map<BlockPos, Integer> vdBarrierUntil = new HashMap<>();
+    private final List<TornadoData> vdTornadoes = new ArrayList<>();
     private int vdWave;          // 当前波次（0=尚未开始）
     private boolean vdFighting;  // 战斗进行中 / 波间冷却
     private int vdTimer;         // 阶段倒计时（tick）
@@ -4834,6 +4835,20 @@ public final class Match {
     }
 
     /** 玩家右击（使用手持物品）触发对应 Kit 主动技能；返回 true 表示已处理。 */
+    private String cdKey(UUID uuid, String ability) {
+        return uuid + "|" + ability;
+    }
+
+    private boolean vdCanCast(ServerPlayerEntity sp, String ability, int seconds, String display) {
+        int left = this.vdKitCooldown.getOrDefault(cdKey(sp.getUuid(), ability), 0);
+        if (left > 0) {
+            sp.sendMessage(Messages.error(display + " 冷却中（" + (left / 20 + 1) + " 秒）"), false);
+            return false;
+        }
+        this.vdKitCooldown.put(cdKey(sp.getUuid(), ability), seconds * 20);
+        return true;
+    }
+
     public boolean vdKitUse(ServerPlayerEntity sp) {
         if (this.state != MatchState.ACTIVE || this.vdWaitingPlayers.contains(sp.getUuid())) {
             return false;
@@ -4843,23 +4858,31 @@ public final class Match {
             return false;
         }
         net.minecraft.item.ItemStack hand = sp.getMainHandStack();
-        int cd = this.vdKitCooldown.getOrDefault(sp.getUuid(), 0);
-        if (cd > 0) {
-            sp.sendMessage(Messages.error("技能冷却中（" + (cd / 20 + 1) + " 秒）"), false);
-            return true;
-        }
         boolean used = false;
         switch (kit) {
-            case "worker" -> used = hand.isOf(net.minecraft.item.Items.OAK_DOOR) && this.vdRepairDoors(sp);
-            case "zombie_teleporter" -> used = hand.isOf(net.minecraft.item.Items.BOOK) && this.vdTeleportZombie(sp);
+            case "worker" -> used = hand.isOf(net.minecraft.item.Items.OAK_DOOR)
+                    && this.vdCanCast(sp, "door", 10, "修门") && this.vdRepairDoors(sp);
+            case "zombie_teleporter" -> used = hand.isOf(net.minecraft.item.Items.BOOK)
+                    && this.vdCanCast(sp, "zombie", 2, "传送僵尸") && this.vdTeleportZombie(sp);
+            case "blocker" -> used = hand.isOf(net.minecraft.item.Items.OAK_FENCE)
+                    && this.vdCanCast(sp, "barrier", 8, "屏障") && this.vdPlaceBarrier(sp);
+            case "cleaner" -> used = hand.isOf(net.minecraft.item.Items.BLAZE_ROD)
+                    && this.vdCanCast(sp, "clean", 60, "清理") && this.vdCleanZombies(sp);
+            case "wizard" -> {
+                if (hand.isOf(net.minecraft.item.Items.BLAZE_ROD)) {
+                    used = this.vdCanCast(sp, "staff", 1, "法杖") && this.vdWizardStaff(sp);
+                } else if (hand.isOf(net.minecraft.item.Items.INK_SAC)) {
+                    used = this.vdCanCast(sp, "essence", 15, "暗影精华") && this.vdWizardEssence(sp);
+                }
+            }
+            case "tornado" -> used = hand.isOf(net.minecraft.item.Items.COBWEB)
+                    && this.vdCanCast(sp, "tornado", 20, "龙卷") && this.vdSpawnTornado(sp);
+            case "teleporter" -> used = hand.isOf(net.minecraft.item.Items.GHAST_TEAR)
+                    && this.vdCanCast(sp, "teleport", 5, "传送") && this.vdTeleportAround(sp);
             default -> {
             }
         }
-        if (used) {
-            this.vdKitCooldown.put(sp.getUuid(), 20); // 通用 1 秒内置（worker/teleport 用 kit 专属）
-            return true;
-        }
-        return false;
+        return used;
     }
 
     private void vdKitTick() {
@@ -4868,16 +4891,165 @@ public final class Match {
             this.vdKitCooldown.replaceAll((k, v) -> Math.max(0, v - 1));
         }
         // 屏障到时拆除
-        if (!this.vdBarriers.isEmpty() && this.ticks % 20 == 0) {
+        if (!this.vdBarrierUntil.isEmpty()) {
             ArenaWorld arena = this.vdArena();
             if (arena != null) {
-                for (BlockPos pos : new ArrayList<>(this.vdBarriers)) {
-                    if (arena.getBlockState(pos).isOf(net.minecraft.block.Blocks.OAK_FENCE)) {
-                        arena.setBlockState(pos, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                for (java.util.Map.Entry<BlockPos, Integer> e : new java.util.ArrayList<>(this.vdBarrierUntil.entrySet())) {
+                    if (this.ticks >= e.getValue()) {
+                        if (arena.getBlockState(e.getKey()).isOf(net.minecraft.block.Blocks.OAK_FENCE)) {
+                            arena.setBlockState(e.getKey(), net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                        }
+                        this.vdBarrierUntil.remove(e.getKey());
                     }
-                    this.vdBarriers.remove(pos);
                 }
             }
+        }
+        // 龙卷推进敌人
+        if (!this.vdTornadoes.isEmpty()) {
+            ArenaWorld arena = this.vdArena();
+            if (arena != null) {
+                for (TornadoData t : new ArrayList<>(this.vdTornadoes)) {
+                    t.life--;
+                    if (t.life <= 0) {
+                        this.vdTornadoes.remove(t);
+                        continue;
+                    }
+                    for (LivingEntity e : new ArrayList<>(this.vdEnemies)) {
+                        if (e.squaredDistanceTo(t.x, t.y, t.z) < 9) {
+                            e.setVelocity(e.getVelocity().x * 0.6, 0.7, e.getVelocity().z * 0.6);
+                            e.velocityDirty = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Blocker：在面前 3~5 格放一扇临时围栏屏障(10 秒)。 */
+    private boolean vdPlaceBarrier(ServerPlayerEntity sp) {
+        ArenaWorld arena = this.vdArena();
+        if (arena == null) {
+            return false;
+        }
+        net.minecraft.util.hit.HitResult hr = sp.raycast(6.0, 0, false);
+        if (!(hr instanceof net.minecraft.util.hit.BlockHitResult hit)) {
+            sp.sendMessage(Messages.error("请看向一个可以放屏障的位置"), false);
+            return false;
+        }
+        BlockPos pos = hit.getBlockPos().offset(hit.getSide());
+        if (arena.getBlockState(pos).isAir()) {
+            arena.setBlockState(pos, net.minecraft.block.Blocks.OAK_FENCE.getDefaultState(), 3);
+            this.vdBarrierUntil.put(pos, this.ticks + 200); // 10 秒
+            sp.sendMessage(Messages.gold("已放置屏障（10 秒）！"), false);
+            return true;
+        }
+        sp.sendMessage(Messages.error("这里放不下屏障"), false);
+        return false;
+    }
+
+    /** Cleaner：随机消灭一半~全部僵尸。 */
+    private boolean vdCleanZombies(ServerPlayerEntity sp) {
+        if (this.vdEnemies.isEmpty()) {
+            sp.sendMessage(Messages.error("场上没有僵尸可清理"), false);
+            return false;
+        }
+        int amount = (int) (this.vdEnemies.size() * Math.max(this.random.nextDouble(), 0.5));
+        for (int i = 0; i < amount && !this.vdEnemies.isEmpty(); i++) {
+            LivingEntity e = this.vdEnemies.get(0);
+            this.vdEnemies.remove(e);
+            this.vdEnemyKind.remove(e.getUuid());
+            e.discard();
+        }
+        sp.sendMessage(Messages.gold("清理了 §e" + amount + "§r 只僵尸！"), false);
+        return true;
+    }
+
+    /** Wizard：法杖向前 6 格造成 6 点伤害并击退。 */
+    private boolean vdWizardStaff(ServerPlayerEntity sp) {
+        ArenaWorld arena = this.vdArena();
+        if (arena == null) {
+            return false;
+        }
+        int hit = 0;
+        for (LivingEntity e : new ArrayList<>(this.vdEnemies)) {
+            if (e.squaredDistanceTo(sp) < 49) {
+                e.damage(this.damageOf(sp, 6), 6.0f);
+                hit++;
+            }
+        }
+        if (hit == 0) {
+            return false;
+        }
+        sp.sendMessage(Messages.gold("法杖命中了 " + hit + " 只僵尸！"), false);
+        return true;
+    }
+
+    private net.minecraft.entity.damage.DamageSource damageOf(ServerPlayerEntity sp, float amount) {
+        return sp.getDamageSources().mobAttack(sp);
+    }
+
+    /** Wizard：暗影精华——回 3 血、给予力量并反伤近身僵尸 9 点。 */
+    private boolean vdWizardEssence(ServerPlayerEntity sp) {
+        ArenaWorld arena = this.vdArena();
+        if (arena == null) {
+            return false;
+        }
+        sp.heal(3);
+        sp.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 15 * 20, 0, false, false, true));
+        int hit = 0;
+        for (LivingEntity e : new ArrayList<>(this.vdEnemies)) {
+            if (e.squaredDistanceTo(sp) < 6) {
+                e.damage(this.damageOf(sp, 9), 9.0f);
+                hit++;
+            }
+        }
+        sp.sendMessage(Messages.gold(hit > 0 ? "暗影精华反伤了 " + hit + " 只近身僵尸！" : "暗影精华生效（+3 血）"), false);
+        return true;
+    }
+
+    /** Teleporter：瞬间传送到某个村民/队友身边（近似原版选择菜单）。 */
+    private boolean vdTeleportAround(ServerPlayerEntity sp) {
+        List<LivingEntity> pool = new ArrayList<>();
+        pool.addAll(this.vdVillagers);
+        for (ServerPlayerEntity p : this.vdPlayersOnline()) {
+            if (!p.getUuid().equals(sp.getUuid())) {
+                pool.add(p);
+            }
+        }
+        pool.removeIf(e -> !e.isAlive());
+        if (pool.isEmpty()) {
+            sp.sendMessage(Messages.error("没有可传送的目标"), false);
+            return false;
+        }
+        LivingEntity target = pool.get(this.random.nextInt(pool.size()));
+        sp.refreshPositionAndAngles(target.getX(), target.getY() + 0.1, target.getZ(), sp.getYaw(), 0);
+        sp.sendMessage(Messages.gold("已传送到目标身边！"), false);
+        return true;
+    }
+
+    /** Tornado：在玩家前方生成龙卷（逐 tick 抛飞附近僵尸，约 4 秒）。 */
+    private boolean vdSpawnTornado(ServerPlayerEntity sp) {
+        if (this.vdTornadoes.size() >= 2) {
+            sp.sendMessage(Messages.error("最多同时 2 个龙卷"), false);
+            return false;
+        }
+        net.minecraft.util.math.Vec3d look = sp.getRotationVector();
+        TornadoData t = new TornadoData(sp.getX() + look.x * 2, sp.getY() + 0.5, sp.getZ() + look.z * 2);
+        this.vdTornadoes.add(t);
+        sp.sendMessage(Messages.gold("龙卷风！"), false);
+        return true;
+    }
+
+    private static final class TornadoData {
+        double x;
+        double y;
+        double z;
+        int life = 80; // 4 秒
+
+        TornadoData(double x, double y, double z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
         }
     }
 
