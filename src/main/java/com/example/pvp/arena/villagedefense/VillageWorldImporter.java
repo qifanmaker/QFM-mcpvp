@@ -148,7 +148,14 @@ public final class VillageWorldImporter {
                     if (wx < minX || wx > maxX || wz < minZ || wz > maxZ || wy < lowY || wy > highY) {
                         continue;
                     }
-                    BlockState state = LegacyBlockMap.stateFor(id, md);
+                    BlockState state;
+                    try {
+                        state = LegacyBlockMap.stateFor(id, md);
+                    } catch (Exception e) {
+                        LOGGER.warn("[VD] 方块 id={} meta={} 映射异常，跳过: {}", id, md, e.toString());
+                        unmapped++;
+                        continue;
+                    }
                     if (state == null || state.isAir()) {
                         unmapped++;
                         continue;

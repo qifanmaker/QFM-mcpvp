@@ -270,13 +270,18 @@ public final class LegacyBlockMap {
     }
 
     private static BlockState torch(int meta) {
-        return switch (meta) {
-            case 1 -> Blocks.TORCH.getDefaultState().with(Properties.HORIZONTAL_FACING, Direction.EAST);
-            case 2 -> Blocks.TORCH.getDefaultState().with(Properties.HORIZONTAL_FACING, Direction.WEST);
-            case 3 -> Blocks.TORCH.getDefaultState().with(Properties.HORIZONTAL_FACING, Direction.SOUTH);
-            case 4 -> Blocks.TORCH.getDefaultState().with(Properties.HORIZONTAL_FACING, Direction.NORTH);
-            default -> Blocks.TORCH.getDefaultState(); // 5 = 竖立
+        // 1.21 火把分两个方块：TORCH(竖立，无朝向) 与 WALL_TORCH(挂墙，有 FACING)
+        Direction facing = switch (meta) {
+            case 1 -> Direction.EAST;
+            case 2 -> Direction.WEST;
+            case 3 -> Direction.SOUTH;
+            case 4 -> Direction.NORTH;
+            default -> null;
         };
+        if (facing == null) {
+            return Blocks.TORCH.getDefaultState(); // 0 / 5 = 竖立
+        }
+        return Blocks.WALL_TORCH.getDefaultState().with(Properties.HORIZONTAL_FACING, facing);
     }
 
     private static BlockState chest(int meta) {
