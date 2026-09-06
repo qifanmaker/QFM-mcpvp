@@ -605,16 +605,12 @@ public final class PvPMod implements ModInitializer {
             }
         });
 
-        // 村庄保卫战：附魔台/铁砧/磨石/锻造台 → 自定义玩法（自动识别地图中的方块）
+        // 村庄保卫战：铁砧/磨石/锻造台 → 自定义玩法（附魔台不拦，走原版/供原版玩法使用）
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (player instanceof ServerPlayerEntity sp && MATCH != null) {
                 Match m = MATCH.getMatchFor(sp);
                 if (m != null && m.getType() == MatchType.VILLAGE_DEFENSE) {
                     net.minecraft.block.Block b = world.getBlockState(hitResult.getBlockPos()).getBlock();
-                    if (b == net.minecraft.block.Blocks.ENCHANTING_TABLE) {
-                        m.openVillageEnchant(sp);
-                        return ActionResult.SUCCESS;
-                    }
                     if (b == net.minecraft.block.Blocks.ANVIL || b == net.minecraft.block.Blocks.CHIPPED_ANVIL
                             || b == net.minecraft.block.Blocks.DAMAGED_ANVIL) {
                         m.vdUseAnvil(sp);

@@ -4162,13 +4162,6 @@ public final class Match {
                 && !this.vdWaitingPlayers.contains(sp.getUuid()) && this.villageDefenseLayout != null;
     }
 
-    /** 附魔台：自定义满级附魔界面（消耗 orbs，自动补青金石/免经验）。 */
-    public void openVillageEnchant(ServerPlayerEntity sp) {
-        if (this.vdCanInteract(sp)) {
-            VillageDefenseEnchant.open(sp, this);
-        }
-    }
-
     /** 铁砧：修复主手装备（损坏部分修满，20 orbs）。 */
     public void vdUseAnvil(ServerPlayerEntity sp) {
         if (!this.vdCanInteract(sp)) {
