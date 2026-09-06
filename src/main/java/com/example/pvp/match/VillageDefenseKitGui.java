@@ -133,7 +133,14 @@ public final class VillageDefenseKitGui {
                 VillageDefenseKits.KitSpec spec = this.specs.get(slotIndex);
                 if (PvPMod.MATCH != null) {
                     PvPMod.MATCH.setVillageDefenseKit(sp.getUuid(), spec.id());
-                    sp.sendMessage(Messages.gold("职业已设为 §e" + spec.display() + "§r（进入村庄保卫战后生效）"), false);
+                    com.example.pvp.match.Match m = PvPMod.MATCH.getMatchFor(sp);
+                    if (m != null && m.getType() == com.example.pvp.match.MatchType.VILLAGE_DEFENSE) {
+                        // 游戏内换职业：存活立即换装（equipVillageKit 内部只在 ACTIVE 且非等待时生效）
+                        m.equipVillageKit(sp);
+                    } else {
+                        sp.sendMessage(Messages.gold("职业已设为 §e" + spec.display()
+                                + "§r（进入村庄保卫战后生效）"), false);
+                    }
                 }
                 sp.closeHandledScreen();
             }

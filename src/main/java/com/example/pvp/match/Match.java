@@ -4158,6 +4158,17 @@ public final class Match {
                 ? java.util.Collections.emptyList() : this.villageDefenseLayout.shopItems;
     }
 
+    /** 游戏内换职业：ACTIVE 且存活的玩家立即按新选择重新配装。 */
+    public void equipVillageKit(ServerPlayerEntity sp) {
+        if (this.state == MatchState.ACTIVE && sp.getWorld() == this.vdArena()
+                && !this.vdWaitingPlayers.contains(sp.getUuid())) {
+            this.giveVdLoadout(sp);
+            sp.sendMessage(Messages.gold("已换装为 §e"
+                    + VillageDefenseKits.byId(this.manager.villageDefenseKitOf(sp.getUuid())).display()
+                    + "§r！"), false);
+        }
+    }
+
     /** 对局开始：刷村民、发货币、25s 后第 1 波。 */
     private void startVillageDefense() {
         if (this.villageDefenseLayout == null) {
@@ -4218,6 +4229,10 @@ public final class Match {
         if ("runner".equals(spec.id())) {
             online.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, -1, 1, false, false, false));
         }
+        // 快捷栏 8 号：选择职业道具（右击打开职业界面，换职业立即换装）
+        ItemStack pick = new ItemStack(net.minecraft.item.Items.PAPER, 1);
+        pick.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§e选择职业（右击）"));
+        online.getInventory().setStack(8, pick);
         online.currentScreenHandler.sendContentUpdates();
     }
 

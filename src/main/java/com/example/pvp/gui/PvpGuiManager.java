@@ -8,6 +8,7 @@ import com.example.pvp.config.StatsStore;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.MatchType;
+import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.text.Messages;
 import net.minecraft.component.DataComponentTypes;
@@ -426,6 +427,9 @@ public final class PvpGuiManager {
                 "杀怪/过波得 orbs，右击村民进商店买装备/召唤狼/铁傀儡",
                 "潜行右击村民可献祭腐肉给全队加血",
                 "守到终波全员获胜，点击直接加入"));
+        inv.setStack(14, makeButton(Items.WOODEN_SWORD, "§a选择村庄保卫战职业",
+                "从 24 套职业中选一套（装备/技能各异）",
+                "点击打开职业选择界面，进对局生效"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
@@ -806,6 +810,11 @@ public final class PvpGuiManager {
     private void onClickGamesCategory(ServerPlayerEntity player, GuiContext ctx, int slot) {
         if (slot == 26) {
             this.openMainMenu(player);
+            return;
+        }
+        if (slot == 14) {
+            // 打开村庄保卫战职业选择界面
+            VillageDefenseKitGui.open(player);
             return;
         }
         MatchType type = switch (slot) {

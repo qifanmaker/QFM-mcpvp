@@ -20,6 +20,7 @@ import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchState;
 import com.example.pvp.match.MatchType;
+import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.match.VillageDefenseKits;
 import com.example.pvp.queue.QueueManager;
 import com.example.pvp.text.Messages;
@@ -582,8 +583,17 @@ public final class PvPMod implements ModInitializer {
             if (player instanceof ServerPlayerEntity sp && MATCH != null) {
                 Match m = MATCH.getMatchFor(sp);
                 if (m != null && m.getType() == MatchType.VILLAGE_DEFENSE
-                        && m.getState() == MatchState.ACTIVE && m.vdKitUse(sp)) {
-                    return TypedActionResult.success(player.getStackInHand(hand));
+                        && m.getState() == MatchState.ACTIVE) {
+                    // 游戏内选择职业道具（快捷栏 8：纸）
+                    net.minecraft.item.ItemStack held = player.getStackInHand(hand);
+                    if (held.isOf(net.minecraft.item.Items.PAPER)
+                            && held.getName().getString().contains("选择职业")) {
+                        VillageDefenseKitGui.open(sp);
+                        return TypedActionResult.success(held);
+                    }
+                    if (m.vdKitUse(sp)) {
+                        return TypedActionResult.success(held);
+                    }
                 }
             }
             return TypedActionResult.pass(player.getStackInHand(hand));
