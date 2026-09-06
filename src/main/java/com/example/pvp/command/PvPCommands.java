@@ -33,6 +33,7 @@ import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchState;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.match.VillageDefenseKits;
+import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.text.Messages;
 import com.mojang.brigadier.CommandDispatcher;
@@ -166,8 +167,13 @@ public final class PvPCommands {
         );
 
         dispatcher.register(CommandManager.literal("hub").executes(ctx -> tpOut(ctx)));   // 返回主城
-        // 选择村庄保卫战 Kit（下局/下波生效）
+        // 选择村庄保卫战 Kit（GUI / 命令）
         dispatcher.register(CommandManager.literal("vdkit")
+                .executes(ctx -> {
+                    ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                    VillageDefenseKitGui.open(player);
+                    return 1;
+                })
                 .then(CommandManager.argument("kit", StringArgumentType.word())
                         .suggests((ctx, builder) -> CommandSource.suggestMatching(VillageDefenseKits.ids(), builder))
                         .executes(ctx -> {
