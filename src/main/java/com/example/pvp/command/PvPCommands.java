@@ -190,6 +190,12 @@ public final class PvPCommands {
                                     + "§r（进入村庄保卫战后生效）"), false);
                             return 1;
                         })));
+        // 手动修图（OP）：看着错误方块运行，写进 fixes.json 并立即生效；无参数=置空气
+        dispatcher.register(CommandManager.literal("vdfix")
+                .requires(src -> src.hasPermissionLevel(2))
+                .executes(ctx -> vdFix(ctx, null))
+                .then(CommandManager.argument("block", StringArgumentType.word())
+                        .executes(ctx -> vdFix(ctx, StringArgumentType.getString(ctx, "block")))));
         dispatcher.register(CommandManager.literal("watch").executes(ctx -> tpIn(ctx)));  // 进入竞技场
 
         dispatcher.register(
@@ -362,6 +368,18 @@ public final class PvPCommands {
         // 立即施加大厅保护（清理幽灵残留：飞行/无重力/隐身/无敌等），避免等待下一 tick
         PvPMod.MATCH.applyLobbyProtectionTo(player);
         player.sendMessage(Messages.info("已回到主城"), false);
+        return 1;
+    }
+
+    /** /vdfix：手动修图（须 OP），在村庄保卫战场地里看着错误方块执行。 */
+    private static int vdFix(CommandContext<ServerCommandSource> ctx, String block) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        Match m = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+        if (m == null || m.getType() != MatchType.VILLAGE_DEFENSE) {
+            player.sendMessage(Messages.error("请先进入村庄保卫战对局再使用 /vdfix"), false);
+            return 0;
+        }
+        m.vdFixBlock(player, block);
         return 1;
     }
 

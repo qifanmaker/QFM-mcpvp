@@ -18,6 +18,7 @@ import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.tntrun.TntRunLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
+import com.example.pvp.arena.villagedefense.VillageDefenseFixes;
 import com.example.pvp.arena.villagedefense.VillageWorldImporter;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
@@ -4158,6 +4159,35 @@ public final class Match {
     public java.util.List<VillageWorldImporter.ShopItem> vdShopItems() {
         return this.villageDefenseLayout == null
                 ? java.util.Collections.emptyList() : this.villageDefenseLayout.shopItems;
+    }
+
+    /** 手动修图：把玩家瞄准的方块在 fixes.json 记为 {block}（空=空气），并立即在场上生效。 */
+    public void vdFixBlock(ServerPlayerEntity sp, String block) {
+        VillageWorldImporter.Layout l = this.villageDefenseLayout;
+        if (l == null) {
+            sp.sendMessage(Messages.error("本局没有导入地图"), false);
+            return;
+        }
+        net.minecraft.util.hit.HitResult hr = sp.raycast(20.0, 0, false);
+        if (!(hr instanceof net.minecraft.util.hit.BlockHitResult hit)) {
+            sp.sendMessage(Messages.error("请看向要修复的方块"), false);
+            return;
+        }
+        BlockPos arena = hit.getBlockPos();
+        int wx = arena.getX() - l.offX;
+        int wy = arena.getY() - l.offY;
+        int wz = arena.getZ() - l.offZ;
+        Path folder = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir()
+                .resolve("maps/villagedefense").resolve(this.villageDefenseMapName == null
+                        ? "VD-Quarry" : this.villageDefenseMapName);
+        VillageDefenseFixes.record(folder, wx, wy, wz, block);
+        ArenaWorld arenaWorld = this.vdArena();
+        if (arenaWorld != null) {
+            arenaWorld.setBlockState(arena, VillageDefenseFixes.resolve(block), 3);
+        }
+        sp.sendMessage(Messages.gold("已记录修复：(" + wx + ", " + wy + ", " + wz
+                + ") → " + (block == null || block.isBlank() ? "空气" : block)
+                + "（下局导入也生效）"), false);
     }
 
     /** 游戏内换职业：ACTIVE 且存活的玩家立即按新选择重新配装。 */

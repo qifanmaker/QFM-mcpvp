@@ -72,6 +72,10 @@ public final class VillageWorldImporter {
     public static final class Layout {
         public final String mapName;
         public final BlockPos center;
+        /** 世界→竞技场平移量（arena = world + off）。 */
+        public int offX;
+        public int offY;
+        public int offZ;
         public final List<BlockPos> villagerSpawns = new ArrayList<>();
         public final List<BlockPos> zombieSpawns = new ArrayList<>();
         public final List<BlockPos> doors = new ArrayList<>();
@@ -93,6 +97,9 @@ public final class VillageWorldImporter {
         int dz = center.getZ();
 
         Layout layout = new Layout(mapName, center);
+        layout.offX = dx;
+        layout.offY = dy;
+        layout.offZ = dz;
         int placed = 0;
         int unmapped = 0;
         int minWx = Integer.MAX_VALUE, maxWx = Integer.MIN_VALUE;
@@ -176,8 +183,11 @@ public final class VillageWorldImporter {
             }
         }
 
-        LOGGER.info("[VD] 导入 {}：放置 {} 方块，垫底 {}，未映射 {}。范围 x[{},{}] y[{},{}] z[{},{}]",
-                mapName, placed, pad, unmapped,
+        // 应用手动修复（fixes.json）：世界坐标 → 覆盖成指定方块（可置空气）
+        int fixed = VillageDefenseFixes.apply(world, mapFolder, layout);
+
+        LOGGER.info("[VD] 导入 {}：放置 {} 方块，垫底 {}，未映射 {}，手动修复 {}。范围 x[{},{}] y[{},{}] z[{},{}]",
+                mapName, placed, pad, unmapped, fixed,
                 minWx == Integer.MAX_VALUE ? 0 : minWx, maxWx == Integer.MIN_VALUE ? 0 : maxWx,
                 minWy == Integer.MAX_VALUE ? 0 : minWy, maxWy == Integer.MIN_VALUE ? 0 : maxWy,
                 minWz == Integer.MAX_VALUE ? 0 : minWz, maxWz == Integer.MIN_VALUE ? 0 : maxWz);
