@@ -4397,7 +4397,7 @@ public final class Match {
             }
             case "baby" -> {
                 hp = 2 * this.vdHpMultiplier;
-                speed = 0.38;
+                speed = 0.22; // 1.21 婴儿僵尸自带速度加成，基数不能再高，否则快得离谱
                 baby = true;
             }
             case "softhard" -> {
