@@ -4246,29 +4246,16 @@ public final class Match {
         }
 
         if (this.vdFighting) {
-            this.vdTimer--;
-            // 逐批生成僵尸
-            if (this.vdZombiesToSpawn > 0 && this.vdEnemies.size() < PvPConfig.INSTANCE.villageDefenseZombieCap) {
-                if (this.vdTimer % 2 == 0) {
-                    this.vdSpawnZombie();
-                }
+            // 逐批生成僵尸（节奏跟随全局 tick，不再依赖战斗倒计时）
+            if (this.vdZombiesToSpawn > 0 && this.vdEnemies.size() < PvPConfig.INSTANCE.villageDefenseZombieCap
+                    && this.ticks % 2 == 0) {
+                this.vdSpawnZombie();
             }
             // 僵尸目标与破门 / 村民逃散
             this.vdEnemyTick();
 
-            // 僵尸清空 → 本波结束
+            // 僵尸清空 → 本波结束（不再有 30s 硬超时清怪，避免"没清完就消失"）
             if (this.vdZombiesToSpawn <= 0 && this.vdEnemies.isEmpty()) {
-                this.vdVillageWon = this.vdWave >= PvPConfig.INSTANCE.villageDefenseWinWave;
-                this.vdWaveEnd();
-            } else if (this.vdTimer <= 0) {
-                // 卡住兜底：清空剩余僵尸并按完成本波处理
-                ArenaWorld arena = this.vdArena();
-                if (arena != null) {
-                    for (LivingEntity e : new ArrayList<>(this.vdEnemies)) {
-                        e.discard();
-                    }
-                }
-                this.vdEnemies.clear();
                 this.vdVillageWon = this.vdWave >= PvPConfig.INSTANCE.villageDefenseWinWave;
                 this.vdWaveEnd();
             }
@@ -4450,6 +4437,8 @@ public final class Match {
             zombie.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
             zombie.setCustomNameVisible(false);
         }
+        // 竞技场固定正午：防火避免白天自燃
+        zombie.addStatusEffect(new StatusEffectInstance(StatusEffects.FIRE_RESISTANCE, Integer.MAX_VALUE, 0, false, false, true));
         zombie.setCustomName(Text.literal("§c僵尸"));
         zombie.setCustomNameVisible(false);
         arena.spawnEntity(zombie);
