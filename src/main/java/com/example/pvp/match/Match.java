@@ -4702,7 +4702,8 @@ public final class Match {
         zombie.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED).setBaseValue(speed);
         zombie.getAttributeInstance(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE).setBaseValue(kbRes);
         if (zombie.getAttributeInstance(EntityAttributes.GENERIC_FOLLOW_RANGE) != null) {
-            zombie.getAttributeInstance(EntityAttributes.GENERIC_FOLLOW_RANGE).setBaseValue(48);
+            // 视野/跟随范围扩到全图，保证外圈刷出的僵尸也能锁到村民/玩家
+            zombie.getAttributeInstance(EntityAttributes.GENERIC_FOLLOW_RANGE).setBaseValue(512);
         }
         if (baby) {
             zombie.setBaby(true);
