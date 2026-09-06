@@ -3761,6 +3761,27 @@ public final class Match {
                     this.setInfoLine(scoreboard, objective, " §a● §f" + name, score--);
                 }
             }
+        } else if (this.type == MatchType.VILLAGE_DEFENSE) {
+            // 村庄保卫战：波次/僵尸数/村民/各玩家 orbs
+            int zombiesLeft = this.vdZombiesToSpawn + this.vdEnemies.size();
+            this.setInfoLine(scoreboard, objective, "§c第 §f" + this.vdWave + " §7波 / 目标 §e"
+                    + PvPConfig.INSTANCE.villageDefenseWinWave, score--);
+            this.setInfoLine(scoreboard, objective, "§c僵尸 §f" + zombiesLeft
+                    + "§7  村民 §a" + this.vdVillagers.size(), score--);
+            this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
+            for (ServerPlayerEntity player : this.players) {
+                if (score < 0) {
+                    break;
+                }
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                String name = online != null ? online.getGameProfile().getName() : player.getGameProfile().getName();
+                int orbs = this.vdOrbs.getOrDefault(player.getUuid(), 0);
+                if (this.vdWaitingPlayers.contains(player.getUuid())) {
+                    this.setInfoLine(scoreboard, objective, " §7✝ §f" + name + " §7(§e" + orbs + "§7)", score--);
+                } else {
+                    this.setInfoLine(scoreboard, objective, " §f" + name + " §7货币 §e" + orbs, score--);
+                }
+            }
         } else if (this.type.isLastManStanding()) {
             // FFA/空岛战争/幸运之柱/TNT 跑酷/烫手山芋：模式专属事件倒计时 + 存活玩家列表（玩家数量见头部）
             if (this.type == MatchType.SKYWARS) {

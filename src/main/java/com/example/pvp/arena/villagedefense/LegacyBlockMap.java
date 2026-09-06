@@ -260,10 +260,12 @@ public final class LegacyBlockMap {
     private static BlockState stairs(net.minecraft.block.Block block, int meta) {
         BlockState base = block.getDefaultState();
         boolean top = (meta & 4) != 0;
+        // 1.8 楼梯朝向：0=东 1=西 2=南 3=北（bit2=上下颠倒）
         Direction facing = switch (meta & 3) {
-            case 1 -> Direction.EAST;
+            case 0 -> Direction.EAST;
+            case 1 -> Direction.WEST;
             case 2 -> Direction.SOUTH;
-            case 3 -> Direction.WEST;
+            case 3 -> Direction.NORTH;
             default -> Direction.NORTH;
         };
         return base.with(StairsBlock.FACING, facing).with(StairsBlock.HALF, top ? BlockHalf.TOP : BlockHalf.BOTTOM);

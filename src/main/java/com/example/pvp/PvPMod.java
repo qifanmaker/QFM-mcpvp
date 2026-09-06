@@ -611,6 +611,27 @@ public final class PvPMod implements ModInitializer {
                 Match m = MATCH.getMatchFor(sp);
                 if (m != null && m.getType() == MatchType.VILLAGE_DEFENSE) {
                     net.minecraft.block.Block b = world.getBlockState(hitResult.getBlockPos()).getBlock();
+                    if (b == net.minecraft.block.Blocks.ENCHANTING_TABLE) {
+                        // 自动补青金石：身上没有就发 16 个；经验等级不动（照原版附魔）
+                        boolean has = false;
+                        for (int i = 0; i < sp.getInventory().size(); i++) {
+                            if (sp.getInventory().getStack(i).isOf(net.minecraft.item.Items.LAPIS_LAZULI)) {
+                                has = true;
+                                break;
+                            }
+                        }
+                        if (!has) {
+                            int empty = sp.getInventory().getEmptySlot();
+                            if (empty != -1) {
+                                sp.getInventory().setStack(empty, new net.minecraft.item.ItemStack(net.minecraft.item.Items.LAPIS_LAZULI, 16));
+                                sp.sendMessage(com.example.pvp.text.Messages.gold("已自动补满青金石（16 个）"), false);
+                            } else {
+                                sp.sendMessage(com.example.pvp.text.Messages.error("背包已满，无法自动补青金石"), false);
+                            }
+                        }
+                        // 不拦截，放行原版附魔台（经验照原版消耗）
+                        return ActionResult.PASS;
+                    }
                     if (b == net.minecraft.block.Blocks.ANVIL || b == net.minecraft.block.Blocks.CHIPPED_ANVIL
                             || b == net.minecraft.block.Blocks.DAMAGED_ANVIL) {
                         m.vdUseAnvil(sp);
