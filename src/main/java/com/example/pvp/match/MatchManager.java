@@ -703,6 +703,9 @@ public final class MatchManager {
                         match.onHeartbeatDeath(player); // 心跳水立方：掉出虚空回当前关塔顶重试（不淘汰）
                     } else if (match.getType().isBedWars()) {
                         match.bedWarsVoidFall(player); // 床战：床活延迟重生 / 床死淘汰
+                    } else if (match.getType() == MatchType.VILLAGE_DEFENSE) {
+                        // 村庄保卫战：掉虚空 = 阵亡（转旁观，下一波复活），不永久淘汰
+                        match.onVillageDefenseDeath(player);
                     } else {
                         match.eliminate(player, EliminationCause.VOID);
                     }
