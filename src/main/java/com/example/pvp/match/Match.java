@@ -196,6 +196,8 @@ public final class Match {
     private final Map<UUID, Integer> vdPetLevel = new HashMap<>();  // 宠物 uuid → 已升级次数(伤害/血量)
     /** 宠物三系等级：[0]伤害 [1]生命 [2]速度。 */
     private final Map<UUID, int[]> vdPetStat = new HashMap<>();
+    /** 地图编辑模式：玩家 uuid → 进入编辑前游戏模式（保存恢复用）。 */
+    private final Map<UUID, net.minecraft.world.GameMode> vdEditors = new HashMap<>();
     /** 秘密之井：地图上的漏斗位置 + 收集的腐肉/井等级（对齐 VD RottenFlesh）。 */
     private final List<BlockPos> vdWellHoppers = new ArrayList<>();
     private int vdFleshAmount;
@@ -4294,6 +4296,78 @@ public final class Match {
         sp.sendMessage(Messages.gold("已记录修复：(" + wx + ", " + wy + ", " + wz
                 + ") → " + (block == null || block.isBlank() ? "空气" : block)
                 + "（下局导入也生效）"), false);
+    }
+
+    private Path vdMapFolder() {
+        return net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir()
+                .resolve("maps/villagedefense").resolve(this.villageDefenseMapName == null
+                        ? "VD-Quarry" : this.villageDefenseMapName);
+    }
+
+    /** 地图编辑模式开关（OP）：进入=切创造自由改；再执行=退出并恢复模式。 */
+    public void toggleVillageEditor(ServerPlayerEntity sp) {
+        if (this.villageDefenseLayout == null) {
+            sp.sendMessage(Messages.error("本局没有导入地图"), false);
+            return;
+        }
+        if (this.vdEditors.containsKey(sp.getUuid())) {
+            sp.changeGameMode(this.vdEditors.remove(sp.getUuid()));
+            sp.sendMessage(Messages.gold("已退出编辑模式，可执行 /vd save 保存修改"), false);
+            return;
+        }
+        this.vdEditors.put(sp.getUuid(), sp.interactionManager.getGameMode());
+        sp.changeGameMode(net.minecraft.world.GameMode.CREATIVE);
+        sp.sendMessage(Messages.gold("已进入地图编辑模式（创造）。改完执行 /vd save 保存差异到 fixes.json"), false);
+    }
+
+    /** 保存地图编辑：把场上与原始导入不同的方块差分写入 fixes.json（只存改动过的）。 */
+    public void saveVillageMapEdits(ServerPlayerEntity sp) {
+        VillageWorldImporter.Layout l = this.villageDefenseLayout;
+        if (l == null || l.minCorner == null) {
+            sp.sendMessage(Messages.error("没有可保存的地图"), false);
+            return;
+        }
+        Path folder = this.vdMapFolder();
+        java.util.Map<Long, Integer> orig = VillageWorldImporter.snapshotNonAir(folder);
+        ArenaWorld arena = this.vdArena();
+        if (arena == null) {
+            return;
+        }
+        java.util.List<VillageDefenseFixes.Fix> diffs = new ArrayList<>();
+        int checked = 0;
+        int mnX = l.minCorner.getX(), mxX = l.maxCorner.getX();
+        int mnY = l.minCorner.getY(), mxY = l.maxCorner.getY();
+        int mnZ = l.minCorner.getZ(), mxZ = l.maxCorner.getZ();
+        for (int x = mnX; x <= mxX; x++) {
+            for (int z = mnZ; z <= mxZ; z++) {
+                for (int y = mnY; y <= mxY; y++) {
+                    checked++;
+                    net.minecraft.block.BlockState cur = arena.getBlockState(new BlockPos(x, y, z));
+                    int wx = x - l.offX;
+                    int wy = y - l.offY;
+                    int wz = z - l.offZ;
+                    long key = VillageWorldImporter.pack3(wx, wy, wz);
+                    Integer origId = orig.get(key);
+                    if (cur.isAir()) {
+                        if (origId != null) {
+                            diffs.add(new VillageDefenseFixes.Fix(wx, wy, wz, "minecraft:air"));
+                        }
+                    } else {
+                        int curId = net.minecraft.registry.Registries.BLOCK.getRawId(cur.getBlock());
+                        if (origId == null || origId != curId) {
+                            String id = net.minecraft.registry.Registries.BLOCK.getId(cur.getBlock()).toString();
+                            diffs.add(new VillageDefenseFixes.Fix(wx, wy, wz, id));
+                        }
+                    }
+                }
+            }
+        }
+        if (diffs.isEmpty()) {
+            sp.sendMessage(Messages.info("没有检测到地图改动（与原始一致）"), false);
+            return;
+        }
+        VillageDefenseFixes.writeAll(folder, diffs);
+        sp.sendMessage(Messages.gold("已保存 " + diffs.size() + " 处修改到 fixes.json（下局导入自动生效）"), false);
     }
 
     /** 游戏内换职业：ACTIVE 且存活的玩家立即按新选择重新配装。 */

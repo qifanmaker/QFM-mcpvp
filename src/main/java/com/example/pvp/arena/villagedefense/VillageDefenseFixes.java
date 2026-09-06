@@ -72,6 +72,28 @@ public final class VillageDefenseFixes {
         }
     }
 
+    /** 整批写入（编辑器保存用）：覆盖同坐标旧条目后写回文件。 */
+    public static void writeAll(Path mapFolder, List<Fix> fixes) {
+        try {
+            Files.createDirectories(mapFolder);
+            java.util.Map<String, Fix> merged = new java.util.LinkedHashMap<>();
+            for (Fix f : readAll(mapFolder)) {
+                merged.put(f.x() + " " + f.y() + " " + f.z(), f);
+            }
+            for (Fix f : fixes) {
+                merged.put(f.x() + " " + f.y() + " " + f.z(), f);
+            }
+            List<String> lines = new ArrayList<>();
+            for (Fix f : merged.values()) {
+                lines.add(f.x() + " " + f.y() + " " + f.z() + " "
+                        + (f.block() == null || f.block().isBlank() ? "minecraft:air" : f.block()));
+            }
+            Files.write(file(mapFolder), lines, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            LOGGER.warn("[VD] 写入 fixes.json 失败: {}", e.toString());
+        }
+    }
+
     /** 导入后应用 fixes：世界坐标经 off 平移后覆盖方块。返回应用条数。 */
     public static int apply(ArenaWorld world, Path mapFolder, VillageWorldImporter.Layout layout) {
         int count = 0;

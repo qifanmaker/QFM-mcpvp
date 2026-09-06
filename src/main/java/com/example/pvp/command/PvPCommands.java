@@ -196,6 +196,29 @@ public final class PvPCommands {
                 .executes(ctx -> vdFix(ctx, null))
                 .then(CommandManager.argument("block", StringArgumentType.word())
                         .executes(ctx -> vdFix(ctx, StringArgumentType.getString(ctx, "block")))));
+        // 地图编辑（OP）：/vdedit 开关创造编辑，/vdsave 差分保存到 fixes.json
+        dispatcher.register(CommandManager.literal("vdedit").requires(src -> src.hasPermissionLevel(2))
+                .executes(ctx -> {
+                    ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                    Match m = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+                    if (m == null || m.getType() != MatchType.VILLAGE_DEFENSE) {
+                        player.sendMessage(Messages.error("请先进入村庄保卫战对局"), false);
+                        return 0;
+                    }
+                    m.toggleVillageEditor(player);
+                    return 1;
+                }));
+        dispatcher.register(CommandManager.literal("vdsave").requires(src -> src.hasPermissionLevel(2))
+                .executes(ctx -> {
+                    ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                    Match m = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+                    if (m == null || m.getType() != MatchType.VILLAGE_DEFENSE) {
+                        player.sendMessage(Messages.error("请先进入村庄保卫战对局"), false);
+                        return 0;
+                    }
+                    m.saveVillageMapEdits(player);
+                    return 1;
+                }));
         dispatcher.register(CommandManager.literal("watch").executes(ctx -> tpIn(ctx)));  // 进入竞技场
 
         dispatcher.register(

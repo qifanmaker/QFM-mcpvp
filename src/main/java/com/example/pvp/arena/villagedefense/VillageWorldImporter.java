@@ -311,6 +311,71 @@ public final class VillageWorldImporter {
         return ((long) x << 32) | (z & 0xFFFFFFFFL);
     }
 
+    /** 3D 坐标 → long 键（±2047 安全，含符号偏移）。 */
+    public static long pack3(int x, int y, int z) {
+        return (((long) (x + 2048)) << 42) | (((long) y) << 20) | (z + 2048);
+    }
+
+    public static int unpackX(long k) {
+        return (int) ((k >> 42) & 0x1FFFFFL) - 2048;
+    }
+
+    public static int unpackY(long k) {
+        return (int) ((k >> 20) & 0xFFFFFL);
+    }
+
+    public static int unpackZ(long k) {
+        return (int) (k & 0x1FFFFFL) - 2048;
+    }
+
+    /**
+     * 重算整图"非空气原始方块"：世界坐标 → 现代方块注册 id（编辑器差分用）。
+     */
+    public static java.util.Map<Long, Integer> snapshotNonAir(Path mapFolder) {
+        java.util.Map<Long, Integer> map = new HashMap<>();
+        List<ChunkSections> chunks = readAllChunks(mapFolder.resolve("region"));
+        for (ChunkSections chunk : chunks) {
+            int baseX = chunk.cx * 16;
+            int baseZ = chunk.cz * 16;
+            for (SectionData sd : chunk.sections) {
+                byte[] blocks = sd.blocks.getByteArray("Blocks");
+                if (blocks.length != 4096) {
+                    continue;
+                }
+                byte[] data = sd.data != null && sd.data.contains("Data") ? sd.data.getByteArray("Data") : null;
+                byte[] add = sd.data2 != null && sd.data2.contains("Add") ? sd.data2.getByteArray("Add") : null;
+                int sy = sd.blocks.getByte("Y") & 0xFF;
+                for (int index = 0; index < 4096; index++) {
+                    int id = blocks[index] & 0xFF;
+                    if (add != null && add.length == 2048) {
+                        id |= nibble(add, index) << 8;
+                    }
+                    if (id == 0) {
+                        continue;
+                    }
+                    int md = data != null && data.length == 2048 ? nibble(data, index) : 0;
+                    int wx = baseX + (index & 15);
+                    int wz = baseZ + ((index >> 4) & 15);
+                    int wy = sy * 16 + (index >> 8);
+                    if (wy < WORLD_MIN_Y || wy > WORLD_MAX_Y) {
+                        continue;
+                    }
+                    BlockState st;
+                    try {
+                        st = LegacyBlockMap.stateFor(id, md);
+                    } catch (Exception e) {
+                        continue;
+                    }
+                    if (st == null || st.isAir()) {
+                        continue;
+                    }
+                    map.put(pack3(wx, wy, wz), net.minecraft.registry.Registries.BLOCK.getRawId(st.getBlock()));
+                }
+            }
+        }
+        return map;
+    }
+
     private static int nibble(byte[] arr, int index) {
         int b = arr[index >> 1] & 0xFF;
         return (index & 1) == 0 ? b & 0xF : b >> 4;
