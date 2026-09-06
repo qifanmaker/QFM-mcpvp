@@ -561,6 +561,12 @@ public final class PvPMod implements ModInitializer {
                 MATCH.onVillageDefenseMobKilled(entity, damageSource);
             }
         });
+        // 村庄保卫战：克星僵尸"受击引爆"（对齐 VD explosive_hit）
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
+            if (entity instanceof net.minecraft.entity.mob.ZombieEntity && MATCH != null) {
+                MATCH.onVillageDefenseEnemyDamaged(entity, source);
+            }
+        });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (MATCH != null) {

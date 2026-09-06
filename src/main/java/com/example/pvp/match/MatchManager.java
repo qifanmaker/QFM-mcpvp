@@ -470,6 +470,17 @@ public final class MatchManager {
         }
     }
 
+    /** 村庄保卫战：克星僵尸受击（从 AFTER_DAMAGE 触发）→ 所属对局引爆。 */
+    public void onVillageDefenseEnemyDamaged(net.minecraft.entity.LivingEntity entity,
+                                             net.minecraft.entity.damage.DamageSource source) {
+        for (Match match : this.matches) {
+            if (match.getType() == MatchType.VILLAGE_DEFENSE && match.acceptsVdEnemy(entity)) {
+                match.vdEnemyDamaged(entity, source);
+                return;
+            }
+        }
+    }
+
     /** 是否为低版本(1.8)战斗模式：1.8 经典PvP / 空岛战争 / 战桥 / 幸运之柱 / 起床战争 / 村庄保卫战（无攻击冷却 + 剑格挡）。 */
     public boolean isLegacyCombat(Match match) {
         return match != null && (match.getType() == MatchType.PVP_1_8

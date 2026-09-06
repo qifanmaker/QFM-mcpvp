@@ -4228,8 +4228,9 @@ public final class Match {
         int amount = (int) Math.ceil(base);
         this.vdHpMultiplier = 1;
         if (amount > cfg.villageDefenseZombieCap) {
+            // VD Creatures.Multiplier-Divider = 18
             int excess = amount - cfg.villageDefenseZombieCap;
-            this.vdHpMultiplier = Math.max(2, (int) Math.ceil(excess / 20.0));
+            this.vdHpMultiplier = Math.max(2, (int) Math.ceil(excess / 18.0));
             amount = cfg.villageDefenseZombieCap;
         }
         this.vdZombiesToSpawn = amount;
@@ -4365,7 +4366,7 @@ public final class Match {
                 zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.CHAINMAIL_LEGGINGS));
                 zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.CHAINMAIL_BOOTS));
             }
-            case "playerbuster", "villagerbuster" -> {
+            case "playerbuster", "villagerbuster", "golembuster" -> {
                 hp = 10 * this.vdHpMultiplier;
                 speed = 0.3;
                 zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.TNT));
@@ -4408,6 +4409,9 @@ public final class Match {
         if (w >= 8 && roll >= 92) {
             return "tank";
         }
+        if (w >= 6 && roll >= 84 && roll < 92) {
+            return "golembuster"; // 傀儡克星：追铁傀儡，被傀儡/玩家打中自爆
+        }
         if (w >= 7 && roll < 20) {
             return "invisible";
         }
@@ -4421,6 +4425,17 @@ public final class Match {
             return "fast";
         }
         return "normal";
+    }
+
+    /** 克星僵尸受击（玩家/傀儡命中）→ 立即自爆（对齐 VD explosive_hit）。 */
+    public void vdEnemyDamaged(LivingEntity enemy, net.minecraft.entity.damage.DamageSource source) {
+        if (this.state != MatchState.ACTIVE || !this.vdEnemies.contains(enemy) || enemy.isRemoved()) {
+            return;
+        }
+        String kind = this.vdEnemyKind.get(enemy.getUuid());
+        if ("playerbuster".equals(kind) || "golembuster".equals(kind) || "villagerbuster".equals(kind)) {
+            this.vdBusterExplode(enemy);
+        }
     }
 
     /** 爆炸克星自爆：原地生成 5 tick(0.25s) 引信 TNT 后移除自身。 */
@@ -4459,8 +4474,14 @@ public final class Match {
             return;
         }
         boolean golem = kind.equals("golem");
-        int cap = golem ? 2 : 4;
-        int own = this.vdPetCount(sp, golem);
+        // VD Limit.Spawn：Golems=15 / Wolves=20（全局上限）
+        int cap = golem ? 15 : 20;
+        int own = 0;
+        for (LivingEntity p : this.vdPets) {
+            if ((p instanceof net.minecraft.entity.passive.IronGolemEntity) == golem) {
+                own++;
+            }
+        }
         net.minecraft.entity.mob.MobEntity pet;
         if (own >= cap) {
             // 升级已有宠物
@@ -4646,12 +4667,19 @@ public final class Match {
         targets.addAll(this.vdPlayersOnline().stream()
                 .filter(p -> !this.vdWaitingPlayers.contains(p.getUuid())).collect(java.util.stream.Collectors.toList()));
         targets.addAll(this.vdVillagers);
+        // 铁傀儡也纳入候选（僵尸会反击傀儡；傀儡克星专门追它们）
+        for (LivingEntity pet : this.vdPets) {
+            if (pet instanceof net.minecraft.entity.passive.IronGolemEntity && pet.isAlive()) {
+                targets.add(pet);
+            }
+        }
 
         // 每 10 tick 选目标：村民杀手只打村民，其余优先最近的村民/玩家
         if (this.ticks % 10 == 0) {
             for (LivingEntity z : this.vdEnemies) {
                 String kind = this.vdEnemyKind.get(z.getUuid());
                 boolean slayer = "villagerslayer".equals(kind);
+                boolean golemBuster = "golembuster".equals(kind);
                 LivingEntity best = null;
                 double bestDist = Double.MAX_VALUE;
                 for (LivingEntity t : targets) {
@@ -4661,10 +4689,26 @@ public final class Match {
                     if (slayer && !(t instanceof VillagerEntity)) {
                         continue; // 村民杀手无视玩家，直扑村民
                     }
+                    if (golemBuster && !(t instanceof net.minecraft.entity.passive.IronGolemEntity)) {
+                        continue; // 傀儡克星优先铁傀儡（候选池含 golems）
+                    }
                     double d = z.squaredDistanceTo(t);
                     if (d < bestDist) {
                         bestDist = d;
                         best = t;
+                    }
+                }
+                if (best == null && golemBuster) {
+                    // 无铁傀儡时退而攻击玩家
+                    bestDist = Double.MAX_VALUE;
+                    for (LivingEntity t : targets) {
+                        if (t != null && t.isAlive() && !(t instanceof VillagerEntity)) {
+                            double d = z.squaredDistanceTo(t);
+                            if (d < bestDist) {
+                                bestDist = d;
+                                best = t;
+                            }
+                        }
                     }
                 }
                 if (best != null && z instanceof MobEntity mob) {
@@ -4673,18 +4717,18 @@ public final class Match {
             }
         }
 
-        // 爆炸克星（玩家克星/村民克星）：逼近目标 → 短引线 TNT 自爆
+        // 村民克星：接触到村民才自爆（玩家克星/傀儡克星在 vdEnemyDamaged 里受击自爆）
         if (this.ticks % 3 == 0) {
             for (LivingEntity z : new ArrayList<>(this.vdEnemies)) {
                 String kind = this.vdEnemyKind.get(z.getUuid());
-                if (!"playerbuster".equals(kind) && !"villagerbuster".equals(kind)) {
+                if (!"villagerbuster".equals(kind)) {
                     continue;
                 }
-                for (LivingEntity t : targets) {
+                for (LivingEntity t : this.vdVillagers) {
                     if (t == null || !t.isAlive()) {
                         continue;
                     }
-                    if (z.squaredDistanceTo(t) < 2.25) { // 1.5 格内引爆
+                    if (z.squaredDistanceTo(t) < 2.25) {
                         this.vdBusterExplode(z);
                         break;
                     }
