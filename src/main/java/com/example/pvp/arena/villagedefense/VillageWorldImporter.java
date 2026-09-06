@@ -4,50 +4,71 @@ import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.mojang.logging.LogUtils;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
 /**
  * 把 Village Defense 的 1.12 Anvil 世界（maps/villagedefense/&lt;map&gt;/region/*.mca）粘贴进竞技场世界。
  *
- * <p>解码经典 Section：{@code Blocks[4096]}（块 id）+ {@code Data[2048]}（meta），经
- * {@link LegacyBlockMap} 映射成现代 {@link BlockState}。
+ * <p><b>整片加载</b>：读全部现存 chunk，非空气方块全数粘贴（相对世界坐标平移），保证完整还原。
  *
- * <p><b>整片加载</b>：不依赖 arenas.yml 标记坐标去截取范围，而是把地图目录下所有 region 里
- * 现存的 chunk 全部解码，非空气方块全数粘贴（相对世界坐标平移），保证地图完整还原。
+ * <p><b>原版商店</b>：读取地图中"商店箱子"（arenas.yml 的 shop 坐标）里每个物品及其 lore 价格
+ * （`N orbs`），作为对局商店内容——与原版插件行为一致。
  *
- * <p>平移：世界 (0,?,0) 对齐竞技场区域中心，y 用 groundWorldY 对齐 PLATFORM_Y；
- * 每列在低于已贴内容且高于地面处补实心基座，避免悬空露底。
+ * <p>chunk 用 MC 自带 {@link NbtIo} 解析；1.12 经典 Section 用 Blocks[4096]+Data[2048]。
  */
 public final class VillageWorldImporter {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private static final int FLOOR_Y = ArenaTemplate.PLATFORM_Y;
-    /** 只粘贴此世界 y 范围内的方块（覆盖地表+建筑；0..160 足够，避免读更高空）。 */
     private static final int WORLD_MIN_Y = 0;
     private static final int WORLD_MAX_Y = 160;
+    private static final Pattern PRICE = Pattern.compile("(\\d+)");
 
     private VillageWorldImporter() {
     }
 
-    /** 导入结果：平移后竞技场坐标的游戏点 + 已粘贴区域包围盒。 */
+    /** 商店条目：一个商品（含购买图标/价格/召唤类型）。 */
+    public static final class ShopItem {
+        public final ItemStack icon;
+        public final String name;
+        public final int cost;
+        public final boolean golem;
+        public final boolean wolf;
+
+        ShopItem(ItemStack icon, String name, int cost, boolean golem, boolean wolf) {
+            this.icon = icon;
+            this.name = name;
+            this.cost = cost;
+            this.golem = golem;
+            this.wolf = wolf;
+        }
+    }
+
+    /** 导入结果：平移后游戏点 + 实际范围 + 商店内容。 */
     public static final class Layout {
         public final String mapName;
         public final BlockPos center;
@@ -57,6 +78,7 @@ public final class VillageWorldImporter {
         public BlockPos shop;
         public BlockPos minCorner;
         public BlockPos maxCorner;
+        public final List<ShopItem> shopItems = new ArrayList<>();
 
         Layout(String mapName, BlockPos center) {
             this.mapName = mapName;
@@ -83,18 +105,25 @@ public final class VillageWorldImporter {
             int baseX = chunk.cx * 16;
             int baseZ = chunk.cz * 16;
             for (SectionData sd : chunk.sections) {
+                byte[] blocks = sd.blocks.getByteArray("Blocks");
+                byte[] data = sd.data != null ? sd.data.getByteArray("Data") : null;
+                byte[] add = sd.data2 != null ? sd.data2.getByteArray("Add") : null;
+                int sy = sd.blocks.getByte("Y") & 0xFF;
+                if (blocks.length != 4096) {
+                    continue;
+                }
                 for (int index = 0; index < 4096; index++) {
-                    int id = sd.blocks[index] & 0xFF;
-                    if (sd.add != null) {
-                        id |= nibble(sd.add, index) << 8;
+                    int id = blocks[index] & 0xFF;
+                    if (add != null && add.length == 2048) {
+                        id |= nibble(add, index) << 8;
                     }
                     if (id == 0) {
-                        continue; // 空气
+                        continue;
                     }
-                    int md = sd.data != null ? nibble(sd.data, index) : 0;
+                    int md = data != null && data.length == 2048 ? nibble(data, index) : 0;
                     int wx = baseX + (index & 15);
                     int wz = baseZ + ((index >> 4) & 15);
-                    int wy = sd.y * 16 + (index >> 8);
+                    int wy = sy * 16 + (index >> 8);
                     if (wy < WORLD_MIN_Y || wy > WORLD_MAX_Y) {
                         continue;
                     }
@@ -132,7 +161,7 @@ public final class VillageWorldImporter {
             }
         }
 
-        // 底部补基座：内容最低方块高于地面线 → 从地面铺到其下，避免悬空露底
+        // 底部补基座
         int pad = 0;
         for (Map.Entry<Long, Integer> e : columnLowest.entrySet()) {
             int x = (int) (e.getKey() >>> 32);
@@ -142,7 +171,7 @@ public final class VillageWorldImporter {
                 continue;
             }
             for (int y = FLOOR_Y; y < lowest; y++) {
-                world.setBlockState(new BlockPos(x, y, z), Blocks.COBBLESTONE.getDefaultState(), 3);
+                world.setBlockState(new BlockPos(x, y, z), net.minecraft.block.Blocks.COBBLESTONE.getDefaultState(), 3);
                 pad++;
             }
         }
@@ -153,6 +182,7 @@ public final class VillageWorldImporter {
                 minWy == Integer.MAX_VALUE ? 0 : minWy, maxWy == Integer.MIN_VALUE ? 0 : maxWy,
                 minWz == Integer.MAX_VALUE ? 0 : minWz, maxWz == Integer.MIN_VALUE ? 0 : maxWz);
 
+        // 平移游戏坐标
         for (double[] p : meta.villagerSpawns) {
             layout.villagerSpawns.add(new BlockPos((int) Math.floor(p[0]) + dx, (int) Math.floor(p[1]) + dy,
                     (int) Math.floor(p[2]) + dz));
@@ -166,14 +196,105 @@ public final class VillageWorldImporter {
                     (int) Math.floor(p[2]) + dz));
         }
         if (meta.shop != null) {
-            layout.shop = new BlockPos((int) Math.floor(meta.shop[0]) + dx, (int) Math.floor(meta.shop[1]) + dy,
-                    (int) Math.floor(meta.shop[2]) + dz);
+            BlockPos shop = new BlockPos((int) Math.floor(meta.shop[0]) + dx,
+                    (int) Math.floor(meta.shop[1]) + dy, (int) Math.floor(meta.shop[2]) + dz);
+            layout.shop = shop;
         }
         if (minWx != Integer.MAX_VALUE) {
             layout.minCorner = new BlockPos(minWx + dx, minWy + dy, minWz + dz);
             layout.maxCorner = new BlockPos(maxWx + dx, maxWy + dy, maxWz + dz);
         }
+
+        // 原版商店：取商店箱子内容
+        if (meta.shop != null) {
+            int shopX = (int) Math.floor(meta.shop[0]);
+            int shopY = (int) Math.floor(meta.shop[1]);
+            int shopZ = (int) Math.floor(meta.shop[2]);
+            NbtCompound chest = findChest(chunks, shopX, shopY, shopZ);
+            if (chest != null) {
+                NbtList items = chest.getList("Items", NbtElement.COMPOUND_TYPE);
+                for (NbtElement el : items) {
+                    NbtCompound it = (NbtCompound) el;
+                    ShopItem offer = toShopItem(it);
+                    if (offer != null) {
+                        layout.shopItems.add(offer);
+                    }
+                }
+                LOGGER.info("[VD] 商店读取到 {} 件商品（原版商店箱子）", layout.shopItems.size());
+            } else {
+                LOGGER.warn("[VD] 未找到商店箱子 @{} {} {}，商店将用内置兜底清单", shopX, shopY, shopZ);
+            }
+        }
         return layout;
+    }
+
+    private static NbtCompound findChest(List<ChunkSections> chunks, int x, int y, int z) {
+        for (ChunkSections chunk : chunks) {
+            for (NbtCompound te : chunk.tileEntities) {
+                if (te.getInt("x") == x && te.getInt("y") == y && te.getInt("z") == z) {
+                    return te;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static ShopItem toShopItem(NbtCompound it) {
+        String id = it.getString("id");
+        int count = it.getByte("Count") & 0xFF;
+        NbtCompound tag = it.getCompound("tag");
+        String displayName = null;
+        String lore0 = null;
+        if (!tag.isEmpty()) {
+            NbtCompound display = tag.getCompound("display");
+            displayName = display.getString("Name");
+            NbtList lore = display.getList("Lore", NbtElement.STRING_TYPE);
+            if (!lore.isEmpty()) {
+                lore0 = lore.getString(0);
+            }
+        }
+        int cost = 0;
+        if (lore0 != null) {
+            Matcher m = PRICE.matcher(lore0);
+            if (m.find()) {
+                cost = Integer.parseInt(m.group(1));
+            }
+        }
+        if (cost <= 0) {
+            return null; // 无价格不卖
+        }
+        boolean golem = false;
+        boolean wolf = false;
+        net.minecraft.item.Item iconItem;
+        String name = displayName != null ? stripColor(displayName) : id;
+        if (id.equals("minecraft:name_tag") && displayName != null) {
+            if (displayName.contains("Golem")) {
+                golem = true;
+                iconItem = net.minecraft.item.Items.IRON_INGOT;
+                name = "召唤铁傀儡";
+            } else if (displayName.contains("Wolf")) {
+                wolf = true;
+                iconItem = net.minecraft.item.Items.BONE;
+                name = "召唤狼";
+            } else {
+                iconItem = net.minecraft.item.Items.NAME_TAG;
+            }
+        } else {
+            net.minecraft.util.Identifier ident = net.minecraft.util.Identifier.tryParse(id);
+            if (ident == null) {
+                return null;
+            }
+            if (!net.minecraft.registry.Registries.ITEM.containsId(ident)) {
+                return null;
+            }
+            iconItem = net.minecraft.registry.Registries.ITEM.get(ident);
+        }
+        ItemStack icon = new ItemStack(iconItem, Math.max(1, Math.min(count == 0 ? 1 : count, iconItem.getMaxCount())));
+        return new ShopItem(icon, name, cost, golem, wolf);
+    }
+
+    private static String stripColor(String s) {
+        return s.replace("§f", "").replace("§6", "").replace("§r", "").replace("§a", "").trim();
     }
 
     private static long pack(int x, int z) {
@@ -185,22 +306,21 @@ public final class VillageWorldImporter {
         return (index & 1) == 0 ? b & 0xF : b >> 4;
     }
 
-    // ---------------- region / chunk / section 读取 ----------------
+    // ---------------- region / chunk 读取（MC NbtIo 解析） ----------------
 
     private static final class SectionData {
-        int y;
-        byte[] blocks;
-        byte[] data;
-        byte[] add;
+        NbtCompound blocks;
+        NbtCompound data;   // Data
+        NbtCompound data2;  // Add
     }
 
     private static final class ChunkSections {
         int cx;
         int cz;
         final List<SectionData> sections = new ArrayList<>();
+        final List<NbtCompound> tileEntities = new ArrayList<>();
     }
 
-    /** 读取 region 目录下所有现存 chunk（不设范围框，保证完整）。 */
     private static List<ChunkSections> readAllChunks(Path regionDir) {
         List<ChunkSections> out = new ArrayList<>();
         if (!Files.isDirectory(regionDir)) {
@@ -216,6 +336,7 @@ public final class VillageWorldImporter {
                     LOGGER.warn("[VD] 读 region 失败 {}: {}", f, e.toString());
                     continue;
                 }
+                int[] rParts = parseRegionName(f);
                 for (int idx = 0; idx < 1024; idx++) {
                     int v = be32(data, idx * 4);
                     if (v == 0) {
@@ -230,25 +351,54 @@ public final class VillageWorldImporter {
                     if (off + 5 + len > data.length) {
                         continue;
                     }
-                    byte[] compressed = Arrays.copyOfRange(data, off + 5, off + 5 + len - 1);
-                    byte[] nbtBytes;
+                    byte[] compressed = java.util.Arrays.copyOfRange(data, off + 5, off + 5 + len - 1);
+                    byte[] raw;
                     try {
                         InputStream in = switch (ctype) {
                             case 1 -> new GZIPInputStream(new ByteArrayInputStream(compressed));
                             case 2 -> new InflaterInputStream(new ByteArrayInputStream(compressed));
                             default -> new ByteArrayInputStream(compressed);
                         };
-                        nbtBytes = readAll(in);
+                        raw = readAll(in);
                     } catch (IOException e) {
                         continue;
                     }
-                    int xLocal = idx % 32;
-                    int zLocal = idx / 32;
-                    int[] rParts = parseRegionName(f);
-                    int cx = rParts[0] * 32 + xLocal;
-                    int cz = rParts[1] * 32 + zLocal;
-                    ChunkSections chunk = parseChunk(cx, cz, nbtBytes);
-                    if (chunk != null && !chunk.sections.isEmpty()) {
+                    NbtCompound root;
+                    try {
+                        root = NbtIo.readCompound(new DataInputStream(new ByteArrayInputStream(raw)),
+                                NbtSizeTracker.ofUnlimitedBytes());
+                    } catch (IOException e) {
+                        continue;
+                    }
+                    NbtCompound level = root.contains("Level")
+                            ? root.getCompound("Level") : root;
+                    int cx = rParts[0] * 32 + (idx % 32);
+                    int cz = rParts[1] * 32 + (idx / 32);
+                    ChunkSections chunk = new ChunkSections();
+                    chunk.cx = cx;
+                    chunk.cz = cz;
+                    if (level.contains("Sections")) {
+                        NbtList list = level.getList("Sections", NbtElement.COMPOUND_TYPE);
+                        for (NbtElement el : list) {
+                            NbtCompound sec = (NbtCompound) el;
+                            if (sec.contains("Blocks")) {
+                                SectionData sd = new SectionData();
+                                sd.blocks = sec;
+                                sd.data = sec.contains("Data") ? sec : null;
+                                sd.data2 = sec.contains("Add") ? sec : null;
+                                chunk.sections.add(sd);
+                            }
+                        }
+                    }
+                    for (String key : new String[]{"TileEntities", "BlockEntities"}) {
+                        if (level.contains(key)) {
+                            NbtList te = level.getList(key, NbtElement.COMPOUND_TYPE);
+                            for (NbtElement el : te) {
+                                chunk.tileEntities.add((NbtCompound) el);
+                            }
+                        }
+                    }
+                    if (!chunk.sections.isEmpty() || !chunk.tileEntities.isEmpty()) {
                         out.add(chunk);
                     }
                 }
@@ -262,7 +412,7 @@ public final class VillageWorldImporter {
     private static int[] parseRegionName(Path f) {
         String base = f.getFileName().toString();
         try {
-            String core = base.substring(2, base.length() - 4); // r.X.Z.mca
+            String core = base.substring(2, base.length() - 4);
             int dot = core.indexOf('.');
             return new int[]{Integer.parseInt(core.substring(0, dot)),
                     Integer.parseInt(core.substring(dot + 1))};
@@ -284,171 +434,5 @@ public final class VillageWorldImporter {
 
     private static int be32(byte[] b, int o) {
         return ((b[o] & 0xFF) << 24) | ((b[o + 1] & 0xFF) << 16) | ((b[o + 2] & 0xFF) << 8) | (b[o + 3] & 0xFF);
-    }
-
-    // ---------------- 最小 NBT 解析：只需 Sections[] 的 Y/Blocks/Data/Add ----------------
-
-    private static final class Reader {
-        final byte[] b;
-        int i;
-
-        Reader(byte[] b) {
-            this.b = b;
-        }
-
-        int u8() {
-            return b[i++] & 0xFF;
-        }
-
-        int i32() {
-            int v = ((b[i] & 0xFF) << 24) | ((b[i + 1] & 0xFF) << 16) | ((b[i + 2] & 0xFF) << 8) | (b[i + 3] & 0xFF);
-            i += 4;
-            return v;
-        }
-
-        void skipString() {
-            int len = ((b[i] & 0xFF) << 8) | (b[i + 1] & 0xFF);
-            i += 2 + len;
-        }
-
-        String readString() {
-            int len = ((b[i] & 0xFF) << 8) | (b[i + 1] & 0xFF);
-            i += 2;
-            String s = new String(b, i, len, StandardCharsets.UTF_8);
-            i += len;
-            return s;
-        }
-
-        byte[] bytes(int n) {
-            byte[] out = Arrays.copyOfRange(b, i, i + n);
-            i += n;
-            return out;
-        }
-    }
-
-    private static ChunkSections parseChunk(int cx, int cz, byte[] b) {
-        Reader r = new Reader(b);
-        if (r.u8() != 10) {
-            return null;
-        }
-        r.skipString();
-        ChunkSections out = new ChunkSections();
-        out.cx = cx;
-        out.cz = cz;
-        while (true) {
-            int t = r.u8();
-            if (t == 0) {
-                break;
-            }
-            String name = r.readString();
-            if (t == 10 && name.equals("Level")) {
-                readLevel(r, out);
-            } else {
-                skipValue(r, t);
-            }
-        }
-        return out;
-    }
-
-    private static void readLevel(Reader r, ChunkSections out) {
-        while (true) {
-            int t = r.u8();
-            if (t == 0) {
-                return;
-            }
-            String name = r.readString();
-            if (t == 9 && name.equals("Sections")) {
-                int et = r.u8();
-                int n = r.i32();
-                for (int i = 0; i < n; i++) {
-                    if (et != 10) {
-                        skipValue(r, et);
-                    } else {
-                        SectionData sd = readSection(r);
-                        if (sd != null) {
-                            out.sections.add(sd);
-                        }
-                    }
-                }
-            } else {
-                skipValue(r, t);
-            }
-        }
-    }
-
-    private static SectionData readSection(Reader r) {
-        SectionData sd = new SectionData();
-        sd.y = -1;
-        while (true) {
-            int t = r.u8();
-            if (t == 0) {
-                break;
-            }
-            String name = r.readString();
-            switch (t) {
-                case 1 -> {
-                    int v = r.u8();
-                    if (name.equals("Y")) {
-                        sd.y = v;
-                    }
-                }
-                case 7 -> {
-                    int n = r.i32();
-                    byte[] arr = r.bytes(n);
-                    if (name.equals("Blocks") && n == 4096) {
-                        sd.blocks = arr;
-                    } else if (name.equals("Data") && n == 2048) {
-                        sd.data = arr;
-                    } else if (name.equals("Add") && n == 2048) {
-                        sd.add = arr;
-                    }
-                }
-                default -> skipValue(r, t);
-            }
-        }
-        if (sd.y >= 0 && sd.y * 16 + 15 >= WORLD_MIN_Y && sd.y * 16 <= WORLD_MAX_Y && sd.blocks != null) {
-            return sd;
-        }
-        return null;
-    }
-
-    private static void skipValue(Reader r, int t) {
-        switch (t) {
-            case 1 -> r.i += 1;
-            case 2 -> r.i += 2;
-            case 3, 5 -> r.i += 4;
-            case 4, 6 -> r.i += 8;
-            case 7 -> {
-                int n = r.i32();
-                r.i += n;
-            }
-            case 8 -> r.skipString();
-            case 9 -> {
-                int et = r.u8();
-                int n = r.i32();
-                for (int i = 0; i < n; i++) {
-                    skipValue(r, et);
-                }
-            }
-            case 10 -> {
-                while (true) {
-                    int tt = r.u8();
-                    if (tt == 0) {
-                        break;
-                    }
-                    r.skipString();
-                    skipValue(r, tt);
-                }
-            }
-            case 11 -> {
-                int n = r.i32();
-                r.i += 4 * n;
-            }
-            case 12 -> {
-                int n = r.i32();
-                r.i += 8 * n;
-            }
-            default -> throw new IllegalStateException("unknown NBT type " + t);
-        }
     }
 }

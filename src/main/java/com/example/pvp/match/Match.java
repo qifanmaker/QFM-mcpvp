@@ -4152,6 +4152,12 @@ public final class Match {
         VillageDefenseShop.open(player, this);
     }
 
+    /** 商店内容：优先用地图商店箱子（原版），没有则空（由商店用内置兜底）。 */
+    public java.util.List<VillageWorldImporter.ShopItem> vdShopItems() {
+        return this.villageDefenseLayout == null
+                ? java.util.Collections.emptyList() : this.villageDefenseLayout.shopItems;
+    }
+
     /** 对局开始：刷村民、发货币、25s 后第 1 波。 */
     private void startVillageDefense() {
         if (this.villageDefenseLayout == null) {
