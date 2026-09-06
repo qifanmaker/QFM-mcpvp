@@ -4057,7 +4057,9 @@ public final class Match {
         }
         if (source != null && source.getAttacker() instanceof ServerPlayerEntity killer
                 && this.vdPlayersOnline().contains(killer)) {
-            int reward = 1 + this.random.nextInt(2);
+            // 经验球→orbs（对齐 VD）：orbs = ceil(经验×1.6×难度倍率)，僵尸经验取 3
+            int mult = Math.max(1, this.vdHpMultiplier);
+            int reward = (int) Math.ceil(3 * 1.6 * mult);
             this.vdAddOrbs(killer, reward, false);
             this.vdRollPowerUp(killer);
             if ("looter".equals(this.vdKitOf(killer.getUuid()))) {
@@ -4390,16 +4392,16 @@ public final class Match {
         boolean invisible = false;
         switch (kind) {
             case "fast" -> {
-                hp = 12 * this.vdHpMultiplier;
+                hp = 20 * this.vdHpMultiplier;
                 speed = 0.33;
             }
             case "baby" -> {
-                hp = 8 * this.vdHpMultiplier;
-                speed = 0.36;
+                hp = 2 * this.vdHpMultiplier;
+                speed = 0.38;
                 baby = true;
             }
             case "softhard" -> {
-                hp = 15 * this.vdHpMultiplier;
+                hp = 20 * this.vdHpMultiplier;
                 speed = 0.24;
                 zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.IRON_HELMET));
                 zombie.equipStack(EquipmentSlot.CHEST, new ItemStack(net.minecraft.item.Items.IRON_CHESTPLATE));
@@ -4415,17 +4417,19 @@ public final class Match {
                 zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.DIAMOND_BOOTS));
             }
             case "tank" -> {
-                hp = 45 * this.vdHpMultiplier;
+                hp = 35 * this.vdHpMultiplier;
                 speed = 0.2;
                 kbRes = 1.0;
                 zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.DIAMOND_HELMET));
+                zombie.equipStack(EquipmentSlot.CHEST, new ItemStack(net.minecraft.item.Items.DIAMOND_CHESTPLATE));
                 zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.DIAMOND_LEGGINGS));
-                zombie.equipStack(EquipmentSlot.MAINHAND, new ItemStack(net.minecraft.item.Items.GOLDEN_AXE));
+                zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.DIAMOND_BOOTS));
             }
             case "invisible" -> {
-                hp = 14 * this.vdHpMultiplier;
+                hp = 20 * this.vdHpMultiplier;
                 speed = 0.33;
                 invisible = true;
+                zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.CHAINMAIL_BOOTS));
             }
             case "villagerslayer" -> {
                 hp = 70 * this.vdHpMultiplier;
@@ -4436,10 +4440,29 @@ public final class Match {
                 zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.CHAINMAIL_LEGGINGS));
                 zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.CHAINMAIL_BOOTS));
             }
-            case "playerbuster", "villagerbuster", "golembuster" -> {
+            case "playerbuster" -> {
+                hp = 1 * this.vdHpMultiplier;
+                speed = 0.3;
+                zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.TNT));
+                zombie.equipStack(EquipmentSlot.CHEST, new ItemStack(net.minecraft.item.Items.GOLDEN_CHESTPLATE));
+                zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.GOLDEN_LEGGINGS));
+                zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.GOLDEN_BOOTS));
+            }
+            case "golembuster" -> {
+                hp = 5 * this.vdHpMultiplier;
+                speed = 0.3;
+                zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.TNT));
+                zombie.equipStack(EquipmentSlot.CHEST, new ItemStack(net.minecraft.item.Items.IRON_CHESTPLATE));
+                zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.IRON_LEGGINGS));
+                zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.IRON_BOOTS));
+            }
+            case "villagerbuster" -> {
                 hp = 10 * this.vdHpMultiplier;
                 speed = 0.3;
                 zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.TNT));
+                zombie.equipStack(EquipmentSlot.CHEST, new ItemStack(net.minecraft.item.Items.LEATHER_CHESTPLATE));
+                zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.LEATHER_LEGGINGS));
+                zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.LEATHER_BOOTS));
             }
             default -> {
             }

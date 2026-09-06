@@ -199,8 +199,8 @@ public final class PvPConfig {
     public int villageDefenseTimeoutSeconds = 1800;
     /** 要保护的村民数量（村民出生点不足时循环复用）。 */
     public int villageDefenseVillagers = 10;
-    /** 胜利目标波次：清完该波即获胜（合作胜利）。 */
-    public int villageDefenseWinWave = 25;
+    /** 胜利目标波次：对齐 VD config Limit.Wave.Game-End=200（Unlimited=false 时）。 */
+    public int villageDefenseWinWave = 200;
     /** 波间冷却（秒）：每波打完后到下一波开始。 */
     public int villageDefenseWaveCooldownSeconds = 25;
     /** 开局发放的货币(orbs)。 */
@@ -345,6 +345,10 @@ public final class PvPConfig {
             changed = true;
         }
         if (this.villageDefenseWinWave <= 0) {
+            this.villageDefenseWinWave = defaults.villageDefenseWinWave;
+            changed = true;
+        } else if (this.villageDefenseWinWave == 25) {
+            // 旧默认 25 改为对齐 VD Game-End=200
             this.villageDefenseWinWave = defaults.villageDefenseWinWave;
             changed = true;
         }
