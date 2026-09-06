@@ -187,6 +187,8 @@ public final class Match {
     private final List<VillagerEntity> vdVillagers = new ArrayList<>(); // 场上村民
     private final Map<UUID, Integer> vdOrbs = new HashMap<>();       // 玩家货币
     private final Set<UUID> vdWaitingPlayers = new HashSet<>();      // 死亡等待下波复活的玩家
+    /** 场上敌人类型（uuid→kind）：normal/fast/baby/hard/softhard/tank/invisible/villagerslayer/buster）。 */
+    private final Map<UUID, String> vdEnemyKind = new HashMap<>();
     private int vdWave;          // 当前波次（0=尚未开始）
     private boolean vdFighting;  // 战斗进行中 / 波间冷却
     private int vdTimer;         // 阶段倒计时（tick）
@@ -4295,29 +4297,68 @@ public final class Match {
         zombie.refreshPositionAndAngles(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5,
                 this.random.nextFloat() * 360, 0);
         zombie.setPersistent();
-        // 类型随机：硬甲 4+、快速 3+、坦克 8+
-        int roll = this.random.nextInt(100);
-        boolean baby = this.random.nextInt(100) < 8 && this.vdWave >= 3;
+        // 按波次随机选型（对齐 VD spawner：波次门槛 + 权重）
+        String kind = this.rollVdKind();
         double hp = 20 * this.vdHpMultiplier;
         double speed = 0.23;
         double kbRes = 0.0;
-        boolean hard = this.vdWave >= 4 && roll < 16;
-        boolean fast = this.vdWave >= 3 && roll < 34 && !hard;
-        boolean tank = this.vdWave >= 8 && roll >= 90;
-        if (tank) {
-            hp = 40 * this.vdHpMultiplier;
-            speed = 0.2;
-            kbRes = 1.0;
-        } else if (hard) {
-            hp = 35 * this.vdHpMultiplier;
-            speed = 0.23;
-            zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.DIAMOND_HELMET));
-            zombie.equipStack(EquipmentSlot.CHEST, new ItemStack(net.minecraft.item.Items.DIAMOND_CHESTPLATE));
-            zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.DIAMOND_LEGGINGS));
-            zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.DIAMOND_BOOTS));
-        } else if (fast) {
-            hp = 12 * this.vdHpMultiplier;
-            speed = 0.32;
+        boolean baby = false;
+        boolean invisible = false;
+        switch (kind) {
+            case "fast" -> {
+                hp = 12 * this.vdHpMultiplier;
+                speed = 0.33;
+            }
+            case "baby" -> {
+                hp = 8 * this.vdHpMultiplier;
+                speed = 0.36;
+                baby = true;
+            }
+            case "softhard" -> {
+                hp = 15 * this.vdHpMultiplier;
+                speed = 0.24;
+                zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.IRON_HELMET));
+                zombie.equipStack(EquipmentSlot.CHEST, new ItemStack(net.minecraft.item.Items.IRON_CHESTPLATE));
+                zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.IRON_LEGGINGS));
+                zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.IRON_BOOTS));
+            }
+            case "hard" -> {
+                hp = 35 * this.vdHpMultiplier;
+                speed = 0.23;
+                zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.DIAMOND_HELMET));
+                zombie.equipStack(EquipmentSlot.CHEST, new ItemStack(net.minecraft.item.Items.DIAMOND_CHESTPLATE));
+                zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.DIAMOND_LEGGINGS));
+                zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.DIAMOND_BOOTS));
+            }
+            case "tank" -> {
+                hp = 45 * this.vdHpMultiplier;
+                speed = 0.2;
+                kbRes = 1.0;
+                zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.DIAMOND_HELMET));
+                zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.DIAMOND_LEGGINGS));
+                zombie.equipStack(EquipmentSlot.MAINHAND, new ItemStack(net.minecraft.item.Items.GOLDEN_AXE));
+            }
+            case "invisible" -> {
+                hp = 14 * this.vdHpMultiplier;
+                speed = 0.33;
+                invisible = true;
+            }
+            case "villagerslayer" -> {
+                hp = 70 * this.vdHpMultiplier;
+                speed = 0.23;
+                kbRes = 1.0;
+                zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.CHAINMAIL_HELMET));
+                zombie.equipStack(EquipmentSlot.CHEST, new ItemStack(net.minecraft.item.Items.CHAINMAIL_CHESTPLATE));
+                zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.CHAINMAIL_LEGGINGS));
+                zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.CHAINMAIL_BOOTS));
+            }
+            case "playerbuster", "villagerbuster" -> {
+                hp = 10 * this.vdHpMultiplier;
+                speed = 0.3;
+                zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.TNT));
+            }
+            default -> {
+            }
         }
         zombie.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(hp);
         zombie.setHealth((float) hp);
@@ -4329,11 +4370,58 @@ public final class Match {
         if (baby) {
             zombie.setBaby(true);
         }
+        if (invisible) {
+            zombie.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, Integer.MAX_VALUE, 0, false, false));
+            zombie.setCustomNameVisible(false);
+        }
         zombie.setCustomName(Text.literal("§c僵尸"));
         zombie.setCustomNameVisible(false);
         arena.spawnEntity(zombie);
         this.vdEnemies.add(zombie);
+        this.vdEnemyKind.put(zombie.getUuid(), kind);
         this.vdZombiesToSpawn--;
+    }
+
+    /** 按波次与权重随机一个敌人类型（对齐 VD：快速 3+、婴儿 3+、软硬 4+、硬甲 4+、半透明 7+、坦克 8+、克星 10/12+、村民杀手 23+）。 */
+    private String rollVdKind() {
+        int roll = this.random.nextInt(100);
+        int w = this.vdWave;
+        if (w >= 12 && roll < 4) {
+            return "villagerslayer";
+        }
+        if (w >= 10 && roll < 9) {
+            return this.random.nextBoolean() ? "playerbuster" : "villagerbuster";
+        }
+        if (w >= 8 && roll >= 92) {
+            return "tank";
+        }
+        if (w >= 7 && roll < 20) {
+            return "invisible";
+        }
+        if (w >= 4 && roll < 34) {
+            return this.random.nextInt(100) < 45 ? "softhard" : "hard";
+        }
+        if (w >= 3 && roll < 42) {
+            return this.random.nextInt(100) < 55 ? "baby" : "fast";
+        }
+        if (w >= 3 && this.random.nextInt(100) < 8) {
+            return "fast";
+        }
+        return "normal";
+    }
+
+    /** 爆炸克星自爆：原地生成 5 tick(0.25s) 引信 TNT 后移除自身。 */
+    private void vdBusterExplode(LivingEntity zombie) {
+        ArenaWorld arena = this.vdArena();
+        if (arena == null) {
+            return;
+        }
+        TntEntity tnt = new TntEntity(arena, zombie.getX(), zombie.getY() + 0.2, zombie.getZ(), null);
+        tnt.setFuse(5);
+        arena.spawnEntity(tnt);
+        this.vdEnemies.remove(zombie);
+        this.vdEnemyKind.remove(zombie.getUuid());
+        zombie.discard();
     }
 
     /** 僵尸寻路/破门/村民逃散。 */
@@ -4346,14 +4434,19 @@ public final class Match {
                 .filter(p -> !this.vdWaitingPlayers.contains(p.getUuid())).collect(java.util.stream.Collectors.toList()));
         targets.addAll(this.vdVillagers);
 
-        // 每僵尸每 10 tick 选目标（优先最近的村民）
+        // 每 10 tick 选目标：村民杀手只打村民，其余优先最近的村民/玩家
         if (this.ticks % 10 == 0) {
             for (LivingEntity z : this.vdEnemies) {
+                String kind = this.vdEnemyKind.get(z.getUuid());
+                boolean slayer = "villagerslayer".equals(kind);
                 LivingEntity best = null;
                 double bestDist = Double.MAX_VALUE;
                 for (LivingEntity t : targets) {
                     if (t == null || !t.isAlive()) {
                         continue;
+                    }
+                    if (slayer && !(t instanceof VillagerEntity)) {
+                        continue; // 村民杀手无视玩家，直扑村民
                     }
                     double d = z.squaredDistanceTo(t);
                     if (d < bestDist) {
@@ -4363,6 +4456,25 @@ public final class Match {
                 }
                 if (best != null && z instanceof MobEntity mob) {
                     mob.setTarget(best);
+                }
+            }
+        }
+
+        // 爆炸克星（玩家克星/村民克星）：逼近目标 → 短引线 TNT 自爆
+        if (this.ticks % 3 == 0) {
+            for (LivingEntity z : new ArrayList<>(this.vdEnemies)) {
+                String kind = this.vdEnemyKind.get(z.getUuid());
+                if (!"playerbuster".equals(kind) && !"villagerbuster".equals(kind)) {
+                    continue;
+                }
+                for (LivingEntity t : targets) {
+                    if (t == null || !t.isAlive()) {
+                        continue;
+                    }
+                    if (z.squaredDistanceTo(t) < 2.25) { // 1.5 格内引爆
+                        this.vdBusterExplode(z);
+                        break;
+                    }
                 }
             }
         }
