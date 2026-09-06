@@ -605,6 +605,34 @@ public final class PvPMod implements ModInitializer {
             }
         });
 
+        // 村庄保卫战：附魔台/铁砧/磨石/锻造台 → 自定义玩法（自动识别地图中的方块）
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (player instanceof ServerPlayerEntity sp && MATCH != null) {
+                Match m = MATCH.getMatchFor(sp);
+                if (m != null && m.getType() == MatchType.VILLAGE_DEFENSE) {
+                    net.minecraft.block.Block b = world.getBlockState(hitResult.getBlockPos()).getBlock();
+                    if (b == net.minecraft.block.Blocks.ENCHANTING_TABLE) {
+                        m.openVillageEnchant(sp);
+                        return ActionResult.SUCCESS;
+                    }
+                    if (b == net.minecraft.block.Blocks.ANVIL || b == net.minecraft.block.Blocks.CHIPPED_ANVIL
+                            || b == net.minecraft.block.Blocks.DAMAGED_ANVIL) {
+                        m.vdUseAnvil(sp);
+                        return ActionResult.SUCCESS;
+                    }
+                    if (b == net.minecraft.block.Blocks.GRINDSTONE) {
+                        m.vdUseGrindstone(sp);
+                        return ActionResult.SUCCESS;
+                    }
+                    if (b == net.minecraft.block.Blocks.SMITHING_TABLE) {
+                        m.vdUseSmithing(sp);
+                        return ActionResult.SUCCESS;
+                    }
+                }
+            }
+            return ActionResult.PASS;
+        });
+
         LOGGER.info("[PvP] 初始化完成。使用 /pvp join <模式> <套件> 加入匹配，/duel <玩家> 发起决斗。");
     }
 }

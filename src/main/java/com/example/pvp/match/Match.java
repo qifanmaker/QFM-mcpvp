@@ -4155,6 +4155,112 @@ public final class Match {
         VillageDefenseShop.open(player, this);
     }
 
+    private boolean vdCanInteract(ServerPlayerEntity sp) {
+        return this.state == MatchState.ACTIVE && sp.getWorld() == this.vdArena()
+                && !this.vdWaitingPlayers.contains(sp.getUuid()) && this.villageDefenseLayout != null;
+    }
+
+    /** 附魔台：自定义满级附魔界面（消耗 orbs，自动补青金石/免经验）。 */
+    public void openVillageEnchant(ServerPlayerEntity sp) {
+        if (this.vdCanInteract(sp)) {
+            VillageDefenseEnchant.open(sp, this);
+        }
+    }
+
+    /** 铁砧：修复主手装备（损坏部分修满，20 orbs）。 */
+    public void vdUseAnvil(ServerPlayerEntity sp) {
+        if (!this.vdCanInteract(sp)) {
+            return;
+        }
+        ItemStack held = sp.getMainHandStack();
+        if (held.isEmpty() || !held.isDamageable()) {
+            sp.sendMessage(Messages.error("主手没有可修复的装备"), false);
+            return;
+        }
+        int dmg = held.getDamage();
+        if (dmg <= 0) {
+            sp.sendMessage(Messages.info("该装备完好，无需修复"), false);
+            return;
+        }
+        if (this.vdOrbsOf(sp) < 20) {
+            sp.sendMessage(Messages.error("修复需要 20 orbs"), false);
+            return;
+        }
+        this.vdAddOrbs(sp, -20, false);
+        held.setDamage(0);
+        sp.sendMessage(Messages.gold("已修复主手装备（20 orbs）"), false);
+        sp.currentScreenHandler.sendContentUpdates();
+    }
+
+    /** 磨石：移除主手装备全部附魔。 */
+    public void vdUseGrindstone(ServerPlayerEntity sp) {
+        if (!this.vdCanInteract(sp)) {
+            return;
+        }
+        ItemStack held = sp.getMainHandStack();
+        if (held.isEmpty() || held.getEnchantments().isEmpty()) {
+            sp.sendMessage(Messages.info("主手装备没有附魔"), false);
+            return;
+        }
+        held.remove(net.minecraft.component.DataComponentTypes.ENCHANTMENTS);
+        sp.sendMessage(Messages.gold("已移除主手装备的全部附魔"), false);
+        sp.currentScreenHandler.sendContentUpdates();
+    }
+
+    /** 锻造台：把主手钻石装备升级为下界合金（消耗 1 个合金锭 + 40 orbs，保留附魔与耐久）。 */
+    public void vdUseSmithing(ServerPlayerEntity sp) {
+        if (!this.vdCanInteract(sp)) {
+            return;
+        }
+        ItemStack held = sp.getMainHandStack();
+        net.minecraft.item.Item up = null;
+        if (held.isOf(net.minecraft.item.Items.DIAMOND_SWORD)) {
+            up = net.minecraft.item.Items.NETHERITE_SWORD;
+        } else if (held.isOf(net.minecraft.item.Items.DIAMOND_PICKAXE)) {
+            up = net.minecraft.item.Items.NETHERITE_PICKAXE;
+        } else if (held.isOf(net.minecraft.item.Items.DIAMOND_AXE)) {
+            up = net.minecraft.item.Items.NETHERITE_AXE;
+        } else if (held.isOf(net.minecraft.item.Items.DIAMOND_SHOVEL)) {
+            up = net.minecraft.item.Items.NETHERITE_SHOVEL;
+        } else if (held.isOf(net.minecraft.item.Items.DIAMOND_HOE)) {
+            up = net.minecraft.item.Items.NETHERITE_HOE;
+        } else if (held.isOf(net.minecraft.item.Items.DIAMOND_HELMET)) {
+            up = net.minecraft.item.Items.NETHERITE_HELMET;
+        } else if (held.isOf(net.minecraft.item.Items.DIAMOND_CHESTPLATE)) {
+            up = net.minecraft.item.Items.NETHERITE_CHESTPLATE;
+        } else if (held.isOf(net.minecraft.item.Items.DIAMOND_LEGGINGS)) {
+            up = net.minecraft.item.Items.NETHERITE_LEGGINGS;
+        } else if (held.isOf(net.minecraft.item.Items.DIAMOND_BOOTS)) {
+            up = net.minecraft.item.Items.NETHERITE_BOOTS;
+        }
+        if (up == null) {
+            sp.sendMessage(Messages.error("请手持钻石装备（剑/镐/斧/铲/锄/全套护甲）再使用锻造台"), false);
+            return;
+        }
+        int ingotSlot = -1;
+        for (int i = 0; i < sp.getInventory().size(); i++) {
+            if (sp.getInventory().getStack(i).isOf(net.minecraft.item.Items.NETHERITE_INGOT)) {
+                ingotSlot = i;
+                break;
+            }
+        }
+        if (ingotSlot == -1 || this.vdOrbsOf(sp) < 40) {
+            sp.sendMessage(Messages.error("需要 1 个合金锭 + 40 orbs（商店可买合金锭）"), false);
+            return;
+        }
+        this.vdAddOrbs(sp, -40, false);
+        ItemStack ingot = sp.getInventory().getStack(ingotSlot);
+        ingot.decrement(1);
+        ItemStack nether = new ItemStack(up);
+        nether.setDamage(held.getDamage());
+        for (net.minecraft.registry.entry.RegistryEntry<Enchantment> e : held.getEnchantments().getEnchantments()) {
+            nether.addEnchantment(e, held.getEnchantments().getLevel(e));
+        }
+        sp.getInventory().setStack(sp.getInventory().selectedSlot, nether);
+        sp.sendMessage(Messages.gold("升级为下界合金成功！"), false);
+        sp.currentScreenHandler.sendContentUpdates();
+    }
+
     /** 商店内容：优先用地图商店箱子（原版），没有则空（由商店用内置兜底）。 */
     public java.util.List<VillageWorldImporter.ShopItem> vdShopItems() {
         return this.villageDefenseLayout == null

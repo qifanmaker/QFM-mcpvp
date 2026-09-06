@@ -171,4 +171,9 @@ public final class VillageDefenseKits {
         }
         enchantments.getEntry(key).ifPresent(e -> stack.addEnchantment(e, level));
     }
+
+    /** 给物品添加附魔（附魔台/商店书用）。 */
+    public static void enchantItem(ItemStack stack, net.minecraft.registry.RegistryKey<net.minecraft.enchantment.Enchantment> key, int level) {
+        applyEnch(stack, key, level);
+    }
 }
