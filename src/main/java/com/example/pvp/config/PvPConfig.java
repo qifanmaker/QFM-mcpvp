@@ -207,6 +207,8 @@ public final class PvPConfig {
     public int villageDefenseOrbsStart = 20;
     /** 单波同时在场僵尸数上限；超出部分折算为溢出僵尸加血。 */
     public int villageDefenseZombieCap = 75;
+    /** 使用的村庄地图名（对应服务器根目录 maps/villagedefense/<name>/ 下的世界文件夹）。 */
+    public String villageDefenseMap = "VD-Quarry";
 
     // ---------- 起床战争 (Bed Wars) ----------
     /** 区域覆盖边长（生成/清理边界，需覆盖整张地图；Hypixel 图约 100 格）。 */

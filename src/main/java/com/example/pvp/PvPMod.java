@@ -457,6 +457,10 @@ public final class PvPMod implements ModInitializer {
                     } else if (match.getType() == MatchType.HEARTBEAT) {
                         // 心跳水立方：死亡（撞地板/掉出塔等）不淘汰，回当前关塔顶重试
                         match.onHeartbeatDeath(sp);
+                    } else if (match.getType() == MatchType.VILLAGE_DEFENSE
+                            && match.getState() == MatchState.ACTIVE) {
+                        // 村庄保卫战：阵亡转旁观，下一波复活
+                        match.onVillageDefenseDeath(sp);
                     } else if (match.getState() == MatchState.ACTIVE) {
                         // 不死图腾救场：空岛/幸运之柱受到致死伤害时消耗图腾取消死亡（非掉虚空→原版逻辑原地复活）
                         if ((match.getType() == MatchType.SKYWARS || match.getType() == MatchType.LUCKY_PILLAR)
@@ -541,6 +545,10 @@ public final class PvPMod implements ModInitializer {
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayerEntity player && MATCH != null) {
                 MATCH.onPlayerDeath(player);
+            }
+            // 村庄保卫战：僵尸被击杀 → 所属对局发放货币（若由玩家击杀）
+            if (entity instanceof net.minecraft.entity.mob.ZombieEntity && MATCH != null) {
+                MATCH.onVillageDefenseMobKilled(entity, damageSource);
             }
         });
 

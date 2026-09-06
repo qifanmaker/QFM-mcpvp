@@ -18,6 +18,7 @@ import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.tntrun.TntRunLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
+import com.example.pvp.arena.villagedefense.VillageWorldImporter;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
 import com.example.pvp.gui.PvpGuiManager;
@@ -28,6 +29,7 @@ import com.example.pvp.kit.KitApplicator;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.ints.IntList;
+import java.nio.file.Path;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FireworkExplosionComponent;
@@ -40,6 +42,12 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LightningEntity;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.TntEntity;
@@ -169,6 +177,23 @@ public final class Match {
     private final List<UUID> heartbeatFinishOrder = new ArrayList<>();
     /** 心跳水立方：屏幕上方 Boss 条的剩余时间倒计时。 */
     private ServerBossBar heartbeatBossBar;
+
+    // ---------- 村庄保卫战 (Village Defense) ----------
+    /** 导入后的村庄布局（仅 VILLAGE_DEFENSE 非空；含出生点/门/商店/包围盒）。 */
+    private VillageWorldImporter.Layout villageDefenseLayout;
+    /** 当前使用的 VD 地图名。 */
+    private String villageDefenseMapName;
+    private final List<LivingEntity> vdEnemies = new ArrayList<>(); // 场上僵尸（按生成顺序）
+    private final List<VillagerEntity> vdVillagers = new ArrayList<>(); // 场上村民
+    private final Map<UUID, Integer> vdOrbs = new HashMap<>();       // 玩家货币
+    private final Set<UUID> vdWaitingPlayers = new HashSet<>();      // 死亡等待下波复活的玩家
+    private int vdWave;          // 当前波次（0=尚未开始）
+    private boolean vdFighting;  // 战斗进行中 / 波间冷却
+    private int vdTimer;         // 阶段倒计时（tick）
+    private int vdZombiesToSpawn; // 本波还需刷出的僵尸
+    private int vdPhase;         // 生成相位（镜像 VD spawner phase 0~20）
+    private int vdHpMultiplier = 1; // 僵尸数溢出时折算的额外血量倍数
+    private boolean vdVillageWon; // 结算用：是否守住（全队胜利）
 
     /** 烫手山芋地图布局（仅 HOT_POTATO 模式非空，障碍物保护用）。 */
     private HotPotatoLayout hotPotatoLayout;
@@ -331,6 +356,25 @@ public final class Match {
             PvPConfig cfg = PvPConfig.INSTANCE;
             this.hotPotatoLayout = HotPotatoLayout.compute(template.getCenter(regionIndex), cfg, id);
             spawnPositions = this.hotPotatoLayout.spawns;
+        } else if (type == MatchType.VILLAGE_DEFENSE) {
+            // 村庄保卫战：地图在 setupPlayers 时从 maps/villagedefense 导入；
+            // 倒计时期先在区域中心附近站桩
+            this.skywarsLayout = null;
+            this.skywarsTheme = null;
+            this.skywarsSeed = id;
+            this.bridgeLayout = null;
+            this.luckyPillarLayout = null;
+            this.tntRunLayout = null;
+            this.heartbeatLayout = null;
+            this.hotPotatoLayout = null;
+            this.villageDefenseMapName = PvPConfig.INSTANCE.villageDefenseMap;
+            BlockPos c = template.getCenter(regionIndex);
+            spawnPositions = new ArrayList<>();
+            for (int i = 0; i < this.players.size(); i++) {
+                double a = i / (double) Math.max(1, this.players.size()) * 2 * Math.PI;
+                spawnPositions.add(new BlockPos(c.getX() + (int) Math.round(Math.cos(a) * 6),
+                        c.getY(), c.getZ() + (int) Math.round(Math.sin(a) * 6)));
+            }
         } else if (type.isBedWars()) {
             // 起床战争：mapData/layout 已在构造开头加载（分队需要），这里直接用
             this.skywarsLayout = null;
@@ -503,6 +547,8 @@ public final class Match {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.hotPotatoTimeoutSeconds * 20);
         } else if (this.type.isBedWars()) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.bedWarsTimeoutSeconds * 20);
+        } else if (this.type == MatchType.VILLAGE_DEFENSE) {
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.villageDefenseTimeoutSeconds * 20);
         } else {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
         }
@@ -531,6 +577,12 @@ public final class Match {
             if (this.type.isBedWars() && !this.bedWarsTimeoutTriggered) {
                 this.bedWarsTimeoutTriggered = true;
                 this.finishMatch(this.bedWarsTimeoutWinner());
+                return;
+            }
+            if (this.type == MatchType.VILLAGE_DEFENSE) {
+                // 村庄保卫战超时：视为防御失败（合作局极少触发）
+                this.vdVillageWon = false;
+                this.finishMatch(null);
                 return;
             }
             this.finishMatch(this.timeoutWinner());
@@ -572,6 +624,9 @@ public final class Match {
                 }
                 if (this.type == MatchType.HOT_POTATO) {
                     this.tickHotPotato();
+                }
+                if (this.type == MatchType.VILLAGE_DEFENSE) {
+                    this.tickVillageDefense();
                 }
                 if (this.type.isBedWars()) {
                     this.tickBedWars();
@@ -2766,6 +2821,15 @@ public final class Match {
     /** 结算胜者集合：心跳水立方为第一名到达者，其余模式为胜利队伍存活成员。 */
     private Set<UUID> computeWinners() {
         Set<UUID> winners = new HashSet<>();
+        if (this.type == MatchType.VILLAGE_DEFENSE) {
+            // 合作守村：守住=全员胜，失败=全员败
+            if (this.vdVillageWon) {
+                for (ServerPlayerEntity player : this.players) {
+                    winners.add(player.getUuid());
+                }
+            }
+            return winners;
+        }
         if (this.type == MatchType.HEARTBEAT) {
             ServerPlayerEntity best = this.bestHeartbeatPlayer();
             if (best != null) {
@@ -3125,6 +3189,10 @@ public final class Match {
                 // 起床战争：从大厅传送到队伍岛、发初始羊毛、启动生成器
                 this.startBedWars();
             }
+            if (this.type == MatchType.VILLAGE_DEFENSE) {
+                // 村庄保卫战：刷村民、发货币、开始 25s 波间冷却
+                this.startVillageDefense();
+            }
             this.broadcast(Messages.gold("战斗开始！"));
             this.broadcastTitle("开始！");
             for (ServerPlayerEntity player : this.players) {
@@ -3180,6 +3248,20 @@ public final class Match {
         boolean heartbeat = this.type == MatchType.HEARTBEAT;
         boolean hotPotato = this.type == MatchType.HOT_POTATO;
         boolean bedWars = this.type.isBedWars();
+        boolean villageDefense = this.type == MatchType.VILLAGE_DEFENSE;
+
+        if (villageDefense) {
+            // 村庄保卫战：从 maps/villagedefense/<map>/ 导入地图（一次），失败则取消对局
+            try {
+                if (this.villageDefenseLayout == null) {
+                    this.villageDefenseLayout = this.importVillageMap(arena);
+                }
+            } catch (Exception e) {
+                LOGGER.error("[PvP] 村庄保卫战地图导入失败", e);
+                this.cancelMatch("地图导入失败：" + e.getMessage());
+                return;
+            }
+        }
 
         if (bedWars) {
             // 起床战争：贴地图 + 生成商店实体（村民=普通商店，僵尸=团队升级商店）
@@ -3290,8 +3372,8 @@ public final class Match {
                 // 给饱和效果：跑步/跳跃不掉饥饿
                 online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
                 online.currentScreenHandler.sendContentUpdates();
-            } else if (heartbeat || hotPotato) {
-                // 心跳水立方 / 烫手山芋：无套件，冒险模式空手开局（专注玩法本身，不能放/拆方块）
+            } else if (heartbeat || hotPotato || villageDefense) {
+                // 心跳水立方 / 烫手山芋 / 村庄保卫战：无套件，冒险模式空手开局（专注玩法本身，不能放/拆方块）
                 online.getInventory().clear();
                 online.setHealth(online.getMaxHealth());
                 online.getHungerManager().setFoodLevel(20);
@@ -3369,6 +3451,10 @@ public final class Match {
             // 心跳水立方：全员通关全部关卡 → 结算（超时由 timeoutWinner 兜底）
             return this.heartbeatFinished.size() >= this.players.size() ? this.teams.get(0) : null;
         }
+        if (this.type == MatchType.VILLAGE_DEFENSE) {
+            // 村庄保卫战：胜负由运行时判断（tickVillageDefense），这里不自动触发
+            return null;
+        }
         if (this.type.isBedWars()) {
             return this.bedWarsComputeWinner();
         }
@@ -3395,6 +3481,17 @@ public final class Match {
     }
 
     private void announceResult(Set<UUID> winners) {
+        if (this.type == MatchType.VILLAGE_DEFENSE) {
+            // 村庄保卫战：合作胜负广播
+            if (this.vdVillageWon) {
+                this.broadcast(Messages.gold("§6村庄守住了！§r第 "
+                        + this.vdWave + " 波防御成功，全员获胜！"));
+            } else {
+                this.broadcast(Messages.warn("村庄被攻破了……本局防御失败（到达第 "
+                        + this.vdWave + " 波）"));
+            }
+            return;
+        }
         if (this.type == MatchType.HEARTBEAT) {
             // 心跳水立方：按到达顺序广播完整排名
             this.announceHeartbeatResult();
@@ -3881,5 +3978,438 @@ public final class Match {
     /** 倒计时/简短提示：屏幕中央大字（不再是动作栏小字）。 */
     private void broadcastTitle(String text) {
         this.broadcastTitleBig("§6§l" + text, null);
+    }
+
+    // ==================== 村庄保卫战 (Village Defense) 运行时 ====================
+
+    private ArenaWorld vdArena() {
+        return this.manager.getArenaManager().getWorld();
+    }
+
+    /** 从 maps/villagedefense/<map>/ 导入村庄（需在世界目录有 region 子目录 + 可选 arenas.yml）。 */
+    private VillageWorldImporter.Layout importVillageMap(ArenaWorld arena) {
+        String name = this.villageDefenseMapName == null || this.villageDefenseMapName.isBlank()
+                ? "VD-Quarry" : this.villageDefenseMapName;
+        Path folder = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir()
+                .resolve("maps/villagedefense").resolve(name);
+        if (!java.nio.file.Files.isDirectory(folder)) {
+            throw new IllegalStateException("找不到地图目录 " + folder
+                    + "（请把地图放到服务器根目录 maps/villagedefense/ 下）");
+        }
+        this.villageDefenseMapName = name;
+        return VillageWorldImporter.importMap(arena, folder, name, this.template.getCenter(this.regionIndex));
+    }
+
+    public boolean acceptsVdEnemy(LivingEntity entity) {
+        return entity != null && !entity.isRemoved() && this.vdEnemies.contains(entity);
+    }
+
+    /** 僵尸死亡：从场上列表移除；由玩家击杀则奖励 orbs。 */
+    public void villageDefenseMobKilled(LivingEntity enemy, net.minecraft.entity.damage.DamageSource source) {
+        this.vdEnemies.remove(enemy);
+        if (this.state != MatchState.ACTIVE) {
+            return;
+        }
+        if (source != null && source.getAttacker() instanceof ServerPlayerEntity killer
+                && this.vdPlayersOnline().contains(killer)) {
+            int reward = 1 + this.random.nextInt(2);
+            this.vdAddOrbs(killer, reward, false);
+        }
+    }
+
+    /** 玩家阵亡（ALLOW_DEATH）：转旁观等待下一波复活；货币扣 50%。 */
+    public void onVillageDefenseDeath(ServerPlayerEntity sp) {
+        if (this.state != MatchState.ACTIVE || this.vdWaitingPlayers.contains(sp.getUuid())) {
+            sp.setHealth(sp.getMaxHealth());
+            return;
+        }
+        sp.setHealth(sp.getMaxHealth());
+        sp.setFireTicks(0);
+        sp.fallDistance = 0;
+        sp.clearStatusEffects();
+        sp.changeGameMode(net.minecraft.world.GameMode.SPECTATOR);
+        this.vdWaitingPlayers.add(sp.getUuid());
+        // 死亡扣 50% orbs
+        int orbs = this.vdOrbs.getOrDefault(sp.getUuid(), 0);
+        int lost = orbs / 2;
+        this.vdOrbs.put(sp.getUuid(), orbs - lost);
+        sp.sendMessage(Messages.error("你阵亡了！等待下一波复活（损失 " + lost + " 货币）"), false);
+        BlockPos respawn = this.vdSpectatePos();
+        if (respawn != null) {
+            sp.teleport(this.vdArena(), respawn.getX() + 0.5, respawn.getY() + 2, respawn.getZ() + 0.5, 0, 0);
+        }
+    }
+
+    private List<ServerPlayerEntity> vdPlayersOnline() {
+        List<ServerPlayerEntity> list = new ArrayList<>();
+        ArenaWorld arena = this.vdArena();
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null && online.getWorld() == arena) {
+                list.add(online);
+            }
+        }
+        return list;
+    }
+
+    private int vdAlivePlayerCount() {
+        int n = 0;
+        for (ServerPlayerEntity p : this.vdPlayersOnline()) {
+            if (!this.vdWaitingPlayers.contains(p.getUuid())) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private BlockPos vdVillagePos() {
+        VillageWorldImporter.Layout l = this.villageDefenseLayout;
+        if (l == null) {
+            return this.template.getCenter(this.regionIndex);
+        }
+        if (!l.villagerSpawns.isEmpty()) {
+            return l.villagerSpawns.get(0);
+        }
+        return l.center;
+    }
+
+    private BlockPos vdSpectatePos() {
+        BlockPos v = this.vdVillagePos();
+        return new BlockPos(v.getX(), v.getY() + 4, v.getZ());
+    }
+
+    private int vdOrbsOf(ServerPlayerEntity p) {
+        return this.vdOrbs.getOrDefault(p.getUuid(), 0);
+    }
+
+    private void vdAddOrbs(ServerPlayerEntity p, int amount, boolean silent) {
+        int now = this.vdOrbsOf(p) + amount;
+        this.vdOrbs.put(p.getUuid(), now);
+        if (!silent) {
+            p.sendMessage(Messages.gold("货币 §e+" + amount + "§r（共 " + now + "）"), false);
+        }
+    }
+
+    /** 对局开始：刷村民、发货币、25s 后第 1 波。 */
+    private void startVillageDefense() {
+        if (this.villageDefenseLayout == null) {
+            return;
+        }
+        VillageWorldImporter.Layout l = this.villageDefenseLayout;
+        ArenaWorld arena = this.vdArena();
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int count = cfg.villageDefenseVillagers;
+        for (int i = 0; i < count; i++) {
+            if (l.villagerSpawns.isEmpty()) {
+                break;
+            }
+            BlockPos pos = l.villagerSpawns.get(i % l.villagerSpawns.size());
+            VillagerEntity villager = new VillagerEntity(net.minecraft.entity.EntityType.VILLAGER, arena);
+            villager.refreshPositionAndAngles(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
+                    this.random.nextFloat() * 360, 0);
+            villager.setPersistent();
+            villager.setCustomName(Text.literal("§a村民"));
+            villager.setCustomNameVisible(true);
+            arena.spawnEntity(villager);
+            this.vdVillagers.add(villager);
+        }
+        // 货币 & 初始装备 & 传送到村中
+        for (ServerPlayerEntity online : this.vdPlayersOnline()) {
+            this.vdOrbs.put(online.getUuid(), cfg.villageDefenseOrbsStart);
+            this.giveVdLoadout(online);
+            online.changeGameMode(net.minecraft.world.GameMode.ADVENTURE);
+            online.setHealth(online.getMaxHealth());
+            online.getHungerManager().setFoodLevel(20);
+            online.getHungerManager().setSaturationLevel(5f);
+            online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
+            BlockPos p = this.vdVillagePos();
+            online.teleport(arena, p.getX() + 0.5, p.getY() + 1, p.getZ() + 0.5, 0, 0);
+        }
+        this.vdWave = 0;
+        this.vdFighting = false;
+        this.vdTimer = cfg.villageDefenseWaveCooldownSeconds * 20;
+        this.vdHpMultiplier = 1;
+        this.broadcastTitleBig("§a村庄保卫战", "§f保护村民，守住一波波僵尸进攻！");
+        this.broadcast(Messages.info("村庄保卫战开始！守住村庄保护村民。每波结束回血并发放货币，用货币在村民处购买装备/门/狼狗/傀儡。"));
+    }
+
+    private void giveVdLoadout(ServerPlayerEntity online) {
+        online.getInventory().clear();
+        online.getInventory().setStack(0, new ItemStack(net.minecraft.item.Items.WOODEN_SWORD));
+        online.getInventory().setStack(1, new ItemStack(net.minecraft.item.Items.BREAD, 8));
+        online.getInventory().armor.set(0, new ItemStack(net.minecraft.item.Items.LEATHER_BOOTS));
+        online.getInventory().armor.set(1, new ItemStack(net.minecraft.item.Items.LEATHER_LEGGINGS));
+        online.getInventory().armor.set(2, new ItemStack(net.minecraft.item.Items.LEATHER_CHESTPLATE));
+        online.getInventory().armor.set(3, new ItemStack(net.minecraft.item.Items.LEATHER_HELMET));
+        online.currentScreenHandler.sendContentUpdates();
+    }
+
+    private void tickVillageDefense() {
+        if (this.villageDefenseLayout == null) {
+            return;
+        }
+        // 清理已死的敌人/村民
+        this.vdEnemies.removeIf(e -> e.isRemoved() || !e.isAlive());
+        this.vdVillagers.removeIf(v -> v.isRemoved() || !v.isAlive());
+
+        // 失败判定：村民全灭 或 无人存活守卫
+        if (this.vdFighting && (this.vdVillagers.isEmpty() || this.vdAlivePlayerCount() <= 0)) {
+            this.vdVillageWon = false;
+            this.broadcast(Messages.error(this.vdVillagers.isEmpty() ? "村民全部被杀害……" : "守卫者全部阵亡……"));
+            this.finishMatch(null);
+            return;
+        }
+
+        if (this.vdFighting) {
+            this.vdTimer--;
+            // 逐批生成僵尸
+            if (this.vdZombiesToSpawn > 0 && this.vdEnemies.size() < PvPConfig.INSTANCE.villageDefenseZombieCap) {
+                if (this.vdTimer % 2 == 0) {
+                    this.vdSpawnZombie();
+                }
+            }
+            // 僵尸目标与破门 / 村民逃散
+            this.vdEnemyTick();
+
+            // 僵尸清空 → 本波结束
+            if (this.vdZombiesToSpawn <= 0 && this.vdEnemies.isEmpty()) {
+                this.vdVillageWon = this.vdWave >= PvPConfig.INSTANCE.villageDefenseWinWave;
+                this.vdWaveEnd();
+            } else if (this.vdTimer <= 0) {
+                // 卡住兜底：清空剩余僵尸并按完成本波处理
+                ArenaWorld arena = this.vdArena();
+                if (arena != null) {
+                    for (LivingEntity e : new ArrayList<>(this.vdEnemies)) {
+                        e.discard();
+                    }
+                }
+                this.vdEnemies.clear();
+                this.vdVillageWon = this.vdWave >= PvPConfig.INSTANCE.villageDefenseWinWave;
+                this.vdWaveEnd();
+            }
+        } else {
+            this.vdTimer--;
+            if (this.vdTimer <= 0) {
+                this.vdWave++;
+                this.vdWaveStart();
+            }
+        }
+    }
+
+    private void vdWaveStart() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        // VD: ceil((players×0.5)×wave²/2)，上限 cfg.villageDefenseZombieCap，溢出转加血
+        double base = (this.players.size() * 0.5) * (double) this.vdWave * this.vdWave / 2.0;
+        int amount = (int) Math.ceil(base);
+        this.vdHpMultiplier = 1;
+        if (amount > cfg.villageDefenseZombieCap) {
+            int excess = amount - cfg.villageDefenseZombieCap;
+            this.vdHpMultiplier = Math.max(2, (int) Math.ceil(excess / 20.0));
+            amount = cfg.villageDefenseZombieCap;
+        }
+        this.vdZombiesToSpawn = amount;
+        this.vdFighting = true;
+        this.vdTimer = 30 * 20; // 兜底
+        this.vdPhase = (this.vdPhase + 1) % 21;
+        this.broadcastTitleBig("§c第 " + this.vdWave + " 波！", "§f僵尸来袭 " + amount + " 只");
+        this.broadcast(Messages.warn("§c第 " + this.vdWave + " 波§r来袭！僵尸 " + amount
+                + " 只" + (this.vdHpMultiplier > 1 ? "（血量×" + this.vdHpMultiplier + "）" : "")));
+    }
+
+    private void vdWaveEnd() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        boolean victory = this.vdVillageWon;
+        this.vdFighting = false;
+        if (victory) {
+            this.finishMatch(null);
+            return;
+        }
+        this.vdTimer = cfg.villageDefenseWaveCooldownSeconds * 20;
+        // 奖励：wave×10 orbs；玩家回血 25%；村民 +1 心
+        for (ServerPlayerEntity online : this.vdPlayersOnline()) {
+            int reward = this.vdWave * 10;
+            this.vdAddOrbs(online, reward, false);
+            online.setHealth(Math.min(online.getMaxHealth(), online.getHealth() + online.getMaxHealth() * 0.25f));
+            online.setFireTicks(0);
+            online.fallDistance = 0;
+        }
+        for (VillagerEntity v : new ArrayList<>(this.vdVillagers)) {
+            float max = 40f;
+            v.setHealth(Math.min(max, v.getHealth() + 2));
+        }
+        this.broadcastTitleBig("§a第 " + this.vdWave + " 波防守成功！", "§f奖励 " + (this.vdWave * 10) + " 货币，下一波稍后");
+        this.vdRespawnWaitingPlayers();
+        if (this.vdWave >= cfg.villageDefenseWinWave) {
+            // 守到目标波
+            this.vdVillageWon = true;
+            this.finishMatch(null);
+        }
+    }
+
+    private void vdRespawnWaitingPlayers() {
+        ArenaWorld arena = this.vdArena();
+        if (arena == null) {
+            return;
+        }
+        for (UUID uuid : new ArrayList<>(this.vdWaitingPlayers)) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
+            if (online == null) {
+                continue;
+            }
+            this.vdWaitingPlayers.remove(uuid);
+            online.changeGameMode(net.minecraft.world.GameMode.ADVENTURE);
+            online.setHealth(online.getMaxHealth());
+            online.setFireTicks(0);
+            online.fallDistance = 0;
+            online.clearStatusEffects();
+            online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
+            this.giveVdLoadout(online);
+            BlockPos p = this.vdVillagePos();
+            online.teleport(arena, p.getX() + 0.5, p.getY() + 1, p.getZ() + 0.5, 0, 0);
+            online.sendMessage(Messages.gold("你复活了！守卫下一波！"), false);
+        }
+    }
+
+    /** 生成一只本波僵尸（普通/快速/婴儿/硬甲/坦克，随波次解锁，血量受溢出倍率影响）。 */
+    private void vdSpawnZombie() {
+        VillageWorldImporter.Layout l = this.villageDefenseLayout;
+        if (l == null || l.zombieSpawns.isEmpty() || this.vdZombiesToSpawn <= 0) {
+            return;
+        }
+        ArenaWorld arena = this.vdArena();
+        if (arena == null) {
+            return;
+        }
+        BlockPos spawn = l.zombieSpawns.get(this.random.nextInt(l.zombieSpawns.size()));
+        ZombieEntity zombie = new ZombieEntity(arena);
+        zombie.refreshPositionAndAngles(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5,
+                this.random.nextFloat() * 360, 0);
+        zombie.setPersistent();
+        // 类型随机：硬甲 4+、快速 3+、坦克 8+
+        int roll = this.random.nextInt(100);
+        boolean baby = this.random.nextInt(100) < 8 && this.vdWave >= 3;
+        double hp = 20 * this.vdHpMultiplier;
+        double speed = 0.23;
+        double kbRes = 0.0;
+        boolean hard = this.vdWave >= 4 && roll < 16;
+        boolean fast = this.vdWave >= 3 && roll < 34 && !hard;
+        boolean tank = this.vdWave >= 8 && roll >= 90;
+        if (tank) {
+            hp = 40 * this.vdHpMultiplier;
+            speed = 0.2;
+            kbRes = 1.0;
+        } else if (hard) {
+            hp = 35 * this.vdHpMultiplier;
+            speed = 0.23;
+            zombie.equipStack(EquipmentSlot.HEAD, new ItemStack(net.minecraft.item.Items.DIAMOND_HELMET));
+            zombie.equipStack(EquipmentSlot.CHEST, new ItemStack(net.minecraft.item.Items.DIAMOND_CHESTPLATE));
+            zombie.equipStack(EquipmentSlot.LEGS, new ItemStack(net.minecraft.item.Items.DIAMOND_LEGGINGS));
+            zombie.equipStack(EquipmentSlot.FEET, new ItemStack(net.minecraft.item.Items.DIAMOND_BOOTS));
+        } else if (fast) {
+            hp = 12 * this.vdHpMultiplier;
+            speed = 0.32;
+        }
+        zombie.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(hp);
+        zombie.setHealth((float) hp);
+        zombie.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED).setBaseValue(speed);
+        zombie.getAttributeInstance(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE).setBaseValue(kbRes);
+        if (zombie.getAttributeInstance(EntityAttributes.GENERIC_FOLLOW_RANGE) != null) {
+            zombie.getAttributeInstance(EntityAttributes.GENERIC_FOLLOW_RANGE).setBaseValue(48);
+        }
+        if (baby) {
+            zombie.setBaby(true);
+        }
+        zombie.setCustomName(Text.literal("§c僵尸"));
+        zombie.setCustomNameVisible(false);
+        arena.spawnEntity(zombie);
+        this.vdEnemies.add(zombie);
+        this.vdZombiesToSpawn--;
+    }
+
+    /** 僵尸寻路/破门/村民逃散。 */
+    private void vdEnemyTick() {
+        if (this.vdEnemies.isEmpty()) {
+            return;
+        }
+        List<LivingEntity> targets = new ArrayList<>();
+        targets.addAll(this.vdPlayersOnline().stream()
+                .filter(p -> !this.vdWaitingPlayers.contains(p.getUuid())).collect(java.util.stream.Collectors.toList()));
+        targets.addAll(this.vdVillagers);
+
+        // 每僵尸每 10 tick 选目标（优先最近的村民）
+        if (this.ticks % 10 == 0) {
+            for (LivingEntity z : this.vdEnemies) {
+                LivingEntity best = null;
+                double bestDist = Double.MAX_VALUE;
+                for (LivingEntity t : targets) {
+                    if (t == null || !t.isAlive()) {
+                        continue;
+                    }
+                    double d = z.squaredDistanceTo(t);
+                    if (d < bestDist) {
+                        bestDist = d;
+                        best = t;
+                    }
+                }
+                if (best != null && z instanceof MobEntity mob) {
+                    mob.setTarget(best);
+                }
+            }
+        }
+
+        // 村民逃散：远离最近僵尸
+        if (!this.vdVillagers.isEmpty() && !this.vdEnemies.isEmpty()) {
+            for (VillagerEntity v : this.vdVillagers) {
+                if (!v.isAlive()) {
+                    continue;
+                }
+                LivingEntity nearest = null;
+                double nd = 36; // 6^2
+                for (LivingEntity z : this.vdEnemies) {
+                    double d = v.squaredDistanceTo(z);
+                    if (d < nd) {
+                        nd = d;
+                        nearest = z;
+                    }
+                }
+                if (nearest != null) {
+                    double dx = v.getX() - nearest.getX();
+                    double dz = v.getZ() - nearest.getZ();
+                    double len = Math.sqrt(dx * dx + dz * dz);
+                    if (len > 0.001) {
+                        double tx = v.getX() + dx / len * 6;
+                        double tz = v.getZ() + dz / len * 6;
+                        v.getNavigation().startMovingTo(tx, v.getY(), tz, 0.6);
+                    }
+                }
+            }
+        }
+
+        // 破门：敌人贴到门 → 概率破坏
+        if (this.ticks % 4 == 0 && this.villageDefenseLayout != null) {
+            ArenaWorld arena = this.vdArena();
+            if (arena == null) {
+                return;
+            }
+            for (BlockPos door : new ArrayList<>(this.villageDefenseLayout.doors)) {
+                net.minecraft.block.BlockState st = arena.getBlockState(door);
+                if (!(st.getBlock() instanceof net.minecraft.block.DoorBlock)) {
+                    this.villageDefenseLayout.doors.remove(door);
+                    continue;
+                }
+                for (LivingEntity z : this.vdEnemies) {
+                    if (z.squaredDistanceTo(door.getX() + 0.5, z.getY(), door.getZ() + 0.5) < 2.25
+                            && this.random.nextInt(20) == 0) {
+                        // 破整扇门（上下两半）
+                        arena.setBlockState(door, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                        if (arena.getBlockState(door.up()).getBlock() instanceof net.minecraft.block.DoorBlock) {
+                            arena.setBlockState(door.up(), net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                        }
+                        this.villageDefenseLayout.doors.remove(door);
+                        break;
+                    }
+                }
+            }
+        }
     }
 }

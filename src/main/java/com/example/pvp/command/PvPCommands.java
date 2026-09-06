@@ -58,7 +58,7 @@ public final class PvPCommands {
             (ctx, builder) -> CommandSource.suggestMatching(new String[]{
                     "1v1", "2v2", "ffa", "sumo", "1.8", "skywars",
                     "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar", "tntrun",
-                    "heartbeat", "hotpotato", "bedwars", "bedwars2"}, builder);
+                    "heartbeat", "hotpotato", "bedwars", "bedwars2", "villagedefense"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -225,7 +225,7 @@ public final class PvPCommands {
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
             player.sendMessage(Messages.error("未知模式: " + modeId
-                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2）"), false);
+                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense）"), false);
             return 0;
         }
         Kit kit;
@@ -241,6 +241,8 @@ public final class PvPCommands {
             kit = KitManager.heartbeatKit(); // 心跳水立方空手开局，无套件
         } else if (type == MatchType.HOT_POTATO) {
             kit = KitManager.hotPotatoKit(); // 烫手山芋空手开局，无套件
+        } else if (type == MatchType.VILLAGE_DEFENSE) {
+            kit = KitManager.villageDefenseKit(); // 村庄保卫战装备由玩法发放
         } else if (type.isBedWars()) {
             kit = KitManager.bedWarsKit(); // 起床战争装备由玩法发放
         } else {
@@ -279,6 +281,9 @@ public final class PvPCommands {
             } else if (type == MatchType.HOT_POTATO) {
                 player.sendMessage(Messages.info("已加入烫手山芋：凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers
                         + " 人开赛，左键传递山芋，时间到爆炸"), false);
+            } else if (type == MatchType.VILLAGE_DEFENSE) {
+                player.sendMessage(Messages.info("已加入村庄保卫战：可单人；凑齐 " + PvPConfig.INSTANCE.villageDefenseStartPlayers
+                        + " 人开赛，合作守住村庄、保护村民"), false);
             } else if (type.isBedWars()) {
                 player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")
                         + "）：凑 2 人即开始倒计时，摧毁敌方床获胜"), false);

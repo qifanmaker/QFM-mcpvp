@@ -224,6 +224,11 @@ public final class ArenaWorldManager {
             return;
         }
 
+        // 村庄保卫战：地图由 Match 从 maps/villagedefense/<map>/ 导入（需要 arena 实例 + 布局元数据）
+        if (template.getLayout() == ArenaTemplate.Layout.VILLAGE_DEFENSE) {
+            return;
+        }
+
         BlockPos origin = template.getRegionOrigin(regionIndex);
         int size = template.getSize();
 
@@ -278,6 +283,9 @@ public final class ArenaWorldManager {
         } else if (template.getLayout() == ArenaTemplate.Layout.BED_WARS) {
             // 起床战争：整张地图区域清空（含玩家搭的方块与方块实体）
             BedWarsMapGenerator.clear(arena, regionIndex, mapMaxRadius);
+        } else if (template.getLayout() == ArenaTemplate.Layout.VILLAGE_DEFENSE) {
+            // 村庄保卫战：清空导入的地图区域（中心 ±半径、限定高度）
+            clearVillageDefenseRegion(arena, template, regionIndex);
         } else {
             BlockPos origin = template.getRegionOrigin(regionIndex);
             int size = template.getSize();
@@ -311,6 +319,24 @@ public final class ArenaWorldManager {
         // 清掉该区域内所有非玩家实体（TNT/箭/火焰弹/刷怪蛋生成的生物/掉落的物品等），
         // 避免残留到下场比赛（玩家正被传回主城，予以排除）
         this.clearRegionEntities(arena, template, regionIndex, mapMaxRadius);
+    }
+
+    /** 村庄保卫战：清空以区域中心为圆心 ±90 格、限定高度的方块（导入的地图 + 垫底 + 玩家改动）。 */
+    private void clearVillageDefenseRegion(ArenaWorld arena, ArenaTemplate template, int regionIndex) {
+        BlockPos center = template.getCenter(regionIndex);
+        int half = 90;
+        int minY = Math.max(arena.getBottomY(), ArenaTemplate.PLATFORM_Y - 20);
+        int maxY = Math.min(arena.getTopY() - 1, ArenaTemplate.PLATFORM_Y + 170);
+        for (int dx = -half; dx <= half; dx++) {
+            for (int dz = -half; dz <= half; dz++) {
+                for (int dy = minY; dy <= maxY; dy++) {
+                    BlockPos pos = center.add(dx, dy - center.getY(), dz);
+                    if (!arena.getBlockState(pos).isAir()) {
+                        arena.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                    }
+                }
+            }
+        }
     }
 
     /** 清掉某场比赛区域内所有非玩家实体（含各模式生成器没清到的 TNT/箭/生物等）。 */

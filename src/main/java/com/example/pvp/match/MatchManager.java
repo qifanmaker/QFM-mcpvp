@@ -364,6 +364,11 @@ public final class MatchManager {
                     || players.size() > PvPConfig.INSTANCE.hotPotatoMaxPlayers) {
                 return false;
             }
+        } else if (type == MatchType.VILLAGE_DEFENSE) {
+            if (players.size() < PvPConfig.INSTANCE.villageDefenseMinPlayers
+                    || players.size() > PvPConfig.INSTANCE.villageDefenseMaxPlayers) {
+                return false;
+            }
         } else if (type.isBedWars()) {
             // 起床战争：最少 2 人；队伍按人数动态启用（Solo 每队 1 人，双人每队 2 人）
             int perTeam = type.playersPerTeam();
@@ -454,11 +459,23 @@ public final class MatchManager {
         return this.getMatchFor(uuid) != null;
     }
 
-    /** 是否为低版本(1.8)战斗模式：1.8 经典PvP / 空岛战争 / 战桥 / 幸运之柱 / 起床战争（无攻击冷却 + 剑格挡）。 */
+    /** 村庄保卫战：僵尸被击杀回调（从 AFTER_DEATH 触发），找到所属对局发放货币奖励。 */
+    public void onVillageDefenseMobKilled(net.minecraft.entity.LivingEntity entity,
+                                          net.minecraft.entity.damage.DamageSource source) {
+        for (Match match : this.matches) {
+            if (match.getType() == MatchType.VILLAGE_DEFENSE && match.acceptsVdEnemy(entity)) {
+                match.villageDefenseMobKilled(entity, source);
+                return;
+            }
+        }
+    }
+
+    /** 是否为低版本(1.8)战斗模式：1.8 经典PvP / 空岛战争 / 战桥 / 幸运之柱 / 起床战争 / 村庄保卫战（无攻击冷却 + 剑格挡）。 */
     public boolean isLegacyCombat(Match match) {
         return match != null && (match.getType() == MatchType.PVP_1_8
                 || match.getType() == MatchType.SKYWARS || match.getType().isBridge()
-                || match.getType() == MatchType.LUCKY_PILLAR || match.getType().isBedWars());
+                || match.getType() == MatchType.LUCKY_PILLAR || match.getType().isBedWars()
+                || match.getType() == MatchType.VILLAGE_DEFENSE);
     }
 
     /** 1.8 战斗模式：玩家是否正在剑格挡（供伤害减免 Mixin 调用）。 */

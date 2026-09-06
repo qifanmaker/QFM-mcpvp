@@ -54,6 +54,7 @@ public final class KitManager {
 
     /** 起床战争哨兵套件：生存模式，装备由玩法发放。 */
     private static Kit bedWarsKit;
+    private static Kit villageDefenseKit;
 
     /** 附魔注册表：服务器启动后才可用，用于给套件物品加附魔。 */
     private static Registry<Enchantment> enchantmentRegistry;
@@ -103,6 +104,11 @@ public final class KitManager {
                 .displayName("起床战争")
                 .food(20, 20f)
                 .gamemode(GameMode.SURVIVAL)
+                .build();
+        villageDefenseKit = new Kit.Builder("villagedefense", KitType.CUSTOM)
+                .displayName("村庄保卫战")
+                .food(20, 5f)
+                .gamemode(GameMode.ADVENTURE)
                 .build();
         KITS.add(buildSwordKit());
         KITS.add(buildBowKit());
@@ -180,6 +186,11 @@ public final class KitManager {
     /** 起床战争哨兵套件（不入 KITS 列表，装备由玩法发放）。 */
     public static Kit bedWarsKit() {
         return bedWarsKit;
+    }
+
+    /** 村庄保卫战哨兵套件（不入 KITS 列表，装备由玩法发放）。 */
+    public static Kit villageDefenseKit() {
+        return villageDefenseKit;
     }
 
     private static Kit buildSwordKit() {

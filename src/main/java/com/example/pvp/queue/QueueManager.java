@@ -46,6 +46,8 @@ public final class QueueManager {
     /** 烫手山芋开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
     private Integer hotPotatoCountdownTicks;
     private Integer hotPotatoFillTicks;
+    private Integer villageDefenseCountdownTicks;
+    private Integer villageDefenseFillTicks;
     /** 起床战争开赛倒计时（tick 数）；null 表示未开始。 */
     private Integer bedWarsCountdownTicks;
 
@@ -145,6 +147,7 @@ public final class QueueManager {
         this.tickTntRun(matchManager);
         this.tickHeartbeat(matchManager);
         this.tickHotPotato(matchManager);
+        this.tickVillageDefense(matchManager);
         this.tickBedWars(matchManager);
         this.tickInstantMatches(matchManager);
     }
@@ -694,6 +697,97 @@ public final class QueueManager {
         }
     }
 
+    /** 村庄保卫战队列：凑 startPlayers 倒计时；minPlayers 起等待填充（超时按当前人数开，可单人）。 */
+    private void tickVillageDefense(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        long count = this.countVillageDefense();
+
+        if (this.villageDefenseCountdownTicks != null) {
+            this.villageDefenseCountdownTicks = count >= config.villageDefenseMaxPlayers
+                    ? 0 : this.villageDefenseCountdownTicks - 1;
+            if (this.villageDefenseCountdownTicks <= 0) {
+                this.villageDefenseCountdownTicks = null;
+                this.villageDefenseFillTicks = null;
+                this.startVillageDefenseMatch(matchManager);
+            }
+            return;
+        }
+
+        if (count >= config.villageDefenseStartPlayers) {
+            this.villageDefenseCountdownTicks = config.villageDefenseCountdownSeconds * 20;
+            this.broadcastVillageDefense(matchManager, Messages.info(
+                    "§e" + count + "§r 人已就绪，§e" + config.villageDefenseCountdownSeconds + "§r 秒后开始村庄保卫战！"));
+            this.villageDefenseFillTicks = null;
+            return;
+        }
+
+        if (count >= config.villageDefenseMinPlayers) {
+            if (this.villageDefenseFillTicks == null) {
+                this.villageDefenseFillTicks = config.villageDefenseFillTimeoutSeconds * 20;
+            }
+            if (this.villageDefenseFillTicks % 40 == 0) {
+                this.broadcastVillageDefense(matchManager, Messages.info(
+                        "等待更多玩家加入村庄保卫战（当前 " + count + "/" + config.villageDefenseStartPlayers + "）..."));
+            }
+            this.villageDefenseFillTicks--;
+            if (this.villageDefenseFillTicks <= 0) {
+                this.villageDefenseFillTicks = null;
+                this.startVillageDefenseMatch(matchManager);
+            }
+        } else {
+            this.villageDefenseFillTicks = null;
+        }
+    }
+
+    private void startVillageDefenseMatch(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        List<QueueEntry> toRemove = new ArrayList<>();
+        Kit sentinel = KitManager.villageDefenseKit();
+        if (sentinel == null) {
+            return;
+        }
+        for (QueueEntry entry : List.copyOf(this.entries)) {
+            if (entry.getType() != MatchType.VILLAGE_DEFENSE) {
+                continue;
+            }
+            if (players.size() >= config.villageDefenseMaxPlayers) {
+                break;
+            }
+            toRemove.add(entry);
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                players.add(online);
+            }
+        }
+        if (players.size() < config.villageDefenseMinPlayers) {
+            return;
+        }
+        Map<UUID, Kit> kits = new HashMap<>();
+        for (ServerPlayerEntity player : players) {
+            kits.put(player.getUuid(), sentinel);
+        }
+        if (matchManager.startMatch(players, MatchType.VILLAGE_DEFENSE, kits)) {
+            this.entries.removeAll(toRemove);
+        }
+    }
+
+    private long countVillageDefense() {
+        return this.entries.stream().filter(e -> e.getType() == MatchType.VILLAGE_DEFENSE).count();
+    }
+
+    private void broadcastVillageDefense(MatchManager matchManager, Text message) {
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != MatchType.VILLAGE_DEFENSE) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                online.sendMessage(message, false);
+            }
+        }
+    }
+
     /** 起床战争队列：凑 2 人即开始倒计时，倒计时结束按当前人数开赛（按人数动态分队）。 */
     private void tickBedWars(MatchManager matchManager) {
         long count = this.countBedWars();
@@ -785,6 +879,7 @@ public final class QueueManager {
             if (entry.getType() == MatchType.FFA || entry.getType() == MatchType.SKYWARS
                     || entry.getType() == MatchType.LUCKY_PILLAR || entry.getType() == MatchType.TNT_RUN
                     || entry.getType() == MatchType.HEARTBEAT || entry.getType() == MatchType.HOT_POTATO
+                    || entry.getType() == MatchType.VILLAGE_DEFENSE
                     || entry.getType().isBedWars()) {
                 continue;
             }
@@ -863,13 +958,14 @@ public final class QueueManager {
         // 自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋 / 床战：直接以当前队列所有人开赛
         if (type == MatchType.FFA || type == MatchType.SKYWARS || type == MatchType.LUCKY_PILLAR
                 || type == MatchType.TNT_RUN || type == MatchType.HEARTBEAT || type == MatchType.HOT_POTATO
-                || type.isBedWars()) {
+                || type == MatchType.VILLAGE_DEFENSE || type.isBedWars()) {
             int min = switch (type) {
                 case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
                 case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;
                 case LUCKY_PILLAR -> PvPConfig.INSTANCE.luckyPillarMinPlayers;
                 case HEARTBEAT -> PvPConfig.INSTANCE.heartbeatMinPlayers;
                 case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoMinPlayers;
+                case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseMinPlayers;
                 default -> type.isBedWars() ? 2 : PvPConfig.INSTANCE.tntRunMinPlayers;
             };
             int count = (int) this.countType(type);
@@ -888,9 +984,15 @@ public final class QueueManager {
             this.heartbeatFillTicks = null;
             this.hotPotatoCountdownTicks = null;
             this.hotPotatoFillTicks = null;
+            this.villageDefenseCountdownTicks = null;
+            this.villageDefenseFillTicks = null;
             this.bedWarsCountdownTicks = null;
             if (type.isBedWars()) {
                 this.startBedWarsMatch(matchManager);
+                return true;
+            }
+            if (type == MatchType.VILLAGE_DEFENSE) {
+                this.startVillageDefenseMatch(matchManager);
                 return true;
             }
             switch (type) {
