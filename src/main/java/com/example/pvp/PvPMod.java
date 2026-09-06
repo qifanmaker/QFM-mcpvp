@@ -20,6 +20,7 @@ import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchState;
 import com.example.pvp.match.MatchType;
+import com.example.pvp.match.VillageDefenseKits;
 import com.example.pvp.queue.QueueManager;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
@@ -160,6 +161,7 @@ public final class PvPMod implements ModInitializer {
             ArenaWorldManager.get(server).createWorld();
             KitManager.onServerStarted(server); // 附魔注册表此时可用，重建套件应用附魔
             SkyWarsLoot.onServerStarted(server); // 空岛战利品附魔
+            VillageDefenseKits.onServerStarted(server); // 村庄保卫战 kit 附魔
             BridgeGear.onServerStarted(server); // 战桥装备附魔（效率 II 镐）
             MATCH = MatchManager.init(server);
             QUEUE = new QueueManager(server);

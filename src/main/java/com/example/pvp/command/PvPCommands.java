@@ -32,6 +32,7 @@ import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchState;
 import com.example.pvp.match.MatchType;
+import com.example.pvp.match.VillageDefenseKits;
 import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.text.Messages;
 import com.mojang.brigadier.CommandDispatcher;
@@ -165,6 +166,24 @@ public final class PvPCommands {
         );
 
         dispatcher.register(CommandManager.literal("hub").executes(ctx -> tpOut(ctx)));   // 返回主城
+        // 选择村庄保卫战 Kit（下局/下波生效）
+        dispatcher.register(CommandManager.literal("vdkit")
+                .then(CommandManager.argument("kit", StringArgumentType.word())
+                        .suggests((ctx, builder) -> CommandSource.suggestMatching(VillageDefenseKits.ids(), builder))
+                        .executes(ctx -> {
+                            ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                            String id = StringArgumentType.getString(ctx, "kit");
+                            var spec = VillageDefenseKits.byId(id);
+                            if (spec == null) {
+                                player.sendMessage(Messages.error("未知村庄 Kit：" + id
+                                        + "（可用：/vdkit 查看补全）"), false);
+                                return 0;
+                            }
+                            PvPMod.MATCH.setVillageDefenseKit(player.getUuid(), id);
+                            player.sendMessage(Messages.info("村庄 Kit 已设为 §e" + spec.display()
+                                    + "§r（进入村庄保卫战后生效）"), false);
+                            return 1;
+                        })));
         dispatcher.register(CommandManager.literal("watch").executes(ctx -> tpIn(ctx)));  // 进入竞技场
 
         dispatcher.register(

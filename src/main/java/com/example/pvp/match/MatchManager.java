@@ -64,6 +64,19 @@ public final class MatchManager {
     private final Set<UUID> lobbyObjectiveKnown = ConcurrentHashMap.newKeySet();
     /** 大厅计分板每名玩家上一帧的行（用于发重置包）。 */
     private final Map<UUID, List<String>> lobbyLines = new ConcurrentHashMap<>();
+    /** 玩家选择的村庄保卫战 Kit（默认 knight）。 */
+    private final Map<UUID, String> villageDefenseKitChoice = new ConcurrentHashMap<>();
+
+    /** 玩家选择的村庄 Kit id（未选默认 knight）。 */
+    public String villageDefenseKitOf(UUID uuid) {
+        return this.villageDefenseKitChoice.getOrDefault(uuid, "knight");
+    }
+
+    public void setVillageDefenseKit(UUID uuid, String kitId) {
+        if (VillageDefenseKits.byId(kitId) != null) {
+            this.villageDefenseKitChoice.put(uuid, kitId);
+        }
+    }
     private int lobbyScoreboardTimer;
 
     /**

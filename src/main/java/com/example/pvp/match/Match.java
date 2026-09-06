@@ -4157,14 +4157,22 @@ public final class Match {
         this.broadcast(Messages.info("村庄保卫战开始！守住村庄保护村民。每波结束回血并发放货币，用货币在村民处购买装备/门/狼狗/傀儡。"));
     }
 
+    /** 按玩家选择的村庄 Kit 配装（默认 knight），并应用额外血量/速度。 */
     private void giveVdLoadout(ServerPlayerEntity online) {
-        online.getInventory().clear();
-        online.getInventory().setStack(0, new ItemStack(net.minecraft.item.Items.WOODEN_SWORD));
-        online.getInventory().setStack(1, new ItemStack(net.minecraft.item.Items.BREAD, 8));
-        online.getInventory().armor.set(0, new ItemStack(net.minecraft.item.Items.LEATHER_BOOTS));
-        online.getInventory().armor.set(1, new ItemStack(net.minecraft.item.Items.LEATHER_LEGGINGS));
-        online.getInventory().armor.set(2, new ItemStack(net.minecraft.item.Items.LEATHER_CHESTPLATE));
-        online.getInventory().armor.set(3, new ItemStack(net.minecraft.item.Items.LEATHER_HELMET));
+        VillageDefenseKits.KitSpec spec = VillageDefenseKits.byId(
+                this.manager.villageDefenseKitOf(online.getUuid()));
+        if (spec == null) {
+            spec = VillageDefenseKits.byId("knight");
+        }
+        VillageDefenseKits.apply(online, spec);
+        online.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH)
+                .setBaseValue(20 + spec.extraHp());
+        online.setHealth((float) (20 + spec.extraHp()));
+        online.getHungerManager().setFoodLevel(20);
+        online.getHungerManager().setSaturationLevel(5f);
+        if ("runner".equals(spec.id())) {
+            online.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, -1, 1, false, false, false));
+        }
         online.currentScreenHandler.sendContentUpdates();
     }
 
@@ -4746,20 +4754,18 @@ public final class Match {
     /** 腐肉进池并按 VD 公式升级（level0：>50 → 1；之后 level×10×人数+10 < 总量 → +1）。 */
     private void vdCollectFlesh(int amount) {
         this.vdFleshAmount += amount;
+        int oldLevel = this.vdFleshLevel;
         int players = Math.max(1, this.vdPlayersOnline().size());
-        boolean leveled = false;
         while (true) {
             if (this.vdFleshLevel == 0) {
                 if (this.vdFleshAmount > 50) {
                     this.vdFleshLevel = 1;
-                    leveled = true;
                 } else {
                     break;
                 }
             } else {
                 if (this.vdFleshLevel * 10 * players + 10 < this.vdFleshAmount) {
                     this.vdFleshLevel++;
-                    leveled = true;
                 } else {
                     break;
                 }
@@ -4768,14 +4774,16 @@ public final class Match {
                 break;
             }
         }
-        if (leveled) {
+        int gained = this.vdFleshLevel - oldLevel;
+        if (gained > 0) {
+            // 每级全队 +2 最大生命（基于当前基础值叠加，不覆盖 Kit/铁甲加成）
             for (ServerPlayerEntity p : this.vdPlayersOnline()) {
-                p.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH)
-                        .setBaseValue(20 + this.vdFleshLevel * 2);
+                double base = p.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).getBaseValue();
+                p.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(base + 2 * gained);
                 p.setHealth(p.getMaxHealth());
             }
             this.broadcast(Messages.gold("§6秘密之井升到 §e" + this.vdFleshLevel
-                    + "§6 级！全队最大生命提升（+2/级，当前 +" + (this.vdFleshLevel * 2) + "）"));
+                    + "§6 级！全队最大生命 +" + (2 * gained)));
         }
     }
 
