@@ -199,6 +199,9 @@ public final class Match {
     private final List<BlockPos> vdWellHoppers = new ArrayList<>();
     private int vdFleshAmount;
     private int vdFleshLevel;
+    /** Kit 技能冷却（玩家 uuid → 剩余 tick）与场上屏障/龙卷。 */
+    private final Map<UUID, Integer> vdKitCooldown = new HashMap<>();
+    private final List<BlockPos> vdBarriers = new ArrayList<>();
     private int vdWave;          // 当前波次（0=尚未开始）
     private boolean vdFighting;  // 战斗进行中 / 波间冷却
     private int vdTimer;         // 阶段倒计时（tick）
@@ -4027,6 +4030,12 @@ public final class Match {
             int reward = 1 + this.random.nextInt(2);
             this.vdAddOrbs(killer, reward, false);
             this.vdRollPowerUp(killer);
+            if ("looter".equals(this.vdKitOf(killer.getUuid()))) {
+                int empty = killer.getInventory().getEmptySlot();
+                if (empty != -1) {
+                    killer.getInventory().setStack(empty, new ItemStack(net.minecraft.item.Items.ROTTEN_FLESH, 1));
+                }
+            }
         }
     }
 
@@ -4184,6 +4193,7 @@ public final class Match {
         if (arena0 != null) {
             this.vdWellTick(arena0);
         }
+        this.vdKitTick();
         // 清理已死的敌人/村民/宠物
         this.vdEnemies.removeIf(e -> e.isRemoved() || !e.isAlive());
         this.vdVillagers.removeIf(v -> v.isRemoved() || !v.isAlive());
@@ -4260,6 +4270,7 @@ public final class Match {
         this.broadcastTitleBig("§c第 " + this.vdWave + " 波！", "§f僵尸来袭 " + amount + " 只");
         this.broadcast(Messages.warn("§c第 " + this.vdWave + " 波§r来袭！僵尸 " + amount
                 + " 只" + (this.vdHpMultiplier > 1 ? "（血量×" + this.vdHpMultiplier + "）" : "")));
+        this.vdKitWavePassives();
     }
 
     private void vdWaveEnd() {
@@ -4283,6 +4294,7 @@ public final class Match {
             float max = 40f;
             v.setHealth(Math.min(max, v.getHealth() + 2));
         }
+        this.vdKitWaveRestock();
         this.broadcastTitleBig("§a第 " + this.vdWave + " 波防守成功！", "§f奖励 " + (this.vdWave * 10) + " 货币，下一波稍后");
         this.vdRespawnWaitingPlayers();
         if (this.vdWave >= cfg.villageDefenseWinWave) {
@@ -4452,6 +4464,7 @@ public final class Match {
         if (this.state != MatchState.ACTIVE || !this.vdEnemies.contains(enemy) || enemy.isRemoved()) {
             return;
         }
+        this.vdMedicHeal(enemy, source); // medic 被动：命中 30% 治疗附近玩家
         String kind = this.vdEnemyKind.get(enemy.getUuid());
         if ("playerbuster".equals(kind) || "golembuster".equals(kind) || "villagerbuster".equals(kind)) {
             this.vdBusterExplode(enemy);
@@ -4812,6 +4825,167 @@ public final class Match {
         }
         this.vdCollectFlesh(16);
         this.broadcast(Messages.gold(sp.getGameProfile().getName() + " 向秘密之井投了 16 个腐肉！"));
+    }
+
+    // ==================== Kit 技能引擎（主动/被动） ====================
+
+    private String vdKitOf(UUID uuid) {
+        return this.manager.villageDefenseKitOf(uuid);
+    }
+
+    /** 玩家右击（使用手持物品）触发对应 Kit 主动技能；返回 true 表示已处理。 */
+    public boolean vdKitUse(ServerPlayerEntity sp) {
+        if (this.state != MatchState.ACTIVE || this.vdWaitingPlayers.contains(sp.getUuid())) {
+            return false;
+        }
+        String kit = this.vdKitOf(sp.getUuid());
+        if (kit == null) {
+            return false;
+        }
+        net.minecraft.item.ItemStack hand = sp.getMainHandStack();
+        int cd = this.vdKitCooldown.getOrDefault(sp.getUuid(), 0);
+        if (cd > 0) {
+            sp.sendMessage(Messages.error("技能冷却中（" + (cd / 20 + 1) + " 秒）"), false);
+            return true;
+        }
+        boolean used = false;
+        switch (kit) {
+            case "worker" -> used = hand.isOf(net.minecraft.item.Items.OAK_DOOR) && this.vdRepairDoors(sp);
+            case "zombie_teleporter" -> used = hand.isOf(net.minecraft.item.Items.BOOK) && this.vdTeleportZombie(sp);
+            default -> {
+            }
+        }
+        if (used) {
+            this.vdKitCooldown.put(sp.getUuid(), 20); // 通用 1 秒内置（worker/teleport 用 kit 专属）
+            return true;
+        }
+        return false;
+    }
+
+    private void vdKitTick() {
+        // 冷却递减
+        if (!this.vdKitCooldown.isEmpty()) {
+            this.vdKitCooldown.replaceAll((k, v) -> Math.max(0, v - 1));
+        }
+        // 屏障到时拆除
+        if (!this.vdBarriers.isEmpty() && this.ticks % 20 == 0) {
+            ArenaWorld arena = this.vdArena();
+            if (arena != null) {
+                for (BlockPos pos : new ArrayList<>(this.vdBarriers)) {
+                    if (arena.getBlockState(pos).isOf(net.minecraft.block.Blocks.OAK_FENCE)) {
+                        arena.setBlockState(pos, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                    }
+                    this.vdBarriers.remove(pos);
+                }
+            }
+        }
+    }
+
+    /** Worker：修复地图被破坏的门（还原原始下半/上半木门）。 */
+    private boolean vdRepairDoors(ServerPlayerEntity sp) {
+        ArenaWorld arena = this.vdArena();
+        if (arena == null || this.villageDefenseLayout == null) {
+            return false;
+        }
+        int fixed = 0;
+        for (BlockPos pos : new ArrayList<>(this.villageDefenseLayout.doors)) {
+            net.minecraft.block.BlockState st = arena.getBlockState(pos);
+            if (st.getBlock() instanceof net.minecraft.block.DoorBlock) {
+                continue;
+            }
+            boolean lower = !(arena.getBlockState(pos.down()).getBlock() instanceof net.minecraft.block.DoorBlock);
+            net.minecraft.block.BlockState door = lower
+                    ? net.minecraft.block.Blocks.OAK_DOOR.getDefaultState()
+                    .with(net.minecraft.block.DoorBlock.HALF, net.minecraft.block.enums.DoubleBlockHalf.LOWER)
+                    : net.minecraft.block.Blocks.OAK_DOOR.getDefaultState()
+                    .with(net.minecraft.block.DoorBlock.HALF, net.minecraft.block.enums.DoubleBlockHalf.UPPER);
+            arena.setBlockState(pos, door, 3);
+            fixed++;
+        }
+        if (fixed == 0) {
+            sp.sendMessage(Messages.info("门都很完好，无需修复"), false);
+            return false;
+        }
+        sp.sendMessage(Messages.gold("已修复 §e" + fixed + "§r 扇门！"), false);
+        return true;
+    }
+
+    /** Zombie Teleporter：随机把一只僵尸传送到自己身边并施加虚弱。 */
+    private boolean vdTeleportZombie(ServerPlayerEntity sp) {
+        if (this.vdEnemies.isEmpty()) {
+            sp.sendMessage(Messages.error("当前没有僵尸可以传送"), false);
+            return false;
+        }
+        LivingEntity z = this.vdEnemies.get(this.random.nextInt(this.vdEnemies.size()));
+        z.refreshPositionAndAngles(sp.getX(), sp.getY(), sp.getZ(), z.getYaw(), 0);
+        z.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 20 * 30, 0, false, false, true));
+        sp.sendMessage(Messages.gold("把一只僵尸拉到了你身边！"), false);
+        return true;
+    }
+
+    /** 波次开始被动：狗友给狼、傀儡友给傀儡、终结者给力量。 */
+    private void vdKitWavePassives() {
+        ArenaWorld arena = this.vdArena();
+        if (arena == null) {
+            return;
+        }
+        for (ServerPlayerEntity sp : this.vdPlayersOnline()) {
+            if (this.vdWaitingPlayers.contains(sp.getUuid())) {
+                continue;
+            }
+            String kit = this.vdKitOf(sp.getUuid());
+            if ("dog_friend".equals(kit)) {
+                this.vdSpawnPet(sp, "wolf");
+            } else if ("golem_friend".equals(kit) && (this.vdWave % 5 == 0 || this.vdWave == 1)) {
+                this.vdSpawnPet(sp, "golem");
+            } else if ("terminator".equals(kit)) {
+                sp.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 2 * 20, 0, false, false, true));
+            }
+        }
+    }
+
+    /** 波末补给：射手补箭、治疗系补苹果。 */
+    private void vdKitWaveRestock() {
+        for (ServerPlayerEntity sp : this.vdPlayersOnline()) {
+            String kit = this.vdKitOf(sp.getUuid());
+            if (kit == null) {
+                continue;
+            }
+            if ("archer".equals(kit) || "shotbow_master".equals(kit)) {
+                int empty = sp.getInventory().getEmptySlot();
+                if (empty != -1) {
+                    sp.getInventory().setStack(empty, new net.minecraft.item.ItemStack(net.minecraft.item.Items.ARROW, 16));
+                }
+            } else if ("healer".equals(kit) || "medic".equals(kit)) {
+                int empty = sp.getInventory().getEmptySlot();
+                if (empty != -1) {
+                    sp.getInventory().setStack(empty, new net.minecraft.item.ItemStack(net.minecraft.item.Items.GOLDEN_APPLE, 2));
+                }
+            }
+        }
+    }
+
+    /** Medic：命中僵尸时 30% 治疗周围 5 格玩家。 */
+    private void vdMedicHeal(LivingEntity enemy, net.minecraft.entity.damage.DamageSource source) {
+        if (source == null || !(source.getAttacker() instanceof ServerPlayerEntity killer)) {
+            return;
+        }
+        if (!"medic".equals(this.vdKitOf(killer.getUuid()))) {
+            return;
+        }
+        if (this.random.nextInt(10) >= 3) {
+            return;
+        }
+        ArenaWorld arena = this.vdArena();
+        if (arena == null) {
+            return;
+        }
+        for (ServerPlayerEntity p : this.vdPlayersOnline()) {
+            if (p.squaredDistanceTo(killer) <= 25) {
+                p.setHealth(Math.min(p.getMaxHealth(), p.getHealth() + 1));
+            }
+        }
+        killer.sendMessage(Messages.gold("医疗！周围玩家回复 1 点生命"), false);
     }
 
     /** 僵尸寻路/破门/村民逃散/宠物索敌。 */

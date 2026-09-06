@@ -577,6 +577,17 @@ public final class PvPMod implements ModInitializer {
                 MATCH.onVillageDefenseEnemyDamaged(entity, source);
             }
         });
+        // 村庄保卫战：右击手持物品触发 Kit 主动技能（worker 修门 / zombie_teleporter 等）
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            if (player instanceof ServerPlayerEntity sp && MATCH != null) {
+                Match m = MATCH.getMatchFor(sp);
+                if (m != null && m.getType() == MatchType.VILLAGE_DEFENSE
+                        && m.getState() == MatchState.ACTIVE && m.vdKitUse(sp)) {
+                    return TypedActionResult.success(player.getStackInHand(hand));
+                }
+            }
+            return TypedActionResult.pass(player.getStackInHand(hand));
+        });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             if (MATCH != null) {
