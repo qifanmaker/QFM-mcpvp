@@ -193,6 +193,10 @@ public final class Match {
     private final List<LivingEntity> vdPets = new ArrayList<>();
     private final Map<UUID, UUID> vdPetOwner = new HashMap<>();     // 宠物 uuid → 玩家 uuid
     private final Map<UUID, Integer> vdPetLevel = new HashMap<>();  // 宠物 uuid → 已升级次数(伤害/血量)
+    /** 秘密之井：地图上的漏斗位置 + 收集的腐肉/井等级（对齐 VD RottenFlesh）。 */
+    private final List<BlockPos> vdWellHoppers = new ArrayList<>();
+    private int vdFleshAmount;
+    private int vdFleshLevel;
     private int vdWave;          // 当前波次（0=尚未开始）
     private boolean vdFighting;  // 战斗进行中 / 波间冷却
     private int vdTimer;         // 阶段倒计时（tick）
@@ -4115,6 +4119,7 @@ public final class Match {
         VillageWorldImporter.Layout l = this.villageDefenseLayout;
         ArenaWorld arena = this.vdArena();
         PvPConfig cfg = PvPConfig.INSTANCE;
+        this.vdFindWellHoppers(arena);
         int count = cfg.villageDefenseVillagers;
         for (int i = 0; i < count; i++) {
             if (l.villagerSpawns.isEmpty()) {
@@ -4164,6 +4169,10 @@ public final class Match {
     private void tickVillageDefense() {
         if (this.villageDefenseLayout == null) {
             return;
+        }
+        ArenaWorld arena0 = this.vdArena();
+        if (arena0 != null) {
+            this.vdWellTick(arena0);
         }
         // 清理已死的敌人/村民/宠物
         this.vdEnemies.removeIf(e -> e.isRemoved() || !e.isAlive());
@@ -4615,9 +4624,96 @@ public final class Match {
         }
     }
 
-    // ==================== 秘密之井（献祭腐肉 → 全队加最大生命） ====================
+    // ==================== 秘密之井（腐肉 → 全队加最大生命，对齐 VD RottenFlesh） ====================
 
-    /** 潜行+村民：把 16 个腐肉献祭，全队最大生命 +2（最多 +20）。 */
+    /** 开局扫描地图内的漏斗当作秘密之井；没有则用中央石头井(漏斗+炼药锅)代替。 */
+    private void vdFindWellHoppers(ArenaWorld arena) {
+        VillageWorldImporter.Layout l = this.villageDefenseLayout;
+        if (l == null || l.minCorner == null || l.maxCorner == null) {
+            return;
+        }
+        for (int x = l.minCorner.getX(); x <= l.maxCorner.getX(); x++) {
+            for (int z = l.minCorner.getZ(); z <= l.maxCorner.getZ(); z++) {
+                for (int y = l.minCorner.getY(); y <= l.maxCorner.getY(); y++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    if (arena.getBlockEntity(p) instanceof net.minecraft.block.entity.HopperBlockEntity) {
+                        this.vdWellHoppers.add(p);
+                    }
+                }
+            }
+        }
+        if (this.vdWellHoppers.isEmpty()) {
+            // 兜底：在村中心造一座井（漏斗收物 + 炼药锅在上面当井口）
+            BlockPos c = this.vdVillagePos();
+            BlockPos well = new BlockPos(c.getX(), c.getY() - 1, c.getZ());
+            arena.setBlockState(well, net.minecraft.block.Blocks.HOPPER.getDefaultState(), 3);
+            arena.setBlockState(well.up(), net.minecraft.block.Blocks.CAULDRON.getDefaultState(), 3);
+            arena.setBlockState(well.down(), net.minecraft.block.Blocks.STONE_BRICKS.getDefaultState(), 3);
+            this.vdWellHoppers.add(well);
+            LOGGER.info("[VD] 未找到地图自带漏斗，已在村中央生成秘密之井");
+        }
+    }
+
+    /** 每 tick 收集漏斗内腐肉。 */
+    private void vdWellTick(ArenaWorld arena) {
+        if (this.vdWellHoppers.isEmpty()) {
+            return;
+        }
+        if (this.ticks % 5 != 0) {
+            return;
+        }
+        for (BlockPos pos : new ArrayList<>(this.vdWellHoppers)) {
+            if (arena.getBlockEntity(pos) instanceof net.minecraft.block.entity.HopperBlockEntity hopper) {
+                for (int i = 0; i < hopper.size(); i++) {
+                    net.minecraft.item.ItemStack stack = hopper.getStack(i);
+                    if (!stack.isOf(net.minecraft.item.Items.ROTTEN_FLESH)) {
+                        continue;
+                    }
+                    int n = stack.getCount();
+                    stack.decrement(n);
+                    this.vdCollectFlesh(n);
+                }
+            }
+        }
+    }
+
+    /** 腐肉进池并按 VD 公式升级（level0：>50 → 1；之后 level×10×人数+10 < 总量 → +1）。 */
+    private void vdCollectFlesh(int amount) {
+        this.vdFleshAmount += amount;
+        int players = Math.max(1, this.vdPlayersOnline().size());
+        boolean leveled = false;
+        while (true) {
+            if (this.vdFleshLevel == 0) {
+                if (this.vdFleshAmount > 50) {
+                    this.vdFleshLevel = 1;
+                    leveled = true;
+                } else {
+                    break;
+                }
+            } else {
+                if (this.vdFleshLevel * 10 * players + 10 < this.vdFleshAmount) {
+                    this.vdFleshLevel++;
+                    leveled = true;
+                } else {
+                    break;
+                }
+            }
+            if (this.vdFleshLevel >= 30) {
+                break;
+            }
+        }
+        if (leveled) {
+            for (ServerPlayerEntity p : this.vdPlayersOnline()) {
+                p.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH)
+                        .setBaseValue(20 + this.vdFleshLevel * 2);
+                p.setHealth(p.getMaxHealth());
+            }
+            this.broadcast(Messages.gold("§6秘密之井升到 §e" + this.vdFleshLevel
+                    + "§6 级！全队最大生命提升（+2/级，当前 +" + (this.vdFleshLevel * 2) + "）"));
+        }
+    }
+
+    /** 潜行右击村民：手动把 16 个腐肉投进井（无漏斗地图的替代入口）。 */
     public void vdDonateFlesh(ServerPlayerEntity sp) {
         int flesh = 0;
         for (net.minecraft.item.ItemStack stack : sp.getInventory().main) {
@@ -4626,7 +4722,7 @@ public final class Match {
             }
         }
         if (flesh < 16) {
-            sp.sendMessage(Messages.error("秘密之井需要至少 16 个腐肉（你有 " + flesh + "）"), false);
+            sp.sendMessage(Messages.error("需要至少 16 个腐肉投进秘密之井（你有 " + flesh + "）"), false);
             return;
         }
         int need = 16;
@@ -4640,21 +4736,8 @@ public final class Match {
                 need -= take;
             }
         }
-        // 全队最大生命 +2（上限 +20，即 +10 次）
-        boolean leveled = false;
-        for (ServerPlayerEntity p : this.vdPlayersOnline()) {
-            double cap = 20 + 20;
-            double cur = p.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).getBaseValue();
-            if (cur < cap) {
-                p.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(Math.min(cap, cur + 2));
-                p.setHealth(p.getMaxHealth());
-                leveled = true;
-            }
-        }
-        this.broadcast(Messages.gold(sp.getGameProfile().getName() + " 向秘密之井献祭了 16 个腐肉！全队最大生命提升！"));
-        if (!leveled) {
-            sp.sendMessage(Messages.warn("全队生命已到上限"), false);
-        }
+        this.vdCollectFlesh(16);
+        this.broadcast(Messages.gold(sp.getGameProfile().getName() + " 向秘密之井投了 16 个腐肉！"));
     }
 
     /** 僵尸寻路/破门/村民逃散/宠物索敌。 */
