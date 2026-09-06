@@ -13,6 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -26,17 +27,22 @@ import java.util.zip.InflaterInputStream;
 /**
  * 把 Village Defense 的 1.12 Anvil 世界（maps/villagedefense/&lt;map&gt;/region/*.mca）粘贴进竞技场世界。
  *
- * <p>解码 1.8~1.12 经典 Section：每个 Section 存 {@code Blocks[4096]}（块 id）+ {@code Data[2048]}
- * （meta 半字节，偶低奇高）；块 id+meta 经 {@link LegacyBlockMap} 映射成现代 {@link BlockState}。
+ * <p>解码经典 Section：{@code Blocks[4096]}（块 id）+ {@code Data[2048]}（meta），经
+ * {@link LegacyBlockMap} 映射成现代 {@link BlockState}。
  *
- * <p>平移：世界坐标 (0,?,0) 对齐到竞技场区域中心，y 用 groundWorldY 对齐到 PLATFORM_Y；
- * 坐标整体加常量平移，结构相对位置不变。每列在低于已贴内容处补实心基座，避免悬空露底。
+ * <p><b>整片加载</b>：不依赖 arenas.yml 标记坐标去截取范围，而是把地图目录下所有 region 里
+ * 现存的 chunk 全部解码，非空气方块全数粘贴（相对世界坐标平移），保证地图完整还原。
+ *
+ * <p>平移：世界 (0,?,0) 对齐竞技场区域中心，y 用 groundWorldY 对齐 PLATFORM_Y；
+ * 每列在低于已贴内容且高于地面处补实心基座，避免悬空露底。
  */
 public final class VillageWorldImporter {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    /** 竞技场地面方块 Y。 */
     private static final int FLOOR_Y = ArenaTemplate.PLATFORM_Y;
+    /** 只粘贴此世界 y 范围内的方块（覆盖地表+建筑；0..160 足够，避免读更高空）。 */
+    private static final int WORLD_MIN_Y = 0;
+    private static final int WORLD_MAX_Y = 160;
 
     private VillageWorldImporter() {
     }
@@ -58,77 +64,21 @@ public final class VillageWorldImporter {
         }
     }
 
-    /** 世界 (0,?,0) → 竞技场 center；世界 groundY → 竞技场 FLOOR_Y。 */
-    private static int dxOf(BlockPos center) {
-        return center.getX();
-    }
-
-    private static int dyOf(int groundWorldY) {
-        return FLOOR_Y - groundWorldY;
-    }
-
-    /**
-     * 从地图目录导入并粘贴。
-     *
-     * @param world    竞技场世界
-     * @param mapFolder maps/villagedefense/&lt;mapName&gt;/
-     * @param mapName   地图名（仅日志/展示）
-     * @param center    竞技场粘贴中心
-     */
     public static Layout importMap(ArenaWorld world, Path mapFolder, String mapName, BlockPos center) {
         VillageDefenseMeta meta = VillageDefenseMeta.load(mapFolder);
         int dx = center.getX();
         int dy = FLOOR_Y - meta.groundWorldY;
         int dz = center.getZ();
 
-        // 由游戏坐标点 + 边距推导需要导入的包围盒（世界坐标）
-        List<double[]> points = new ArrayList<>();
-        points.addAll(meta.villagerSpawns);
-        points.addAll(meta.zombieSpawns);
-        points.addAll(meta.doors);
-        if (meta.shop != null) {
-            points.add(meta.shop);
-        }
-        if (points.isEmpty()) {
-            for (int i = 0; i < 8; i++) {
-                double a = i / 8.0 * 2 * Math.PI;
-                points.add(new double[]{Math.cos(a) * 12, 80, Math.sin(a) * 12});
-            }
-        }
-        int minWx = Integer.MAX_VALUE, maxWx = Integer.MIN_VALUE;
-        int minWz = Integer.MAX_VALUE, maxWz = Integer.MIN_VALUE;
-        int minWy = Integer.MAX_VALUE, maxWy = Integer.MIN_VALUE;
-        for (double[] p : points) {
-            minWx = Math.min(minWx, (int) Math.floor(p[0]));
-            maxWx = Math.max(maxWx, (int) Math.floor(p[0]));
-            minWy = Math.min(minWy, (int) Math.floor(p[1]));
-            maxWy = Math.max(maxWy, (int) Math.floor(p[1]));
-            minWz = Math.min(minWz, (int) Math.floor(p[2]));
-            maxWz = Math.max(maxWz, (int) Math.floor(p[2]));
-        }
-        int margin = 10;
-        int minX = minWx - margin, maxX = maxWx + margin;
-        int minZ = minWz - margin, maxZ = maxWz + margin;
-        int lowY = Math.min(meta.groundWorldY, minWy) - 6;
-        int highY = Math.max(meta.groundWorldY, maxWy) + 26;
-        if (highY - lowY > 96) {
-            highY = lowY + 96;
-        }
-
-        Path regionDir = mapFolder.resolve("region");
-        if (!Files.isDirectory(regionDir)) {
-            LOGGER.error("[VD] 地图目录缺少 region/: {}", regionDir);
-            return new Layout(mapName, center);
-        }
-
         Layout layout = new Layout(mapName, center);
         int placed = 0;
         int unmapped = 0;
+        int minWx = Integer.MAX_VALUE, maxWx = Integer.MIN_VALUE;
+        int minWz = Integer.MAX_VALUE, maxWz = Integer.MIN_VALUE;
+        int minWy = Integer.MAX_VALUE, maxWy = Integer.MIN_VALUE;
         Map<Long, Integer> columnLowest = new HashMap<>();
 
-        int c0x = Math.floorDiv(minX, 16), c1x = Math.floorDiv(maxX, 16);
-        int c0z = Math.floorDiv(minZ, 16), c1z = Math.floorDiv(maxZ, 16);
-        List<ChunkSections> chunks = readChunks(regionDir, c0x, c1x, c0z, c1z, lowY, highY);
+        List<ChunkSections> chunks = readAllChunks(mapFolder.resolve("region"));
         for (ChunkSections chunk : chunks) {
             int baseX = chunk.cx * 16;
             int baseZ = chunk.cz * 16;
@@ -145,7 +95,7 @@ public final class VillageWorldImporter {
                     int wx = baseX + (index & 15);
                     int wz = baseZ + ((index >> 4) & 15);
                     int wy = sd.y * 16 + (index >> 8);
-                    if (wx < minX || wx > maxX || wz < minZ || wz > maxZ || wy < lowY || wy > highY) {
+                    if (wy < WORLD_MIN_Y || wy > WORLD_MAX_Y) {
                         continue;
                     }
                     BlockState state;
@@ -168,6 +118,12 @@ public final class VillageWorldImporter {
                     }
                     world.setBlockState(new BlockPos(ax, ay, az), state, 3);
                     placed++;
+                    minWx = Math.min(minWx, wx);
+                    maxWx = Math.max(maxWx, wx);
+                    minWy = Math.min(minWy, wy);
+                    maxWy = Math.max(maxWy, wy);
+                    minWz = Math.min(minWz, wz);
+                    maxWz = Math.max(maxWz, wz);
                     int prev = columnLowest.getOrDefault(pack(ax, az), Integer.MAX_VALUE);
                     if (ay < prev) {
                         columnLowest.put(pack(ax, az), ay);
@@ -176,6 +132,7 @@ public final class VillageWorldImporter {
             }
         }
 
+        // 底部补基座：内容最低方块高于地面线 → 从地面铺到其下，避免悬空露底
         int pad = 0;
         for (Map.Entry<Long, Integer> e : columnLowest.entrySet()) {
             int x = (int) (e.getKey() >>> 32);
@@ -191,7 +148,10 @@ public final class VillageWorldImporter {
         }
 
         LOGGER.info("[VD] 导入 {}：放置 {} 方块，垫底 {}，未映射 {}。范围 x[{},{}] y[{},{}] z[{},{}]",
-                mapName, placed, pad, unmapped, minX, maxX, lowY, highY, minZ, maxZ);
+                mapName, placed, pad, unmapped,
+                minWx == Integer.MAX_VALUE ? 0 : minWx, maxWx == Integer.MIN_VALUE ? 0 : maxWx,
+                minWy == Integer.MAX_VALUE ? 0 : minWy, maxWy == Integer.MIN_VALUE ? 0 : maxWy,
+                minWz == Integer.MAX_VALUE ? 0 : minWz, maxWz == Integer.MIN_VALUE ? 0 : maxWz);
 
         for (double[] p : meta.villagerSpawns) {
             layout.villagerSpawns.add(new BlockPos((int) Math.floor(p[0]) + dx, (int) Math.floor(p[1]) + dy,
@@ -209,8 +169,10 @@ public final class VillageWorldImporter {
             layout.shop = new BlockPos((int) Math.floor(meta.shop[0]) + dx, (int) Math.floor(meta.shop[1]) + dy,
                     (int) Math.floor(meta.shop[2]) + dz);
         }
-        layout.minCorner = new BlockPos(minX + dx, lowY + dy, minZ + dz);
-        layout.maxCorner = new BlockPos(maxX + dx, highY + dy, maxZ + dz);
+        if (minWx != Integer.MAX_VALUE) {
+            layout.minCorner = new BlockPos(minWx + dx, minWy + dy, minWz + dz);
+            layout.maxCorner = new BlockPos(maxWx + dx, maxWy + dy, maxWz + dz);
+        }
         return layout;
     }
 
@@ -227,9 +189,9 @@ public final class VillageWorldImporter {
 
     private static final class SectionData {
         int y;
-        byte[] blocks; // 4096（可为 null，若 keep=false 不读）
-        byte[] data;   // 2048 nibble meta
-        byte[] add;    // 可选：Add 半字节（块 id 高位）
+        byte[] blocks;
+        byte[] data;
+        byte[] add;
     }
 
     private static final class ChunkSections {
@@ -238,17 +200,15 @@ public final class VillageWorldImporter {
         final List<SectionData> sections = new ArrayList<>();
     }
 
-    private static List<ChunkSections> readChunks(Path regionDir, int c0x, int c1x, int c0z, int c1z,
-                                                  int lowY, int highY) {
+    /** 读取 region 目录下所有现存 chunk（不设范围框，保证完整）。 */
+    private static List<ChunkSections> readAllChunks(Path regionDir) {
         List<ChunkSections> out = new ArrayList<>();
-        int minSec = Math.floorDiv(lowY, 16);
-        int maxSec = Math.floorDiv(highY, 16);
-        for (int cx = c0x; cx <= c1x; cx++) {
-            for (int cz = c0z; cz <= c1z; cz++) {
-                Path f = regionDir.resolve("r." + Math.floorDiv(cx, 32) + "." + Math.floorDiv(cz, 32) + ".mca");
-                if (!Files.isRegularFile(f)) {
-                    continue;
-                }
+        if (!Files.isDirectory(regionDir)) {
+            LOGGER.error("[VD] 缺少 region 目录: {}", regionDir);
+            return out;
+        }
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(regionDir, "*.mca")) {
+            for (Path f : ds) {
                 byte[] data;
                 try {
                     data = Files.readAllBytes(f);
@@ -256,43 +216,59 @@ public final class VillageWorldImporter {
                     LOGGER.warn("[VD] 读 region 失败 {}: {}", f, e.toString());
                     continue;
                 }
-                int entryOff = ((cx & 31) + (cz & 31) * 32) * 4;
-                if (entryOff + 4 > data.length) {
-                    continue;
-                }
-                int v = be32(data, entryOff);
-                if (v == 0) {
-                    continue;
-                }
-                int off = (v >> 8) * 4096;
-                if (off + 5 > data.length) {
-                    continue;
-                }
-                int len = be32(data, off);
-                int ctype = data[off + 4] & 0xFF;
-                if (off + 5 + len > data.length) {
-                    continue;
-                }
-                byte[] compressed = Arrays.copyOfRange(data, off + 5, off + 5 + len - 1);
-                byte[] nbtBytes;
-                try {
-                    InputStream in = switch (ctype) {
-                        case 1 -> new GZIPInputStream(new ByteArrayInputStream(compressed));
-                        case 2 -> new InflaterInputStream(new ByteArrayInputStream(compressed));
-                        default -> new ByteArrayInputStream(compressed);
-                    };
-                    nbtBytes = readAll(in);
-                } catch (IOException e) {
-                    LOGGER.warn("[VD] 解压 chunk {}:{} 失败: {}", cx, cz, e.toString());
-                    continue;
-                }
-                ChunkSections chunk = parseChunk(cx, cz, nbtBytes, minSec, maxSec);
-                if (chunk != null && !chunk.sections.isEmpty()) {
-                    out.add(chunk);
+                for (int idx = 0; idx < 1024; idx++) {
+                    int v = be32(data, idx * 4);
+                    if (v == 0) {
+                        continue;
+                    }
+                    int off = (v >> 8) * 4096;
+                    if (off + 5 > data.length) {
+                        continue;
+                    }
+                    int len = be32(data, off);
+                    int ctype = data[off + 4] & 0xFF;
+                    if (off + 5 + len > data.length) {
+                        continue;
+                    }
+                    byte[] compressed = Arrays.copyOfRange(data, off + 5, off + 5 + len - 1);
+                    byte[] nbtBytes;
+                    try {
+                        InputStream in = switch (ctype) {
+                            case 1 -> new GZIPInputStream(new ByteArrayInputStream(compressed));
+                            case 2 -> new InflaterInputStream(new ByteArrayInputStream(compressed));
+                            default -> new ByteArrayInputStream(compressed);
+                        };
+                        nbtBytes = readAll(in);
+                    } catch (IOException e) {
+                        continue;
+                    }
+                    int xLocal = idx % 32;
+                    int zLocal = idx / 32;
+                    int[] rParts = parseRegionName(f);
+                    int cx = rParts[0] * 32 + xLocal;
+                    int cz = rParts[1] * 32 + zLocal;
+                    ChunkSections chunk = parseChunk(cx, cz, nbtBytes);
+                    if (chunk != null && !chunk.sections.isEmpty()) {
+                        out.add(chunk);
+                    }
                 }
             }
+        } catch (IOException e) {
+            LOGGER.warn("[VD] 扫描 region 失败: {}", e.toString());
         }
         return out;
+    }
+
+    private static int[] parseRegionName(Path f) {
+        String base = f.getFileName().toString();
+        try {
+            String core = base.substring(2, base.length() - 4); // r.X.Z.mca
+            int dot = core.indexOf('.');
+            return new int[]{Integer.parseInt(core.substring(0, dot)),
+                    Integer.parseInt(core.substring(dot + 1))};
+        } catch (Exception e) {
+            return new int[]{0, 0};
+        }
     }
 
     private static byte[] readAll(InputStream in) throws IOException {
@@ -304,6 +280,10 @@ public final class VillageWorldImporter {
             }
             return bos.toByteArray();
         }
+    }
+
+    private static int be32(byte[] b, int o) {
+        return ((b[o] & 0xFF) << 24) | ((b[o + 1] & 0xFF) << 16) | ((b[o + 2] & 0xFF) << 8) | (b[o + 3] & 0xFF);
     }
 
     // ---------------- 最小 NBT 解析：只需 Sections[] 的 Y/Blocks/Data/Add ----------------
@@ -346,11 +326,7 @@ public final class VillageWorldImporter {
         }
     }
 
-    private static int be32(byte[] b, int o) {
-        return ((b[o] & 0xFF) << 24) | ((b[o + 1] & 0xFF) << 16) | ((b[o + 2] & 0xFF) << 8) | (b[o + 3] & 0xFF);
-    }
-
-    private static ChunkSections parseChunk(int cx, int cz, byte[] b, int minSec, int maxSec) {
+    private static ChunkSections parseChunk(int cx, int cz, byte[] b) {
         Reader r = new Reader(b);
         if (r.u8() != 10) {
             return null;
@@ -366,7 +342,7 @@ public final class VillageWorldImporter {
             }
             String name = r.readString();
             if (t == 10 && name.equals("Level")) {
-                readLevel(r, out, minSec, maxSec);
+                readLevel(r, out);
             } else {
                 skipValue(r, t);
             }
@@ -374,7 +350,7 @@ public final class VillageWorldImporter {
         return out;
     }
 
-    private static void readLevel(Reader r, ChunkSections out, int minSec, int maxSec) {
+    private static void readLevel(Reader r, ChunkSections out) {
         while (true) {
             int t = r.u8();
             if (t == 0) {
@@ -388,7 +364,7 @@ public final class VillageWorldImporter {
                     if (et != 10) {
                         skipValue(r, et);
                     } else {
-                        SectionData sd = readSection(r, minSec, maxSec);
+                        SectionData sd = readSection(r);
                         if (sd != null) {
                             out.sections.add(sd);
                         }
@@ -400,8 +376,7 @@ public final class VillageWorldImporter {
         }
     }
 
-    /** 读一个 Section 复合体；只返回 [minSec,maxSec] 内的段。 */
-    private static SectionData readSection(Reader r, int minSec, int maxSec) {
+    private static SectionData readSection(Reader r) {
         SectionData sd = new SectionData();
         sd.y = -1;
         while (true) {
@@ -411,13 +386,13 @@ public final class VillageWorldImporter {
             }
             String name = r.readString();
             switch (t) {
-                case 1 -> { // TAG_Byte
+                case 1 -> {
                     int v = r.u8();
                     if (name.equals("Y")) {
                         sd.y = v;
                     }
                 }
-                case 7 -> { // TAG_Byte_Array
+                case 7 -> {
                     int n = r.i32();
                     byte[] arr = r.bytes(n);
                     if (name.equals("Blocks") && n == 4096) {
@@ -431,7 +406,7 @@ public final class VillageWorldImporter {
                 default -> skipValue(r, t);
             }
         }
-        if (sd.y >= minSec && sd.y <= maxSec && sd.blocks != null) {
+        if (sd.y >= 0 && sd.y * 16 + 15 >= WORLD_MIN_Y && sd.y * 16 <= WORLD_MAX_Y && sd.blocks != null) {
             return sd;
         }
         return null;

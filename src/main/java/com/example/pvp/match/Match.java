@@ -2960,6 +2960,34 @@ public final class Match {
                 this.manager.cleanupMatch(this);
                 LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
                 return; // 床战已精确清理，不走通用 clearArena
+            } else if (this.type == MatchType.VILLAGE_DEFENSE
+                    && this.villageDefenseLayout != null && this.villageDefenseLayout.minCorner != null) {
+                // 村庄保卫战：按实际导入范围（min/max 角）精确清空方块与实体
+                ArenaWorld arena = this.manager.getArenaManager().getWorld();
+                if (arena != null) {
+                    BlockPos mn = this.villageDefenseLayout.minCorner;
+                    BlockPos mx = this.villageDefenseLayout.maxCorner;
+                    for (int x = mn.getX(); x <= mx.getX(); x++) {
+                        for (int z = mn.getZ(); z <= mx.getZ(); z++) {
+                            for (int y = mn.getY(); y <= mx.getY(); y++) {
+                                BlockPos p = new BlockPos(x, y, z);
+                                if (!arena.getBlockState(p).isAir()) {
+                                    arena.setBlockState(p, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+                                }
+                            }
+                        }
+                    }
+                    net.minecraft.util.math.Box box = new net.minecraft.util.math.Box(
+                            mn.getX() - 2, arena.getBottomY(), mn.getZ() - 2,
+                            mx.getX() + 3, arena.getTopY(), mx.getZ() + 3);
+                    for (net.minecraft.entity.Entity entity : arena.getEntitiesByClass(net.minecraft.entity.Entity.class,
+                            box, e -> !(e instanceof ServerPlayerEntity))) {
+                        entity.discard();
+                    }
+                }
+                this.manager.cleanupMatch(this);
+                LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
+                return;
             } else {
                 mapMaxRadius = 0;
             }
