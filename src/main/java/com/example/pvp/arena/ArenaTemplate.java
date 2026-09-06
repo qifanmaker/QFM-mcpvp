@@ -27,7 +27,8 @@ public class ArenaTemplate {
         TNT_RUN,
         HEARTBEAT,
         HOT_POTATO,
-        BED_WARS
+        BED_WARS,
+        VILLAGE_DEFENSE
     }
 
     private final Layout layout;

@@ -185,6 +185,29 @@ public final class PvPConfig {
     public int hotPotatoRespawnSeconds = 2;
     /** 对局超时（秒）：超时后当前持有者爆炸淘汰。 */
     public int hotPotatoTimeoutSeconds = 600;
+    // ---------- 村庄保卫战 (Village Defense) ----------
+    /** 最少/触发开赛倒计时/最多人数。可单人开；默认凑齐 2 人开赛。 */
+    public int villageDefenseMinPlayers = 1;
+    public int villageDefenseStartPlayers = 2;
+    public int villageDefenseMaxPlayers = 8;
+    /** 开赛倒计时（秒）；不足开赛人数时等待填充的最长时间（秒）。 */
+    public int villageDefenseCountdownSeconds = 30;
+    public int villageDefenseFillTimeoutSeconds = 60;
+    /** 区域覆盖边长（生成/清理边界；地图从 maps/villagedefense/<name>/ 导入）。 */
+    public int villageDefenseSize = 176;
+    /** 对局超时（秒）：超过后按已到波次判定（合作局一般不会触发）。 */
+    public int villageDefenseTimeoutSeconds = 1800;
+    /** 要保护的村民数量（村民出生点不足时循环复用）。 */
+    public int villageDefenseVillagers = 10;
+    /** 胜利目标波次：清完该波即获胜（合作胜利）。 */
+    public int villageDefenseWinWave = 25;
+    /** 波间冷却（秒）：每波打完后到下一波开始。 */
+    public int villageDefenseWaveCooldownSeconds = 25;
+    /** 开局发放的货币(orbs)。 */
+    public int villageDefenseOrbsStart = 20;
+    /** 单波同时在场僵尸数上限；超出部分折算为溢出僵尸加血。 */
+    public int villageDefenseZombieCap = 75;
+
     // ---------- 起床战争 (Bed Wars) ----------
     /** 区域覆盖边长（生成/清理边界，需覆盖整张地图；Hypixel 图约 100 格）。 */
     public int bedWarsSize = 200;
@@ -285,6 +308,54 @@ public final class PvPConfig {
         } else if (this.skywarsRefillSeconds == 300 || this.skywarsRefillSeconds == 240) {
             // 旧默认 300s(5 分钟)/240s(4 分钟) 改为新默认 180s(3 分钟)
             this.skywarsRefillSeconds = defaults.skywarsRefillSeconds;
+            changed = true;
+        }
+        if (this.villageDefenseMinPlayers <= 0) {
+            this.villageDefenseMinPlayers = defaults.villageDefenseMinPlayers;
+            changed = true;
+        }
+        if (this.villageDefenseStartPlayers <= 0) {
+            this.villageDefenseStartPlayers = defaults.villageDefenseStartPlayers;
+            changed = true;
+        }
+        if (this.villageDefenseMaxPlayers <= 0) {
+            this.villageDefenseMaxPlayers = defaults.villageDefenseMaxPlayers;
+            changed = true;
+        }
+        if (this.villageDefenseCountdownSeconds <= 0) {
+            this.villageDefenseCountdownSeconds = defaults.villageDefenseCountdownSeconds;
+            changed = true;
+        }
+        if (this.villageDefenseFillTimeoutSeconds <= 0) {
+            this.villageDefenseFillTimeoutSeconds = defaults.villageDefenseFillTimeoutSeconds;
+            changed = true;
+        }
+        if (this.villageDefenseSize <= 0) {
+            this.villageDefenseSize = defaults.villageDefenseSize;
+            changed = true;
+        }
+        if (this.villageDefenseTimeoutSeconds <= 0) {
+            this.villageDefenseTimeoutSeconds = defaults.villageDefenseTimeoutSeconds;
+            changed = true;
+        }
+        if (this.villageDefenseVillagers <= 0) {
+            this.villageDefenseVillagers = defaults.villageDefenseVillagers;
+            changed = true;
+        }
+        if (this.villageDefenseWinWave <= 0) {
+            this.villageDefenseWinWave = defaults.villageDefenseWinWave;
+            changed = true;
+        }
+        if (this.villageDefenseWaveCooldownSeconds <= 0) {
+            this.villageDefenseWaveCooldownSeconds = defaults.villageDefenseWaveCooldownSeconds;
+            changed = true;
+        }
+        if (this.villageDefenseOrbsStart < 0) {
+            this.villageDefenseOrbsStart = defaults.villageDefenseOrbsStart;
+            changed = true;
+        }
+        if (this.villageDefenseZombieCap <= 0) {
+            this.villageDefenseZombieCap = defaults.villageDefenseZombieCap;
             changed = true;
         }
         if (this.luckyPillarMinPlayers <= 0) {

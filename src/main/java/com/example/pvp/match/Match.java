@@ -3714,6 +3714,7 @@ public final class Match {
             case HOT_POTATO -> "§c";
             case BED_WARS -> "§d";
             case BED_WARS_DOUBLES -> "§5";
+            case VILLAGE_DEFENSE -> "§2";
         };
         return "模式: " + color + this.type.getDisplayName();
     }
@@ -3740,6 +3741,7 @@ public final class Match {
             case FFA -> "§7地图: §e自由竞技场";
             case BED_WARS, BED_WARS_DOUBLES -> "§7地图: §e" + (this.bedWarsLayout != null
                     ? this.bedWarsLayout.mapName() : "-");
+            case VILLAGE_DEFENSE -> "§7地图: §eVD"; // 地图名在 Match 接线后替换为导入的地图名
         };
     }
 

@@ -609,6 +609,7 @@ public final class MatchManager {
             case HEARTBEAT -> PvPConfig.INSTANCE.heartbeatSize;
             case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoSize;
             case BED_WARS, BED_WARS_DOUBLES -> PvPConfig.INSTANCE.bedWarsSize;
+            case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
@@ -621,12 +622,13 @@ public final class MatchManager {
             case HEARTBEAT -> ArenaTemplate.Layout.HEARTBEAT;
             case HOT_POTATO -> ArenaTemplate.Layout.HOT_POTATO;
             case BED_WARS, BED_WARS_DOUBLES -> ArenaTemplate.Layout.BED_WARS;
+            case VILLAGE_DEFENSE -> ArenaTemplate.Layout.VILLAGE_DEFENSE;
         };
-        // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战无围墙；其地图本身由各自生成器铺
+        // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战/村庄保卫战无围墙；其地图本身由各自生成器铺
         boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
                 && type != MatchType.LUCKY_PILLAR && type != MatchType.TNT_RUN
                 && type != MatchType.HEARTBEAT && type != MatchType.HOT_POTATO
-                && !type.isBedWars();
+                && !type.isBedWars() && type != MatchType.VILLAGE_DEFENSE;
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 

@@ -21,7 +21,8 @@ public enum MatchType {
     HEARTBEAT("heartbeat", "心跳水立方"),
     HOT_POTATO("hotpotato", "烫手山芋"),
     BED_WARS("bedwars", "起床战争"),
-    BED_WARS_DOUBLES("bedwars2", "起床战争(双人)");
+    BED_WARS_DOUBLES("bedwars2", "起床战争(双人)"),
+    VILLAGE_DEFENSE("villagedefense", "村庄保卫战");
 
     private final String id;
     private final String displayName;
@@ -51,6 +52,7 @@ public enum MatchType {
             case HEARTBEAT -> PvPConfig.INSTANCE.heartbeatMinPlayers;
             case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoMinPlayers;
             case BED_WARS, BED_WARS_DOUBLES -> 2; // 灵活：按人数启用前 N 队
+            case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseMinPlayers; // 合作守村，可单人
         };
     }
 
