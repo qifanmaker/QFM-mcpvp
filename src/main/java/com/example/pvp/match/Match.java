@@ -193,6 +193,8 @@ public final class Match {
     private final List<LivingEntity> vdPets = new ArrayList<>();
     private final Map<UUID, UUID> vdPetOwner = new HashMap<>();     // 宠物 uuid → 玩家 uuid
     private final Map<UUID, Integer> vdPetLevel = new HashMap<>();  // 宠物 uuid → 已升级次数(伤害/血量)
+    /** 宠物三系等级：[0]伤害 [1]生命 [2]速度。 */
+    private final Map<UUID, int[]> vdPetStat = new HashMap<>();
     /** 秘密之井：地图上的漏斗位置 + 收集的腐肉/井等级（对齐 VD RottenFlesh）。 */
     private final List<BlockPos> vdWellHoppers = new ArrayList<>();
     private int vdFleshAmount;
@@ -4181,6 +4183,7 @@ public final class Match {
             if (p.isRemoved() || !p.isAlive()) {
                 this.vdPetOwner.remove(p.getUuid());
                 this.vdPetLevel.remove(p.getUuid());
+                this.vdPetStat.remove(p.getUuid());
                 return true;
             }
             return false;
@@ -4493,21 +4496,19 @@ public final class Match {
         }
         net.minecraft.entity.mob.MobEntity pet;
         if (own >= cap) {
-            // 升级已有宠物
-            LivingEntity exist = null;
+            // 达全局上限：若自己有该类宠物，引导用升级菜单提升
+            boolean hasOwn = false;
             for (LivingEntity p : this.vdPets) {
                 UUID o = this.vdPetOwner.get(p.getUuid());
                 if (o != null && o.equals(sp.getUuid())
                         && (p instanceof net.minecraft.entity.passive.IronGolemEntity) == golem) {
-                    exist = p;
+                    hasOwn = true;
                     break;
                 }
             }
-            if (exist == null) {
-                return;
-            }
-            this.vdUpgradePet(exist);
-            sp.sendMessage(Messages.gold("你的" + (golem ? "铁傀儡" : "狼") + " 升级了！（血量/伤害提升）"), false);
+            sp.sendMessage(Messages.warn(hasOwn
+                    ? "该类宠物已达上限，潜行+右击你的宠物可打开升级菜单"
+                    : "场上的该类宠物已满（上限 " + cap + "）"));
             return;
         }
         pet = golem
@@ -4531,7 +4532,8 @@ public final class Match {
         this.vdPets.add(pet);
         this.vdPetOwner.put(pet.getUuid(), sp.getUuid());
         this.vdPetLevel.put(pet.getUuid(), 0);
-        sp.sendMessage(Messages.gold("已召唤" + (golem ? "铁傀儡" : "狼") + "！再次购买可升级"), false);
+        this.vdPetStat.put(pet.getUuid(), new int[3]);
+        sp.sendMessage(Messages.gold("已召唤" + (golem ? "铁傀儡" : "狼") + "！潜行右击宠物可升级"), false);
     }
 
     private void vdUpgradePet(LivingEntity pet) {
@@ -4546,6 +4548,70 @@ public final class Match {
         if (pet.getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE) != null) {
             pet.getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE).setBaseValue(baseAtk + lv * 2);
         }
+    }
+
+    // ---------- 宠物升级菜单 ----------
+
+    public int[] vdPetStatsOf(LivingEntity pet) {
+        return this.vdPetStat.computeIfAbsent(pet.getUuid(), k -> new int[3]);
+    }
+
+    public int vdPetUpgradeCost(LivingEntity pet, int kind) {
+        return 40 + (this.vdPetStatsOf(pet)[kind] + 1) * 35;
+    }
+
+    /** 升级宠物某系：扣 orbs 并应用。成功返回 true（菜单刷新）。 */
+    public boolean vdPetBuyUpgrade(ServerPlayerEntity sp, LivingEntity pet, int kind) {
+        if (this.state != MatchState.ACTIVE || pet.isRemoved() || !pet.isAlive()) {
+            return false;
+        }
+        UUID owner = this.vdPetOwner.get(pet.getUuid());
+        if (owner == null || !owner.equals(sp.getUuid())) {
+            sp.sendMessage(Messages.error("只能升级自己的宠物"), false);
+            return false;
+        }
+        int cost = this.vdPetUpgradeCost(pet, kind);
+        if (this.vdOrbsOf(sp) < cost) {
+            sp.sendMessage(Messages.error("货币不足（需 " + cost + "）"), false);
+            return false;
+        }
+        this.vdAddOrbs(sp, -cost, false);
+        this.vdPetStatsOf(pet)[kind]++;
+        this.applyPetStats(pet);
+        sp.sendMessage(Messages.info("宠物已升级："
+                + (kind == 0 ? "伤害" : kind == 1 ? "生命" : "速度")), false);
+        return true;
+    }
+
+    /** 按三系等级应用宠物属性。 */
+    private void applyPetStats(LivingEntity pet) {
+        int[] st = this.vdPetStatsOf(pet);
+        boolean golem = pet instanceof net.minecraft.entity.passive.IronGolemEntity;
+        double baseHp = golem ? 100 : 20;
+        double baseAtk = golem ? 8 : 4;
+        double baseSpd = golem ? 0.25 : 0.3;
+        pet.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH)
+                .setBaseValue(baseHp + st[1] * 20);
+        pet.setHealth((float) (baseHp + st[1] * 20));
+        if (pet.getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE) != null) {
+            pet.getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE).setBaseValue(baseAtk + st[0] * 2);
+        }
+        if (pet.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED) != null) {
+            pet.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED)
+                    .setBaseValue(baseSpd + st[2] * 0.02);
+        }
+    }
+
+    /** 潜行+右击自己的宠物 → 打开升级菜单。 */
+    public void openVillageDefensePetUpgrade(ServerPlayerEntity sp, LivingEntity pet) {
+        if (this.state != MatchState.ACTIVE || pet.isRemoved() || !pet.isAlive()) {
+            return;
+        }
+        UUID owner = this.vdPetOwner.get(pet.getUuid());
+        if (owner == null || !owner.equals(sp.getUuid())) {
+            return;
+        }
+        VillageDefensePetUpgrade.open(sp, this, pet);
     }
 
     /** 宠物逐 tick：让狼/傀儡锁定最近僵尸；无敌人则跟随主人。 */

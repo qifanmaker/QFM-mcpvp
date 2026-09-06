@@ -393,6 +393,14 @@ public final class PvPMod implements ModInitializer {
                 if (match != null && match.tryOpenBedwarsShop(sp, entity)) {
                     return ActionResult.SUCCESS;
                 }
+                // 村庄保卫战：潜行右击自己的宠物 = 升级菜单
+                if (match != null && match.getType() == MatchType.VILLAGE_DEFENSE && sp.isSneaking()
+                        && (entity instanceof net.minecraft.entity.passive.IronGolemEntity
+                        || entity instanceof net.minecraft.entity.passive.WolfEntity)
+                        && entity instanceof net.minecraft.entity.LivingEntity petLe) {
+                    match.openVillageDefensePetUpgrade(sp, petLe);
+                    return ActionResult.SUCCESS;
+                }
                 // 村庄保卫战：右击村民 = 商店；潜行右击 = 秘密之井献祭腐肉（均阻止原版交易）
                 if (match != null && match.getType() == MatchType.VILLAGE_DEFENSE
                         && entity instanceof net.minecraft.entity.passive.VillagerEntity) {
