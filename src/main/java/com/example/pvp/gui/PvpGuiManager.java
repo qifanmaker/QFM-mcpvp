@@ -419,6 +419,13 @@ public final class PvpGuiManager {
                 "场上唯一一颗山芋，左键点击其他玩家传递",
                 "持有时间到会爆炸淘汰，障碍物地图可绕行",
                 "最后存活者获胜，点击直接加入"));
+        inv.setStack(13, queueButton(Items.VILLAGER_SPAWN_EGG, "§2村庄保卫战", player, MatchType.VILLAGE_DEFENSE,
+                PvPConfig.INSTANCE.villageDefenseMinPlayers + "~" + PvPConfig.INSTANCE.villageDefenseMaxPlayers
+                        + " 人，凑齐 " + PvPConfig.INSTANCE.villageDefenseStartPlayers + " 人开赛",
+                "合作守住村庄、保护村民，抵挡一波波僵尸",
+                "杀怪/过波得 orbs，右击村民进商店买装备/召唤狼/铁傀儡",
+                "潜行右击村民可献祭腐肉给全队加血",
+                "守到终波全员获胜，点击直接加入"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
@@ -806,6 +813,7 @@ public final class PvpGuiManager {
             case 10 -> MatchType.TNT_RUN;
             case 11 -> MatchType.HEARTBEAT;
             case 12 -> MatchType.HOT_POTATO;
+            case 13 -> MatchType.VILLAGE_DEFENSE;
             default -> null;
         };
         if (type == null) {
@@ -815,6 +823,7 @@ public final class PvpGuiManager {
             case LUCKY_PILLAR -> KitManager.luckyPillarKit();
             case TNT_RUN -> KitManager.tntRunKit();
             case HEARTBEAT -> KitManager.heartbeatKit();
+            case VILLAGE_DEFENSE -> KitManager.villageDefenseKit();
             default -> KitManager.hotPotatoKit();
         };
         this.joinQueue(player, type, kit);

@@ -189,6 +189,10 @@ public final class Match {
     private final Set<UUID> vdWaitingPlayers = new HashSet<>();      // 死亡等待下波复活的玩家
     /** 场上敌人类型（uuid→kind）：normal/fast/baby/hard/softhard/tank/invisible/villagerslayer/buster）。 */
     private final Map<UUID, String> vdEnemyKind = new HashMap<>();
+    /** 场上宠物（铁傀儡/狼），按实体记录所有者与等级。 */
+    private final List<LivingEntity> vdPets = new ArrayList<>();
+    private final Map<UUID, UUID> vdPetOwner = new HashMap<>();     // 宠物 uuid → 玩家 uuid
+    private final Map<UUID, Integer> vdPetLevel = new HashMap<>();  // 宠物 uuid → 已升级次数(伤害/血量)
     private int vdWave;          // 当前波次（0=尚未开始）
     private boolean vdFighting;  // 战斗进行中 / 波间冷却
     private int vdTimer;         // 阶段倒计时（tick）
@@ -4016,6 +4020,7 @@ public final class Match {
                 && this.vdPlayersOnline().contains(killer)) {
             int reward = 1 + this.random.nextInt(2);
             this.vdAddOrbs(killer, reward, false);
+            this.vdRollPowerUp(killer);
         }
     }
 
@@ -4160,9 +4165,17 @@ public final class Match {
         if (this.villageDefenseLayout == null) {
             return;
         }
-        // 清理已死的敌人/村民
+        // 清理已死的敌人/村民/宠物
         this.vdEnemies.removeIf(e -> e.isRemoved() || !e.isAlive());
         this.vdVillagers.removeIf(v -> v.isRemoved() || !v.isAlive());
+        this.vdPets.removeIf(p -> {
+            if (p.isRemoved() || !p.isAlive()) {
+                this.vdPetOwner.remove(p.getUuid());
+                this.vdPetLevel.remove(p.getUuid());
+                return true;
+            }
+            return false;
+        });
 
         // 失败判定：村民全灭 或 无人存活守卫
         if (this.vdFighting && (this.vdVillagers.isEmpty() || this.vdAlivePlayerCount() <= 0)) {
@@ -4424,11 +4437,211 @@ public final class Match {
         zombie.discard();
     }
 
-    /** 僵尸寻路/破门/村民逃散。 */
+    // ==================== 宠物（铁傀儡 / 狼） ====================
+
+    /** 玩家拥有的某类宠物数（活着的）。 */
+    private int vdPetCount(ServerPlayerEntity owner, boolean golem) {
+        int n = 0;
+        for (LivingEntity pet : this.vdPets) {
+            UUID o = this.vdPetOwner.get(pet.getUuid());
+            if (o != null && o.equals(owner.getUuid()) && (pet instanceof net.minecraft.entity.passive.IronGolemEntity) == golem) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** 购买/召唤宠物：铁傀儡 & 狼。超过单玩家上限 → 升级已召唤的那只（伤害/血量随等级成长）。 */
+    public void vdSpawnPet(ServerPlayerEntity sp, String kind) {
+        ArenaWorld arena = this.vdArena();
+        if (arena == null || this.state != MatchState.ACTIVE
+                || this.vdWaitingPlayers.contains(sp.getUuid())) {
+            return;
+        }
+        boolean golem = kind.equals("golem");
+        int cap = golem ? 2 : 4;
+        int own = this.vdPetCount(sp, golem);
+        net.minecraft.entity.mob.MobEntity pet;
+        if (own >= cap) {
+            // 升级已有宠物
+            LivingEntity exist = null;
+            for (LivingEntity p : this.vdPets) {
+                UUID o = this.vdPetOwner.get(p.getUuid());
+                if (o != null && o.equals(sp.getUuid())
+                        && (p instanceof net.minecraft.entity.passive.IronGolemEntity) == golem) {
+                    exist = p;
+                    break;
+                }
+            }
+            if (exist == null) {
+                return;
+            }
+            this.vdUpgradePet(exist);
+            sp.sendMessage(Messages.gold("你的" + (golem ? "铁傀儡" : "狼") + " 升级了！（血量/伤害提升）"), false);
+            return;
+        }
+        pet = golem
+                ? new net.minecraft.entity.passive.IronGolemEntity(net.minecraft.entity.EntityType.IRON_GOLEM, arena)
+                : new net.minecraft.entity.passive.WolfEntity(net.minecraft.entity.EntityType.WOLF, arena);
+        pet.refreshPositionAndAngles(sp.getX(), sp.getY(), sp.getZ(), sp.getYaw(), 0);
+        pet.setPersistent();
+        if (!golem) {
+            net.minecraft.entity.passive.WolfEntity wolf = (net.minecraft.entity.passive.WolfEntity) pet;
+            wolf.setOwnerUuid(sp.getUuid());
+            wolf.setTamed(true, true);
+            wolf.setSitting(false);
+            wolf.setCustomName(Text.literal("§b" + sp.getGameProfile().getName() + " 的狼"));
+            wolf.setCustomNameVisible(true);
+        } else {
+            net.minecraft.entity.passive.IronGolemEntity g = (net.minecraft.entity.passive.IronGolemEntity) pet;
+            g.setCustomName(Text.literal("§7" + sp.getGameProfile().getName() + " 的铁傀儡"));
+            g.setCustomNameVisible(true);
+        }
+        arena.spawnEntity(pet);
+        this.vdPets.add(pet);
+        this.vdPetOwner.put(pet.getUuid(), sp.getUuid());
+        this.vdPetLevel.put(pet.getUuid(), 0);
+        sp.sendMessage(Messages.gold("已召唤" + (golem ? "铁傀儡" : "狼") + "！再次购买可升级"), false);
+    }
+
+    private void vdUpgradePet(LivingEntity pet) {
+        int lv = this.vdPetLevel.getOrDefault(pet.getUuid(), 0) + 1;
+        this.vdPetLevel.put(pet.getUuid(), lv);
+        boolean golem = pet instanceof net.minecraft.entity.passive.IronGolemEntity;
+        double baseHp = golem ? 100 : 20;
+        double baseAtk = golem ? 8 : 4;
+        pet.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH)
+                .setBaseValue(baseHp + lv * 20);
+        pet.setHealth((float) (baseHp + lv * 20));
+        if (pet.getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE) != null) {
+            pet.getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE).setBaseValue(baseAtk + lv * 2);
+        }
+    }
+
+    /** 宠物逐 tick：让狼/傀儡锁定最近僵尸；无敌人则跟随主人。 */
+    private void vdPetTick() {
+        if (this.vdPets.isEmpty()) {
+            return;
+        }
+        if (this.ticks % 5 != 0) {
+            return;
+        }
+        for (LivingEntity pet : new ArrayList<>(this.vdPets)) {
+            if (pet.isRemoved() || !pet.isAlive()) {
+                this.vdPetOwner.remove(pet.getUuid());
+                this.vdPetLevel.remove(pet.getUuid());
+                this.vdPets.remove(pet);
+                continue;
+            }
+            if (!(pet instanceof net.minecraft.entity.mob.MobEntity mob)) {
+                continue;
+            }
+            LivingEntity target = null;
+            double best = Double.MAX_VALUE;
+            for (LivingEntity e : this.vdEnemies) {
+                if (!e.isAlive()) {
+                    continue;
+                }
+                double d = pet.squaredDistanceTo(e);
+                if (d < best) {
+                    best = d;
+                    target = e;
+                }
+            }
+            if (target != null) {
+                mob.setTarget(target);
+            } else {
+                mob.setTarget(null);
+            }
+        }
+    }
+
+    // ==================== 力量道具（击杀概率自动触发） ====================
+
+    private void vdRollPowerUp(ServerPlayerEntity killer) {
+        if (this.random.nextInt(100) >= 6) {
+            return; // 6% 概率
+        }
+        ArenaWorld arena = this.vdArena();
+        int roll = this.random.nextInt(100);
+        if (roll < 30) {
+            // 回复：满血 + 吸收
+            killer.setHealth(killer.getMaxHealth());
+            killer.setAbsorptionAmount(6);
+            killer.sendMessage(Messages.gold("力量道具：§a生命恢复！"), false);
+        } else if (roll < 55) {
+            // 双倍伤害：力量 II 15 秒
+            killer.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, 15 * 20, 1, false, false, true));
+            killer.sendMessage(Messages.gold("力量道具：§c双倍伤害（15 秒）！"), false);
+        } else if (roll < 75) {
+            // 速度 II
+            killer.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 20 * 20, 1, false, false, true));
+            killer.sendMessage(Messages.gold("力量道具：§b速度 II（20 秒）！"), false);
+        } else if (roll < 92) {
+            // 清屏：消灭所有场上敌人
+            for (LivingEntity e : new ArrayList<>(this.vdEnemies)) {
+                e.discard();
+            }
+            this.vdEnemies.clear();
+            this.vdEnemyKind.clear();
+            this.broadcast(Messages.gold("力量道具：§d地图清扫！所有僵尸被消灭"));
+        } else {
+            // 傀儡支援
+            if (arena != null) {
+                this.vdSpawnPet(killer, "golem");
+                killer.sendMessage(Messages.gold("力量道具：§7铁傀儡支援！"), false);
+            }
+        }
+    }
+
+    // ==================== 秘密之井（献祭腐肉 → 全队加最大生命） ====================
+
+    /** 潜行+村民：把 16 个腐肉献祭，全队最大生命 +2（最多 +20）。 */
+    public void vdDonateFlesh(ServerPlayerEntity sp) {
+        int flesh = 0;
+        for (net.minecraft.item.ItemStack stack : sp.getInventory().main) {
+            if (stack.isOf(net.minecraft.item.Items.ROTTEN_FLESH)) {
+                flesh += stack.getCount();
+            }
+        }
+        if (flesh < 16) {
+            sp.sendMessage(Messages.error("秘密之井需要至少 16 个腐肉（你有 " + flesh + "）"), false);
+            return;
+        }
+        int need = 16;
+        for (net.minecraft.item.ItemStack stack : sp.getInventory().main) {
+            if (need <= 0) {
+                break;
+            }
+            if (stack.isOf(net.minecraft.item.Items.ROTTEN_FLESH)) {
+                int take = Math.min(need, stack.getCount());
+                stack.decrement(take);
+                need -= take;
+            }
+        }
+        // 全队最大生命 +2（上限 +20，即 +10 次）
+        boolean leveled = false;
+        for (ServerPlayerEntity p : this.vdPlayersOnline()) {
+            double cap = 20 + 20;
+            double cur = p.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).getBaseValue();
+            if (cur < cap) {
+                p.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(Math.min(cap, cur + 2));
+                p.setHealth(p.getMaxHealth());
+                leveled = true;
+            }
+        }
+        this.broadcast(Messages.gold(sp.getGameProfile().getName() + " 向秘密之井献祭了 16 个腐肉！全队最大生命提升！"));
+        if (!leveled) {
+            sp.sendMessage(Messages.warn("全队生命已到上限"), false);
+        }
+    }
+
+    /** 僵尸寻路/破门/村民逃散/宠物索敌。 */
     private void vdEnemyTick() {
         if (this.vdEnemies.isEmpty()) {
             return;
         }
+        this.vdPetTick();
         List<LivingEntity> targets = new ArrayList<>();
         targets.addAll(this.vdPlayersOnline().stream()
                 .filter(p -> !this.vdWaitingPlayers.contains(p.getUuid())).collect(java.util.stream.Collectors.toList()));

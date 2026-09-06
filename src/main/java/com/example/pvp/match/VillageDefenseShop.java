@@ -15,31 +15,36 @@ import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 村庄保卫战商店：右击村民打开。用 orbs(货币) 购买装备/门/狼/傀儡。
- * 复刻 BedWarsShopManager 的 ScreenHandler 模式；点按即买，货币不足给提示。
+ * 村庄保卫战商店：右击村民打开。用 orbs(货币) 购买装备/门/召唤宠物。
+ * 复刻 BedWarsShopManager 的 ScreenHandler 模式；点按即购，货币不足给提示。
  */
 public final class VillageDefenseShop {
 
     private VillageDefenseShop() {
     }
 
-    public record Offer(String name, Item item, int count, int cost) {
+    /** action = null → 给物品；"golem"/"wolf" → 召唤/升级宠物。 */
+    public record Offer(String name, Item item, int count, int cost, String action) {
+        Offer(String name, Item item, int count, int cost) {
+            this(name, item, count, cost, null);
+        }
     }
 
     private static final List<Offer> OFFERS = List.of(
             new Offer("石剑", Items.STONE_SWORD, 1, 60),
             new Offer("铁剑", Items.IRON_SWORD, 1, 130),
             new Offer("钻石剑", Items.DIAMOND_SWORD, 1, 340),
-            new Offer("弓 + 箭", Items.BOW, 1, 160),
+            new Offer("弓", Items.BOW, 1, 160),
             new Offer("箭 × 16", Items.ARROW, 16, 60),
             new Offer("铁胸甲", Items.IRON_CHESTPLATE, 1, 160),
             new Offer("铁护腿", Items.IRON_LEGGINGS, 1, 130),
             new Offer("金苹果 × 2", Items.GOLDEN_APPLE, 2, 80),
-            new Offer("木门 × 4", Items.OAK_DOOR, 4, 50)
+            new Offer("木门 × 4", Items.OAK_DOOR, 4, 50),
+            new Offer("召唤铁傀儡", Items.IRON_GOLEM_SPAWN_EGG, 1, 400, "golem"),
+            new Offer("召唤狼", Items.WOLF_SPAWN_EGG, 1, 250, "wolf")
     );
 
     public static void open(ServerPlayerEntity player, Match match) {
@@ -60,22 +65,24 @@ public final class VillageDefenseShop {
     }
 
     static final class ShopHandler extends ScreenHandler {
-        private static final int SHOP_SIZE = 9;
+        private static final int SHOP_SIZE = 18; // 2 行
         private final SimpleInventory shop = new SimpleInventory(SHOP_SIZE);
         private Match match;
 
         ShopHandler(int syncId, PlayerInventory playerInventory) {
-            super(ScreenHandlerType.GENERIC_9X1, syncId);
-            for (int i = 0; i < SHOP_SIZE; i++) {
-                this.addSlot(new Slot(this.shop, i, 8 + i * 18, 20));
+            super(ScreenHandlerType.GENERIC_9X2, syncId);
+            for (int row = 0; row < 2; row++) {
+                for (int col = 0; col < 9; col++) {
+                    this.addSlot(new Slot(this.shop, col + row * 9, 8 + col * 18, 18 + row * 18));
+                }
             }
             for (int row = 0; row < 3; row++) {
                 for (int col = 0; col < 9; col++) {
-                    this.addSlot(new Slot(playerInventory, 9 + col + row * 9, 8 + col * 18, 51 + row * 18));
+                    this.addSlot(new Slot(playerInventory, 9 + col + row * 9, 8 + col * 18, 59 + row * 18));
                 }
             }
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 109));
+                this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 117));
             }
         }
 
@@ -118,6 +125,12 @@ public final class VillageDefenseShop {
             int orbs = this.match.vdOrbsOf(sp);
             if (orbs < offer.cost) {
                 sp.sendMessage(Messages.error("货币不足（需要 " + offer.cost + "，你有 " + orbs + "）"), false);
+                return;
+            }
+            // 宠物/动作类商品
+            if (offer.action != null) {
+                this.match.vdAddOrbs(sp, -offer.cost, false);
+                this.match.vdSpawnPet(sp, offer.action);
                 return;
             }
             ItemStack toGive = new ItemStack(offer.item, offer.count);
