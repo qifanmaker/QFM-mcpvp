@@ -3777,7 +3777,8 @@ public final class Match {
                     break;
                 }
                 int idx = this.teams.indexOf(team);
-                boolean bed = idx >= 0 && idx < this.bedWarsBedAlive.length && this.bedWarsBedAlive[idx];
+                boolean bed = this.type.isBedWars() && idx >= 0 && idx < this.bedWarsBedAlive.length
+                        && this.bedWarsBedAlive[idx];
                 String teamLine;
                 if (this.type.isBedWars()) {
                     teamLine = team.getColor() + "● " + team.getName() + " §7("
