@@ -4078,16 +4078,26 @@ public final class Match {
         return new BlockPos(v.getX(), v.getY() + 4, v.getZ());
     }
 
-    private int vdOrbsOf(ServerPlayerEntity p) {
+    public int vdOrbsOf(ServerPlayerEntity p) {
         return this.vdOrbs.getOrDefault(p.getUuid(), 0);
     }
 
-    private void vdAddOrbs(ServerPlayerEntity p, int amount, boolean silent) {
+    public void vdAddOrbs(ServerPlayerEntity p, int amount, boolean silent) {
         int now = this.vdOrbsOf(p) + amount;
         this.vdOrbs.put(p.getUuid(), now);
         if (!silent) {
-            p.sendMessage(Messages.gold("货币 §e+" + amount + "§r（共 " + now + "）"), false);
+            p.sendMessage(Messages.gold("货币 §e" + (amount >= 0 ? "+" + amount : String.valueOf(amount))
+                    + "§r（共 " + now + "）"), false);
         }
+    }
+
+    /** 村庄保卫战：玩家在 ACTIVE 且未阵亡等待时，右击村民打开商店。 */
+    public void openVillageDefenseShop(ServerPlayerEntity player) {
+        if (this.state != MatchState.ACTIVE || this.vdWaitingPlayers.contains(player.getUuid())
+                || this.villageDefenseLayout == null) {
+            return;
+        }
+        VillageDefenseShop.open(player, this);
     }
 
     /** 对局开始：刷村民、发货币、25s 后第 1 波。 */

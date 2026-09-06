@@ -393,6 +393,12 @@ public final class PvPMod implements ModInitializer {
                 if (match != null && match.tryOpenBedwarsShop(sp, entity)) {
                     return ActionResult.SUCCESS;
                 }
+                // 村庄保卫战：右击村民打开 orbs 商店（阻止原版交易）
+                if (match != null && match.getType() == MatchType.VILLAGE_DEFENSE
+                        && entity instanceof net.minecraft.entity.passive.VillagerEntity) {
+                    match.openVillageDefenseShop(sp);
+                    return ActionResult.SUCCESS;
+                }
             }
             return ActionResult.PASS;
         });
