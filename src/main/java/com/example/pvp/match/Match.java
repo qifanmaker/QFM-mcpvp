@@ -5478,60 +5478,7 @@ public final class Match {
             return;
         }
         this.vdPetTick();
-        List<LivingEntity> targets = new ArrayList<>();
-        targets.addAll(this.vdPlayersOnline().stream()
-                .filter(p -> !this.vdWaitingPlayers.contains(p.getUuid())).collect(java.util.stream.Collectors.toList()));
-        targets.addAll(this.vdVillagers);
-        // 铁傀儡也纳入候选（僵尸会反击傀儡；傀儡克星专门追它们）
-        for (LivingEntity pet : this.vdPets) {
-            if (pet instanceof net.minecraft.entity.passive.IronGolemEntity && pet.isAlive()) {
-                targets.add(pet);
-            }
-        }
-
-        // 每 10 tick 选目标：村民杀手只打村民，其余优先最近的村民/玩家
-        if (this.ticks % 10 == 0) {
-            for (LivingEntity z : this.vdEnemies) {
-                String kind = this.vdEnemyKind.get(z.getUuid());
-                boolean slayer = "villagerslayer".equals(kind);
-                boolean golemBuster = "golembuster".equals(kind);
-                LivingEntity best = null;
-                double bestDist = Double.MAX_VALUE;
-                for (LivingEntity t : targets) {
-                    if (t == null || !t.isAlive()) {
-                        continue;
-                    }
-                    if (slayer && !(t instanceof VillagerEntity)) {
-                        continue; // 村民杀手无视玩家，直扑村民
-                    }
-                    if (golemBuster && !(t instanceof net.minecraft.entity.passive.IronGolemEntity)) {
-                        continue; // 傀儡克星优先铁傀儡（候选池含 golems）
-                    }
-                    double d = z.squaredDistanceTo(t);
-                    if (d < bestDist) {
-                        bestDist = d;
-                        best = t;
-                    }
-                }
-                if (best == null && golemBuster) {
-                    // 无铁傀儡时退而攻击玩家
-                    bestDist = Double.MAX_VALUE;
-                    for (LivingEntity t : targets) {
-                        if (t != null && t.isAlive() && !(t instanceof VillagerEntity)) {
-                            double d = z.squaredDistanceTo(t);
-                            if (d < bestDist) {
-                                bestDist = d;
-                                best = t;
-                            }
-                        }
-                    }
-                }
-                if (best != null && z instanceof MobEntity mob) {
-                    mob.setTarget(best);
-                }
-            }
-        }
-
+        // 寻路/索敌走原版 AI：僵尸自动追玩家/村民，不再手动 setTarget（避免寻路抖动/卡墙）
         // 村民克星：接触到村民才自爆（玩家克星/傀儡克星在 vdEnemyDamaged 里受击自爆）
         if (this.ticks % 3 == 0) {
             for (LivingEntity z : new ArrayList<>(this.vdEnemies)) {
@@ -5551,33 +5498,7 @@ public final class Match {
             }
         }
 
-        // 村民逃散：远离最近僵尸
-        if (!this.vdVillagers.isEmpty() && !this.vdEnemies.isEmpty()) {
-            for (VillagerEntity v : this.vdVillagers) {
-                if (!v.isAlive()) {
-                    continue;
-                }
-                LivingEntity nearest = null;
-                double nd = 36; // 6^2
-                for (LivingEntity z : this.vdEnemies) {
-                    double d = v.squaredDistanceTo(z);
-                    if (d < nd) {
-                        nd = d;
-                        nearest = z;
-                    }
-                }
-                if (nearest != null) {
-                    double dx = v.getX() - nearest.getX();
-                    double dz = v.getZ() - nearest.getZ();
-                    double len = Math.sqrt(dx * dx + dz * dz);
-                    if (len > 0.001) {
-                        double tx = v.getX() + dx / len * 6;
-                        double tz = v.getZ() + dz / len * 6;
-                        v.getNavigation().startMovingTo(tx, v.getY(), tz, 0.6);
-                    }
-                }
-            }
-        }
+        // 村民逃跑也走原版 AI（不手动推挤）
 
         // 破门：敌人贴到门 → 概率破坏
         if (this.ticks % 4 == 0 && this.villageDefenseLayout != null) {
