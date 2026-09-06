@@ -198,6 +198,11 @@ public final class Match {
     private final Map<UUID, int[]> vdPetStat = new HashMap<>();
     /** 地图编辑模式：玩家 uuid → 进入编辑前游戏模式（保存恢复用）。 */
     private final Map<UUID, net.minecraft.world.GameMode> vdEditors = new HashMap<>();
+    /** 待下一 tick 引爆的克星（不能在伤害事件里即时 discard，避免原版实体集 NPE）。 */
+    private final java.util.Set<LivingEntity> vdBoom = new java.util.HashSet<>();
+    /** 待下一 tick 统一 discard 的实体（死亡/清屏事件里延迟处理）。 */
+    private final java.util.Set<LivingEntity> vdDiscardLater = new java.util.HashSet<>();
+
     /** 秘密之井：地图上的漏斗位置 + 收集的腐肉/井等级（对齐 VD RottenFlesh）。 */
     private final List<BlockPos> vdWellHoppers = new ArrayList<>();
     private int vdFleshAmount;
@@ -4450,6 +4455,7 @@ public final class Match {
             this.vdWellTick(arena0);
         }
         this.vdKitTick();
+        this.vdProcessDeferred();
         // 清理已死的敌人/村民/宠物
         this.vdEnemies.removeIf(e -> e.isRemoved() || !e.isAlive());
         this.vdVillagers.removeIf(v -> v.isRemoved() || !v.isAlive());
@@ -4733,7 +4739,7 @@ public final class Match {
         this.vdMedicHeal(enemy, source); // medic 被动：命中 30% 治疗附近玩家
         String kind = this.vdEnemyKind.get(enemy.getUuid());
         if ("playerbuster".equals(kind) || "golembuster".equals(kind) || "villagerbuster".equals(kind)) {
-            this.vdBusterExplode(enemy);
+            this.vdBoom.add(enemy); // 延迟到下一 tick 引爆（不在伤害事件里 discard）
         }
     }
 
@@ -4961,10 +4967,8 @@ public final class Match {
             killer.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, 20 * 20, 1, false, false, true));
             killer.sendMessage(Messages.gold("力量道具：§b速度 II（20 秒）！"), false);
         } else if (roll < 92) {
-            // 清屏：消灭所有场上敌人
-            for (LivingEntity e : new ArrayList<>(this.vdEnemies)) {
-                e.discard();
-            }
+            // 清屏：消灭所有场上敌人（延迟 discard，避免在击杀事件里删实体）
+            this.vdDiscardLater.addAll(this.vdEnemies);
             this.vdEnemies.clear();
             this.vdEnemyKind.clear();
             this.broadcast(Messages.gold("力量道具：§d地图清扫！所有僵尸被消灭"));
@@ -5148,6 +5152,28 @@ public final class Match {
             }
         }
         return used;
+    }
+
+    /** 延迟处理：把在伤害/死亡事件里排队的克星引爆与实体 discard 放到安全 tick 执行。 */
+    private void vdProcessDeferred() {
+        if (!this.vdBoom.isEmpty()) {
+            for (LivingEntity e : new ArrayList<>(this.vdBoom)) {
+                this.vdBoom.remove(e);
+                if (e != null && !e.isRemoved() && e.isAlive() && this.vdEnemies.contains(e)) {
+                    this.vdBusterExplode(e);
+                }
+            }
+        }
+        if (!this.vdDiscardLater.isEmpty()) {
+            for (LivingEntity e : new ArrayList<>(this.vdDiscardLater)) {
+                this.vdDiscardLater.remove(e);
+                this.vdEnemies.remove(e);
+                this.vdEnemyKind.remove(e.getUuid());
+                if (e != null && !e.isRemoved()) {
+                    e.discard();
+                }
+            }
+        }
     }
 
     private void vdKitTick() {
