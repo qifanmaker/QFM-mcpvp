@@ -430,6 +430,14 @@ public final class PvpGuiManager {
         inv.setStack(14, makeButton(Items.WOODEN_SWORD, "§a选择村庄保卫战职业",
                 "从 24 套职业中选一套（装备/技能各异）",
                 "点击打开职业选择界面，进对局生效"));
+        inv.setStack(15, queueButton(Items.MAGENTA_CONCRETE, "§d色盲派对", player, MatchType.COLORBLIND_PARTY,
+                PvPConfig.INSTANCE.colorblindMinPlayers + "~" + PvPConfig.INSTANCE.colorblindMaxPlayers
+                        + " 人，凑齐 " + PvPConfig.INSTANCE.colorblindStartPlayers + " 人开赛",
+                "一整片彩色地板，每回合从 16 色里随机抽 8 色",
+                "标题写着某个颜色名，却被渲染成另一种颜色",
+                "站到「文字的颜色」上，别管它写的是什么！",
+                "非目标色方块全部消失，站错的掉进虚空淘汰",
+                "共 " + PvPConfig.INSTANCE.colorblindRounds + " 回合，最后存活者获胜，点击直接加入"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
@@ -823,6 +831,7 @@ public final class PvpGuiManager {
             case 11 -> MatchType.HEARTBEAT;
             case 12 -> MatchType.HOT_POTATO;
             case 13 -> MatchType.VILLAGE_DEFENSE;
+            case 15 -> MatchType.COLORBLIND_PARTY;
             default -> null;
         };
         if (type == null) {
@@ -833,6 +842,7 @@ public final class PvpGuiManager {
             case TNT_RUN -> KitManager.tntRunKit();
             case HEARTBEAT -> KitManager.heartbeatKit();
             case VILLAGE_DEFENSE -> KitManager.villageDefenseKit();
+            case COLORBLIND_PARTY -> KitManager.colorblindPartyKit();
             default -> KitManager.hotPotatoKit();
         };
         this.joinQueue(player, type, kit);

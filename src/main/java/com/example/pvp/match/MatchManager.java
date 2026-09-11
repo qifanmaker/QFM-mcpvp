@@ -382,6 +382,11 @@ public final class MatchManager {
                     || players.size() > PvPConfig.INSTANCE.villageDefenseMaxPlayers) {
                 return false;
             }
+        } else if (type == MatchType.COLORBLIND_PARTY) {
+            if (players.size() < PvPConfig.INSTANCE.colorblindMinPlayers
+                    || players.size() > PvPConfig.INSTANCE.colorblindMaxPlayers) {
+                return false;
+            }
         } else if (type.isBedWars()) {
             // 起床战争：最少 2 人；队伍按人数动态启用（Solo 每队 1 人，双人每队 2 人）
             int perTeam = type.playersPerTeam();
@@ -651,6 +656,7 @@ public final class MatchManager {
             case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoSize;
             case BED_WARS, BED_WARS_DOUBLES -> PvPConfig.INSTANCE.bedWarsSize;
             case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseSize;
+            case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
@@ -664,12 +670,14 @@ public final class MatchManager {
             case HOT_POTATO -> ArenaTemplate.Layout.HOT_POTATO;
             case BED_WARS, BED_WARS_DOUBLES -> ArenaTemplate.Layout.BED_WARS;
             case VILLAGE_DEFENSE -> ArenaTemplate.Layout.VILLAGE_DEFENSE;
+            case COLORBLIND_PARTY -> ArenaTemplate.Layout.COLORBLIND_PARTY;
         };
-        // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战/村庄保卫战无围墙；其地图本身由各自生成器铺
+        // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战/村庄保卫战/色盲派对无围墙；其地图本身由各自生成器铺
         boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
                 && type != MatchType.LUCKY_PILLAR && type != MatchType.TNT_RUN
                 && type != MatchType.HEARTBEAT && type != MatchType.HOT_POTATO
-                && !type.isBedWars() && type != MatchType.VILLAGE_DEFENSE;
+                && !type.isBedWars() && type != MatchType.VILLAGE_DEFENSE
+                && type != MatchType.COLORBLIND_PARTY;
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 

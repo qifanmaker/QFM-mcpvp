@@ -461,6 +461,16 @@ public final class PvPMod implements ModInitializer {
                     && MATCH != null && MATCH.isEliminated(attacker.getUuid())) {
                 return false;
             }
+            // 色盲派对：玩家之间完全不能互伤。取消 damage() 调用即同时去掉伤害与击退，
+            // 本模式只靠"站错颜色掉虚空"淘汰（纯色觉+走位竞速）。
+            if (entity instanceof ServerPlayerEntity victim
+                    && source.getAttacker() instanceof ServerPlayerEntity attacker
+                    && attacker != victim && MATCH != null) {
+                Match match = MATCH.getMatchFor(attacker);
+                if (match != null && !match.getType().allowsPlayerDamage()) {
+                    return false;
+                }
+            }
             return true;
         });
 

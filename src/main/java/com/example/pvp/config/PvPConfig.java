@@ -210,6 +210,38 @@ public final class PvPConfig {
     /** 使用的村庄地图名（对应服务器根目录 maps/villagedefense/<name>/ 下的世界文件夹）。 */
     public String villageDefenseMap = "VD-Quarry";
 
+    // ---------- 色盲派对 (Colorblind Party) ----------
+    /** 最少/触发开赛倒计时/最多人数（对齐 Hypixel：最多 16 人）。 */
+    public int colorblindMinPlayers = 2;
+    public int colorblindStartPlayers = 4;
+    public int colorblindMaxPlayers = 16;
+    /** 开赛倒计时（秒）；不足开赛人数时等待填充的最长时间（秒）。 */
+    public int colorblindCountdownSeconds = 30;
+    public int colorblindFillTimeoutSeconds = 60;
+    /** 对局超时（秒）：兜底用，正常会先跑完 25 回合。 */
+    public int colorblindTimeoutSeconds = 900;
+    /** 彩色地板边长（方形，默认 48）。 */
+    public int colorblindSize = 48;
+    /** 总回合数（Hypixel 为 25）。 */
+    public int colorblindRounds = 25;
+    /** 每回合从 16 色里随机抽几种铺地板（默认 8）。 */
+    public int colorblindColorsPerRound = 8;
+    /**
+     * 回合时限整体缩放系数（默认 1.0 = 照抄 Hypixel 从 4.5s 递减到 0.5s 的表）。
+     * 中文 Stroop 标题需要读字+辨色，末几回合 0.5s 实测很可能不公平，用它整体放宽。
+     */
+    public double colorblindTimeScale = 1.0;
+    /** 地板上同时出现的加成信标数量上限。 */
+    public int colorblindBeaconCount = 3;
+    /** 每回合开始时刷出加成信标的概率（百分比，0~100）。 */
+    public int colorblindBeaconChance = 35;
+    /** Hyper 模式下每回合触发灾难事件的概率（百分比，0~100；第 1 回合永远是普通局）。 */
+    public int colorblindHyperEventChance = 60;
+    /** 开局 Normal/Hyper 投票时长（秒）。 */
+    public int colorblindVoteSeconds = 10;
+    /** 强制模式：auto（投票决定）/ normal / hyper。单人自测时可直接指定。 */
+    public String colorblindForceMode = "auto";
+
     // ---------- 起床战争 (Bed Wars) ----------
     /** 区域覆盖边长（生成/清理边界，需覆盖整张地图；Hypixel 图约 100 格）。 */
     public int bedWarsSize = 200;
@@ -250,10 +282,16 @@ public final class PvPConfig {
             LOGGER.info("[PvP] 未找到配置文件，生成默认配置 {}", path);
             save();
         }
-        // 兼容旧配置：新版本新增字段在旧 config.json 中缺失时 Gson 会解析为 0，用默认值补齐
-        if (INSTANCE.migrateOldConfig()) {
-            save();
+        // 兼容旧配置：新版本新增字段在旧 config.json 中缺失时用默认值补齐
+        boolean migrated = INSTANCE.migrateOldConfig();
+        // 无条件回写：Gson 是走构造函数建对象的，缺失的字段会保留字段初始值（不一定是 0），
+        // migrateOldConfig 因此不一定能识别出"新增字段"。不写回的话，新版本新增的配置项
+        // 永远不出现在 config.json 里，用户就没法照着文件改（例如 colorblindTimeScale）。
+        // 回写是幂等的：文件内容 = 解析结果 + 补齐的默认值。
+        if (migrated) {
+            LOGGER.info("[PvP] 配置已补齐新字段并回写 {}", getConfigPath());
         }
+        save();
     }
 
     /** 旧配置文件缺少的新字段用默认值补齐（这些字段合法值均 >0，0 即视为缺失）。 */
@@ -362,6 +400,66 @@ public final class PvPConfig {
         }
         if (this.villageDefenseZombieCap <= 0) {
             this.villageDefenseZombieCap = defaults.villageDefenseZombieCap;
+            changed = true;
+        }
+        if (this.colorblindMinPlayers <= 0) {
+            this.colorblindMinPlayers = defaults.colorblindMinPlayers;
+            changed = true;
+        }
+        if (this.colorblindStartPlayers <= 0) {
+            this.colorblindStartPlayers = defaults.colorblindStartPlayers;
+            changed = true;
+        }
+        if (this.colorblindMaxPlayers <= 0) {
+            this.colorblindMaxPlayers = defaults.colorblindMaxPlayers;
+            changed = true;
+        }
+        if (this.colorblindCountdownSeconds <= 0) {
+            this.colorblindCountdownSeconds = defaults.colorblindCountdownSeconds;
+            changed = true;
+        }
+        if (this.colorblindFillTimeoutSeconds <= 0) {
+            this.colorblindFillTimeoutSeconds = defaults.colorblindFillTimeoutSeconds;
+            changed = true;
+        }
+        if (this.colorblindTimeoutSeconds <= 0) {
+            this.colorblindTimeoutSeconds = defaults.colorblindTimeoutSeconds;
+            changed = true;
+        }
+        if (this.colorblindSize <= 0) {
+            this.colorblindSize = defaults.colorblindSize;
+            changed = true;
+        }
+        if (this.colorblindRounds <= 0) {
+            this.colorblindRounds = defaults.colorblindRounds;
+            changed = true;
+        }
+        if (this.colorblindColorsPerRound <= 0) {
+            this.colorblindColorsPerRound = defaults.colorblindColorsPerRound;
+            changed = true;
+        }
+        if (this.colorblindTimeScale <= 0) {
+            this.colorblindTimeScale = defaults.colorblindTimeScale;
+            changed = true;
+        }
+        if (this.colorblindBeaconCount <= 0) {
+            this.colorblindBeaconCount = defaults.colorblindBeaconCount;
+            changed = true;
+        }
+        if (this.colorblindBeaconChance < 0) {
+            this.colorblindBeaconChance = defaults.colorblindBeaconChance;
+            changed = true;
+        }
+        if (this.colorblindHyperEventChance < 0) {
+            this.colorblindHyperEventChance = defaults.colorblindHyperEventChance;
+            changed = true;
+        }
+        if (this.colorblindVoteSeconds <= 0) {
+            this.colorblindVoteSeconds = defaults.colorblindVoteSeconds;
+            changed = true;
+        }
+        if (this.colorblindForceMode == null || this.colorblindForceMode.isBlank()) {
+            this.colorblindForceMode = defaults.colorblindForceMode;
             changed = true;
         }
         if (this.luckyPillarMinPlayers <= 0) {

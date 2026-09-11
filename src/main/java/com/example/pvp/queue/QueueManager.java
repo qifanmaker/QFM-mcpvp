@@ -48,6 +48,9 @@ public final class QueueManager {
     private Integer hotPotatoFillTicks;
     private Integer villageDefenseCountdownTicks;
     private Integer villageDefenseFillTicks;
+    /** 色盲派对开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
+    private Integer colorblindCountdownTicks;
+    private Integer colorblindFillTicks;
     /** 起床战争开赛倒计时（tick 数）；null 表示未开始。 */
     private Integer bedWarsCountdownTicks;
 
@@ -148,6 +151,7 @@ public final class QueueManager {
         this.tickHeartbeat(matchManager);
         this.tickHotPotato(matchManager);
         this.tickVillageDefense(matchManager);
+        this.tickColorblindParty(matchManager);
         this.tickBedWars(matchManager);
         this.tickInstantMatches(matchManager);
     }
@@ -788,6 +792,97 @@ public final class QueueManager {
         }
     }
 
+    /** 色盲派对队列：凑 startPlayers 倒计时；minPlayers 起等待填充（超时按当前人数开）。 */
+    private void tickColorblindParty(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        long count = this.countColorblindParty();
+
+        if (this.colorblindCountdownTicks != null) {
+            this.colorblindCountdownTicks = count >= config.colorblindMaxPlayers
+                    ? 0 : this.colorblindCountdownTicks - 1;
+            if (this.colorblindCountdownTicks <= 0) {
+                this.colorblindCountdownTicks = null;
+                this.colorblindFillTicks = null;
+                this.startColorblindPartyMatch(matchManager);
+            }
+            return;
+        }
+
+        if (count >= config.colorblindStartPlayers) {
+            this.colorblindCountdownTicks = config.colorblindCountdownSeconds * 20;
+            this.broadcastColorblindParty(matchManager, Messages.info(
+                    "§e" + count + "§r 人已就绪，§e" + config.colorblindCountdownSeconds + "§r 秒后开始色盲派对！"));
+            this.colorblindFillTicks = null;
+            return;
+        }
+
+        if (count >= config.colorblindMinPlayers) {
+            if (this.colorblindFillTicks == null) {
+                this.colorblindFillTicks = config.colorblindFillTimeoutSeconds * 20;
+            }
+            if (this.colorblindFillTicks % 40 == 0) {
+                this.broadcastColorblindParty(matchManager, Messages.info(
+                        "等待更多玩家加入色盲派对（当前 " + count + "/" + config.colorblindStartPlayers + "）..."));
+            }
+            this.colorblindFillTicks--;
+            if (this.colorblindFillTicks <= 0) {
+                this.colorblindFillTicks = null;
+                this.startColorblindPartyMatch(matchManager);
+            }
+        } else {
+            this.colorblindFillTicks = null;
+        }
+    }
+
+    private void startColorblindPartyMatch(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        List<QueueEntry> toRemove = new ArrayList<>();
+        Kit sentinel = KitManager.colorblindPartyKit();
+        if (sentinel == null) {
+            return;
+        }
+        for (QueueEntry entry : List.copyOf(this.entries)) {
+            if (entry.getType() != MatchType.COLORBLIND_PARTY) {
+                continue;
+            }
+            if (players.size() >= config.colorblindMaxPlayers) {
+                break;
+            }
+            toRemove.add(entry);
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                players.add(online);
+            }
+        }
+        if (players.size() < config.colorblindMinPlayers) {
+            return;
+        }
+        Map<UUID, Kit> kits = new HashMap<>();
+        for (ServerPlayerEntity player : players) {
+            kits.put(player.getUuid(), sentinel);
+        }
+        if (matchManager.startMatch(players, MatchType.COLORBLIND_PARTY, kits)) {
+            this.entries.removeAll(toRemove);
+        }
+    }
+
+    private long countColorblindParty() {
+        return this.entries.stream().filter(e -> e.getType() == MatchType.COLORBLIND_PARTY).count();
+    }
+
+    private void broadcastColorblindParty(MatchManager matchManager, Text message) {
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != MatchType.COLORBLIND_PARTY) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                online.sendMessage(message, false);
+            }
+        }
+    }
+
     /** 起床战争队列：凑 2 人即开始倒计时，倒计时结束按当前人数开赛（按人数动态分队）。 */
     private void tickBedWars(MatchManager matchManager) {
         long count = this.countBedWars();
@@ -880,6 +975,7 @@ public final class QueueManager {
                     || entry.getType() == MatchType.LUCKY_PILLAR || entry.getType() == MatchType.TNT_RUN
                     || entry.getType() == MatchType.HEARTBEAT || entry.getType() == MatchType.HOT_POTATO
                     || entry.getType() == MatchType.VILLAGE_DEFENSE
+                    || entry.getType() == MatchType.COLORBLIND_PARTY
                     || entry.getType().isBedWars()) {
                 continue;
             }
@@ -958,7 +1054,8 @@ public final class QueueManager {
         // 自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋 / 床战：直接以当前队列所有人开赛
         if (type == MatchType.FFA || type == MatchType.SKYWARS || type == MatchType.LUCKY_PILLAR
                 || type == MatchType.TNT_RUN || type == MatchType.HEARTBEAT || type == MatchType.HOT_POTATO
-                || type == MatchType.VILLAGE_DEFENSE || type.isBedWars()) {
+                || type == MatchType.VILLAGE_DEFENSE || type == MatchType.COLORBLIND_PARTY
+                || type.isBedWars()) {
             int min = switch (type) {
                 case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
                 case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;
@@ -966,6 +1063,7 @@ public final class QueueManager {
                 case HEARTBEAT -> PvPConfig.INSTANCE.heartbeatMinPlayers;
                 case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoMinPlayers;
                 case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseMinPlayers;
+                case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindMinPlayers;
                 default -> type.isBedWars() ? 2 : PvPConfig.INSTANCE.tntRunMinPlayers;
             };
             int count = (int) this.countType(type);
@@ -986,6 +1084,8 @@ public final class QueueManager {
             this.hotPotatoFillTicks = null;
             this.villageDefenseCountdownTicks = null;
             this.villageDefenseFillTicks = null;
+            this.colorblindCountdownTicks = null;
+            this.colorblindFillTicks = null;
             this.bedWarsCountdownTicks = null;
             if (type.isBedWars()) {
                 this.startBedWarsMatch(matchManager);
@@ -993,6 +1093,10 @@ public final class QueueManager {
             }
             if (type == MatchType.VILLAGE_DEFENSE) {
                 this.startVillageDefenseMatch(matchManager);
+                return true;
+            }
+            if (type == MatchType.COLORBLIND_PARTY) {
+                this.startColorblindPartyMatch(matchManager);
                 return true;
             }
             switch (type) {

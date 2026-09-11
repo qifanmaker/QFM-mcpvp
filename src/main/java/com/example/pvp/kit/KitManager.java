@@ -56,6 +56,9 @@ public final class KitManager {
     private static Kit bedWarsKit;
     private static Kit villageDefenseKit;
 
+    /** 色盲派对哨兵套件：空手开局、冒险模式（禁止搭桥作弊），仅作队列占位。 */
+    private static Kit colorblindKit;
+
     /** 附魔注册表：服务器启动后才可用，用于给套件物品加附魔。 */
     private static Registry<Enchantment> enchantmentRegistry;
 
@@ -107,6 +110,11 @@ public final class KitManager {
                 .build();
         villageDefenseKit = new Kit.Builder("villagedefense", KitType.CUSTOM)
                 .displayName("村庄保卫战")
+                .food(20, 5f)
+                .gamemode(GameMode.ADVENTURE)
+                .build();
+        colorblindKit = new Kit.Builder("colorblindparty", KitType.CUSTOM)
+                .displayName("色盲派对")
                 .food(20, 5f)
                 .gamemode(GameMode.ADVENTURE)
                 .build();
@@ -191,6 +199,11 @@ public final class KitManager {
     /** 村庄保卫战哨兵套件（不入 KITS 列表，装备由玩法发放）。 */
     public static Kit villageDefenseKit() {
         return villageDefenseKit;
+    }
+
+    /** 色盲派对哨兵套件（不入 KITS 列表，实际空手开局）。 */
+    public static Kit colorblindPartyKit() {
+        return colorblindKit;
     }
 
     private static Kit buildSwordKit() {

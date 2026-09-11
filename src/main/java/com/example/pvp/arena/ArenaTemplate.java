@@ -28,7 +28,8 @@ public class ArenaTemplate {
         HEARTBEAT,
         HOT_POTATO,
         BED_WARS,
-        VILLAGE_DEFENSE
+        VILLAGE_DEFENSE,
+        COLORBLIND_PARTY
     }
 
     private final Layout layout;
@@ -118,6 +119,9 @@ public class ArenaTemplate {
             }
             case HOT_POTATO -> {
                 // 烫手山芋出生点由 HotPotatoLayout 计算（Match 构造时处理），这里返回空避免占位
+            }
+            case COLORBLIND_PARTY -> {
+                // 色盲派对出生点由 ColorblindPartySession 按地板均布（Match 构造时处理），这里返回空避免占位
             }
         }
         return spawns;

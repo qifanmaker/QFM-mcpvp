@@ -229,6 +229,9 @@ public final class Match {
     private static final int HOT_POTATO_PASS_COOLDOWN_TICKS = 4; // 传递冷却：0.2 秒
     private static final String HOT_POTATO_TAG = "pvp.hotpotato";
 
+    /** 色盲派对运行时（仅 COLORBLIND_PARTY 模式非空）。 */
+    private ColorblindPartySession colorblindSession;
+
     /** 起床战争地图数据与布局（仅 BED_WARS 模式非空）。 */
     private BedWarsMapLoader.MapData bedWarsMapData;
     private BedWarsLayout bedWarsLayout;
@@ -399,6 +402,20 @@ public final class Match {
                 spawnPositions.add(new BlockPos(c.getX() + (int) Math.round(Math.cos(a) * 6),
                         c.getY(), c.getZ() + (int) Math.round(Math.sin(a) * 6)));
             }
+        } else if (type == MatchType.COLORBLIND_PARTY) {
+            // 色盲派对：彩色地板每回合由 session 重摇；这里先铺好第 1 回合的地板，
+            // 否则开赛前 30 秒倒计时里玩家会直接掉进虚空
+            this.skywarsLayout = null;
+            this.skywarsTheme = null;
+            this.skywarsSeed = id;
+            this.bridgeLayout = null;
+            this.luckyPillarLayout = null;
+            this.tntRunLayout = null;
+            this.heartbeatLayout = null;
+            this.hotPotatoLayout = null;
+            this.colorblindSession = new ColorblindPartySession(this, template, regionIndex, id);
+            this.colorblindSession.prepare(this.players.size());
+            spawnPositions = this.colorblindSession.spawns();
         } else if (type.isBedWars()) {
             // 起床战争：mapData/layout 已在构造开头加载（分队需要），这里直接用
             this.skywarsLayout = null;
@@ -573,6 +590,8 @@ public final class Match {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.bedWarsTimeoutSeconds * 20);
         } else if (this.type == MatchType.VILLAGE_DEFENSE) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.villageDefenseTimeoutSeconds * 20);
+        } else if (this.type == MatchType.COLORBLIND_PARTY) {
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.colorblindTimeoutSeconds * 20);
         } else {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
         }
@@ -651,6 +670,9 @@ public final class Match {
                 }
                 if (this.type == MatchType.VILLAGE_DEFENSE) {
                     this.tickVillageDefense();
+                }
+                if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
+                    this.colorblindSession.tick();
                 }
                 if (this.type.isBedWars()) {
                     this.tickBedWars();
@@ -3245,6 +3267,10 @@ public final class Match {
                 // 村庄保卫战：刷村民、发货币、开始 25s 波间冷却
                 this.startVillageDefense();
             }
+            if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
+                // 色盲派对：地板在 setupPlayers 已铺好，这里公布第 1 回合的目标色并开始计时
+                this.colorblindSession.start();
+            }
             this.broadcast(Messages.gold("战斗开始！"));
             this.broadcastTitle("开始！");
             for (ServerPlayerEntity player : this.players) {
@@ -3301,6 +3327,7 @@ public final class Match {
         boolean hotPotato = this.type == MatchType.HOT_POTATO;
         boolean bedWars = this.type.isBedWars();
         boolean villageDefense = this.type == MatchType.VILLAGE_DEFENSE;
+        boolean colorblindParty = this.type == MatchType.COLORBLIND_PARTY;
 
         if (villageDefense) {
             // 村庄保卫战：从 maps/villagedefense/<map>/ 导入地图（一次），失败则取消对局
@@ -3424,8 +3451,9 @@ public final class Match {
                 // 给饱和效果：跑步/跳跃不掉饥饿
                 online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
                 online.currentScreenHandler.sendContentUpdates();
-            } else if (heartbeat || hotPotato || villageDefense) {
-                // 心跳水立方 / 烫手山芋 / 村庄保卫战：无套件，冒险模式空手开局（专注玩法本身，不能放/拆方块）
+            } else if (heartbeat || hotPotato || villageDefense || colorblindParty) {
+                // 心跳水立方 / 烫手山芋 / 村庄保卫战 / 色盲派对：无套件，冒险模式空手开局
+                // （专注玩法本身，不能放/拆方块 —— 色盲派对尤其要防止搭桥躲避）
                 online.getInventory().clear();
                 online.setHealth(online.getMaxHealth());
                 online.getHungerManager().setFoodLevel(20);
@@ -3511,6 +3539,11 @@ public final class Match {
             return this.bedWarsComputeWinner();
         }
         if (this.type.isLastManStanding()) {
+            // 色盲派对：单人局（或开局瞬间）不按"只剩 1 人"提前结算，
+            // 否则一进 ACTIVE 就立刻判胜、跑不完 25 回合。淘汰只来自站错掉虚空。
+            if (this.type == MatchType.COLORBLIND_PARTY && this.players.size() <= 1) {
+                return null;
+            }
             List<ServerPlayerEntity> alive = this.teams.get(0).getAlivePlayers();
             return alive.size() <= 1 ? this.teams.get(0) : null;
         }
@@ -3588,6 +3621,25 @@ public final class Match {
             }
             return;
         }
+        if (this.type == MatchType.COLORBLIND_PARTY) {
+            // 色盲派对：最后存活者胜；多人一起撑满回合数则并列（逐个列名，不能只报第一个）
+            List<String> names = new ArrayList<>();
+            for (ServerPlayerEntity player : this.players) {
+                if (winners.contains(player.getUuid())) {
+                    names.add(player.getGameProfile().getName());
+                }
+            }
+            if (names.isEmpty()) {
+                this.broadcast(Messages.warn("第 " + this.colorblindRoundForDisplay() + " 回合全员出局，本局无人获胜"));
+            } else if (names.size() == 1) {
+                this.broadcast(Messages.gold("§d" + names.get(0) + "§r 在色盲派对中坚持到了第 "
+                        + this.colorblindRoundForDisplay() + " 回合，获胜！"));
+            } else {
+                this.broadcast(Messages.gold("§d" + String.join("§r、§d", names)
+                        + "§r 一起撑到了第 " + this.colorblindRoundForDisplay() + " 回合，并列获胜！"));
+            }
+            return;
+        }
         if (this.type.isLastManStanding()) {
             ServerPlayerEntity winner = this.getWinnerPlayer(winners);
             if (winner != null) {
@@ -3653,8 +3705,9 @@ public final class Match {
             }
             sbTeam.setColor(team.getColor());
             sbTeam.setCollisionRule(AbstractTeam.CollisionRule.NEVER);
-            // 组队模式（2v2 等）关闭友伤；FFA/空岛战争/幸运之柱全员同一队，必须保留互伤
-            sbTeam.setFriendlyFireAllowed(this.type.isLastManStanding());
+            // 组队模式（2v2 等）关闭友伤；FFA/空岛战争/幸运之柱全员同一队，必须保留互伤。
+            // 色盲派对是纯色觉+走位竞速，玩家之间打不掉血也不击退，故也不开友伤。
+            sbTeam.setFriendlyFireAllowed(this.type.allowsPlayerDamage());
             for (ServerPlayerEntity player : team.getPlayers()) {
                 ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
                 if (online != null) {
@@ -3782,6 +3835,27 @@ public final class Match {
                     this.setInfoLine(scoreboard, objective, " §f" + name + " §7货币 §e" + orbs, score--);
                 }
             }
+        } else if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
+            // 色盲派对：回合进度 + 存活玩家列表
+            int shown = Math.min(this.colorblindSession.round(), this.colorblindSession.maxRounds());
+            this.setInfoLine(scoreboard, objective, "§d回合 §f" + shown + "§7/§f"
+                    + this.colorblindSession.maxRounds(), score--);
+            this.setInfoLine(scoreboard, objective, "§7场地 §f" + this.colorblindSession.floorSize()
+                    + "×" + this.colorblindSession.floorSize(), score--);
+            this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
+            for (ServerPlayerEntity player : this.players) {
+                if (score < 0) {
+                    break;
+                }
+                if (this.eliminated.contains(player.getUuid())) {
+                    continue;
+                }
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online == null) {
+                    continue;
+                }
+                this.setInfoLine(scoreboard, objective, " §a● §f" + online.getGameProfile().getName(), score--);
+            }
         } else if (this.type.isLastManStanding()) {
             // FFA/空岛战争/幸运之柱/TNT 跑酷/烫手山芋：模式专属事件倒计时 + 存活玩家列表（玩家数量见头部）
             if (this.type == MatchType.SKYWARS) {
@@ -3886,6 +3960,7 @@ public final class Match {
             case BED_WARS -> "§d";
             case BED_WARS_DOUBLES -> "§5";
             case VILLAGE_DEFENSE -> "§2";
+            case COLORBLIND_PARTY -> "§d";
         };
         return "模式: " + color + this.type.getDisplayName();
     }
@@ -3913,6 +3988,7 @@ public final class Match {
             case BED_WARS, BED_WARS_DOUBLES -> "§7地图: §e" + (this.bedWarsLayout != null
                     ? this.bedWarsLayout.mapName() : "-");
             case VILLAGE_DEFENSE -> "§7地图: §eVD"; // 地图名在 Match 接线后替换为导入的地图名
+            case COLORBLIND_PARTY -> "§7地图: §e彩色地板";
         };
     }
 
@@ -4052,6 +4128,41 @@ public final class Match {
     /** 倒计时/简短提示：屏幕中央大字（不再是动作栏小字）。 */
     private void broadcastTitle(String text) {
         this.broadcastTitleBig("§6§l" + text, null);
+    }
+
+    // ==================== 模式运行时共用接口 ====================
+    // 以下方法供各模式的 Session 类（如 ColorblindPartySession）调用，避免把玩法逻辑全堆进 Match。
+
+    /** 本场所有还在线的参战玩家。 */
+    public List<ServerPlayerEntity> onlineParticipants() {
+        List<ServerPlayerEntity> list = new ArrayList<>();
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null) {
+                list.add(online);
+            }
+        }
+        return list;
+    }
+
+    /** 竞技场世界（各模式 Session 用）。 */
+    public ArenaWorld arenaWorld() {
+        return this.manager.getArenaManager().getWorld();
+    }
+
+    /** 本场广播（各模式 Session 用）。 */
+    public void broadcastToMatch(Text message) {
+        this.broadcast(message);
+    }
+
+    /** 本场唯一队伍（FFA / 合作类模式用；色盲派对结算需要它触发 finishMatch）。 */
+    public MatchTeam firstTeam() {
+        return this.teams.isEmpty() ? null : this.teams.get(0);
+    }
+
+    /** 结算文案用：已进行的回合数（对局未开始时显示 1）。 */
+    private int colorblindRoundForDisplay() {
+        return this.colorblindSession == null ? 1 : Math.max(1, this.colorblindSession.round());
     }
 
     // ==================== 村庄保卫战 (Village Defense) 运行时 ====================

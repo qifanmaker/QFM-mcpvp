@@ -3,6 +3,7 @@ package com.example.pvp.arena;
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.bridge.BridgeMapGenerator;
 import com.example.pvp.arena.bedwars.BedWarsMapGenerator;
+import com.example.pvp.arena.colorblind.ColorblindMapGenerator;
 import com.example.pvp.arena.heartbeat.HeartbeatLayout;
 import com.example.pvp.arena.heartbeat.HeartbeatMapGenerator;
 import com.example.pvp.arena.hotpotato.HotPotatoLayout;
@@ -229,6 +230,11 @@ public final class ArenaWorldManager {
             return;
         }
 
+        // 色盲派对：彩色地板内容每回合重摇，由 ColorblindPartySession 自己铺，这里不生成任何东西
+        if (template.getLayout() == ArenaTemplate.Layout.COLORBLIND_PARTY) {
+            return;
+        }
+
         BlockPos origin = template.getRegionOrigin(regionIndex);
         int size = template.getSize();
 
@@ -286,6 +292,9 @@ public final class ArenaWorldManager {
         } else if (template.getLayout() == ArenaTemplate.Layout.VILLAGE_DEFENSE) {
             // 村庄保卫战：清空导入的地图区域（中心 ±半径、限定高度）
             clearVillageDefenseRegion(arena, template, regionIndex);
+        } else if (template.getLayout() == ArenaTemplate.Layout.COLORBLIND_PARTY) {
+            // 色盲派对：清空彩色地板层上下整片区域（含事件/加成留下的雪、玻璃、飞毯等）
+            ColorblindMapGenerator.clear(arena, regionIndex, mapMaxRadius);
         } else {
             BlockPos origin = template.getRegionOrigin(regionIndex);
             int size = template.getSize();
