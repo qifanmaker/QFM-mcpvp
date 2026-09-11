@@ -15,6 +15,7 @@ import com.example.pvp.duel.DuelManager;
 import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.BridgeGear;
 import com.example.pvp.kit.KitManager;
+import com.example.pvp.match.ColorblindPartySession;
 import com.example.pvp.match.EliminationCause;
 import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchManager;
@@ -605,8 +606,33 @@ public final class PvPMod implements ModInitializer {
                         return TypedActionResult.success(held);
                     }
                 }
+                // 色盲派对：开局 Normal/Hyper 投票纸（右击切换）
+                if (m != null && m.getType() == MatchType.COLORBLIND_PARTY) {
+                    net.minecraft.item.ItemStack held = player.getStackInHand(hand);
+                    if (held.isOf(net.minecraft.item.Items.PAPER)
+                            && held.getName().getString().contains(ColorblindPartySession.VOTE_ITEM_MARK)) {
+                        m.colorblindCastVote(sp);
+                        return TypedActionResult.success(held);
+                    }
+                }
             }
             return TypedActionResult.pass(player.getStackInHand(hand));
+        });
+
+        // 色盲派对：左键打碎地板上的加成信标 → 随机获得一种加成
+        // （用 AttackBlockCallback 而不是 PlayerBlockBreakEvents：冒险模式下左键点方块
+        //   不一定能触发破坏判定，但这个回调一定会先到）
+        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+            if (player instanceof ServerPlayerEntity sp && MATCH != null
+                    && world.getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY
+                    && world.getBlockState(pos).isOf(net.minecraft.block.Blocks.BEACON)) {
+                Match m = MATCH.getMatchFor(sp);
+                if (m != null && m.getType() == MatchType.COLORBLIND_PARTY) {
+                    m.colorblindPunchBeacon(sp, pos);
+                    return ActionResult.SUCCESS;
+                }
+            }
+            return ActionResult.PASS;
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {

@@ -8,6 +8,9 @@ import com.example.pvp.arena.colorblind.ColorblindPalette;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
@@ -23,8 +26,11 @@ import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
 /**
  * 色盲派对（对照 Hypixel Pixel Party）的对局运行时。
@@ -48,6 +54,8 @@ public final class ColorblindPartySession {
     private static final int VOID_MARGIN = 12;
 
     public enum Phase {
+        /** 开局 Normal/Hyper 投票。 */
+        VOTE,
         /** 重建地板，等待下一回合。 */
         BUILD,
         /** 已公布目标色，倒计时中。 */
@@ -55,6 +63,9 @@ public final class ColorblindPartySession {
         /** 方块已消失，等待坠落淘汰结算。 */
         GAP
     }
+
+    /** 投票道具名（PvPMod 用它识别右击的是不是投票纸）。 */
+    public static final String VOTE_ITEM_MARK = "模式投票";
 
     private final Match match;
     private final Random random;
@@ -69,8 +80,12 @@ public final class ColorblindPartySession {
     private int[] roundColors = new int[0];
     private int answerColor;
     private int wordColor;
-    /** 本回合 Hyper 灾难事件结束时需要清理的地板层以上残留（雪、玻璃罩、飞毯等）。 */
+    /** 本局是否开启 Hyper 灾难事件（开局投票决定，或被 colorblindForceMode 强制）。 */
     private boolean hyper;
+    /** 开局投票：UUID → 是否投 Hyper。 */
+    private final Map<UUID, Boolean> votes = new HashMap<>();
+    private final ColorblindHyperEvents events;
+    private final ColorblindPowerUps powerUps;
 
     public ColorblindPartySession(Match match, ArenaTemplate template, int regionIndex, int seed) {
         this.match = match;
@@ -78,6 +93,8 @@ public final class ColorblindPartySession {
         this.maxRounds = Math.max(1, PvPConfig.INSTANCE.colorblindRounds);
         this.hyper = "hyper".equalsIgnoreCase(PvPConfig.INSTANCE.colorblindForceMode);
         this.floor = ColorblindMapGenerator.createFloor(regionIndex);
+        this.events = new ColorblindHyperEvents(this, this.random);
+        this.powerUps = new ColorblindPowerUps(this, this.random);
     }
 
     // ---------- 对外接口（Match 调用） ----------
@@ -141,12 +158,22 @@ public final class ColorblindPartySession {
      */
     public void start() {
         ArenaWorld arena = this.arena();
+        this.round = 1;
         if (arena == null) {
             this.enterCountdown();
             return;
         }
-        this.round = 1;
-        this.enterBuild(arena);
+        this.rollFloor(arena); // 先铺地板，投票期间玩家得站得住
+        String forced = PvPConfig.INSTANCE.colorblindForceMode;
+        if ("normal".equalsIgnoreCase(forced)) {
+            this.hyper = false;
+            this.enterBuild(arena);
+        } else if ("hyper".equalsIgnoreCase(forced)) {
+            this.hyper = true;
+            this.enterBuild(arena);
+        } else {
+            this.enterVote();
+        }
     }
 
     /** 每 tick 调用（仅在 ACTIVE 期间）。 */
@@ -156,9 +183,14 @@ public final class ColorblindPartySession {
         }
         this.checkVoidFalls();
         switch (this.phase) {
+            case VOTE -> this.tickVote();
             case BUILD -> this.tickBuild();
             case COUNTDOWN -> this.tickCountdownPhase();
             case GAP -> this.tickGap();
+        }
+        if (this.phase == Phase.COUNTDOWN || this.phase == Phase.GAP) {
+            this.events.tick();
+            this.powerUps.tick();
         }
     }
 
@@ -200,18 +232,140 @@ public final class ColorblindPartySession {
         this.enterBuild(arena);
     }
 
+    // ---------- 开局 Normal/Hyper 投票 ----------
+
+    /** 是否为投票阶段（PvPMod 判定右击投票纸是否有效）。 */
+    public boolean voting() {
+        return this.phase == Phase.VOTE && this.match.getState() == MatchState.ACTIVE;
+    }
+
+    private void enterVote() {
+        this.phase = Phase.VOTE;
+        this.phaseTicks = Math.max(20, PvPConfig.INSTANCE.colorblindVoteSeconds * 20);
+        this.votes.clear();
+        this.refreshVoteItems();
+        this.match.broadcastToMatch(Messages.info("§d开局投票§r：右击手里的纸切换 §aNormal§7 / §cHyper§r"
+                + "（" + PvPConfig.INSTANCE.colorblindVoteSeconds + " 秒后按多数决定，平票为 Normal）"));
+        this.refreshVoteActionBar();
+    }
+
+    private void tickVote() {
+        if (this.phaseTicks % 10 == 0) {
+            this.refreshVoteActionBar();
+        }
+        if (--this.phaseTicks > 0) {
+            return;
+        }
+        int forHyper = 0;
+        int forNormal = 0;
+        for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+            Boolean vote = this.votes.get(player.getUuid());
+            if (vote == null) {
+                continue;
+            }
+            if (vote) {
+                forHyper++;
+            } else {
+                forNormal++;
+            }
+        }
+        this.hyper = forHyper > forNormal;
+        this.clearVoteItems();
+        this.match.broadcastToMatch(Messages.gold("§d本局模式：§r"
+                + (this.hyper ? "§cHyper §7(每回合可能触发灾难事件)" : "§aNormal §7(无灾难事件)")));
+        ArenaWorld arena = this.arena();
+        if (arena != null) {
+            this.enterBuild(arena);
+        }
+    }
+
+    /** 右击投票纸：在 Normal / Hyper 之间切换（首次点击投 Hyper）。 */
+    public void castVote(ServerPlayerEntity player) {
+        if (!this.voting()) {
+            return;
+        }
+        Boolean current = this.votes.get(player.getUuid());
+        this.votes.put(player.getUuid(), current == null || !current);
+        this.refreshVoteItems();
+        this.refreshVoteActionBar();
+    }
+
+    private void refreshVoteItems() {
+        String name = "§d" + VOTE_ITEM_MARK + " §7(右键切换)";
+        for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+            Boolean vote = this.votes.get(player.getUuid());
+            String state = vote == null ? "§7未投票" : (vote ? "§cHyper" : "§aNormal");
+            ItemStack stack = new ItemStack(Items.PAPER);
+            stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal(name + " §8| 当前: " + state));
+            player.getInventory().setStack(8, stack);
+            player.currentScreenHandler.sendContentUpdates();
+        }
+    }
+
+    private void clearVoteItems() {
+        for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+            for (int slot = 0; slot < player.getInventory().size(); slot++) {
+                ItemStack stack = player.getInventory().getStack(slot);
+                if (stack.isOf(Items.PAPER) && stack.getName().getString().contains(VOTE_ITEM_MARK)) {
+                    player.getInventory().setStack(slot, ItemStack.EMPTY);
+                }
+            }
+            player.currentScreenHandler.sendContentUpdates();
+        }
+    }
+
+    private void refreshVoteActionBar() {
+        int forHyper = 0;
+        int forNormal = 0;
+        int pending = 0;
+        for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+            Boolean vote = this.votes.get(player.getUuid());
+            if (vote == null) {
+                pending++;
+            } else if (vote) {
+                forHyper++;
+            } else {
+                forNormal++;
+            }
+        }
+        Text bar = Text.literal("§aNormal " + forNormal + "§7 | §cHyper " + forHyper
+                + (pending > 0 ? "§7 | 未投 " + pending : "") + "   §8" + ((this.phaseTicks + 19) / 20) + "s");
+        for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+            player.sendMessage(bar, true);
+        }
+    }
+
     /** 摇出本回合配色并铺满地板（同时定好目标色，但要等到 COUNTDOWN 才公布）。 */
     private void rollFloor(ArenaWorld arena) {
         this.roundColors = this.pickRoundColors();
-        this.floor.fill(this.random, this.roundColors);
+        if (this.round == 1) {
+            this.fillLogoPattern(); // 第 1 回合铺同心方环图案（对齐 Hypixel「首回合固定图案」）
+        } else {
+            this.floor.fill(this.random, this.roundColors);
+        }
         this.floor.placeAll(arena);
         this.pickAnswerAndWord();
     }
 
-    /** 进入"重建地板"阶段：铺好下一回合的地板并给玩家 2 秒看清。 */
+    /** 首回合图案：一圈套一圈的同心方环，每环 3 格宽，按本回合配色轮换。 */
+    private void fillLogoPattern() {
+        int size = this.floor.size();
+        int n = this.roundColors.length;
+        for (int dx = 0; dx < size; dx++) {
+            for (int dz = 0; dz < size; dz++) {
+                int ring = Math.min(Math.min(dx, dz), Math.min(size - 1 - dx, size - 1 - dz));
+                this.floor.set(dx, dz, this.roundColors[(ring / 3) % n]);
+            }
+        }
+    }
+
+    /** 进入"重建地板"阶段：清掉上一回合的灾难残留，铺好新地板并给玩家 2 秒看清。 */
     private void enterBuild(ArenaWorld arena) {
         this.phase = Phase.BUILD;
         this.phaseTicks = BUILD_TICKS;
+        this.events.cleanup();
+        this.powerUps.cleanup();
+        ColorblindMapGenerator.clearAboveFloor(arena, this.floor.origin(), this.floor.size());
         this.rollFloor(arena);
         this.match.broadcastToMatch(Messages.info("第 §e" + this.round + "§r / " + this.maxRounds + " 回合准备中…"));
     }
@@ -219,6 +373,15 @@ public final class ColorblindPartySession {
     private void enterCountdown() {
         this.phase = Phase.COUNTDOWN;
         this.phaseTicks = this.roundTicks(this.round);
+        // Hyper：第 1 回合永远是普通局，之后按配置概率触发灾难事件
+        if (this.hyper && this.round >= 2
+                && this.random.nextInt(100) < PvPConfig.INSTANCE.colorblindHyperEventChance) {
+            this.events.beginRandom();
+        }
+        ArenaWorld arena = this.arena();
+        if (arena != null) {
+            this.powerUps.spawnBeacons(arena);
+        }
         this.broadcastStroopTitle();
     }
 
@@ -228,6 +391,9 @@ public final class ColorblindPartySession {
         ArenaWorld arena = this.arena();
         if (arena != null) {
             this.floor.vanishExcept(arena, this.answerColor);
+            // 拆掉地板层以上的东西（信标/铁砧/玻璃罩）：否则玩家能站在这些悬空方块上躲过本回合。
+            // 只清上面 2 层 —— 魔毯补的是地板层本身，得留着（那正是它的作用）。
+            ColorblindMapGenerator.clearAboveFloor(arena, this.floor.origin(), this.floor.size(), 2);
         }
         this.playToAlive(SoundEvents.BLOCK_GLASS_BREAK, 1.0F, 0.7F);
     }
@@ -361,6 +527,7 @@ public final class ColorblindPartySession {
                 continue;
             }
             if (player.getY() < ArenaTemplate.PLATFORM_Y - VOID_MARGIN) {
+                this.playToAlive(SoundEvents.BLOCK_GLASS_BREAK, 0.9F, 0.5F);
                 this.match.eliminate(player, EliminationCause.VOID);
             }
         }
@@ -373,8 +540,117 @@ public final class ColorblindPartySession {
 
     // ---------- 小工具 ----------
 
-    private ArenaWorld arena() {
+    // ---------- 收尾 ----------
+
+    /**
+     * 对局结束（由 {@link Match#finishMatch} 调用）：撤掉灾难/加成残留，
+     * 把整块地板重绘成 "GAME OVER"（对齐 Hypixel 结算时的地板字样）。
+     */
+    public void onMatchEnd() {
+        this.events.cleanup();
+        this.powerUps.cleanup();
+        ArenaWorld arena = this.arena();
+        if (arena == null) {
+            return;
+        }
+        ColorblindMapGenerator.clearAboveFloor(arena, this.floor.origin(), this.floor.size());
+        this.drawGameOver(arena);
+        this.playToAlive(SoundEvents.BLOCK_GLASS_BREAK, 1.0F, 0.6F);
+    }
+
+    /** 4×5 点阵字形，'#' 为笔画。只需要 "GAME OVER" 用到的 7 个字母。 */
+    private static final java.util.Map<Character, String[]> GLYPHS = java.util.Map.of(
+            'G', new String[]{"####", "#...", "#.##", "#..#", "####"},
+            'A', new String[]{".##.", "#..#", "####", "#..#", "#..#"},
+            'M', new String[]{"#..#", "####", "####", "#..#", "#..#"},
+            'E', new String[]{"####", "#...", "###.", "#...", "####"},
+            'O', new String[]{".##.", "#..#", "#..#", "#..#", ".##."},
+            'V', new String[]{"#..#", "#..#", "#..#", "#..#", ".##."},
+            'R', new String[]{"###.", "#..#", "###.", "#.#.", "#..#"});
+
+    private void drawGameOver(ArenaWorld arena) {
+        final String text = "GAME OVER";
+        final int glyphW = 4;
+        final int glyphH = 5;
+        final int gap = 1;
+        int size = this.floor.size();
+        int totalW = text.length() * (glyphW + gap) - gap;
+        int originX = Math.max(0, (size - totalW) / 2);
+        int originZ = Math.max(0, (size - glyphH) / 2);
+
+        int bg = ColorblindPalette.indexOf(net.minecraft.block.Blocks.BLACK_CONCRETE);
+        int fg = ColorblindPalette.indexOf(net.minecraft.block.Blocks.WHITE_CONCRETE);
+        if (bg < 0) {
+            bg = 0;
+        }
+        if (fg < 0) {
+            fg = 0;
+        }
+        for (int dx = 0; dx < size; dx++) {
+            for (int dz = 0; dz < size; dz++) {
+                this.floor.set(dx, dz, bg);
+            }
+        }
+        for (int i = 0; i < text.length(); i++) {
+            String[] glyph = GLYPHS.get(text.charAt(i));
+            if (glyph == null) {
+                continue;
+            }
+            for (int row = 0; row < glyphH; row++) {
+                for (int col = 0; col < glyphW; col++) {
+                    if (glyph[row].charAt(col) != '#') {
+                        continue;
+                    }
+                    int x = originX + i * (glyphW + gap) + col;
+                    int z = originZ + row;
+                    if (this.floor.inBounds(x, z)) {
+                        this.floor.set(x, z, fg);
+                    }
+                }
+            }
+        }
+        this.floor.placeAll(arena);
+    }
+
+    // ---------- 供 ColorblindHyperEvents / ColorblindPowerUps 使用（同包） ----------
+
+    ArenaWorld arena() {
         return this.match.arenaWorld();
+    }
+
+    Match match() {
+        return this.match;
+    }
+
+    ColorblindFloor floor() {
+        return this.floor;
+    }
+
+    ColorblindPowerUps powerUps() {
+        return this.powerUps;
+    }
+
+    /** 本回合的正确答案色号（颜料蛋把落点染成这个颜色 = 临时安全地）。 */
+    int answerColor() {
+        return this.answerColor;
+    }
+
+    /** 从本回合上场的颜色里随机取一个（灾难事件重涂用）。 */
+    int randomRoundColor() {
+        return this.roundColors[this.random.nextInt(this.roundColors.length)];
+    }
+
+    /** 把世界坐标附近的一片地板重涂成指定颜色（灾难事件/加成用）。 */
+    void repaintAround(double worldX, double worldZ, int radius, int color) {
+        ArenaWorld arena = this.arena();
+        if (arena == null) {
+            return;
+        }
+        int[] local = new int[2];
+        if (!this.floor.toLocal((int) Math.floor(worldX), (int) Math.floor(worldZ), local)) {
+            return;
+        }
+        this.floor.repaint(arena, local[0], local[1], radius, color);
     }
 
     private void playToAlive(net.minecraft.sound.SoundEvent sound, float volume, float pitch) {

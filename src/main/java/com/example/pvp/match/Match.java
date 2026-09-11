@@ -2842,6 +2842,14 @@ public final class Match {
         this.winnerTeam = winnerTeam;
         this.celebrationTicks = 100; // 5 秒庆祝
         this.state = MatchState.CELEBRATING;
+        if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
+            // 色盲派对：撤掉灾难/加成残留，把地板重绘成 GAME OVER
+            try {
+                this.colorblindSession.onMatchEnd();
+            } catch (Exception e) {
+                LOGGER.warn("[PvP] 色盲派对收尾出错", e);
+            }
+        }
         this.startCelebration(winnerTeam);
     }
 
@@ -4158,6 +4166,25 @@ public final class Match {
     /** 本场唯一队伍（FFA / 合作类模式用；色盲派对结算需要它触发 finishMatch）。 */
     public MatchTeam firstTeam() {
         return this.teams.isEmpty() ? null : this.teams.get(0);
+    }
+
+    /** 色盲派对：右击投票纸（PvPMod 转发）。 */
+    public void colorblindCastVote(ServerPlayerEntity player) {
+        if (this.colorblindSession != null) {
+            this.colorblindSession.castVote(player);
+        }
+    }
+
+    /** 色盲派对：左键打碎加成信标 → 移除方块并发一个随机加成（PvPMod 转发）。 */
+    public void colorblindPunchBeacon(ServerPlayerEntity player, BlockPos pos) {
+        if (this.colorblindSession == null || this.state != MatchState.ACTIVE) {
+            return;
+        }
+        ArenaWorld arena = this.arenaWorld();
+        if (arena != null) {
+            arena.setBlockState(pos, net.minecraft.block.Blocks.AIR.getDefaultState(), 3);
+        }
+        this.colorblindSession.powerUps().grantRandom(player);
     }
 
     /** 结算文案用：已进行的回合数（对局未开始时显示 1）。 */

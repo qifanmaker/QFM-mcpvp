@@ -19,6 +19,8 @@ public final class ColorblindMapGenerator {
     /** 地板层以上的清场高度：加成/事件可能在地板上方放方块（雪、玻璃罩、飞毯等）。 */
     private static final int CLEAR_ABOVE = 48;
     private static final int CLEAR_BELOW = 16;
+    /** 每回合清理的"地板层以上装饰"层数（雪/铁砧/玻璃罩/飞毯都在这个范围内）。 */
+    private static final int DECOR_LAYERS = 5;
 
     private ColorblindMapGenerator() {
     }
@@ -41,6 +43,29 @@ public final class ColorblindMapGenerator {
     public static ColorblindFloor createFloor(int regionIndex) {
         int size = Math.max(8, PvPConfig.INSTANCE.colorblindSize);
         return new ColorblindFloor(origin(regionIndex), size);
+    }
+
+    /**
+     * 只清掉地板层上方 {@code DECOR_LAYERS} 格内的"装饰残留"（暴雪的雪、铁砧雨落下的铁砧、
+     * 随机玻璃罩、飞毯等），地板本身不动。每回合重建地板前调用。
+     */
+    public static void clearAboveFloor(ArenaWorld world, BlockPos floorOrigin, int floorSize) {
+        clearAboveFloor(world, floorOrigin, floorSize, DECOR_LAYERS);
+    }
+
+    /** 同上，但指定清理层数（回合结束只清 2 层，够拆掉信标/铁砧/玻璃罩，又不动玩家脚下的魔毯）。 */
+    public static void clearAboveFloor(ArenaWorld world, BlockPos floorOrigin, int floorSize, int layers) {
+        for (int dx = 0; dx < floorSize; dx++) {
+            for (int dz = 0; dz < floorSize; dz++) {
+                for (int dy = 1; dy <= layers; dy++) {
+                    BlockPos pos = new BlockPos(floorOrigin.getX() + dx,
+                            ArenaTemplate.PLATFORM_Y + dy, floorOrigin.getZ() + dz);
+                    if (!world.getBlockState(pos).isAir()) {
+                        world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                    }
+                }
+            }
+        }
     }
 
     /** 清空一场色盲派对：地板层上下方整片区域（方块 + 掉落物由 ArenaWorldManager 统一处理）。 */

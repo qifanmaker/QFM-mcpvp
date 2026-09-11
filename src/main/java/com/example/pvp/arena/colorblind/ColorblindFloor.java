@@ -72,6 +72,11 @@ public final class ColorblindFloor {
         return this.colorAt(dx, dz) == color;
     }
 
+    /** 直接指定某格的颜色（写进世界由 {@link #placeAll} 统一做）。 */
+    public void set(int dx, int dz, int color) {
+        this.setColor(dx, dz, color);
+    }
+
     /** 按调色板随机重摇整块地板（{@code activeColors} 为本回合上场的色号）。 */
     public void fill(Random random, int[] activeColors) {
         for (int dx = 0; dx < this.size; dx++) {
