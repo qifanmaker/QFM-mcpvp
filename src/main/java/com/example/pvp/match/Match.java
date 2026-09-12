@@ -505,8 +505,7 @@ public final class Match {
     private static List<MatchTeam> buildTeams(MatchType type, List<ServerPlayerEntity> players,
                                               BedWarsLayout bedWarsLayout) {
         List<MatchTeam> teams = new ArrayList<>();
-        if (type == MatchType.DUEL_1V1 || type == MatchType.SUMO || type == MatchType.PVP_1_8
-                || type == MatchType.BRIDGE_1V1) {
+        if (type == MatchType.DUEL_1V1 || type == MatchType.SUMO || type == MatchType.BRIDGE_1V1) {
             teams.add(new MatchTeam("红队", Formatting.RED, List.of(players.get(0))));
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));
         } else if (type == MatchType.DUEL_2V2 || type == MatchType.BRIDGE_2V2 || type == MatchType.BRIDGE_TEAM) {
@@ -4376,7 +4375,6 @@ public final class Match {
             case DUEL_2V2 -> "§e";
             case FFA -> "§d";
             case SUMO -> "§b";
-            case PVP_1_8 -> "§c";
             case SKYWARS -> "§6";
             case BRIDGE_1V1 -> "§3";
             case BRIDGE_2V2 -> "§b";
@@ -4413,7 +4411,6 @@ public final class Match {
             case SUMO -> "§7地图: §e相扑台";
             case DUEL_1V1 -> "§7地图: §e1v1 竞技场";
             case DUEL_2V2 -> "§7地图: §e2v2 竞技场";
-            case PVP_1_8 -> "§7地图: §e1.8 竞技场";
             case FFA -> "§7地图: §e自由竞技场";
             case BED_WARS, BED_WARS_DOUBLES -> "§7地图: §e" + (this.bedWarsLayout != null
                     ? this.bedWarsLayout.mapName() : "-");

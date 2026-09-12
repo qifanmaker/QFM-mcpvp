@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 
 /**
  * 允许在竞技场内（冒险模式下）放置/舀取岩浆与水：
@@ -100,6 +101,26 @@ public abstract class PlayerEntityMixin {
                     victim.getVelocity().z + dz / d * strength);
             victim.velocityDirty = true;
         }
+    }
+
+    /**
+     * 1.8 手感：关掉剑的<b>横扫攻击</b>（1.9+ 才有的群体伤害）。
+     *
+     * <p>横扫在原版里的判定是 {@code d < this.getMovementSpeed()}，而 {@code d} 恒为非负 ——
+     * 让这个方法返回负值就能让条件恒假，且该调用在 {@code attack} 里只此一处、只用于这一条判断，
+     * 改动范围严格限定在横扫分支，不影响伤害/击退/暴击。
+     */
+    @ModifyExpressionValue(method = "attack",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/entity/player/PlayerEntity;getMovementSpeed()F"))
+    private float pvp$legacyNoSweep(float original) {
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        MatchManager matchManager = MatchManager.get();
+        if (matchManager != null && self instanceof ServerPlayerEntity sp
+                && matchManager.usesLegacyCombat(sp)) {
+            return -1.0F;
+        }
+        return original;
     }
 
     /** 相扑 / 烫手山芋：跳过血量扣减（damage() 仍正常返回 true，击退照常生效，只不掉血）。 */

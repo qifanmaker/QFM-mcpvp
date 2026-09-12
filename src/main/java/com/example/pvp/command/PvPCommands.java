@@ -58,7 +58,7 @@ import java.util.UUID;
 public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> MODE_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(new String[]{
-                    "1v1", "2v2", "ffa", "sumo", "1.8", "skywars",
+                    "1v1", "2v2", "ffa", "sumo", "skywars",
                     "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar", "tntrun",
                     "heartbeat", "hotpotato", "bedwars", "bedwars2", "villagedefense", "colorblindparty",
                     "deathmatch"}, builder);
@@ -251,7 +251,7 @@ public final class PvPCommands {
     private static int showHelp(ServerCommandSource source) {
         source.sendFeedback(() -> Messages.gold(
                 "§6§lPvP 匹配 §r命令：\n"
-                        + "§e/pvp join <1v1|2v2|ffa|sumo|1.8> <套件>§r 加入匹配队列\n"
+                        + "§e/pvp join <1v1|2v2|ffa|sumo> <套件>§r 加入匹配队列\n"
                         + "§e/pvp join skywars§r 加入空岛战争（无需套件）\n"
                         + "§e/pvp join bridge1v1|bridge1v1v1v1|bridge2v2|bridge§r 加入战桥（无需套件）\n"
                         + "§e/pvp join luckypillar§r 加入幸运之柱（无需套件，空手开局）\n"
@@ -283,7 +283,7 @@ public final class PvPCommands {
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
             player.sendMessage(Messages.error("未知模式: " + modeId
-                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense, colorblindparty, deathmatch）"), false);
+                    + "（可用: 1v1, 2v2, ffa, sumo, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense, colorblindparty, deathmatch）"), false);
             return 0;
         }
         Kit kit;

@@ -10,7 +10,6 @@ public enum MatchType {
     DUEL_2V2("2v2", "2v2 团队"),
     FFA("ffa", "自由乱斗"),
     SUMO("sumo", "相扑"),
-    PVP_1_8("1.8", "1.8 经典PvP"),
     SKYWARS("skywars", "空岛战争"),
     BRIDGE_1V1("bridge1v1", "战桥 1v1"),
     BRIDGE_1V1V1V1("bridge1v1v1v1", "战桥 1v1v1v1"),
@@ -44,7 +43,7 @@ public enum MatchType {
 
     public int requiredPlayers() {
         return switch (this) {
-            case DUEL_1V1, SUMO, PVP_1_8, BRIDGE_1V1 -> 2;
+            case DUEL_1V1, SUMO, BRIDGE_1V1 -> 2;
             case DUEL_2V2, BRIDGE_2V2, BRIDGE_1V1V1V1 -> 4;
             case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
             case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;

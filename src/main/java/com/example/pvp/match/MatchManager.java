@@ -245,7 +245,7 @@ public final class MatchManager {
                     String queuing = "§a排队中: §f" + entry.getType().getDisplayName();
                     // 只有需要套件的对战模式才显示套件名
                     if (switch (entry.getType()) {
-                        case DUEL_1V1, DUEL_2V2, FFA, SUMO, PVP_1_8, DEATHMATCH -> true;
+                        case DUEL_1V1, DUEL_2V2, FFA, SUMO, DEATHMATCH -> true;
                         default -> false;
                     }) {
                         queuing += " §7/§f " + entry.getKit().getDisplayName();
@@ -537,10 +537,9 @@ public final class MatchManager {
         }
     }
 
-    /** 是否为低版本(1.8)战斗模式：1.8 经典PvP / 空岛战争 / 战桥 / 幸运之柱 / 起床战争 / 村庄保卫战（无攻击冷却 + 剑格挡）。 */
+    /** 是否为低版本(1.8)战斗模式：空岛战争 / 战桥 / 幸运之柱 / 起床战争 / 村庄保卫战（无攻击冷却 + 剑格挡）。 */
     public boolean isLegacyCombat(Match match) {
-        return match != null && (match.getType() == MatchType.PVP_1_8
-                || match.getType() == MatchType.SKYWARS || match.getType().isBridge()
+        return match != null && (match.getType() == MatchType.SKYWARS || match.getType().isBridge()
                 || match.getType() == MatchType.LUCKY_PILLAR || match.getType().isBedWars()
                 || match.getType() == MatchType.VILLAGE_DEFENSE);
     }
@@ -710,7 +709,7 @@ public final class MatchManager {
 
     private ArenaTemplate createTemplate(MatchType type) {
         int size = switch (type) {
-            case DUEL_1V1, PVP_1_8 -> PvPConfig.INSTANCE.duel1v1Size;
+            case DUEL_1V1 -> PvPConfig.INSTANCE.duel1v1Size;
             case DUEL_2V2 -> PvPConfig.INSTANCE.duel2v2Size;
             case FFA -> PvPConfig.INSTANCE.ffaSize;
             case SUMO -> PvPConfig.INSTANCE.sumoSize;
@@ -726,7 +725,7 @@ public final class MatchManager {
             case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
-            case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
+            case DUEL_1V1, SUMO -> ArenaTemplate.Layout.DUEL_1V1;
             case DUEL_2V2 -> ArenaTemplate.Layout.DUEL_2V2;
             case FFA -> ArenaTemplate.Layout.FFA;
             case SKYWARS -> ArenaTemplate.Layout.SKYWARS;
