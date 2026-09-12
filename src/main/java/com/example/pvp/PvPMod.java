@@ -523,13 +523,19 @@ public final class PvPMod implements ModInitializer {
                     }
                     return false; // 对局内（含倒计时/庆祝）一律取消原生死亡处理
                 }
-                // 不在对局中（主城/竞技场访客）：不触发原生死亡界面，满血送回复活点
+                // 不在对局中：不触发原生死亡界面
                 sp.setHealth(sp.getMaxHealth());
                 sp.setFireTicks(0);
                 sp.clearStatusEffects();
                 sp.fallDistance = 0;
-                MATCH.teleportToOverworldSpawn(sp);
-                sp.sendMessage(Messages.warn("你已死亡，已被送回主城"), false);
+                if (sp.getWorld().getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
+                    // 竞技场内阵亡（观众/调试/游离玩家）：强制旁观者留场观战，不再满血送回主城
+                    MATCH.forceArenaSpectator(sp);
+                } else {
+                    // 主城阵亡：满血送回大厅出生点
+                    MATCH.teleportToOverworldSpawn(sp);
+                    sp.sendMessage(Messages.warn("你已死亡，已被送回主城"), false);
+                }
                 return false;
             }
             return true;

@@ -66,6 +66,11 @@ public final class MatchManager {
     private final Map<UUID, List<String>> lobbyLines = new ConcurrentHashMap<>();
     /** 玩家选择的村庄保卫战 Kit（默认 knight）。 */
     private final Map<UUID, String> villageDefenseKitChoice = new ConcurrentHashMap<>();
+    /**
+     * 在竞技场阵亡后被强制转为旁观者的玩家。回主城时要把游戏模式恢复成冒险，
+     * 否则旁观者模式会被写进玩家存档，重进服务器还卡在旁观。
+     */
+    private final Set<UUID> arenaForcedSpectators = ConcurrentHashMap.newKeySet();
 
     /** 玩家选择的村庄 Kit id（未选默认 knight）。 */
     public String villageDefenseKitOf(UUID uuid) {
@@ -300,6 +305,11 @@ public final class MatchManager {
         if (player.getWorld().getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
             return;
         }
+        // 竞技场阵亡被强制旁观的人，回到主城要放出来（放在 lobbyProtection 判断之前，
+        // 否则关掉大厅保护时他们会永远卡在旁观者模式）
+        if (this.arenaForcedSpectators.remove(player.getUuid())) {
+            player.changeGameMode(GameMode.ADVENTURE);
+        }
         if (!PvPConfig.INSTANCE.lobbyProtection) {
             // 即使大厅保护关闭，也清理幽灵残留的危险状态（飞行、无重力、隐身）
             player.setInvisible(false);
@@ -329,6 +339,29 @@ public final class MatchManager {
         }
         player.getHungerManager().setFoodLevel(20);
         player.getHungerManager().setSaturationLevel(20f);
+    }
+
+    /**
+     * 非参赛玩家在竞技场内阵亡：强制转为旁观者留场观战，不再满血送回主城。
+     *
+     * <p>不清背包 —— 观众/调试玩家身上的东西原样留着，免得把工具撒进竞技场。
+     * 配合 {@code PvPCommands} 里的 /gamemode 竞技场守卫：OP 等级低于 3 的玩家
+     * 死后没法用 /gamemode 把自己切回来。回主城时由 {@link #applyLobbyProtectionTo} 恢复冒险模式。
+     */
+    public void forceArenaSpectator(ServerPlayerEntity player) {
+        player.changeGameMode(GameMode.SPECTATOR);
+        player.setInvulnerable(true);
+        player.setHealth(player.getMaxHealth());
+        player.setFireTicks(0);
+        player.fallDistance = 0;
+        player.clearStatusEffects();
+        player.getAbilities().allowFlying = true;
+        player.getAbilities().flying = true;
+        player.sendAbilitiesUpdate();
+        player.currentScreenHandler.sendContentUpdates();
+        this.arenaForcedSpectators.add(player.getUuid());
+        player.sendMessage(Messages.warn("你在竞技场中阵亡，已转为观察者模式"), false);
+        player.sendMessage(Messages.info("用 §e/hub§r 可以返回主城"), false);
     }
 
     /** 尝试开一场比赛（所有人同一套件），成功返回 true。 */
@@ -717,8 +750,9 @@ public final class MatchManager {
             boolean inVoid = player.getY() < arena.getBottomY() - 32;
 
             if (match == null) {
-                // 调试/观览访客不受兜底影响
-                if (!manager.isVisitor(player.getUuid())) {
+                // 调试/观览访客、以及竞技场内阵亡后被强制旁观的玩家都不受兜底影响
+                if (!manager.isVisitor(player.getUuid())
+                        && player.interactionManager.getGameMode() != GameMode.SPECTATOR) {
                     this.teleportToOverworldSpawn(player);
                 }
             } else if (inVoid) {
