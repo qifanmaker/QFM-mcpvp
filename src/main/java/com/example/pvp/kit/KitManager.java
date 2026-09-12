@@ -340,12 +340,18 @@ public final class KitManager {
                 .build();
     }
 
-    /** 1.8 经典：钻石剑 + 速度 II + 金苹果（配合 1.8 无冷却模式）。 */
+    /** 1.8 经典：钻石剑 + 全套铁甲 + 速度 II + 金苹果（配合 1.8 无冷却模式）。 */
     private static Kit buildLegacy18Kit() {
         return new Kit.Builder("legacy_1_8", KitType.CUSTOM)
                 .displayName("1.8 经典")
                 .addItem(stack(Items.DIAMOND_SWORD))
                 .addItem(stack(Items.GOLDEN_APPLE, 8))
+                .armor(
+                        stack(Items.IRON_HELMET),
+                        stack(Items.IRON_CHESTPLATE),
+                        stack(Items.IRON_LEGGINGS),
+                        stack(Items.IRON_BOOTS)
+                )
                 .addEffect(new StatusEffectInstance(StatusEffects.SPEED, 6000, 1))
                 .food(20, 5f)
                 .gamemode(GameMode.ADVENTURE)
