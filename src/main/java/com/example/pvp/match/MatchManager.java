@@ -240,7 +240,7 @@ public final class MatchManager {
                     String queuing = "§a排队中: §f" + entry.getType().getDisplayName();
                     // 只有需要套件的对战模式才显示套件名
                     if (switch (entry.getType()) {
-                        case DUEL_1V1, DUEL_2V2, FFA, SUMO, PVP_1_8 -> true;
+                        case DUEL_1V1, DUEL_2V2, FFA, SUMO, PVP_1_8, DEATHMATCH -> true;
                         default -> false;
                     }) {
                         queuing += " §7/§f " + entry.getKit().getDisplayName();
@@ -385,6 +385,11 @@ public final class MatchManager {
         } else if (type == MatchType.COLORBLIND_PARTY) {
             if (players.size() < PvPConfig.INSTANCE.colorblindMinPlayers
                     || players.size() > PvPConfig.INSTANCE.colorblindMaxPlayers) {
+                return false;
+            }
+        } else if (type == MatchType.DEATHMATCH) {
+            if (players.size() < PvPConfig.INSTANCE.deathmatchMinPlayers
+                    || players.size() > PvPConfig.INSTANCE.deathmatchMaxPlayers) {
                 return false;
             }
         } else if (type.isBedWars()) {
@@ -543,6 +548,9 @@ public final class MatchManager {
             if (match.getType().isBedWars()) {
                 return; // 床战由 ALLOW_DEATH 处理（床活重生/床死淘汰）
             }
+            if (match.getType() == MatchType.DEATHMATCH) {
+                return; // 死斗由 ALLOW_DEATH 处理（原地复活），这里绝不能淘汰
+            }
             match.eliminate(player, EliminationCause.DEATH, specificDeathMessage(player));
         }
     }
@@ -562,6 +570,10 @@ public final class MatchManager {
         if (match != null && match.getState() == MatchState.ACTIVE) {
             if (match.getType().isBridge()) {
                 match.bridgeRespawn(newPlayer);
+            } else if (match.getType() == MatchType.DEATHMATCH) {
+                // 死斗没有人出局：走原版重生（例如中途重连）也要送回场上，
+                // 不能落到 makeGhost —— 那会让玩家变成永久旁观者
+                match.deathmatchRespawn(newPlayer);
             } else {
                 match.makeGhost(newPlayer);
             }
@@ -586,6 +598,9 @@ public final class MatchManager {
         if (match != null) {
             if (match.getState() == MatchState.COUNTDOWN) {
                 match.cancelMatch(player.getGameProfile().getName() + " 中途退出");
+            } else if (match.getType() == MatchType.DEATHMATCH) {
+                // 死斗没有"淘汰"这回事：掉线只清掉待复活/助攻记录，重进照常参战
+                match.onDeathmatchDisconnect(player);
             } else {
                 match.eliminate(player, EliminationCause.DISCONNECT);
             }
@@ -657,6 +672,7 @@ public final class MatchManager {
             case BED_WARS, BED_WARS_DOUBLES -> PvPConfig.INSTANCE.bedWarsSize;
             case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseSize;
             case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindSize;
+            case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO, PVP_1_8 -> ArenaTemplate.Layout.DUEL_1V1;
@@ -671,6 +687,10 @@ public final class MatchManager {
             case BED_WARS, BED_WARS_DOUBLES -> ArenaTemplate.Layout.BED_WARS;
             case VILLAGE_DEFENSE -> ArenaTemplate.Layout.VILLAGE_DEFENSE;
             case COLORBLIND_PARTY -> ArenaTemplate.Layout.COLORBLIND_PARTY;
+            // 死斗复用 FFA 的平地竞技场（方形平台 + 四周围墙 + 环形均布出生点），
+            // 不新建 Layout：这样 ArenaWorldManager 的通用建场/清场分支和 ArenaTemplate.computeSpawns
+            // 的 FFA 分支都直接可用，两个文件零改动。
+            case DEATHMATCH -> ArenaTemplate.Layout.FFA;
         };
         // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战/村庄保卫战/色盲派对无围墙；其地图本身由各自生成器铺
         boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
@@ -714,6 +734,9 @@ public final class MatchManager {
                     } else if (match.getType() == MatchType.VILLAGE_DEFENSE) {
                         // 村庄保卫战：掉虚空 = 阵亡（转旁观，下一波复活），不永久淘汰
                         match.onVillageDefenseDeath(player);
+                    } else if (match.getType() == MatchType.DEATHMATCH) {
+                        // 死斗：掉虚空 = 一次阵亡（场地有围墙，这里是兜底），换个远点复活
+                        match.onDeathmatchVoidFall(player);
                     } else {
                         match.eliminate(player, EliminationCause.VOID);
                     }

@@ -471,6 +471,11 @@ public final class PvPMod implements ModInitializer {
                 if (match != null && !match.getType().allowsPlayerDamage()) {
                     return false;
                 }
+                // 死斗：记一笔"最后被谁打的"。对手被击退摔死/打残后自己摔死时，
+                // 人头按这个记录归属（助攻窗口，见 Match.recordDeathmatchDamage）。其他模式是空操作。
+                if (match != null) {
+                    match.recordDeathmatchDamage(victim, attacker);
+                }
             }
             return true;
         });
@@ -493,6 +498,10 @@ public final class PvPMod implements ModInitializer {
                             && match.getState() == MatchState.ACTIVE) {
                         // 村庄保卫战：阵亡转旁观，下一波复活
                         match.onVillageDefenseDeath(sp);
+                    } else if (match.getType() == MatchType.DEATHMATCH) {
+                        // 死斗：不淘汰，下一 tick 在离敌人最远的出生点原地复活。
+                        // 必须放在下面的 eliminate 分支之前，否则会被当成淘汰处理。
+                        match.onDeathmatchDeath(sp, source);
                     } else if (match.getState() == MatchState.ACTIVE) {
                         // 不死图腾救场：空岛/幸运之柱受到致死伤害时消耗图腾取消死亡（非掉虚空→原版逻辑原地复活）
                         if ((match.getType() == MatchType.SKYWARS || match.getType() == MatchType.LUCKY_PILLAR)

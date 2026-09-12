@@ -51,6 +51,9 @@ public final class QueueManager {
     /** 色盲派对开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
     private Integer colorblindCountdownTicks;
     private Integer colorblindFillTicks;
+    /** 死斗开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
+    private Integer deathmatchCountdownTicks;
+    private Integer deathmatchFillTicks;
     /** 起床战争开赛倒计时（tick 数）；null 表示未开始。 */
     private Integer bedWarsCountdownTicks;
 
@@ -152,6 +155,7 @@ public final class QueueManager {
         this.tickHotPotato(matchManager);
         this.tickVillageDefense(matchManager);
         this.tickColorblindParty(matchManager);
+        this.tickDeathmatch(matchManager);
         this.tickBedWars(matchManager);
         this.tickInstantMatches(matchManager);
     }
@@ -883,6 +887,94 @@ public final class QueueManager {
         }
     }
 
+    /** 死斗队列：凑 startPlayers 倒计时；minPlayers 起等待填充（超时按当前人数开）。 */
+    private void tickDeathmatch(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        long count = this.countDeathmatch();
+
+        if (this.deathmatchCountdownTicks != null) {
+            this.deathmatchCountdownTicks = count >= config.deathmatchMaxPlayers
+                    ? 0 : this.deathmatchCountdownTicks - 1;
+            if (this.deathmatchCountdownTicks <= 0) {
+                this.deathmatchCountdownTicks = null;
+                this.deathmatchFillTicks = null;
+                this.startDeathmatchMatch(matchManager);
+            }
+            return;
+        }
+
+        if (count >= config.deathmatchStartPlayers) {
+            this.deathmatchCountdownTicks = config.deathmatchCountdownSeconds * 20;
+            this.broadcastDeathmatch(matchManager, Messages.info(
+                    "§e" + count + "§r 人已就绪，§e" + config.deathmatchCountdownSeconds + "§r 秒后开始死斗！"));
+            this.deathmatchFillTicks = null;
+            return;
+        }
+
+        if (count >= config.deathmatchMinPlayers) {
+            if (this.deathmatchFillTicks == null) {
+                this.deathmatchFillTicks = config.deathmatchFillTimeoutSeconds * 20;
+            }
+            if (this.deathmatchFillTicks % 40 == 0) {
+                this.broadcastDeathmatch(matchManager, Messages.info(
+                        "等待更多玩家加入死斗（当前 " + count + "/" + config.deathmatchStartPlayers + "）..."));
+            }
+            this.deathmatchFillTicks--;
+            if (this.deathmatchFillTicks <= 0) {
+                this.deathmatchFillTicks = null;
+                this.startDeathmatchMatch(matchManager);
+            }
+        } else {
+            this.deathmatchFillTicks = null;
+        }
+    }
+
+    /** 开一局死斗：每人带自己选的套件（不走哨兵套件，和 FFA 一样）。 */
+    private void startDeathmatchMatch(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        Map<UUID, Kit> kits = new HashMap<>();
+        List<QueueEntry> toRemove = new ArrayList<>();
+
+        for (QueueEntry entry : List.copyOf(this.entries)) {
+            if (entry.getType() != MatchType.DEATHMATCH) {
+                continue;
+            }
+            if (players.size() >= config.deathmatchMaxPlayers) {
+                break;
+            }
+            toRemove.add(entry);
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                players.add(online);
+                kits.put(entry.getPlayer().getUuid(), entry.getKit());
+            }
+        }
+        if (players.size() < config.deathmatchMinPlayers) {
+            this.entries.removeAll(toRemove);
+            return;
+        }
+        if (matchManager.startMatch(players, MatchType.DEATHMATCH, kits)) {
+            this.entries.removeAll(toRemove);
+        }
+    }
+
+    private long countDeathmatch() {
+        return this.entries.stream().filter(e -> e.getType() == MatchType.DEATHMATCH).count();
+    }
+
+    private void broadcastDeathmatch(MatchManager matchManager, Text message) {
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != MatchType.DEATHMATCH) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                online.sendMessage(message, false);
+            }
+        }
+    }
+
     /** 起床战争队列：凑 2 人即开始倒计时，倒计时结束按当前人数开赛（按人数动态分队）。 */
     private void tickBedWars(MatchManager matchManager) {
         long count = this.countBedWars();
@@ -976,6 +1068,7 @@ public final class QueueManager {
                     || entry.getType() == MatchType.HEARTBEAT || entry.getType() == MatchType.HOT_POTATO
                     || entry.getType() == MatchType.VILLAGE_DEFENSE
                     || entry.getType() == MatchType.COLORBLIND_PARTY
+                    || entry.getType() == MatchType.DEATHMATCH
                     || entry.getType().isBedWars()) {
                 continue;
             }
@@ -1055,6 +1148,7 @@ public final class QueueManager {
         if (type == MatchType.FFA || type == MatchType.SKYWARS || type == MatchType.LUCKY_PILLAR
                 || type == MatchType.TNT_RUN || type == MatchType.HEARTBEAT || type == MatchType.HOT_POTATO
                 || type == MatchType.VILLAGE_DEFENSE || type == MatchType.COLORBLIND_PARTY
+                || type == MatchType.DEATHMATCH
                 || type.isBedWars()) {
             int min = switch (type) {
                 case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
@@ -1064,6 +1158,7 @@ public final class QueueManager {
                 case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoMinPlayers;
                 case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseMinPlayers;
                 case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindMinPlayers;
+                case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchMinPlayers;
                 default -> type.isBedWars() ? 2 : PvPConfig.INSTANCE.tntRunMinPlayers;
             };
             int count = (int) this.countType(type);
@@ -1086,6 +1181,8 @@ public final class QueueManager {
             this.villageDefenseFillTicks = null;
             this.colorblindCountdownTicks = null;
             this.colorblindFillTicks = null;
+            this.deathmatchCountdownTicks = null;
+            this.deathmatchFillTicks = null;
             this.bedWarsCountdownTicks = null;
             if (type.isBedWars()) {
                 this.startBedWarsMatch(matchManager);
@@ -1097,6 +1194,10 @@ public final class QueueManager {
             }
             if (type == MatchType.COLORBLIND_PARTY) {
                 this.startColorblindPartyMatch(matchManager);
+                return true;
+            }
+            if (type == MatchType.DEATHMATCH) {
+                this.startDeathmatchMatch(matchManager);
                 return true;
             }
             switch (type) {

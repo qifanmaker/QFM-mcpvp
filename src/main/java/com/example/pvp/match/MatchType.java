@@ -23,7 +23,8 @@ public enum MatchType {
     BED_WARS("bedwars", "起床战争"),
     BED_WARS_DOUBLES("bedwars2", "起床战争(双人)"),
     VILLAGE_DEFENSE("villagedefense", "村庄保卫战"),
-    COLORBLIND_PARTY("colorblindparty", "色盲派对");
+    COLORBLIND_PARTY("colorblindparty", "色盲派对"),
+    DEATHMATCH("deathmatch", "死斗");
 
     private final String id;
     private final String displayName;
@@ -55,6 +56,7 @@ public enum MatchType {
             case BED_WARS, BED_WARS_DOUBLES -> 2; // 灵活：按人数启用前 N 队
             case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseMinPlayers; // 合作守村，可单人
             case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindMinPlayers;
+            case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchMinPlayers;
         };
     }
 
@@ -87,9 +89,12 @@ public enum MatchType {
     /**
      * 同队/同场玩家之间能否互相造成伤害（含击退）。
      * 色盲派对是纯色觉+走位竞速，玩家之间打不掉血也不产生击退，只靠站错颜色淘汰。
+     *
+     * <p>死斗不在 {@link #isLastManStanding()} 里（它没人被淘汰，胜负看人头不看到底剩几个），
+     * 但互伤必须放行，所以单独列在这里。
      */
     public boolean allowsPlayerDamage() {
-        return isLastManStanding() && this != COLORBLIND_PARTY;
+        return (isLastManStanding() && this != COLORBLIND_PARTY) || this == DEATHMATCH;
     }
 
     public static MatchType byId(String id) {

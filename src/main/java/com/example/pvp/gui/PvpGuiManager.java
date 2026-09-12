@@ -355,6 +355,12 @@ public final class PvpGuiManager {
                 "不吃伤害，只吃击退", "落到平台下方 20 格淘汰，末影珍珠可救回", "点击选择套件后加入队列"));
         inv.setStack(13, queueButton(Items.NETHERITE_SWORD, "§b1.8 经典PvP", player, MatchType.PVP_1_8,
                 "无攻击冷却，疯狂点按", "剑可格挡减伤 50%", "点击选择套件后加入队列"));
+        inv.setStack(14, queueButton(Items.NETHERITE_CHESTPLATE, "§4死斗 (Deathmatch)", player, MatchType.DEATHMATCH,
+                "限时 " + (PvPConfig.INSTANCE.deathmatchDurationSeconds / 60) + " 分钟，死亡立即复活，不淘汰",
+                "人头最多者获胜（同人头比死亡数）",
+                PvPConfig.INSTANCE.deathmatchMinPlayers + "~" + PvPConfig.INSTANCE.deathmatchMaxPlayers
+                        + " 人，凑齐 " + PvPConfig.INSTANCE.deathmatchStartPlayers + " 人开赛",
+                "点击选择套件后加入队列"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
@@ -787,6 +793,7 @@ public final class PvpGuiManager {
             case 11 -> MatchType.FFA;
             case 12 -> MatchType.SUMO;
             case 13 -> MatchType.PVP_1_8;
+            case 14 -> MatchType.DEATHMATCH;
             default -> null;
         };
         if (type == null) {

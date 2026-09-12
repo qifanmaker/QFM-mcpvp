@@ -242,6 +242,23 @@ public final class PvPConfig {
     /** 强制模式：auto（投票决定）/ normal / hyper。单人自测时可直接指定。 */
     public String colorblindForceMode = "auto";
 
+    // ---------- 死斗 (Deathmatch) ----------
+    /** 最少/触发开赛倒计时/最多人数。 */
+    public int deathmatchMinPlayers = 2;
+    public int deathmatchStartPlayers = 4;
+    public int deathmatchMaxPlayers = 16;
+    /** 开赛倒计时（秒）；不足开赛人数时等待填充的最长时间（秒）。 */
+    public int deathmatchCountdownSeconds = 30;
+    public int deathmatchFillTimeoutSeconds = 60;
+    /** 单局时长（秒）：到时按人头结算。 */
+    public int deathmatchDurationSeconds = 300;
+    /** 场地边长（复用 FFA 平地竞技场布局：方形平台 + 四周围墙）。 */
+    public int deathmatchSize = 64;
+    /** 对局超时（秒）：兜底用，正常会先跑完 5 分钟。须大于单局时长。 */
+    public int deathmatchTimeoutSeconds = 420;
+    /** 助攻窗口（秒）：最后被某人伤害后多少秒内死亡，人头仍算给他。 */
+    public int deathmatchAssistSeconds = 5;
+
     // ---------- 起床战争 (Bed Wars) ----------
     /** 区域覆盖边长（生成/清理边界，需覆盖整张地图；Hypixel 图约 100 格）。 */
     public int bedWarsSize = 200;
@@ -460,6 +477,42 @@ public final class PvPConfig {
         }
         if (this.colorblindForceMode == null || this.colorblindForceMode.isBlank()) {
             this.colorblindForceMode = defaults.colorblindForceMode;
+            changed = true;
+        }
+        if (this.deathmatchMinPlayers <= 0) {
+            this.deathmatchMinPlayers = defaults.deathmatchMinPlayers;
+            changed = true;
+        }
+        if (this.deathmatchStartPlayers <= 0) {
+            this.deathmatchStartPlayers = defaults.deathmatchStartPlayers;
+            changed = true;
+        }
+        if (this.deathmatchMaxPlayers <= 0) {
+            this.deathmatchMaxPlayers = defaults.deathmatchMaxPlayers;
+            changed = true;
+        }
+        if (this.deathmatchCountdownSeconds <= 0) {
+            this.deathmatchCountdownSeconds = defaults.deathmatchCountdownSeconds;
+            changed = true;
+        }
+        if (this.deathmatchFillTimeoutSeconds <= 0) {
+            this.deathmatchFillTimeoutSeconds = defaults.deathmatchFillTimeoutSeconds;
+            changed = true;
+        }
+        if (this.deathmatchDurationSeconds <= 0) {
+            this.deathmatchDurationSeconds = defaults.deathmatchDurationSeconds;
+            changed = true;
+        }
+        if (this.deathmatchSize <= 0) {
+            this.deathmatchSize = defaults.deathmatchSize;
+            changed = true;
+        }
+        if (this.deathmatchTimeoutSeconds <= 0) {
+            this.deathmatchTimeoutSeconds = defaults.deathmatchTimeoutSeconds;
+            changed = true;
+        }
+        if (this.deathmatchAssistSeconds <= 0) {
+            this.deathmatchAssistSeconds = defaults.deathmatchAssistSeconds;
             changed = true;
         }
         if (this.luckyPillarMinPlayers <= 0) {

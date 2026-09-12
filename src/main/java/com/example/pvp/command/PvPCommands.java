@@ -60,7 +60,8 @@ public final class PvPCommands {
             (ctx, builder) -> CommandSource.suggestMatching(new String[]{
                     "1v1", "2v2", "ffa", "sumo", "1.8", "skywars",
                     "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar", "tntrun",
-                    "heartbeat", "hotpotato", "bedwars", "bedwars2", "villagedefense", "colorblindparty"}, builder);
+                    "heartbeat", "hotpotato", "bedwars", "bedwars2", "villagedefense", "colorblindparty",
+                    "deathmatch"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -260,6 +261,7 @@ public final class PvPCommands {
                         + "§e/pvp join bedwars|bedwars2§r 加入起床战争（Solo/双人，摧毁敌方床获胜）\n"
                         + "§e/pvp join villagedefense§r 加入村庄保卫战（合作守村）\n"
                         + "§e/pvp join colorblindparty§r 加入色盲派对（站到「文字的颜色」上）\n"
+                        + "§e/pvp join deathmatch -k <套件>§r 加入死斗（5 分钟，人头最多者胜）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
@@ -281,7 +283,7 @@ public final class PvPCommands {
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
             player.sendMessage(Messages.error("未知模式: " + modeId
-                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense, colorblindparty）"), false);
+                    + "（可用: 1v1, 2v2, ffa, sumo, 1.8, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense, colorblindparty, deathmatch）"), false);
             return 0;
         }
         Kit kit;
@@ -345,6 +347,10 @@ public final class PvPCommands {
             } else if (type == MatchType.COLORBLIND_PARTY) {
                 player.sendMessage(Messages.info("已加入色盲派对：凑齐 " + PvPConfig.INSTANCE.colorblindStartPlayers
                         + " 人开赛；标题写着一个颜色名、却被渲染成另一种颜色 —— 站到「文字的颜色」上！"), false);
+            } else if (type == MatchType.DEATHMATCH) {
+                player.sendMessage(Messages.info("已加入死斗：凑齐 " + PvPConfig.INSTANCE.deathmatchStartPlayers
+                        + " 人开赛；限时 " + (PvPConfig.INSTANCE.deathmatchDurationSeconds / 60)
+                        + " 分钟，死亡立即复活，人头最多者获胜"), false);
             } else if (type.isBedWars()) {
                 player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")
                         + "）：凑 2 人即开始倒计时，摧毁敌方床获胜"), false);

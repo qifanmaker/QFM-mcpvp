@@ -232,6 +232,24 @@ public final class Match {
     /** 色盲派对运行时（仅 COLORBLIND_PARTY 模式非空）。 */
     private ColorblindPartySession colorblindSession;
 
+    // ---------- 死斗 (Deathmatch) ----------
+    /** 人头数 / 死亡数 / 当前连杀（死亡清零）。 */
+    private final Map<UUID, Integer> deathmatchKills = new HashMap<>();
+    private final Map<UUID, Integer> deathmatchDeaths = new HashMap<>();
+    private final Map<UUID, Integer> deathmatchKillstreak = new HashMap<>();
+    /** 助攻归属：最后对该玩家造成伤害的人 + 当时的 tick（用于坠落/摔死的人头归属）。 */
+    private final Map<UUID, UUID> deathmatchLastDamager = new HashMap<>();
+    private final Map<UUID, Integer> deathmatchLastDamageTick = new HashMap<>();
+    /** 已被判定死亡、等下一 tick 复活的玩家；同时用于同 tick 内二次致死的去重。 */
+    private final Set<UUID> deathmatchPendingRespawns = new HashSet<>();
+    /** 剩余对局时长（tick）。 */
+    private int deathmatchTicks;
+    /**
+     * 复活点候选池。比实际人数密（环形均布 2N 个点），这样"挑离敌人最远的点"才有得挑 ——
+     * 直接用每人一个的出生点的话，2 人局就只有 2 个候选，复活位置完全可预测。
+     */
+    private final List<BlockPos> deathmatchSpawnPool = new ArrayList<>();
+
     /** 起床战争地图数据与布局（仅 BED_WARS 模式非空）。 */
     private BedWarsMapLoader.MapData bedWarsMapData;
     private BedWarsLayout bedWarsLayout;
@@ -463,6 +481,12 @@ public final class Match {
             this.heartbeatLayout = null;
             this.hotPotatoLayout = null;
             spawnPositions = template.computeSpawns(regionIndex, this.players.size());
+            if (type == MatchType.DEATHMATCH) {
+                // 复活点池：同一个 FFA 环形算法，但按 2N（至少 16）均布，给出更多"远点"可选。
+                // 只用于复活，开局出生点仍用上面按人数算的那一份。
+                this.deathmatchSpawnPool.addAll(
+                        template.computeSpawns(regionIndex, Math.max(16, this.players.size() * 2)));
+            }
         }
         for (int i = 0; i < this.players.size(); i++) {
             this.spawns.put(this.players.get(i).getUuid(), spawnPositions.get(i));
@@ -592,6 +616,9 @@ public final class Match {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.villageDefenseTimeoutSeconds * 20);
         } else if (this.type == MatchType.COLORBLIND_PARTY) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.colorblindTimeoutSeconds * 20);
+        } else if (this.type == MatchType.DEATHMATCH) {
+            // 兜底（比正片的 5 分钟长）：正常是 tickDeathmatch 自己按时结束
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.deathmatchTimeoutSeconds * 20);
         } else {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
         }
@@ -673,6 +700,9 @@ public final class Match {
                 }
                 if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
                     this.colorblindSession.tick();
+                }
+                if (this.type == MatchType.DEATHMATCH) {
+                    this.tickDeathmatch();
                 }
                 if (this.type.isBedWars()) {
                     this.tickBedWars();
@@ -2702,6 +2732,327 @@ public final class Match {
         return this.teamIndex(player);
     }
 
+    // ---------- 死斗 (Deathmatch) ----------
+    //
+    // 与"最后存活"类模式的根本区别：死斗没有人被淘汰，死亡只是 +1 计数然后立刻换个远点重来，
+    // 5 分钟到时按人头结算。所以它刻意不进 isLastManStanding()（那会让 computeWinner 在
+    // "存活 ≤1" 时提前结算），而是像村庄保卫战那样走 computeWinner() 返回 null、
+    // 由自己的计时器在 tickDeathmatch() 里收尾的路线。
+
+    /** 连杀播报阈值 → 文案；没有对应文案时返回 null（不播报）。 */
+    private static String deathmatchStreakText(int streak) {
+        return switch (streak) {
+            case 2 -> "§e双杀";
+            case 3 -> "§6三杀";
+            case 4 -> "§c四杀";
+            case 5 -> "§4无双";
+            default -> streak >= 6 ? "§5超神" : null;
+        };
+    }
+
+    /**
+     * 是否仍是"在场参战"的死斗玩家（用于复活点选距）。
+     * 排除待复活的人 —— 他们下一秒就会被传到远处，不能当成"附近的敌人"来算距离。
+     */
+    private boolean isDeathmatchCombatant(ServerPlayerEntity player) {
+        return this.isDeathmatchCreditable(player)
+                && !this.deathmatchPendingRespawns.contains(player.getUuid());
+    }
+
+    /**
+     * 能否把人头/助攻算在他头上。比 {@link #isDeathmatchCombatant} 宽松：不排除"待复活"的人。
+     * 否则同 tick 内互杀（A 先死被排进复活队列，B 紧随其后死亡）会让两边都拿不到人头。
+     */
+    private boolean isDeathmatchCreditable(ServerPlayerEntity player) {
+        UUID uuid = player.getUuid();
+        return this.contains(uuid)
+                && !this.eliminated.contains(uuid)
+                && !this.leftEarly.contains(uuid)
+                && this.manager.getOnlinePlayer(uuid) != null;
+    }
+
+    /**
+     * 记录"最后对该玩家造成伤害的人"，用于坠落/摔死时的人头归属（助攻窗口）。
+     * 在 ALLOW_DAMAGE 里被无条件调用，所以非死斗模式必须是空操作。
+     */
+    public void recordDeathmatchDamage(ServerPlayerEntity victim, ServerPlayerEntity attacker) {
+        if (this.type != MatchType.DEATHMATCH || this.state != MatchState.ACTIVE) {
+            return;
+        }
+        // 已经阵亡待复活的人：既不记他的助攻，也不把他记成受害者，
+        // 否则同 tick 内的后续伤害会给一场已经结算过的死亡重挂助攻记录
+        if (victim == attacker
+                || this.deathmatchPendingRespawns.contains(victim.getUuid())
+                || !this.isDeathmatchCreditable(attacker)) {
+            return;
+        }
+        this.deathmatchLastDamager.put(victim.getUuid(), attacker.getUuid());
+        this.deathmatchLastDamageTick.put(victim.getUuid(), this.ticks);
+    }
+
+    /**
+     * ALLOW_DEATH 拦截回调：只登记，等下一 tick 复活（和战桥一样，避免在死亡判定途中传送）。
+     * 调用方已返回 false 取消了原版 onDeath，所以不掉落物品、不弹死亡界面。
+     */
+    public void onDeathmatchDeath(ServerPlayerEntity victim, net.minecraft.entity.damage.DamageSource source) {
+        // 立刻回血/清火/清坠落：否则血量 0 会同步给客户端，闪一下原版死亡界面
+        victim.setHealth(victim.getMaxHealth());
+        victim.setFireTicks(0);
+        victim.fallDistance = 0;
+        if (this.state != MatchState.ACTIVE) {
+            return; // 倒计时/庆祝中只保证不死，不计数也不排队
+        }
+        this.registerDeathmatchDeath(victim, this.deathmatchKiller(victim, source));
+    }
+
+    /** 掉出虚空（sweepArenaWorld 兜底；场地有围墙，正常不会触发）：等价于一次无击杀者的阵亡。 */
+    public void onDeathmatchVoidFall(ServerPlayerEntity player) {
+        if (this.state != MatchState.ACTIVE) {
+            this.teleportToSpawn(player);
+            return;
+        }
+        player.setFireTicks(0);
+        player.fallDistance = 0;
+        this.registerDeathmatchDeath(player, null);
+    }
+
+    /** 登记一次阵亡：计数、连杀清零、播报击杀，并排进下一 tick 的复活队列。 */
+    private void registerDeathmatchDeath(ServerPlayerEntity victim, ServerPlayerEntity killer) {
+        UUID uuid = victim.getUuid();
+        if (!this.deathmatchPendingRespawns.add(uuid)) {
+            return; // 同 tick 内二次致死（例如同时被两个伤害源打死）：只算一次
+        }
+        this.deathmatchDeaths.merge(uuid, 1, Integer::sum);
+        this.deathmatchKillstreak.put(uuid, 0); // 死亡清零连杀
+        this.deathmatchLastDamager.remove(uuid);
+        this.deathmatchLastDamageTick.remove(uuid);
+
+        if (killer != null) {
+            int kills = this.deathmatchKills.merge(killer.getUuid(), 1, Integer::sum);
+            int streak = this.deathmatchKillstreak.merge(killer.getUuid(), 1, Integer::sum);
+            this.broadcastDeathmatchServer(Messages.info("§8[死斗] §c" + killer.getGameProfile().getName()
+                    + " §7击杀了 §f" + victim.getGameProfile().getName() + " §8(§a" + kills + "§8)"));
+            String streakText = deathmatchStreakText(streak);
+            if (streakText != null) {
+                this.broadcastDeathmatchServer(Messages.info("§8[死斗] §8>> " + streakText + " §8<< §f"
+                        + killer.getGameProfile().getName() + " §7已连续击杀 §e" + streak + " §7人！"));
+                killer.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.8F, 1.2F);
+            }
+            killer.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, SoundCategory.PLAYERS, 0.7F, 1.0F);
+            victim.sendMessage(Text.literal("§c你被 §f" + killer.getGameProfile().getName() + " §c击杀了"), true);
+        } else {
+            this.broadcastDeathmatchServer(Messages.info("§8[死斗] §f" + victim.getGameProfile().getName() + " §7阵亡了"));
+            victim.sendMessage(Text.literal("§c你阵亡了"), true);
+        }
+        victim.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_DEATH, SoundCategory.PLAYERS, 0.6F, 1.0F);
+    }
+
+    /**
+     * 死斗的击杀/连杀播报走全服（不只是本场玩家）—— 带 §8[死斗]§r 前缀，
+     * 让在大厅/其他对局里的玩家知道这条消息来自哪。
+     */
+    private void broadcastDeathmatchServer(Text message) {
+        MinecraftServer server = this.manager.getServer();
+        if (server != null) {
+            server.getPlayerManager().broadcast(message, false);
+        }
+    }
+
+    /** 掉线：不淘汰（死斗没人出局），只清掉待复活与助攻记录，重进后照常参战。 */
+    public void onDeathmatchDisconnect(ServerPlayerEntity player) {
+        UUID uuid = player.getUuid();
+        this.deathmatchPendingRespawns.remove(uuid);
+        this.deathmatchLastDamager.remove(uuid);
+        this.deathmatchLastDamageTick.remove(uuid);
+    }
+
+    /** 人头归属：直接攻击者优先，其次助攻窗口内的最后伤害者（击退坠落/打残后摔死也能拿到人头）。 */
+    private ServerPlayerEntity deathmatchKiller(ServerPlayerEntity victim,
+                                                net.minecraft.entity.damage.DamageSource source) {
+        if (source != null
+                && source.getAttacker() instanceof ServerPlayerEntity direct
+                && direct != victim
+                && this.isDeathmatchCreditable(direct)) {
+            return direct;
+        }
+        UUID last = this.deathmatchLastDamager.get(victim.getUuid());
+        Integer since = this.deathmatchLastDamageTick.get(victim.getUuid());
+        if (last == null || since == null
+                || this.ticks - since > PvPConfig.INSTANCE.deathmatchAssistSeconds * 20) {
+            return null;
+        }
+        ServerPlayerEntity candidate = this.manager.getOnlinePlayer(last);
+        return candidate != null && this.isDeathmatchCreditable(candidate) ? candidate : null;
+    }
+
+    /** 死斗每 tick：清过期助攻记录 → 复活待复活的人 → 走计时；到点按人头结算。 */
+    private void tickDeathmatch() {
+        this.expireDeathmatchAssists();
+
+        if (!this.deathmatchPendingRespawns.isEmpty()) {
+            for (UUID uuid : List.copyOf(this.deathmatchPendingRespawns)) {
+                this.deathmatchPendingRespawns.remove(uuid);
+                ServerPlayerEntity player = this.manager.getOnlinePlayer(uuid);
+                // 掉线/已离场的人不复活，交给 MatchManager 的离场逻辑收尾
+                if (player != null && !this.eliminated.contains(uuid) && !this.leftEarly.contains(uuid)) {
+                    this.deathmatchRespawn(player);
+                }
+            }
+        }
+
+        if (this.deathmatchTicks > 0 && --this.deathmatchTicks <= 0) {
+            this.finishMatch(this.teams.get(0));
+        }
+    }
+
+    /** 清掉超出助攻窗口的最后伤害者记录。 */
+    private void expireDeathmatchAssists() {
+        if (this.deathmatchLastDamageTick.isEmpty()) {
+            return;
+        }
+        int window = PvPConfig.INSTANCE.deathmatchAssistSeconds * 20;
+        java.util.Iterator<Map.Entry<UUID, Integer>> it = this.deathmatchLastDamageTick.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, Integer> entry = it.next();
+            if (this.ticks - entry.getValue() > window) {
+                this.deathmatchLastDamager.remove(entry.getKey());
+                it.remove();
+            }
+        }
+    }
+
+    /**
+     * 复活：换个离敌人最远的出生点，清空背包并按本场套件重新发装。
+     * 公开给 {@code MatchManager.onPlayerRespawn} 用（中途重连走原版重生路径时要送回场上）。
+     */
+    public void deathmatchRespawn(ServerPlayerEntity player) {
+        if (this.state != MatchState.ACTIVE) {
+            return;
+        }
+        UUID uuid = player.getUuid();
+        if (this.eliminated.contains(uuid) || this.leftEarly.contains(uuid)) {
+            return; // 明确离场的人不复活
+        }
+        ArenaWorld arena = this.arenaWorld();
+        if (arena == null) {
+            return;
+        }
+        BlockPos spawn = this.deathmatchSpawnPoint(player);
+        player.teleport(arena, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, this.faceCenter(spawn), 0);
+        // 清掉死亡瞬间残留的击退/坠落速度，否则会被直接甩出远端出生点
+        player.setVelocity(Vec3d.ZERO);
+        player.velocityDirty = true;
+        Kit playerKit = this.playerKits.getOrDefault(uuid, this.kit);
+        if (playerKit != null) {
+            // KitApplicator 会清背包、满血、清效果、重置饥饿并设回套件自带的游戏模式，正好是复活所需的全部。
+            // 死亡本身不掉落（ALLOW_DEATH 已取消原版 onDeath），这里再清一次是为了丢掉复活前捡到的东西。
+            KitApplicator.apply(player, playerKit);
+        }
+        player.playSoundToPlayer(SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.7F, 1.4F);
+        arena.spawnParticles(ParticleTypes.PORTAL, player.getX(), player.getY() + 1.0, player.getZ(),
+                24, 0.4, 0.6, 0.4, 0.05);
+    }
+
+    /**
+     * 复活点：在候选池里挑"离最近的在场敌人最远"的那个；距离达到最大值的 90% 的候选
+     * 一起参与随机，避免复活路线固定被蹲点。候选池 {@link #deathmatchSpawnPool} 建不出来时
+     * 退回开局出生点。
+     */
+    private BlockPos deathmatchSpawnPoint(ServerPlayerEntity player) {
+        List<BlockPos> candidates = new ArrayList<>(this.deathmatchSpawnPool);
+        if (candidates.isEmpty()) {
+            candidates.addAll(this.spawns.values());
+        }
+        if (candidates.isEmpty()) {
+            return this.template.getCenter(this.regionIndex);
+        }
+        double best = -1;
+        double[] nearest = new double[candidates.size()];
+        for (int i = 0; i < candidates.size(); i++) {
+            BlockPos pos = candidates.get(i);
+            double min = Double.MAX_VALUE;
+            for (ServerPlayerEntity other : this.players) {
+                if (other.getUuid().equals(player.getUuid()) || !this.isDeathmatchCombatant(other)) {
+                    continue;
+                }
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(other.getUuid());
+                if (online == null) {
+                    continue;
+                }
+                double dx = pos.getX() + 0.5 - online.getX();
+                double dz = pos.getZ() + 0.5 - online.getZ();
+                min = Math.min(min, dx * dx + dz * dz);
+            }
+            nearest[i] = min;
+            if (min != Double.MAX_VALUE && min > best) {
+                best = min;
+            }
+        }
+        if (best < 0) {
+            // 场上除了自己没有别的参战者，随便挑一个
+            return candidates.get(this.random.nextInt(candidates.size()));
+        }
+        List<BlockPos> far = new ArrayList<>();
+        double threshold = best * 0.9;
+        for (int i = 0; i < candidates.size(); i++) {
+            if (nearest[i] >= threshold) {
+                far.add(candidates.get(i));
+            }
+        }
+        return far.isEmpty() ? candidates.get(0) : far.get(this.random.nextInt(far.size()));
+    }
+
+    /**
+     * 记分榜排序：人头降序 → 死亡升序 → 名字升序（保证同分时顺序稳定不跳动）。
+     * 掉线/提前离场的人不上榜，与 {@link #computeWinners()} 的夺冠资格保持一致。
+     */
+    private List<ServerPlayerEntity> deathmatchRanking() {
+        List<ServerPlayerEntity> ranking = new ArrayList<>();
+        for (ServerPlayerEntity player : this.players) {
+            UUID uuid = player.getUuid();
+            if (this.leftEarly.contains(uuid) || this.eliminated.contains(uuid)) {
+                continue;
+            }
+            ranking.add(player);
+        }
+        ranking.sort(java.util.Comparator
+                .comparingInt((ServerPlayerEntity p) -> -this.deathmatchKills.getOrDefault(p.getUuid(), 0))
+                .thenComparingInt(p -> this.deathmatchDeaths.getOrDefault(p.getUuid(), 0))
+                .thenComparing(p -> p.getGameProfile().getName()));
+        return ranking;
+    }
+
+    /** 死斗结算广播：冠军（可能并列）+ 前 3 名 + 并列判定说明。 */
+    private void announceDeathmatchResult(Set<UUID> winners) {
+        List<ServerPlayerEntity> ranking = this.deathmatchRanking();
+        List<ServerPlayerEntity> winnerPlayers = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        for (ServerPlayerEntity player : ranking) {
+            if (winners.contains(player.getUuid())) {
+                winnerPlayers.add(player);
+                names.add(player.getGameProfile().getName());
+            }
+        }
+        if (names.isEmpty()) {
+            this.broadcast(Messages.warn("死斗结束：全员离场，本局无人获胜"));
+            return;
+        }
+        int topKills = this.deathmatchKills.getOrDefault(winnerPlayers.get(0).getUuid(), 0);
+        if (names.size() == 1) {
+            this.broadcast(Messages.gold("§c" + names.get(0) + "§r 在死斗中以 §e" + topKills + " §r个人头获胜！"));
+        } else {
+            this.broadcast(Messages.gold("§c" + String.join("§r、§c", names)
+                    + "§r 并列死斗冠军（各 §e" + topKills + " §r杀，死亡数也相同）！"));
+        }
+        this.broadcast(Messages.info("§6最终排名："));
+        for (int i = 0; i < Math.min(3, ranking.size()); i++) {
+            ServerPlayerEntity player = ranking.get(i);
+            this.broadcast(Messages.info("  §e" + (i + 1) + ". §f" + player.getGameProfile().getName()
+                    + " §a" + this.deathmatchKills.getOrDefault(player.getUuid(), 0) + " 杀 §c"
+                    + this.deathmatchDeaths.getOrDefault(player.getUuid(), 0) + " 死"));
+        }
+    }
+
     /** 该队颜色（分队时按地图布局/配置确定，供商店羊毛等队伍色物品使用）。 */
     public Formatting teamColorOf(int teamIdx) {
         if (teamIdx >= 0 && teamIdx < this.teams.size()) {
@@ -2875,6 +3226,38 @@ public final class Match {
     /** 结算胜者集合：心跳水立方为第一名到达者，其余模式为胜利队伍存活成员。 */
     private Set<UUID> computeWinners() {
         Set<UUID> winners = new HashSet<>();
+        if (this.type == MatchType.DEATHMATCH) {
+            // 死斗：人头最多者胜；并列时比死亡数（少者胜）；仍并列则并列冠军。
+            // 提前离场/掉线的人不参与夺冠。
+            int bestKills = -1;
+            int bestDeaths = Integer.MAX_VALUE;
+            for (ServerPlayerEntity player : this.players) {
+                UUID uuid = player.getUuid();
+                if (this.leftEarly.contains(uuid) || this.eliminated.contains(uuid)) {
+                    continue;
+                }
+                int kills = this.deathmatchKills.getOrDefault(uuid, 0);
+                int deaths = this.deathmatchDeaths.getOrDefault(uuid, 0);
+                if (kills > bestKills || (kills == bestKills && deaths < bestDeaths)) {
+                    bestKills = kills;
+                    bestDeaths = deaths;
+                }
+            }
+            if (bestKills < 0) {
+                return winners; // 全员离场，无人获胜
+            }
+            for (ServerPlayerEntity player : this.players) {
+                UUID uuid = player.getUuid();
+                if (this.leftEarly.contains(uuid) || this.eliminated.contains(uuid)) {
+                    continue;
+                }
+                if (this.deathmatchKills.getOrDefault(uuid, 0) == bestKills
+                        && this.deathmatchDeaths.getOrDefault(uuid, 0) == bestDeaths) {
+                    winners.add(uuid);
+                }
+            }
+            return winners;
+        }
         if (this.type == MatchType.VILLAGE_DEFENSE) {
             // 合作守村：守住=全员胜，失败=全员败
             if (this.vdVillageWon) {
@@ -3279,6 +3662,10 @@ public final class Match {
                 // 色盲派对：地板在 setupPlayers 已铺好，这里公布第 1 回合的目标色并开始计时
                 this.colorblindSession.start();
             }
+            if (this.type == MatchType.DEATHMATCH) {
+                // 死斗：正式开跑 5 分钟计时（tickDeathmatch 到点结算）
+                this.deathmatchTicks = Math.max(20, PvPConfig.INSTANCE.deathmatchDurationSeconds * 20);
+            }
             this.broadcast(Messages.gold("战斗开始！"));
             this.broadcastTitle("开始！");
             for (ServerPlayerEntity player : this.players) {
@@ -3535,6 +3922,11 @@ public final class Match {
     }
 
     private MatchTeam computeWinner() {
+        if (this.type == MatchType.DEATHMATCH) {
+            // 死斗：没有人被淘汰，"剩几个"毫无意义 —— 胜负由 tickDeathmatch 的 5 分钟计时器
+            // 调 finishMatch(teams.get(0)) 触发，再由 computeWinners 按人头算出真正的冠军。
+            return null;
+        }
         if (this.type == MatchType.HEARTBEAT) {
             // 心跳水立方：全员通关全部关卡 → 结算（超时由 timeoutWinner 兜底）
             return this.heartbeatFinished.size() >= this.players.size() ? this.teams.get(0) : null;
@@ -3574,6 +3966,10 @@ public final class Match {
     }
 
     private void announceResult(Set<UUID> winners) {
+        if (this.type == MatchType.DEATHMATCH) {
+            this.announceDeathmatchResult(winners);
+            return;
+        }
         if (this.type == MatchType.VILLAGE_DEFENSE) {
             // 村庄保卫战：合作胜负广播
             if (this.vdVillageWon) {
@@ -3864,6 +4260,24 @@ public final class Match {
                 }
                 this.setInfoLine(scoreboard, objective, " §a● §f" + online.getGameProfile().getName(), score--);
             }
+        } else if (this.type == MatchType.DEATHMATCH) {
+            // 死斗：实时击杀榜（人头降序）。正文只剩 ~10 行，16 人局必然放不下，
+            // 用最后一行提示还有多少人没显示 —— 原版 sidebar 上限 15 行，绕不过去。
+            List<ServerPlayerEntity> ranking = this.deathmatchRanking();
+            this.setInfoLine(scoreboard, objective, "§6击杀榜 §7(击杀/死亡)", score--);
+            int available = score + 1; // 分值可以一直写到 0，所以可用行数是 score + 1
+            int capacity = ranking.size() <= available ? ranking.size() : Math.max(0, available - 1);
+            for (int i = 0; i < capacity; i++) {
+                ServerPlayerEntity player = ranking.get(i);
+                this.setInfoLine(scoreboard, objective, "§e" + (i + 1) + ". §f"
+                        + player.getGameProfile().getName()
+                        + " §a" + this.deathmatchKills.getOrDefault(player.getUuid(), 0)
+                        + "§7/§c" + this.deathmatchDeaths.getOrDefault(player.getUuid(), 0), score--);
+            }
+            if (capacity < ranking.size() && score >= 0) {
+                this.setInfoLine(scoreboard, objective,
+                        "§7…还有 " + (ranking.size() - capacity) + " 名玩家未显示", score--);
+            }
         } else if (this.type.isLastManStanding()) {
             // FFA/空岛战争/幸运之柱/TNT 跑酷/烫手山芋：模式专属事件倒计时 + 存活玩家列表（玩家数量见头部）
             if (this.type == MatchType.SKYWARS) {
@@ -3969,6 +4383,7 @@ public final class Match {
             case BED_WARS_DOUBLES -> "§5";
             case VILLAGE_DEFENSE -> "§2";
             case COLORBLIND_PARTY -> "§d";
+            case DEATHMATCH -> "§4";
         };
         return "模式: " + color + this.type.getDisplayName();
     }
@@ -3997,6 +4412,7 @@ public final class Match {
                     ? this.bedWarsLayout.mapName() : "-");
             case VILLAGE_DEFENSE -> "§7地图: §eVD"; // 地图名在 Match 接线后替换为导入的地图名
             case COLORBLIND_PARTY -> "§7地图: §e彩色地板";
+            case DEATHMATCH -> "§7地图: §e平地竞技场"; // 复用 Layout.FFA 的场地
         };
     }
 
@@ -4009,11 +4425,14 @@ public final class Match {
         return "§7玩家: §f" + alive + "§7/§f" + this.players.size();
     }
 
-    /** 计时行：倒计时 / 已进行时间 / 结算中。 */
+    /** 计时行：倒计时 / 已进行时间（死斗为剩余时间）/ 结算中。 */
     private String timeLine() {
         return switch (this.state) {
             case COUNTDOWN -> "§e开局倒计时 §c" + ((this.countdownTicks + 19) / 20) + "s";
-            case ACTIVE -> "§a已进行 §f" + formatTime(Math.max(0, (this.ticks - this.initialCountdownTicks) / 20));
+            // 死斗是限时模式，玩家关心的是还剩多久而不是打了多久
+            case ACTIVE -> this.type == MatchType.DEATHMATCH
+                    ? "§c剩余 §f" + formatTime(Math.max(0, (this.deathmatchTicks + 19) / 20))
+                    : "§a已进行 §f" + formatTime(Math.max(0, (this.ticks - this.initialCountdownTicks) / 20));
             case CELEBRATING -> "§6结算中...";
             default -> "§7准备中...";
         };
