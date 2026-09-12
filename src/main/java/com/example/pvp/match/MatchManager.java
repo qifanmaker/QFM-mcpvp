@@ -545,10 +545,28 @@ public final class MatchManager {
                 || match.getType() == MatchType.VILLAGE_DEFENSE);
     }
 
+    /**
+     * 该玩家是否按 1.8.7 手感打。两种情况都算：
+     * <ul>
+     *   <li>他所在的模式本身就是 1.8 模式（空岛战争 / 战桥 / 起床战争 …）；</li>
+     *   <li><b>他这套装备是「1.8 经典」</b> —— 套件自带手感，选它在自由乱斗、死斗、
+     *       1v1 里也照样无攻击冷却 + 剑格挡，不会因为换了模式就退回高版本 PvP。</li>
+     * </ul>
+     */
+    public boolean usesLegacyCombat(ServerPlayerEntity player) {
+        Match match = this.getMatchFor(player);
+        if (match == null) {
+            return false;
+        }
+        return this.isLegacyCombat(match) || match.isLegacy18KitPlayer(player);
+    }
+
     /** 1.8 战斗模式：玩家是否正在剑格挡（供伤害减免 Mixin 调用）。 */
     public boolean isLegacyBlocking(ServerPlayerEntity player) {
         Match match = this.getMatchFor(player);
-        return match != null && this.isLegacyCombat(match) && match.isBlocking(player);
+        return match != null
+                && (this.isLegacyCombat(match) || match.isLegacy18KitPlayer(player))
+                && match.isBlocking(player);
     }
 
     /** 比赛结束后的清理：从列表移除并释放区域。 */

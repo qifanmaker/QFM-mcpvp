@@ -233,7 +233,7 @@ public final class PvpGuiManager {
         }
         // 第 1 行：四大类（显示分类排队总人数）
         ItemStack pvp = makeButton(Items.DIAMOND_SWORD, "§b§lPvP 对战",
-                "1v1 / 2v2 / 自由乱斗 / 相扑 / 1.8 经典",
+                "1v1 / 2v2 / 自由乱斗 / 相扑 / 1.8 经典PvP",
                 "点击选择对战模式与套件");
         this.applyQueueIndicator(pvp, player, PvPMod.QUEUE.countQueued(
                 MatchType.DUEL_1V1, MatchType.DUEL_2V2, MatchType.FFA, MatchType.SUMO, MatchType.PVP_1_8));

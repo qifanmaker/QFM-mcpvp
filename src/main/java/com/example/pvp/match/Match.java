@@ -27,6 +27,7 @@ import com.example.pvp.kit.BridgeGear;
 import com.example.pvp.kit.InventorySnapshot;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitApplicator;
+import com.example.pvp.kit.KitManager;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -560,6 +561,19 @@ public final class Match {
         return this.kit;
     }
 
+    /**
+     * 该玩家本场用的是不是「1.8 经典」套件。
+     * 用它的人在**任何模式**里都按 1.8.7 手感打（无攻击冷却 + 剑格挡），
+     * 而不是只有进 1.8 模式才有 —— 见 {@code MatchManager.usesLegacyCombat}。
+     */
+    public boolean isLegacy18KitPlayer(ServerPlayerEntity player) {
+        Kit kit = this.playerKits.get(player.getUuid());
+        if (kit == null) {
+            kit = this.kit; // 与开局发装的兜底保持一致
+        }
+        return KitManager.isLegacy18Kit(kit);
+    }
+
     public int getRegionIndex() {
         return this.regionIndex;
     }
@@ -673,10 +687,9 @@ public final class Match {
                 if (this.type.isBridge()) {
                     this.tickBridge();
                 }
-                if (this.type == MatchType.PVP_1_8 || this.type == MatchType.SKYWARS || this.type.isBridge()
-                        || this.type == MatchType.LUCKY_PILLAR) {
-                    this.tickLegacyBlocking();
-                }
+                // 1.8 格挡维护：对所有模式都跑 —— 用「1.8 经典」套件的人在自由乱斗/死斗里
+                // 也会进入格挡，只给 1.8 模式跑的话那边的格挡状态（含缓慢效果）永远不解除
+                this.tickLegacyBlocking();
                 if (this.type == MatchType.SKYWARS) {
                     this.tickSkywarsShrink();
                     this.tickSkywarsTotem();

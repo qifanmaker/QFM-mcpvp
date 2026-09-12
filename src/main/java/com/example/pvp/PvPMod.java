@@ -291,10 +291,10 @@ public final class PvPMod implements ModInitializer {
                     }
                     return TypedActionResult.success(stack);
                 }
-                // 1.8 战斗模式（1.8 经典PvP / 空岛战争）：右键剑进入格挡
+                // 1.8 手感（1.8 模式，或用「1.8 经典」套件的玩家）：右键剑进入格挡
                 if (stack.getItem() instanceof SwordItem) {
                     Match match = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
-                    if (MATCH != null && MATCH.isLegacyCombat(match)) {
+                    if (match != null && MATCH.usesLegacyCombat(serverPlayer)) {
                         match.setBlocking(serverPlayer, true);
                         return TypedActionResult.success(stack);
                     }
