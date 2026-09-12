@@ -181,9 +181,9 @@ public final class SkyWarsLoot {
             } else if (ultra < 2) {
                 drops.add(new ItemStack(Items.TOTEM_OF_UNDYING)); // 玩家岛不死图腾（约 1%）
             }
-            // 弱势补偿：额外一次神器掉落，爆率减半（各约 0.5%），补偿给胜率最低的玩家
+            // 弱势补偿：额外一次神器掉落，爆率为正常爆率的 1/4（各约 0.25%），补偿给胜率最低的玩家
             if (handicap > 0) {
-                int comp = random.nextInt(200);
+                int comp = random.nextInt(400);
                 if (comp < 1) {
                     drops.add(makeMiaoRenAxe());
                 } else if (comp < 2) {
