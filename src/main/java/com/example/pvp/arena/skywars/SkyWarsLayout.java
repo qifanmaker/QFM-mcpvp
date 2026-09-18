@@ -4,8 +4,10 @@ import com.example.pvp.config.PvPConfig;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * 空岛战争地图布局：纯计算、确定性（由 seed = 比赛 ID 决定）。
@@ -162,15 +164,26 @@ public final class SkyWarsLayout {
         return new SkyWarsLayout(mapCenter, computeMaxRadius(), spawnIslands, midIslands, middleIslands, spawns);
     }
 
-    /** 计算一座岛的箱子位置（离岛心 2~半径-2 格、随机角度，保证落在岛面上）。 */
+    /**
+     * 计算一座岛的箱子位置（离岛心 2~半径-2 格、随机角度，保证落在岛面上且互不重叠）。
+     *
+     * <p>随机角度再取整很容易让两个箱子算到同一格（半径小的时候尤其明显）。
+     * 生成器是逐格 {@code setBlockState} 铺箱子的，落在一起就等于后一个把前一个覆盖掉，
+     * 玩家看到的箱子数凭空少一个 —— 所以这里必须去重，摇到重复的格子就重摇。
+     */
     private static Island buildIsland(Random random, BlockPos center, int radius, int chestCount) {
         List<BlockPos> chests = new ArrayList<>();
-        for (int i = 0; i < chestCount; i++) {
+        Set<Long> used = new HashSet<>();
+        int maxAttempts = Math.max(chestCount * 24, 64);
+        for (int attempt = 0; attempt < maxAttempts && chests.size() < chestCount; attempt++) {
             double angle = random.nextDouble() * 2.0 * Math.PI;
             int dist = 2 + random.nextInt(Math.max(1, radius - 2));
-            int x = center.getX() + (int) Math.round(Math.cos(angle) * dist);
-            int z = center.getZ() + (int) Math.round(Math.sin(angle) * dist);
-            chests.add(new BlockPos(x, center.getY() + 1, z));
+            int offX = (int) Math.round(Math.cos(angle) * dist);
+            int offZ = (int) Math.round(Math.sin(angle) * dist);
+            if (!used.add((((long) offX) << 32) ^ (offZ & 0xffffffffL))) {
+                continue; // 这一格已经有箱子，重摇
+            }
+            chests.add(new BlockPos(center.getX() + offX, center.getY() + 1, center.getZ() + offZ));
         }
         return new Island(center, radius, chests);
     }
