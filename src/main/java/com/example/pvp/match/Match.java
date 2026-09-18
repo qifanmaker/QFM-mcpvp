@@ -577,6 +577,10 @@ public final class Match {
         return this.regionIndex;
     }
 
+    public int getId() {
+        return this.id;
+    }
+
     public boolean contains(UUID uuid) {
         for (ServerPlayerEntity player : this.players) {
             if (player.getUuid().equals(uuid)) {
@@ -3186,9 +3190,10 @@ public final class Match {
             this.removeInfoScoreboard();
         } catch (Exception e) {
             LOGGER.error("[PvP] 比赛取消处理出错", e);
-        } finally {
-            this.cleanupArenaAndRelease();
         }
+        // 同 finalizeMatch：取消时也要把玩家传送回主城，清场必须让路给客户端的"加载地形中"
+        this.manager.detachMatch(this);
+        this.manager.scheduleFinish(this, FINISH_DELAY_TICKS);
     }
 
     /** 胜负结算：进入 5 秒庆祝（烟花 + 大字），随后恢复状态并清理。 */
@@ -3300,13 +3305,34 @@ public final class Match {
                 boolean won = winners.contains(player.getUuid());
                 StatsStore.INSTANCE.recordResult(player.getUuid(), won);
             }
-            StatsStore.INSTANCE.save();
         } catch (Exception e) {
             LOGGER.error("[PvP] 比赛结束处理出错", e);
-        } finally {
-            this.cleanupArenaAndRelease();
         }
         this.state = MatchState.ENDED;
+        // 先把对局从列表里摘掉：玩家可以马上再排队，大厅计分板立刻接管。
+        this.manager.detachMatch(this);
+        // 清场 + 战绩落盘延后执行。这一帧刚刚把所有人跨维度传送回主城，
+        // 客户端此刻正在显示"加载地形中"等服务端发地形——重活必须让路（见 MatchManager#pendingFinishes）。
+        this.manager.scheduleFinish(this, FINISH_DELAY_TICKS);
+    }
+
+    /**
+     * 结算那一帧的"加载地形中"让路：客户端收到重生包后就开始等地形，
+     * 而清场要跑几十万次 setBlockState（连带点灯）、战绩落盘要写磁盘，全是阻塞主线程的重活。
+     * 延后 5 秒做完，服务端就能立刻把主城地形发给客户端。
+     */
+    private static final int FINISH_DELAY_TICKS = 100;
+
+    /** 由 {@code MatchManager.tickPendingFinishes()} 在结算几秒后调用：落盘 + 清场并释放场地。 */
+    void deferredFinish() {
+        long started = System.nanoTime();
+        try {
+            StatsStore.INSTANCE.save();
+        } catch (Exception e) {
+            LOGGER.error("[PvP] 保存战绩出错", e);
+        }
+        this.cleanupArenaAndRelease();
+        LOGGER.info("[PvP] 比赛 #{} 延迟清场完成（{} ms）", this.id, (System.nanoTime() - started) / 1_000_000);
     }
 
     /** 在胜利玩家头顶生成向上飞行的烟花。 */

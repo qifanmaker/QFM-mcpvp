@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +51,20 @@ public final class MatchManager {
     private final MinecraftServer server;
     private final List<Match> matches = new ArrayList<>();
     private final Set<Integer> allocatedRegions = new HashSet<>();
+
+    /**
+     * 结算后延后执行的重活（竞技场清场 + 战绩落盘）。
+     *
+     * <p>原因：结算那一帧要把所有人跨维度传送回主城，客户端收到重生包后立刻显示"加载地形中"，
+     * 直到服务端把它脚下方块发过去才会消失。清场（几十万次 setBlockState + 点灯）和
+     * StatsStore 落盘都是阻塞主线程的重活，如果塞在同一帧里，服务端就腾不出手发地形，
+     * 玩家看到的就是一段被拖长的加载。延后到客户端加载完之后再做，加载时间就只剩网络往返。
+     */
+    private final List<PendingFinish> pendingFinishes = new ArrayList<>();
+
+    private record PendingFinish(Match match, int dueTick) {
+    }
+
     private final Map<UUID, InventorySnapshot> pendingRestores = new ConcurrentHashMap<>();
     /** OP 强制开赛时指定的一次性空岛主题（下一次 SKYWARS 用，用后清除）。 */
     private SkyWarsTheme pendingSkywarsTheme;
@@ -185,6 +200,7 @@ public final class MatchManager {
             match.tick();
         }
 
+        this.tickPendingFinishes();
         this.sweepArenaWorld();
         this.getArenaManager().tickVisitors();
         this.applyLobbyProtection();
@@ -574,6 +590,40 @@ public final class MatchManager {
         this.allocatedRegions.remove(match.getRegionIndex());
     }
 
+    /**
+     * 结算后立刻把对局从列表里摘掉（但场地区域仍然占着，等真正清完场再释放）。
+     *
+     * <p>不能等清场一起做：延迟清场的这几秒里，如果对局还留在列表里，
+     * {@code isInMatch} 会认为玩家仍在比赛中，导致他不能马上再排队、大厅计分板也不接管。
+     */
+    public void detachMatch(Match match) {
+        this.matches.remove(match);
+    }
+
+    /** 把"清场 + 战绩落盘"这一帧重活延后 {@code delayTicks} 再执行（见 {@link #pendingFinishes}）。 */
+    public void scheduleFinish(Match match, int delayTicks) {
+        this.pendingFinishes.add(new PendingFinish(match, this.server.getTicks() + delayTicks));
+    }
+
+    private void tickPendingFinishes() {
+        if (this.pendingFinishes.isEmpty()) {
+            return;
+        }
+        int now = this.server.getTicks();
+        for (Iterator<PendingFinish> it = this.pendingFinishes.iterator(); it.hasNext(); ) {
+            PendingFinish pending = it.next();
+            if (now < pending.dueTick()) {
+                continue;
+            }
+            it.remove();
+            try {
+                pending.match().deferredFinish();
+            } catch (Exception e) {
+                LOGGER.error("[PvP] 比赛 #{} 延迟清场出错", pending.match().getId(), e);
+            }
+        }
+    }
+
     /** 玩家离线时暂存其状态，登录后恢复。 */
     public void pendRestore(UUID uuid, InventorySnapshot snapshot) {
         this.pendingRestores.put(uuid, snapshot);
@@ -791,8 +841,12 @@ public final class MatchManager {
                     } else {
                         match.eliminate(player, EliminationCause.VOID);
                     }
+                } else if (match.getState() == MatchState.COUNTDOWN) {
+                    match.teleportToSpawn(player); // 倒计时阶段：场地还在，送回自己的出生点
                 } else {
-                    match.teleportToSpawn(player);
+                    // 庆祝/结算阶段：场地马上要被清空，再送回出生点会变成
+                    // "掉进虚空 → 传送回出生点 → 脚下没方块继续掉" 的死循环，直接送回主城。
+                    this.teleportToOverworldSpawn(player);
                 }
             }
         }

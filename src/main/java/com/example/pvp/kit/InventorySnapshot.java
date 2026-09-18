@@ -3,6 +3,7 @@ package com.example.pvp.kit;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.GameMode;
@@ -99,6 +100,13 @@ public final class InventorySnapshot {
         ServerWorld target = player.getServer().getWorld(this.dimension);
         if (target != null) {
             player.teleport(target, this.x, this.y, this.z, this.yaw, this.pitch);
+        } else {
+            // 返还维度取不到（正常不会发生）：兜底送回主世界出生点。
+            // 绝不能什么都不做——那样玩家会被留在竞技场里，赛后场地一清就直接掉虚空。
+            ServerWorld overworld = player.getServer().getOverworld();
+            BlockPos spawn = overworld.getSpawnPos();
+            player.teleport(overworld, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5,
+                    overworld.getSpawnAngle(), 0);
         }
 
         var inventory = player.getInventory();
