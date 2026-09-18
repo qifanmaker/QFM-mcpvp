@@ -35,7 +35,10 @@ import com.example.pvp.match.MatchType;
 import com.example.pvp.match.VillageDefenseKits;
 import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.queue.QueueEntry;
+import com.example.pvp.practice.PracticeSession;
+import com.example.pvp.practice.PracticeType;
 import com.example.pvp.text.Messages;
+import net.minecraft.text.Text;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -65,6 +68,10 @@ public final class PvPCommands {
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
+
+    private static final SuggestionProvider<ServerCommandSource> PRACTICE_SUGGESTIONS =
+            (ctx, builder) -> CommandSource.suggestMatching(
+                    new String[]{"bridge", "pearl"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> THEME_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(
@@ -100,6 +107,14 @@ public final class PvPCommands {
                                                         StringArgumentType.getString(ctx, "kit"))))))
                         .then(CommandManager.literal("leave")
                                 .executes(ctx -> leave(ctx)))
+                        .then(CommandManager.literal("practice")
+                                .executes(ctx -> practiceStatus(ctx.getSource()))
+                                .then(CommandManager.literal("leave")
+                                        .executes(ctx -> practiceLeave(ctx.getSource())))
+                                .then(CommandManager.argument("type", StringArgumentType.word())
+                                        .suggests(PRACTICE_SUGGESTIONS)
+                                        .executes(ctx -> practice(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "type")))))
                         .then(CommandManager.literal("tpout")
                                 .executes(ctx -> tpOut(ctx)))
                         .then(CommandManager.literal("tpin")
@@ -379,6 +394,66 @@ public final class PvPCommands {
             player.sendMessage(Messages.info("已离开匹配队列"), false);
         } else {
             player.sendMessage(Messages.warn("你不在匹配队列中"), false);
+        }
+        return 1;
+    }
+
+    /** /pvp practice <bridge|pearl>：进入单人练习。 */
+    private static int practice(ServerCommandSource source, String typeId) throws CommandSyntaxException {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.literal("该命令只能由玩家执行"));
+            return 0;
+        }
+        if (PvPMod.PRACTICE == null) {
+            source.sendError(Text.literal("服务器尚未就绪"));
+            return 0;
+        }
+        PracticeType type = PracticeType.byId(typeId);
+        if (type == null) {
+            source.sendError(Text.literal("未知练习类型: " + typeId + "（可用: bridge, pearl）"));
+            return 0;
+        }
+        return PvPMod.PRACTICE.startPractice(player, type) ? 1 : 0;
+    }
+
+    /** /pvp practice：查看当前练习状态。 */
+    private static int practiceStatus(ServerCommandSource source) throws CommandSyntaxException {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.literal("该命令只能由玩家执行"));
+            return 0;
+        }
+        if (PvPMod.PRACTICE == null) {
+            source.sendError(Text.literal("服务器尚未就绪"));
+            return 0;
+        }
+        PracticeSession session = PvPMod.PRACTICE.getSession(player);
+        if (session == null) {
+            player.sendMessage(Messages.info("你不在练习模式中。§7用 §f/pvp practice <bridge|pearl> §7进入"), false);
+            return 0;
+        }
+        int best = session.getBestTicks();
+        player.sendMessage(Messages.info("当前练习: §f" + session.getType().getDisplayName()
+                + "§a，最佳成绩: §f" + (best < 0 ? "暂无" : String.format("%.2f 秒", best / 20.0))), false);
+        player.sendMessage(Messages.info("§7用 §f/pvp practice leave §7退出"), false);
+        return 1;
+    }
+
+    /** /pvp practice leave：退出练习。 */
+    private static int practiceLeave(ServerCommandSource source) throws CommandSyntaxException {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.literal("该命令只能由玩家执行"));
+            return 0;
+        }
+        if (PvPMod.PRACTICE == null) {
+            source.sendError(Text.literal("服务器尚未就绪"));
+            return 0;
+        }
+        if (!PvPMod.PRACTICE.exitPractice(player)) {
+            player.sendMessage(Messages.warn("你不在练习模式中"), false);
+            return 0;
         }
         return 1;
     }

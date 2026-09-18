@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * 竞技场内末影珍珠无冷却（跳过原版 1 秒冷却的设置），竞技场外保持原版。
+ * 练习模式下：由 PvPMod 的 UseItemCallback 限制投掷次数与冷却。
  */
 @Mixin(EnderPearlItem.class)
 public abstract class EnderPearlItemMixin {

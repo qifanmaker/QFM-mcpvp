@@ -9,6 +9,8 @@ import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.match.VillageDefenseKitGui;
+import com.example.pvp.practice.PracticeManager;
+import com.example.pvp.practice.PracticeType;
 import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.text.Messages;
 import net.minecraft.component.DataComponentTypes;
@@ -275,6 +277,10 @@ public final class PvpGuiManager {
         inv.setStack(14, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
         inv.setStack(15, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
         inv.setStack(16, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
+        inv.setStack(17, makeButton(Items.ENDER_EYE, "§9§l练习模式",
+                "搭路练习 / 末影珍珠",
+                "单人场地，不计战绩",
+                "点击选择练习类型"));
 
         if (PvPMod.QUEUE.contains(player.getUuid())) {
             String status = "排队中";
@@ -494,10 +500,59 @@ public final class PvpGuiManager {
                 case BRIDGE_CATEGORY -> this.fillBridgeCategory(inv, player, ctx);
                 case GAMES_CATEGORY -> this.fillGamesCategory(inv, player, ctx);
                 case BED_WARS_CATEGORY -> this.fillBedWarsCategory(inv, player, ctx);
+                case PRACTICE_CATEGORY -> this.fillPracticeCategory(inv, player, ctx);
                 default -> {
                 }
             }
             player.currentScreenHandler.sendContentUpdates();
+        }
+    }
+
+    /** 练习模式分类页。 */
+    private void openPracticeCategory(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.PRACTICE_CATEGORY;
+        this.openPage(player, ctx, "§6§l练习模式", inv -> this.fillPracticeCategory(inv, player, ctx));
+    }
+
+    /** 练习模式按钮填充。 */
+    private void fillPracticeCategory(SimpleInventory inv, ServerPlayerEntity player, GuiContext ctx) {
+        for (int slot = 0; slot < 36; slot++) {
+            inv.setStack(slot, makeButton(Items.GRAY_STAINED_GLASS_PANE, " "));
+        }
+
+        PracticeType bridge = PracticeType.BRIDGE;
+        inv.setStack(11, makeButton(Items.WHITE_WOOL, "§b" + bridge.getDisplayName(),
+                "§7从出发点铺到 §f" + bridge.getGap() + " 格§7外的目标台",
+                "§7补给 §f" + bridge.getSupply() + " §7个方块",
+                "§7抵达目标台计时，掉下去自动重来",
+                "§a点击开始练习"));
+
+        PracticeType pearl = PracticeType.ENDER_PEARL;
+        inv.setStack(13, makeButton(Items.ENDER_PEARL, "§d" + pearl.getDisplayName(),
+                "§7用珍珠位移到 §f" + pearl.getGap() + " 格§7外的目标台",
+                "§7补给 §f" + pearl.getSupply() + " §7颗珍珠，珠间 2 秒冷却",
+                "§7抵达目标台计时，掉下去自动重来",
+                "§a点击开始练习"));
+
+        inv.setStack(26, makeButton(Items.ARROW, "§c← 返回主菜单"));
+    }
+
+    /** 练习模式分类页点击。 */
+    private void onClickPracticeCategory(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        PracticeType type = switch (slot) {
+            case 11 -> PracticeType.BRIDGE;
+            case 13 -> PracticeType.ENDER_PEARL;
+            default -> null;
+        };
+        // 必须先关界面再传送：跨维度传送时界面还开着，客户端会残留一个鬼影容器
+        player.closeHandledScreen();
+        if (type != null) {
+            PracticeManager.get().startPractice(player, type);
         }
     }
 
@@ -716,6 +771,7 @@ public final class PvpGuiManager {
             case THEME -> this.onClickTheme(player, ctx, slotIndex);
             case LUCKY_PILLAR_MAP -> this.onClickLuckyPillarMap(player, ctx, slotIndex);
             case BEDWARS_MAP -> this.onClickBedwarsMap(player, ctx, slotIndex);
+            case PRACTICE_CATEGORY -> this.onClickPracticeCategory(player, ctx, slotIndex);
             case STATS -> {
                 if (slotIndex == 27) {
                     this.openMainMenu(player);
@@ -755,6 +811,7 @@ public final class PvpGuiManager {
             case 14 -> this.openDuelTargetPage(player);
             case 15 -> this.openStatsPage(player);
             case 16 -> this.openKitInfoPage(player);
+            case 17 -> this.openPracticeCategory(player);
             case 21 -> {
                 // OP 立即开始：排队空岛/幸运之柱/床战时可先选地图/主题，其余模式直接开
                 QueueEntry entry = PvPMod.QUEUE.getEntry(player);
@@ -1057,7 +1114,9 @@ public final class PvpGuiManager {
     }
 
     private boolean isBusy(ServerPlayerEntity player) {
-        return PvPMod.MATCH.isInMatch(player.getUuid()) || PvPMod.QUEUE.contains(player.getUuid());
+        return (PvPMod.PRACTICE != null && PvPMod.PRACTICE.isInPractice(player))
+                || PvPMod.MATCH.isInMatch(player.getUuid())
+                || PvPMod.QUEUE.contains(player.getUuid());
     }
 
     private List<ServerPlayerEntity> getDuelCandidates(ServerPlayerEntity player) {
@@ -1112,7 +1171,8 @@ public final class PvpGuiManager {
 
     private enum Page {
         MAIN, PVP_CATEGORY, BRIDGE_CATEGORY, GAMES_CATEGORY, BED_WARS_CATEGORY,
-        KIT, DUEL_TARGET, STATS, KIT_INFO, THEME, LUCKY_PILLAR_MAP, BEDWARS_MAP
+        KIT, DUEL_TARGET, STATS, KIT_INFO, THEME, LUCKY_PILLAR_MAP, BEDWARS_MAP,
+        PRACTICE_CATEGORY
     }
 
     private static final class GuiContext {

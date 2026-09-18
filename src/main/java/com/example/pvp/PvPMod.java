@@ -23,6 +23,9 @@ import com.example.pvp.match.MatchState;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.match.VillageDefenseKits;
+import com.example.pvp.practice.PracticeManager;
+import com.example.pvp.practice.PracticeSession;
+import com.example.pvp.practice.PracticeType;
 import com.example.pvp.queue.QueueManager;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
@@ -79,6 +82,7 @@ public final class PvPMod implements ModInitializer {
     public static MatchManager MATCH;
     public static QueueManager QUEUE;
     public static DuelManager DUEL;
+    public static PracticeManager PRACTICE;
 
     /** 幸运之柱"一击必杀"全局标记：开启时对应对局内所有伤害致死（LivingEntityMixin 检查）。 */
     public static volatile boolean oneHitKillActive = false;
@@ -168,6 +172,7 @@ public final class PvPMod implements ModInitializer {
             MATCH = MatchManager.init(server);
             QUEUE = new QueueManager(server);
             DUEL = new DuelManager(server);
+            PRACTICE = PracticeManager.get();
             LOGGER.info("[PvP] 服务器已就绪，PvP 竞技场可用");
         });
 
@@ -180,6 +185,7 @@ public final class PvPMod implements ModInitializer {
                 MATCH.tick();
                 QUEUE.tick(MATCH);
                 DUEL.tick();
+                PRACTICE.tick();
             }
             PvpGuiManager.get().tick(); // 每秒刷新打开的 GUI，实时显示各模式排队人数
             BedWarsEditor.tickParticles(); // 持续显示床战标记粒子
@@ -309,6 +315,21 @@ public final class PvPMod implements ModInitializer {
                     launchFireCharge(serverPlayer, world);
                     stack.decrement(1);
                     return TypedActionResult.success(stack);
+                }
+                // 练习模式：退出物品 / 末影珍珠投掷限制
+                if (PRACTICE != null && PRACTICE.isInPractice(serverPlayer)) {
+                    if (PracticeManager.isExitItem(stack)) {
+                        PRACTICE.exitPractice(serverPlayer);
+                        return TypedActionResult.success(stack);
+                    }
+                    PracticeSession session = PRACTICE.getSession(serverPlayer);
+                    if (session != null && session.getType() == PracticeType.ENDER_PEARL
+                            && stack.isOf(Items.ENDER_PEARL)) {
+                        if (!session.canThrowPearl(serverPlayer)) {
+                            return TypedActionResult.fail(stack);
+                        }
+                        session.onPearlThrown(serverPlayer);
+                    }
                 }
             }
             return TypedActionResult.pass(stack);
@@ -523,6 +544,13 @@ public final class PvPMod implements ModInitializer {
                     }
                     return false; // 对局内（含倒计时/庆祝）一律取消原生死亡处理
                 }
+                // 练习模式：取消原生死亡，由会话自己把玩家重置回出发点
+                if (PRACTICE != null && PRACTICE.isInPractice(sp)) {
+                    sp.setHealth(sp.getMaxHealth());
+                    sp.setFireTicks(0);
+                    sp.fallDistance = 0;
+                    return false;
+                }
                 // 不在对局中：不触发原生死亡界面
                 sp.setHealth(sp.getMaxHealth());
                 sp.setFireTicks(0);
@@ -576,10 +604,22 @@ public final class PvPMod implements ModInitializer {
                     return layout == null || !layout.isPlatformBlock(pos);
                 }
             }
+            // 练习模式：出发点/目标台不可拆，玩家自己搭的方块随便拆
+            if (PRACTICE != null && player instanceof ServerPlayerEntity sp
+                    && PRACTICE.isInPractice(sp)) {
+                PracticeSession session = PRACTICE.getSession(sp);
+                if (session != null) {
+                    return !session.isProtected(pos);
+                }
+            }
             return true;
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            if (PRACTICE != null) {
+                // 玩家正在断线，不能再用它做传送：只清场并回收区域
+                PRACTICE.exitPracticeByUuid(handler.player.getUuid());
+            }
             if (MATCH != null) {
                 MATCH.onPlayerDisconnect(handler.player);
                 DUEL.removeChallengesInvolving(handler.player.getUuid());
