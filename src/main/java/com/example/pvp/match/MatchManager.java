@@ -9,6 +9,7 @@ import com.example.pvp.config.PlayerStats;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
 import com.example.pvp.gui.PvpGuiManager;
+import com.example.pvp.hud.HealthTagManager;
 import com.example.pvp.kit.InventorySnapshot;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.queue.QueueEntry;
@@ -209,6 +210,8 @@ public final class MatchManager {
             this.lobbyScoreboardTimer = 0;
             this.updateLobbyScoreboard();
         }
+        // 名字下方的血量标签（内部自带节流）
+        HealthTagManager.get().tick();
     }
 
     /** 大厅计分板：显示大厅人数/在线人数/个人战绩胜率；排队中额外显示排队内容与人数。 */
@@ -693,6 +696,7 @@ public final class MatchManager {
         this.scoreboardObjectiveKnown.remove(player.getUuid());
         this.lobbyObjectiveKnown.remove(player.getUuid());
         this.lobbyLines.remove(player.getUuid());
+        HealthTagManager.get().remove(player.getUuid());
         this.getArenaManager().removeVisitor(player.getUuid());
         Match match = this.getMatchFor(player);
         if (match != null) {

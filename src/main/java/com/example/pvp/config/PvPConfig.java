@@ -282,6 +282,26 @@ public final class PvPConfig {
     public int bedWarsTimeoutSeconds = 900;
     /** 开赛倒计时（秒，大厅等待）。 */
     public int bedWarsCountdownSeconds = 5;
+
+    // ---------- 名字下方血量显示 ----------
+    /** 总开关：关掉会把已有的血量标签实体全部拆掉。 */
+    public boolean healthTagEnabled = true;
+    /** 心形字符（U+2764 在部分资源包里可能不是红心，可换 ♥ U+2665）。 */
+    public String healthTagHeart = "❤";
+    /** 字号缩放，1.0 = 与原版玩家铭牌一致。 */
+    public double healthTagScale = 1.0;
+    /**
+     * 在玩家碰撞箱顶部基础上的<b>世界竖直方向</b>偏移，正数往上、负数往下，单位格。
+     *
+     * <p>为什么需要它：显示实体的文字是<b>以下边缘为锚点往上涨</b>的，而原版铭牌是<b>以上边缘为锚点
+     * 往下挂</b>的。头顶到铭牌文字下沿只有 0.275 格，而一行字本身就有 0.25 格高 —— 锚点重合时
+    * 两者只差 1 个像素。默认偏移 0.275 格，将血量行放到原姓名高度。
+     *
+    * <p>标签使用竖直 billboard，因此偏移沿世界 Y 轴，不会随观察者俯仰变成屏幕方向的位移。
+     */
+    public double healthTagHeightOffset = 0.275;
+    /** 文本刷新间隔（tick）：越大越省包；展示实体位置仍每 tick 同步。 */
+    public int healthTagUpdateIntervalTicks = 2;
     private PvPConfig() {
     }
 
@@ -714,6 +734,24 @@ public final class PvPConfig {
         }
         if (this.hotPotatoTimeoutSeconds <= 0) {
             this.hotPotatoTimeoutSeconds = defaults.hotPotatoTimeoutSeconds;
+            changed = true;
+        }
+        if (this.healthTagHeart == null || this.healthTagHeart.isBlank()) {
+            this.healthTagHeart = defaults.healthTagHeart;
+            changed = true;
+        }
+        if (this.healthTagScale <= 0.0) {
+            this.healthTagScale = defaults.healthTagScale;
+            changed = true;
+        }
+        // 迁移旧版默认值；0.275 是当前默认值，其他值保留为用户自定义偏移。
+        if (this.healthTagHeightOffset == -0.1 || this.healthTagHeightOffset == 0.0
+            || this.healthTagHeightOffset == 0.2) {
+            this.healthTagHeightOffset = defaults.healthTagHeightOffset;
+            changed = true;
+        }
+        if (this.healthTagUpdateIntervalTicks <= 0) {
+            this.healthTagUpdateIntervalTicks = defaults.healthTagUpdateIntervalTicks;
             changed = true;
         }
         return changed;

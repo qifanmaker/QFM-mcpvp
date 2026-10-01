@@ -13,6 +13,7 @@ import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
 import com.example.pvp.duel.DuelManager;
 import com.example.pvp.gui.PvpGuiManager;
+import com.example.pvp.hud.HealthTagManager;
 import com.example.pvp.kit.BridgeGear;
 import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.ColorblindPartySession;
@@ -35,6 +36,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerBlockEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
@@ -173,11 +175,23 @@ public final class PvPMod implements ModInitializer {
             QUEUE = new QueueManager(server);
             DUEL = new DuelManager(server);
             PRACTICE = PracticeManager.get();
+            HealthTagManager.init(server);
             LOGGER.info("[PvP] 服务器已就绪，PvP 竞技场可用");
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             ArenaWorldManager.get(server).onServerStopping();
+            // 在存档之前拆掉血量标签实体，避免它们被写进存档
+            HealthTagManager.get().onServerStopping();
+        });
+
+        // 实体被加载进世界时清掉残留在存档里的血量标签（上次没正常关服留下的）。
+        // 不能在 SERVER_STARTED 时扫世界：那一刻区块刚准备好，实体还没进实体管理器，扫不到任何东西。
+        ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            HealthTagManager manager = HealthTagManager.get();
+            if (manager != null) {
+                manager.handleEntityLoad(entity);
+            }
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {

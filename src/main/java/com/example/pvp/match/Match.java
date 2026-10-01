@@ -4141,6 +4141,8 @@ public final class Match {
             }
             sbTeam.setColor(team.getColor());
             sbTeam.setCollisionRule(AbstractTeam.CollisionRule.NEVER);
+            sbTeam.setNameTagVisibilityRule(PvPConfig.INSTANCE.healthTagEnabled
+                    ? AbstractTeam.VisibilityRule.NEVER : AbstractTeam.VisibilityRule.ALWAYS);
             // 组队模式（2v2 等）关闭友伤；FFA/空岛战争/幸运之柱全员同一队，必须保留互伤。
             // 色盲派对是纯色觉+走位竞速，玩家之间打不掉血也不击退，故也不开友伤。
             sbTeam.setFriendlyFireAllowed(this.type.allowsPlayerDamage());

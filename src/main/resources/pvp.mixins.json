@@ -6,6 +6,8 @@
   "mixins": [
     "MinecraftServerAccess",
     "MinecraftServerMixin",
+    "DisplayEntityInvoker",
+    "TextDisplayEntityInvoker",
     "GameModeCommandMixin",
     "PlayerEntityMixin",
     "LivingEntityMixin",
