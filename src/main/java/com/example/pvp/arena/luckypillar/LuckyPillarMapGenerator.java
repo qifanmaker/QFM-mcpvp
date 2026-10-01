@@ -67,26 +67,28 @@ public final class LuckyPillarMapGenerator {
 
     /**
      * 清空一场幸运之柱的全部地形（方块 + 掉落物），供赛后清理复用。
-     * 范围按「地图实际最大半径」居中清除，高度覆盖柱底（平台下方深处）到世界最高可搭建 Y。
+    * 清理整块比赛模板区域，而不仅是柱子/平台的布局半径；高度覆盖世界全部可建造范围。
      *
-     * @param maxRadius 该场比赛生成时的最大半径（来自 LuckyPillarLayout）；<=0 时按当前配置兜底计算
+     * @param template 该场比赛实际使用的区域模板
+     * @param maxRadius 该场比赛生成时的最大布局半径（来自 LuckyPillarLayout）；<=0 时按当前配置兜底计算
      */
-    public static void clear(ArenaWorld world, int regionIndex, int maxRadius) {
+    public static void clear(ArenaWorld world, int regionIndex, ArenaTemplate template, int maxRadius) {
         if (maxRadius <= 0) {
             maxRadius = LuckyPillarLayout.computeMaxRadius();
         }
-        BlockPos center = center(regionIndex); // 与生成时一致的地图中心
+        BlockPos center = template.getCenter(regionIndex);
+        int half = Math.max(maxRadius, template.getSize() / 2);
 
         // 先拆方块、再清掉落物（拆箱会重新掉落内容物成实体）
-        // 平台在柱顶下 20 格（约 PLATFORM_Y 附近），下方无地形，清到平台以下一点即可
-        int minY = ArenaTemplate.PLATFORM_Y - 10;
-        int maxDy = world.getTopY() - 1 - ArenaTemplate.PLATFORM_Y;
-        for (int dx = -maxRadius; dx <= maxRadius; dx++) {
-            for (int dz = -maxRadius; dz <= maxRadius; dz++) {
+        int minY = world.getBottomY();
+        int maxY = world.getTopY();
+        BlockPos.Mutable pos = new BlockPos.Mutable();
+        for (int dx = -half; dx <= half; dx++) {
+            for (int dz = -half; dz <= half; dz++) {
                 int x = center.getX() + dx;
                 int z = center.getZ() + dz;
-                for (int y = minY; y <= ArenaTemplate.PLATFORM_Y + maxDy; y++) {
-                    BlockPos pos = new BlockPos(x, y, z);
+                for (int y = minY; y < maxY; y++) {
+                    pos.set(x, y, z);
                     if (!world.getBlockState(pos).isAir()) {
                         world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
                     }
@@ -96,8 +98,8 @@ public final class LuckyPillarMapGenerator {
 
         // 再清掉落物（含玩家淘汰时掉落的物品）
         Box box = new Box(
-                center.getX() - maxRadius, minY, center.getZ() - maxRadius,
-                center.getX() + maxRadius + 1, ArenaTemplate.PLATFORM_Y + maxDy, center.getZ() + maxRadius + 1
+            center.getX() - half, minY, center.getZ() - half,
+            center.getX() + half + 1, maxY, center.getZ() + half + 1
         );
         for (ItemEntity entity : world.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
             entity.discard();

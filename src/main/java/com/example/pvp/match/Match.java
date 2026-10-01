@@ -3187,9 +3187,10 @@ public final class Match {
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
             this.removeHeartbeatBossBar();
-            this.removeInfoScoreboard();
         } catch (Exception e) {
             LOGGER.error("[PvP] 比赛取消处理出错", e);
+        } finally {
+            this.removeInfoScoreboard();
         }
         // 同 finalizeMatch：取消时也要把玩家传送回主城，清场必须让路给客户端的"加载地形中"
         this.manager.detachMatch(this);
@@ -3300,13 +3301,14 @@ public final class Match {
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
             this.removeHeartbeatBossBar();
-            this.removeInfoScoreboard();
             for (ServerPlayerEntity player : this.players) {
                 boolean won = winners.contains(player.getUuid());
                 StatsStore.INSTANCE.recordResult(player.getUuid(), won);
             }
         } catch (Exception e) {
             LOGGER.error("[PvP] 比赛结束处理出错", e);
+        } finally {
+            this.removeInfoScoreboard();
         }
         this.state = MatchState.ENDED;
         // 先把对局从列表里摘掉：玩家可以马上再排队，大厅计分板立刻接管。
@@ -4526,20 +4528,42 @@ public final class Match {
     private void removeInfoScoreboard() {
         MinecraftServer server = this.manager.getServer();
         if (server == null) {
+            this.infoLines.clear();
             return;
         }
         Scoreboard scoreboard = server.getScoreboard();
         ScoreboardObjective objective = scoreboard.getNullableObjective(INFO_OBJECTIVE);
-        if (objective == null) {
-            return;
-        }
         for (String line : this.infoLines) {
-            scoreboard.removeScore(ScoreHolder.fromName(line), objective);
-            this.sendToMatchPlayers(new ScoreboardScoreResetS2CPacket(line, INFO_OBJECTIVE));
+            if (objective != null) {
+                try {
+                    scoreboard.removeScore(ScoreHolder.fromName(line), objective);
+                } catch (Exception e) {
+                    LOGGER.warn("[PvP] 清理对局计分板分数失败: {}", line, e);
+                }
+            }
+            this.sendScoreboardCleanupPacket(new ScoreboardScoreResetS2CPacket(line, INFO_OBJECTIVE));
         }
         this.infoLines.clear();
         // 本场玩家回到主城后隐藏侧边栏（按玩家发送空显示）
-        this.sendToMatchPlayers(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
+        this.sendScoreboardCleanupPacket(new ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot.SIDEBAR, null));
+    }
+
+    /** 清理包逐玩家发送并隔离网络异常，不能让一个离线/异常连接阻止其他玩家清空计分板。 */
+    private void sendScoreboardCleanupPacket(net.minecraft.network.packet.Packet<?> packet) {
+        for (ServerPlayerEntity player : this.players) {
+            if (this.scoreboardCleaned.contains(player.getUuid())) {
+                continue;
+            }
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null || online.networkHandler == null) {
+                continue;
+            }
+            try {
+                online.networkHandler.sendPacket(packet);
+            } catch (Exception e) {
+                LOGGER.warn("[PvP] 发送计分板清理包失败: {}", online.getGameProfile().getName(), e);
+            }
+        }
     }
 
     /** 为单个提前离场的玩家清空本场计分板行并隐藏侧边栏，防止进入新对局后看到旧对局的残留项。 */

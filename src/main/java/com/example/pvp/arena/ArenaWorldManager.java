@@ -275,8 +275,8 @@ public final class ArenaWorldManager {
             BridgeLayout layout = BridgeLayout.compute(template.getCenter(regionIndex), 2, false);
             BridgeMapGenerator.clear(arena, layout);
         } else if (template.getLayout() == ArenaTemplate.Layout.LUCKY_PILLAR) {
-            // 幸运之柱：按地图中心 ± 实际最大半径清空（含高柱/平台/掉落物）
-            LuckyPillarMapGenerator.clear(arena, regionIndex, mapMaxRadius);
+            // 幸运之柱：清整个分配区域，不只清柱子/平台布局范围；玩家可在整场区域内搭建。
+            LuckyPillarMapGenerator.clear(arena, regionIndex, template, mapMaxRadius);
         } else if (template.getLayout() == ArenaTemplate.Layout.TNT_RUN) {
             // TNT 跑酷：清空多层平台
             TntRunMapGenerator.clear(arena, regionIndex, mapMaxRadius);
