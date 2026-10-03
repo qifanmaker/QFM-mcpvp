@@ -259,6 +259,86 @@ public final class PvPConfig {
     /** 助攻窗口（秒）：最后被某人伤害后多少秒内死亡，人头仍算给他。 */
     public int deathmatchAssistSeconds = 5;
 
+    // ---------- 亦可赛艇 (Boat Race) ----------
+    // 玩法：原版船 + 冰面 + 程序化随机生成的闭环赛道，多圈竞速。
+    // 每场 Match 用独立随机 Seed 生成赛道（见 com.example.pvp.arena.race.RaceTrackGenerator），
+    // Seed 会打进日志，出 Bug 时可以用同一个 Seed 复现同一张图。
+    /** 最少/触发开赛倒计时/最多人数。 */
+    public int boatRaceMinPlayers = 2;
+    public int boatRaceStartPlayers = 4;
+    public int boatRaceMaxPlayers = 8;
+    /** 排队凑人倒计时（秒）：凑齐 startPlayers 后开始倒数。 */
+    public int boatRaceQueueCountdownSeconds = 30;
+    /** 不足开赛人数时等待填充的最长时间（秒），超时按当前人数开赛。 */
+    public int boatRaceFillTimeoutSeconds = 60;
+    /** 开赛倒计时（秒）：3-2-1-GO。地图在这段时间的第一帧一次性生成完毕。 */
+    public int boatRaceCountdownSeconds = 3;
+    /** 圈数（1~3 手感最好；每圈走同一条赛道）。 */
+    public int boatRaceLaps = 3;
+    /**
+     * 赛道宽度（格，建议 9~15）。
+     * 船在冰上速度极快、转向半径大，过窄会变成"撞墙比赛"，过宽则失去走线意义。
+     */
+    public int boatRaceTrackWidth = 12;
+    /**
+     * 赛道两侧的减速缓冲带宽度（格）：缓冲带用高摩擦方块（默认雪块 0.6），冲出赛道会被吃掉速度。
+     * 原版船的"地面摩擦"取船底 1mm 切片 ±1 格内所有方块 slipperiness 的<b>平均值</b>，
+     * 所以缓冲带紧贴冰面本身就构成"跑宽了就掉速"的天然惩罚，4~5 格足够。
+     */
+    public int boatRaceRunoffWidth = 5;
+    /** 缓冲带外侧护栏高度（格）。船跳不过 2 格，所以 2 格足够，也省方块。 */
+    public int boatRaceBarrierHeight = 2;
+    // 赛道长度：生成器围绕 targetLength 造形，落在 [min,max] 之外即判非法并换 Seed 重来。
+    // 上限受竞技场区域间距（ArenaTemplate.REGION_SPACING=384）限制，详见 RaceTrackValidator.MAX_BOUNDING_RADIUS。
+    public int boatRaceMinTrackLength = 500;
+    public int boatRaceMaxTrackLength = 820;
+    public int boatRaceTargetTrackLength = 700;
+    /** Checkpoint 数量；0 = 按赛道长度自动（约每 60 格一个，限制在 6~18）。 */
+    public int boatRaceCheckpoints = 0;
+    /** 最大生成尝试次数：每次失败后 seed+1 重来，直到出现合法赛道。 */
+    public int boatRaceMaxGenerationAttempts = 24;
+    /** 是否随机生成赛道。关掉则使用确定性的"安全椭圆"（调试用，玩家体验会差很多）。 */
+    public boolean boatRaceEnableRandomTrack = true;
+    /**
+     * 中心线允许的最小曲率半径（格）。
+     *
+     * <p>由原版船物理反推：船的推力只有 0.04 格/tick²，速度方向能被扭转的最大速率给出
+     * 最小可行路径半径 {@code R = v² / a}；反过来半径 R 的弯最多带 {@code v = 0.2·sqrt(R)} 格/tick。
+     * 冰面（0.98）极速 2.0 格/tick（40 格/秒），所以：
+     * <ul>
+     *   <li>R=25 → 1.0 格/tick（20 格/秒）= 极速的一半，属于"必须刹车的慢弯"；</li>
+     *   <li>R=100 → 2.0 格/tick = 可以全油门过的弯；</li>
+     *   <li>R=330 → 蓝冰极速 3.64 格/tick 才过得去（本模式区域放不下，所以默认冰面而不是蓝冰）。</li>
+     * </ul>
+     * 低于该值的候选赛道会被校验器直接拒掉。
+     */
+    public double boatRaceMinCornerRadius = 25.0;
+    /** 非相邻赛道段之间的最小净空（格）：防止赛道自贴/合并，等于消灭"看不清走哪条"的严重自交。 */
+    public double boatRaceMinClearance = 26.0;
+    /**
+     * 冰面方块。packed_ice = 原版冰面滑度 0.98 → 极速 40 格/秒；
+     * blue_ice = 0.989 → 极速 72.7 格/秒，但过弯半径需要 ~330 格，本模式的区域尺寸放不下
+     * （会变成"一路撞墙"），所以默认用浮冰。想要蓝冰请同时大幅放长赛道并调大最小弯半径。
+     */
+    public String boatRaceSurfaceBlock = "minecraft:packed_ice";
+    /** 缓冲带方块（高摩擦，冲出赛道时吃掉速度）。 */
+    public String boatRaceRunoffBlock = "minecraft:snow_block";
+    /** 护栏方块。 */
+    public String boatRaceBarrierBlock = "minecraft:ice";
+    /** 对局超时（秒）：兜底，防止卡死的对局永久占用场地。 */
+    public int boatRaceTimeoutSeconds = 900;
+    /**
+     * 掉出赛道/船被毁后自动回位的冷却（秒）。
+     * 回位后给玩家一点时间开出去，冷却期内不再判定"静止卡住"，避免在检查点原地反复传送。
+     */
+    public int boatRaceRecoveryCooldownSeconds = 3;
+    /** 连续静止多少秒算"卡住"（船被毁/卡在护栏上）→ 回位。 */
+    public int boatRaceStuckSeconds = 6;
+    /** 距中心线多远算"离开赛道"（格，在赛道半宽 + 缓冲带之外再留一点余量）→ 回位。 */
+    public int boatRaceOffTrackMargin = 3;
+    /** 竞技场区域边长（生成/清理边界；必须 2*size/2 = size < REGION_SPACING 才不串场）。 */
+    public int boatRaceSize = 336;
+
     // ---------- 起床战争 (Bed Wars) ----------
     /** 区域覆盖边长（生成/清理边界，需覆盖整张地图；Hypixel 图约 100 格）。 */
     public int bedWarsSize = 200;
@@ -754,6 +834,107 @@ public final class PvPConfig {
             this.healthTagUpdateIntervalTicks = defaults.healthTagUpdateIntervalTicks;
             changed = true;
         }
+        // ---------- 亦可赛艇 (Boat Race) ----------
+        if (this.boatRaceMinPlayers <= 0) {
+            this.boatRaceMinPlayers = defaults.boatRaceMinPlayers;
+            changed = true;
+        }
+        if (this.boatRaceStartPlayers <= 0) {
+            this.boatRaceStartPlayers = defaults.boatRaceStartPlayers;
+            changed = true;
+        }
+        if (this.boatRaceMaxPlayers <= 0) {
+            this.boatRaceMaxPlayers = defaults.boatRaceMaxPlayers;
+            changed = true;
+        }
+        if (this.boatRaceQueueCountdownSeconds <= 0) {
+            this.boatRaceQueueCountdownSeconds = defaults.boatRaceQueueCountdownSeconds;
+            changed = true;
+        }
+        if (this.boatRaceFillTimeoutSeconds <= 0) {
+            this.boatRaceFillTimeoutSeconds = defaults.boatRaceFillTimeoutSeconds;
+            changed = true;
+        }
+        if (this.boatRaceCountdownSeconds <= 0) {
+            this.boatRaceCountdownSeconds = defaults.boatRaceCountdownSeconds;
+            changed = true;
+        }
+        if (this.boatRaceLaps <= 0) {
+            this.boatRaceLaps = defaults.boatRaceLaps;
+            changed = true;
+        }
+        if (this.boatRaceTrackWidth <= 0) {
+            this.boatRaceTrackWidth = defaults.boatRaceTrackWidth;
+            changed = true;
+        }
+        if (this.boatRaceRunoffWidth <= 0) {
+            this.boatRaceRunoffWidth = defaults.boatRaceRunoffWidth;
+            changed = true;
+        }
+        if (this.boatRaceBarrierHeight <= 0) {
+            this.boatRaceBarrierHeight = defaults.boatRaceBarrierHeight;
+            changed = true;
+        }
+        if (this.boatRaceMinTrackLength <= 0) {
+            this.boatRaceMinTrackLength = defaults.boatRaceMinTrackLength;
+            changed = true;
+        }
+        if (this.boatRaceMaxTrackLength <= 0) {
+            this.boatRaceMaxTrackLength = defaults.boatRaceMaxTrackLength;
+            changed = true;
+        }
+        if (this.boatRaceTargetTrackLength <= 0) {
+            this.boatRaceTargetTrackLength = defaults.boatRaceTargetTrackLength;
+            changed = true;
+        }
+        if (this.boatRaceCheckpoints < 0) {
+            this.boatRaceCheckpoints = defaults.boatRaceCheckpoints;
+            changed = true;
+        }
+        if (this.boatRaceMaxGenerationAttempts <= 0) {
+            this.boatRaceMaxGenerationAttempts = defaults.boatRaceMaxGenerationAttempts;
+            changed = true;
+        }
+        if (this.boatRaceMinCornerRadius <= 0) {
+            this.boatRaceMinCornerRadius = defaults.boatRaceMinCornerRadius;
+            changed = true;
+        }
+        if (this.boatRaceMinClearance <= 0) {
+            this.boatRaceMinClearance = defaults.boatRaceMinClearance;
+            changed = true;
+        }
+        if (this.boatRaceSurfaceBlock == null || this.boatRaceSurfaceBlock.isBlank()) {
+            this.boatRaceSurfaceBlock = defaults.boatRaceSurfaceBlock;
+            changed = true;
+        }
+        if (this.boatRaceRunoffBlock == null || this.boatRaceRunoffBlock.isBlank()) {
+            this.boatRaceRunoffBlock = defaults.boatRaceRunoffBlock;
+            changed = true;
+        }
+        if (this.boatRaceBarrierBlock == null || this.boatRaceBarrierBlock.isBlank()) {
+            this.boatRaceBarrierBlock = defaults.boatRaceBarrierBlock;
+            changed = true;
+        }
+        if (this.boatRaceTimeoutSeconds <= 0) {
+            this.boatRaceTimeoutSeconds = defaults.boatRaceTimeoutSeconds;
+            changed = true;
+        }
+        if (this.boatRaceRecoveryCooldownSeconds <= 0) {
+            this.boatRaceRecoveryCooldownSeconds = defaults.boatRaceRecoveryCooldownSeconds;
+            changed = true;
+        }
+        if (this.boatRaceStuckSeconds <= 0) {
+            this.boatRaceStuckSeconds = defaults.boatRaceStuckSeconds;
+            changed = true;
+        }
+        if (this.boatRaceOffTrackMargin <= 0) {
+            this.boatRaceOffTrackMargin = defaults.boatRaceOffTrackMargin;
+            changed = true;
+        }
+        if (this.boatRaceSize <= 0) {
+            this.boatRaceSize = defaults.boatRaceSize;
+            changed = true;
+        }
         return changed;
     }
 
@@ -773,6 +954,21 @@ public final class PvPConfig {
 
     public Block getWallBlock() {
         return parseBlock(this.wallBlock, Blocks.GLASS);
+    }
+
+    /** 亦可赛艇：冰面方块（默认浮冰）。 */
+    public Block getBoatRaceSurfaceBlock() {
+        return parseBlock(this.boatRaceSurfaceBlock, Blocks.PACKED_ICE);
+    }
+
+    /** 亦可赛艇：缓冲带方块（默认雪块，高摩擦）。 */
+    public Block getBoatRaceRunoffBlock() {
+        return parseBlock(this.boatRaceRunoffBlock, Blocks.SNOW_BLOCK);
+    }
+
+    /** 亦可赛艇：护栏方块（默认冰）。 */
+    public Block getBoatRaceBarrierBlock() {
+        return parseBlock(this.boatRaceBarrierBlock, Blocks.ICE);
     }
 
     private static Block parseBlock(String id, Block fallback) {

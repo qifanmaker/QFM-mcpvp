@@ -141,7 +141,18 @@ public final class ColorblindPartySession {
                     center.getZ() + (int) Math.round(Math.sin(angle) * radius)));
         }
         this.spawnList = List.copyOf(spawns);
+        // 注意：这里只算出出生点，**不铺地板**。
+        // 铺地板是几千次 setBlockState 的重活，必须在 Match 的"暂存 → 分帧落盘"流程里做
+        // （见 stageFloor），否则它会留在 Match 构造器里、在匹配 tick 上造成一次卡顿尖峰。
+    }
 
+    /**
+     * 铺第 1 回合地板（由 {@code Match.stageArena} 在暂存状态下调用）。
+     *
+     * <p>玩家在倒计时期间就站在出生点上，所以地板必须先于传送存在 ——
+     * 这也是它不能推迟到 {@code start()} 的原因。
+     */
+    public void stageFloor() {
         ArenaWorld arena = this.arena();
         if (arena == null) {
             LOGGER.warn("[PvP] 色盲派对：竞技场世界未就绪，地板未铺设");

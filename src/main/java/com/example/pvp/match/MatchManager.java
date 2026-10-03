@@ -444,6 +444,11 @@ public final class MatchManager {
                     || players.size() > PvPConfig.INSTANCE.deathmatchMaxPlayers) {
                 return false;
             }
+        } else if (type.isBoatRace()) {
+            if (players.size() < PvPConfig.INSTANCE.boatRaceMinPlayers
+                    || players.size() > PvPConfig.INSTANCE.boatRaceMaxPlayers) {
+                return false;
+            }
         } else if (type.isBedWars()) {
             // 起床战争：最少 2 人；队伍按人数动态启用（Solo 每队 1 人，双人每队 2 人）
             int perTeam = type.playersPerTeam();
@@ -654,6 +659,11 @@ public final class MatchManager {
             if (match.getType() == MatchType.DEATHMATCH) {
                 return; // 死斗由 ALLOW_DEATH 处理（原地复活），这里绝不能淘汰
             }
+            if (match.getType().isBoatRace()) {
+                // 亦可赛艇：阵亡只是一次"回位"，不淘汰（全员同一队，淘汰会直接触发结算）
+                match.onBoatRaceDeath(player);
+                return;
+            }
             match.eliminate(player, EliminationCause.DEATH, specificDeathMessage(player));
         }
     }
@@ -677,6 +687,9 @@ public final class MatchManager {
                 // 死斗没有人出局：走原版重生（例如中途重连）也要送回场上，
                 // 不能落到 makeGhost —— 那会让玩家变成永久旁观者
                 match.deathmatchRespawn(newPlayer);
+            } else if (match.getType().isBoatRace()) {
+                // 亦可赛艇：同样不能转幽灵，重生 = 回位到最近 Checkpoint 重新发船
+                match.boatRaceRespawn(newPlayer);
             } else {
                 match.makeGhost(newPlayer);
             }
@@ -705,6 +718,10 @@ public final class MatchManager {
             } else if (match.getType() == MatchType.DEATHMATCH) {
                 // 死斗没有"淘汰"这回事：掉线只清掉待复活/助攻记录，重进照常参战
                 match.onDeathmatchDisconnect(player);
+            } else if (match.getType().isBoatRace()) {
+                // 亦可赛艇：掉线 = 退赛，从本场名次表里摘掉（比赛继续），不能走 eliminate ——
+                // 那会让"全员冲线"这个结束条件永远不成立，比赛只能等超时
+                match.onBoatRaceDisconnect(player);
             } else {
                 match.eliminate(player, EliminationCause.DISCONNECT);
             }
@@ -777,6 +794,9 @@ public final class MatchManager {
             case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseSize;
             case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindSize;
             case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchSize;
+            // 亦可赛艇：区域边长必须满足 size/2 + 16 <= REGION_SPACING/2 = 192（实体清扫盒不串场），
+            // 且要容得下 RaceTrackValidator.MAX_BOUNDING_RADIUS 的赛道外沿
+            case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceSize;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO -> ArenaTemplate.Layout.DUEL_1V1;
@@ -795,13 +815,14 @@ public final class MatchManager {
             // 不新建 Layout：这样 ArenaWorldManager 的通用建场/清场分支和 ArenaTemplate.computeSpawns
             // 的 FFA 分支都直接可用，两个文件零改动。
             case DEATHMATCH -> ArenaTemplate.Layout.FFA;
+            case BOAT_RACE -> ArenaTemplate.Layout.BOAT_RACE;
         };
         // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战/村庄保卫战/色盲派对无围墙；其地图本身由各自生成器铺
         boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
                 && type != MatchType.LUCKY_PILLAR && type != MatchType.TNT_RUN
                 && type != MatchType.HEARTBEAT && type != MatchType.HOT_POTATO
                 && !type.isBedWars() && type != MatchType.VILLAGE_DEFENSE
-                && type != MatchType.COLORBLIND_PARTY;
+                && type != MatchType.COLORBLIND_PARTY && !type.isBoatRace();
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 
@@ -842,6 +863,10 @@ public final class MatchManager {
                     } else if (match.getType() == MatchType.DEATHMATCH) {
                         // 死斗：掉虚空 = 一次阵亡（场地有围墙，这里是兜底），换个远点复活
                         match.onDeathmatchVoidFall(player);
+                    } else if (match.getType().isBoatRace()) {
+                        // 亦可赛艇：掉虚空 = 回位到最近 Checkpoint（Session 自己也会提前判定，
+                        // 这里是掉得太快时的兜底）
+                        match.boatRaceVoidFall(player);
                     } else {
                         match.eliminate(player, EliminationCause.VOID);
                     }

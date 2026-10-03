@@ -9,6 +9,7 @@ import com.example.pvp.arena.heartbeat.HeartbeatMapGenerator;
 import com.example.pvp.arena.hotpotato.HotPotatoLayout;
 import com.example.pvp.arena.hotpotato.HotPotatoMapGenerator;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
+import com.example.pvp.arena.race.RaceMapGenerator;
 import com.example.pvp.arena.luckypillar.LuckyPillarMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.arena.tntrun.TntRunLayout;
@@ -235,6 +236,13 @@ public final class ArenaWorldManager {
             return;
         }
 
+        // 亦可赛艇：赛道由 BoatRaceSession 用本场随机 Seed 铺（RaceMapGenerator），
+        // 必须走 Session 那条路 —— 这里拿不到 RaceTrack，铺不了。走通用分支的话会铺一块
+        // 336×336 的通用地板，既不是赛道也会挡住船的视线。
+        if (template.getLayout() == ArenaTemplate.Layout.BOAT_RACE) {
+            return;
+        }
+
         BlockPos origin = template.getRegionOrigin(regionIndex);
         int size = template.getSize();
 
@@ -295,6 +303,14 @@ public final class ArenaWorldManager {
         } else if (template.getLayout() == ArenaTemplate.Layout.COLORBLIND_PARTY) {
             // 色盲派对：清空彩色地板层上下整片区域（含事件/加成留下的雪、玻璃、飞毯等）
             ColorblindMapGenerator.clear(arena, regionIndex, mapMaxRadius);
+        } else if (template.getLayout() == ArenaTemplate.Layout.BOAT_RACE) {
+            // 亦可赛艇：正常由 Match 走 BoatRaceSession.clearArena() 用同一个 Seed 精确重放清场。
+            // 这里只是兜底（例如将来有别的调用方），按区域清一条 Y 带 —— 绝不能让流程落到下面的
+            // 通用分支：那是 size×size×高度（336×336×320）三千多万次 setBlockState，会直接卡服。
+            LOGGER.warn("[PvP] 亦可赛艇走了 ArenaWorldManager 的兜底清场（正常应走 BoatRaceSession.clearArena）");
+            RaceMapGenerator.clearFallbackBand(arena, template.getCenter(regionIndex),
+                    (int) Math.ceil(mapMaxRadius) + 2,
+                    ArenaTemplate.PLATFORM_Y - 14, ArenaTemplate.PLATFORM_Y + 10);
         } else {
             BlockPos origin = template.getRegionOrigin(regionIndex);
             int size = template.getSize();
@@ -327,7 +343,7 @@ public final class ArenaWorldManager {
 
         // 清掉该区域内所有非玩家实体（TNT/箭/火焰弹/刷怪蛋生成的生物/掉落的物品等），
         // 避免残留到下场比赛（玩家正被传回主城，予以排除）
-        this.clearRegionEntities(arena, template, regionIndex, mapMaxRadius);
+        this.clearRegionEntities(regionIndex, template, mapMaxRadius);
     }
 
     /** 村庄保卫战：清空以区域中心为圆心 ±90 格、限定高度的方块（导入的地图 + 垫底 + 玩家改动）。 */
@@ -348,18 +364,31 @@ public final class ArenaWorldManager {
         }
     }
 
-    /** 清掉某场比赛区域内所有非玩家实体（含各模式生成器没清到的 TNT/箭/生物等）。 */
-    private void clearRegionEntities(ArenaWorld arena, ArenaTemplate template, int regionIndex, int mapMaxRadius) {
+    /**
+     * 清掉某场比赛区域内所有非玩家实体（含各模式生成器没清到的 TNT/箭/生物/掉落物等），返回清掉的个数。
+     *
+     * <p>额外公开出来是给「结算那一帧」用的：实体查询走的是实体管理器，而区块一旦卸载，
+     * 里面的实体就被摘出去存回区块文件了。延迟清场要等 5 秒（那时玩家早被传回主城、
+     * 区域区块可能已经卸载），所以掉落物必须在玩家还站在场上、区块一定加载着的结算帧先扫一遍。
+     */
+    public int clearRegionEntities(int regionIndex, ArenaTemplate template, int mapMaxRadius) {
+        ArenaWorld arena = this.world;
+        if (arena == null) {
+            return 0;
+        }
         int half = Math.max(template.getSize() / 2, mapMaxRadius) + 16;
         BlockPos center = template.getCenter(regionIndex);
         Box box = new Box(
                 center.getX() - half, arena.getBottomY(), center.getZ() - half,
                 center.getX() + half, arena.getTopY(), center.getZ() + half
         );
+        int removed = 0;
         for (Entity entity : arena.getEntitiesByClass(Entity.class, box,
                 e -> !(e instanceof ServerPlayerEntity))) {
             entity.discard();
+            removed++;
         }
+        return removed;
     }
 
     private ArenaWorld requireWorld() {

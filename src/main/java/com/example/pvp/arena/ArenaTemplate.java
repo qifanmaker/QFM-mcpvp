@@ -29,7 +29,9 @@ public class ArenaTemplate {
         HOT_POTATO,
         BED_WARS,
         VILLAGE_DEFENSE,
-        COLORBLIND_PARTY
+        COLORBLIND_PARTY,
+        /** 亦可赛艇：赛道由 {@code RaceMapGenerator} 按随机 Seed 铺，不铺通用地板/围墙。 */
+        BOAT_RACE
     }
 
     private final Layout layout;
@@ -122,6 +124,11 @@ public class ArenaTemplate {
             }
             case COLORBLIND_PARTY -> {
                 // 色盲派对出生点由 ColorblindPartySession 按地板均布（Match 构造时处理），这里返回空避免占位
+            }
+            case BOAT_RACE -> {
+                // 亦可赛艇出生点（起跑格位）由 BoatRaceSession 按赛道计算（Match 构造时处理），
+                // 这里返回空避免占位；注意返回空列表时 Match 必须用 Session 给的那一份，
+                // 否则 Match 构造里的 spawnPositions.get(i) 会越界。
             }
         }
         return spawns;

@@ -60,6 +60,12 @@ public final class KitManager {
     private static Kit colorblindKit;
 
     /**
+     * 亦可赛艇哨兵套件：空手、生存模式（船由 {@code BoatRaceSession} 统一生成/回收，
+     * 玩家不需要也不应该拿方块，见玩法说明），仅作队列占位。
+     */
+    private static Kit boatRaceKit;
+
+    /**
      * 1.8 经典套件的 id。这套装备自带 1.8.7 手感 —— 用它的人无论在哪个模式
      * （自由乱斗 / 死斗 / 1v1 …）都按无攻击冷却 + 剑格挡打，见
      * {@code MatchManager.usesLegacyCombat}。
@@ -119,6 +125,11 @@ public final class KitManager {
                 .displayName("村庄保卫战")
                 .food(20, 5f)
                 .gamemode(GameMode.ADVENTURE)
+                .build();
+        boatRaceKit = new Kit.Builder("boatrace", KitType.CUSTOM)
+                .displayName("亦可赛艇")
+                .food(20, 20f)
+                .gamemode(GameMode.SURVIVAL)
                 .build();
         colorblindKit = new Kit.Builder("colorblindparty", KitType.CUSTOM)
                 .displayName("色盲派对")
@@ -211,6 +222,11 @@ public final class KitManager {
     /** 色盲派对哨兵套件（不入 KITS 列表，实际空手开局）。 */
     public static Kit colorblindPartyKit() {
         return colorblindKit;
+    }
+
+    /** 亦可赛艇哨兵套件（不入 KITS 列表，实际空手开局，船由玩法发放）。 */
+    public static Kit boatRaceKit() {
+        return boatRaceKit;
     }
 
     /** 该套件是不是 1.8 经典（用它的人按 1.8.7 手感打，与所在模式无关）。 */

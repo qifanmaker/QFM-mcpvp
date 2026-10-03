@@ -282,6 +282,21 @@ public final class PvpGuiManager {
                 "单人场地，不计战绩",
                 "点击选择练习类型"));
 
+        // 第 3 行：亦可赛艇（一等入口，不必进子页才能找到）
+        ItemStack boatRace = makeButton(Items.OAK_BOAT, "§b§l🏁 亦可赛艇",
+                "驾驶船只，在随机生成的冰面赛道上竞速！",
+                "当前玩家：" + PvPMod.QUEUE.countQueued(MatchType.BOAT_RACE)
+                        + " / " + PvPConfig.INSTANCE.boatRaceMaxPlayers,
+                "每场赛道都不一样（可复现的比赛 Seed）",
+                "赛道宽 " + PvPConfig.INSTANCE.boatRaceTrackWidth + " 格，长约 "
+                        + PvPConfig.INSTANCE.boatRaceMinTrackLength + "~"
+                        + PvPConfig.INSTANCE.boatRaceMaxTrackLength + " 格，跑 "
+                        + PvPConfig.INSTANCE.boatRaceLaps + " 圈",
+                "按顺序穿过 Checkpoint，掉出赛道自动回位",
+                "点击加入比赛");
+        this.applyQueueIndicator(boatRace, player, PvPMod.QUEUE.countQueued(MatchType.BOAT_RACE));
+        inv.setStack(18, boatRace);
+
         if (PvPMod.QUEUE.contains(player.getUuid())) {
             String status = "排队中";
             var entry = PvPMod.QUEUE.getEntry(player);
@@ -448,6 +463,19 @@ public final class PvpGuiManager {
                 "站到「文字的颜色」上，别管它写的是什么！",
                 "非目标色方块全部消失，站错的掉进虚空淘汰",
                 "共 " + PvPConfig.INSTANCE.colorblindRounds + " 回合，最后存活者获胜，点击直接加入"));
+        inv.setStack(16, queueButton(Items.OAK_BOAT, "§b🏁 亦可赛艇", player, MatchType.BOAT_RACE,
+                "驾驶船只，在随机冰面赛道上竞速！",
+                "当前玩家：" + PvPMod.QUEUE.countQueued(MatchType.BOAT_RACE)
+                        + " / " + PvPConfig.INSTANCE.boatRaceMaxPlayers,
+                PvPConfig.INSTANCE.boatRaceMinPlayers + "~" + PvPConfig.INSTANCE.boatRaceMaxPlayers
+                        + " 人，凑齐 " + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛",
+                "驾驶原版船，在随机生成的冰面赛道上竞速",
+                "每场比赛的赛道都不一样（可复现的比赛 Seed）",
+                "赛道宽 " + PvPConfig.INSTANCE.boatRaceTrackWidth + " 格，"
+                        + PvPConfig.INSTANCE.boatRaceMinTrackLength + "~"
+                        + PvPConfig.INSTANCE.boatRaceMaxTrackLength + " 格长，"
+                        + PvPConfig.INSTANCE.boatRaceLaps + " 圈定胜负",
+                "按顺序穿过 Checkpoint，掉出赛道自动回位，点击直接加入"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
@@ -812,6 +840,8 @@ public final class PvpGuiManager {
             case 15 -> this.openStatsPage(player);
             case 16 -> this.openKitInfoPage(player);
             case 17 -> this.openPracticeCategory(player);
+            // 亦可赛艇：无套件，直接加入
+            case 18 -> this.joinQueue(player, MatchType.BOAT_RACE, KitManager.boatRaceKit());
             case 21 -> {
                 // OP 立即开始：排队空岛/幸运之柱/床战时可先选地图/主题，其余模式直接开
                 QueueEntry entry = PvPMod.QUEUE.getEntry(player);
@@ -893,6 +923,7 @@ public final class PvpGuiManager {
             case 12 -> MatchType.HOT_POTATO;
             case 13 -> MatchType.VILLAGE_DEFENSE;
             case 15 -> MatchType.COLORBLIND_PARTY;
+            case 16 -> MatchType.BOAT_RACE;
             default -> null;
         };
         if (type == null) {
@@ -904,6 +935,7 @@ public final class PvpGuiManager {
             case HEARTBEAT -> KitManager.heartbeatKit();
             case VILLAGE_DEFENSE -> KitManager.villageDefenseKit();
             case COLORBLIND_PARTY -> KitManager.colorblindPartyKit();
+            case BOAT_RACE -> KitManager.boatRaceKit();
             default -> KitManager.hotPotatoKit();
         };
         this.joinQueue(player, type, kit);
@@ -1053,6 +1085,10 @@ public final class PvpGuiManager {
             } else if (type == MatchType.HOT_POTATO) {
                 player.sendMessage(Messages.info("已加入烫手山芋：凑齐 " + PvPConfig.INSTANCE.hotPotatoStartPlayers
                         + " 人开赛，左键传递山芋，时间到爆炸"), false);
+            } else if (type.isBoatRace()) {
+                player.sendMessage(Messages.info("已加入亦可赛艇：凑齐 "
+                        + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛；原版船 + 随机冰面赛道，跑 "
+                        + PvPConfig.INSTANCE.boatRaceLaps + " 圈"), false);
             } else if (type.isBedWars()) {
                 player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")
                         + "）：凑 2 人即开始倒计时，摧毁敌方床获胜"), false);

@@ -56,6 +56,9 @@ public final class QueueManager {
     private Integer deathmatchFillTicks;
     /** 起床战争开赛倒计时（tick 数）；null 表示未开始。 */
     private Integer bedWarsCountdownTicks;
+    /** 亦可赛艇开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
+    private Integer boatRaceCountdownTicks;
+    private Integer boatRaceFillTicks;
 
     public QueueManager(MinecraftServer server) {
         this.server = server;
@@ -156,6 +159,7 @@ public final class QueueManager {
         this.tickVillageDefense(matchManager);
         this.tickColorblindParty(matchManager);
         this.tickDeathmatch(matchManager);
+        this.tickBoatRace(matchManager);
         this.tickBedWars(matchManager);
         this.tickInstantMatches(matchManager);
     }
@@ -975,6 +979,94 @@ public final class QueueManager {
         }
     }
 
+    /** 亦可赛艇队列：凑 startPlayers 倒计时；minPlayers 起等待填充（超时按当前人数开）。 */
+    private void tickBoatRace(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        long count = this.countBoatRace();
+
+        if (this.boatRaceCountdownTicks != null) {
+            this.boatRaceCountdownTicks = count >= config.boatRaceMaxPlayers
+                    ? 0 : this.boatRaceCountdownTicks - 1;
+            if (this.boatRaceCountdownTicks <= 0) {
+                this.boatRaceCountdownTicks = null;
+                this.boatRaceFillTicks = null;
+                this.startBoatRaceMatch(matchManager);
+            }
+            return;
+        }
+
+        if (count >= config.boatRaceStartPlayers) {
+            this.boatRaceCountdownTicks = config.boatRaceQueueCountdownSeconds * 20;
+            this.broadcastBoatRace(matchManager, Messages.info(
+                    "§b" + count + "§r 人已就绪，§b" + config.boatRaceQueueCountdownSeconds
+                            + "§r 秒后开始亦可赛艇！（随机冰面赛道，"
+                            + config.boatRaceLaps + " 圈定胜负）"));
+            this.boatRaceFillTicks = null;
+            return;
+        }
+
+        if (count >= config.boatRaceMinPlayers) {
+            if (this.boatRaceFillTicks == null) {
+                this.boatRaceFillTicks = config.boatRaceFillTimeoutSeconds * 20;
+            }
+            if (this.boatRaceFillTicks % 40 == 0) {
+                this.broadcastBoatRace(matchManager, Messages.info(
+                        "等待更多玩家加入亦可赛艇（当前 " + count + "/" + config.boatRaceStartPlayers + "）..."));
+            }
+            this.boatRaceFillTicks--;
+            if (this.boatRaceFillTicks <= 0) {
+                this.boatRaceFillTicks = null;
+                this.startBoatRaceMatch(matchManager);
+            }
+        } else {
+            this.boatRaceFillTicks = null;
+        }
+    }
+
+    /** 开一局亦可赛艇：用哨兵套件（船由 BoatRaceSession 统一发放，玩家不需要自带装备）。 */
+    private void startBoatRaceMatch(MatchManager matchManager) {
+        PvPConfig config = PvPConfig.INSTANCE;
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        List<QueueEntry> toRemove = new ArrayList<>();
+
+        for (QueueEntry entry : List.copyOf(this.entries)) {
+            if (entry.getType() != MatchType.BOAT_RACE) {
+                continue;
+            }
+            if (players.size() >= config.boatRaceMaxPlayers) {
+                break;
+            }
+            toRemove.add(entry);
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                players.add(online);
+            }
+        }
+        if (players.size() < config.boatRaceMinPlayers) {
+            this.entries.removeAll(toRemove);
+            return;
+        }
+        if (matchManager.startMatch(players, MatchType.BOAT_RACE, KitManager.boatRaceKit())) {
+            this.entries.removeAll(toRemove);
+        }
+    }
+
+    private long countBoatRace() {
+        return this.entries.stream().filter(e -> e.getType() == MatchType.BOAT_RACE).count();
+    }
+
+    private void broadcastBoatRace(MatchManager matchManager, Text message) {
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != MatchType.BOAT_RACE) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                online.sendMessage(message, false);
+            }
+        }
+    }
+
     /** 起床战争队列：凑 2 人即开始倒计时，倒计时结束按当前人数开赛（按人数动态分队）。 */
     private void tickBedWars(MatchManager matchManager) {
         long count = this.countBedWars();
@@ -1069,6 +1161,7 @@ public final class QueueManager {
                     || entry.getType() == MatchType.VILLAGE_DEFENSE
                     || entry.getType() == MatchType.COLORBLIND_PARTY
                     || entry.getType() == MatchType.DEATHMATCH
+                    || entry.getType().isBoatRace()
                     || entry.getType().isBedWars()) {
                 continue;
             }
@@ -1149,6 +1242,7 @@ public final class QueueManager {
                 || type == MatchType.TNT_RUN || type == MatchType.HEARTBEAT || type == MatchType.HOT_POTATO
                 || type == MatchType.VILLAGE_DEFENSE || type == MatchType.COLORBLIND_PARTY
                 || type == MatchType.DEATHMATCH
+                || type.isBoatRace()
                 || type.isBedWars()) {
             int min = switch (type) {
                 case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
@@ -1159,6 +1253,7 @@ public final class QueueManager {
                 case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseMinPlayers;
                 case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindMinPlayers;
                 case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchMinPlayers;
+                case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceMinPlayers;
                 default -> type.isBedWars() ? 2 : PvPConfig.INSTANCE.tntRunMinPlayers;
             };
             int count = (int) this.countType(type);
@@ -1183,6 +1278,8 @@ public final class QueueManager {
             this.colorblindFillTicks = null;
             this.deathmatchCountdownTicks = null;
             this.deathmatchFillTicks = null;
+            this.boatRaceCountdownTicks = null;
+            this.boatRaceFillTicks = null;
             this.bedWarsCountdownTicks = null;
             if (type.isBedWars()) {
                 this.startBedWarsMatch(matchManager);
@@ -1198,6 +1295,10 @@ public final class QueueManager {
             }
             if (type == MatchType.DEATHMATCH) {
                 this.startDeathmatchMatch(matchManager);
+                return true;
+            }
+            if (type.isBoatRace()) {
+                this.startBoatRaceMatch(matchManager);
                 return true;
             }
             switch (type) {

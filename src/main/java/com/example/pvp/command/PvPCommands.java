@@ -31,6 +31,10 @@ import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchState;
+import com.example.pvp.arena.race.RaceMapGenerator;
+import com.example.pvp.arena.race.RaceTrack;
+import com.example.pvp.arena.race.RaceTrackGenerator;
+import com.example.pvp.arena.race.RaceTrackValidator;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.match.VillageDefenseKits;
 import com.example.pvp.match.VillageDefenseKitGui;
@@ -64,7 +68,7 @@ public final class PvPCommands {
                     "1v1", "2v2", "ffa", "sumo", "skywars",
                     "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar", "tntrun",
                     "heartbeat", "hotpotato", "bedwars", "bedwars2", "villagedefense", "colorblindparty",
-                    "deathmatch"}, builder);
+                    "deathmatch", "racing", "boatrace"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -168,7 +172,18 @@ public final class PvPCommands {
                                 .then(CommandManager.literal("hotpotato")
                                         .executes(ctx -> debugHotPotato(ctx)))
                                 .then(CommandManager.literal("bedwars")
-                                        .executes(ctx -> debugBedWars(ctx))))
+                                        .executes(ctx -> debugBedWars(ctx)))
+                                .then(CommandManager.literal("boatrace")
+                                        .executes(ctx -> debugBoatRace(ctx, 64, null, false))
+                                        .then(CommandManager.argument("count", StringArgumentType.word())
+                                                .executes(ctx -> debugBoatRace(ctx,
+                                                        parseIntSafe(ctx, "count", 64), null, false)))
+                                        .then(CommandManager.literal("seed")
+                                                .then(CommandManager.argument("seed", StringArgumentType.word())
+                                                        .executes(ctx -> debugBoatRace(ctx, 1,
+                                                                parseLongSafe(ctx, "seed", 0L), true))))
+                                        .then(CommandManager.literal("build")
+                                                .executes(ctx -> debugBoatRaceBuild(ctx, 0L)))))
                         .then(CommandManager.literal("bedwars")
                                 .requires(source -> source.hasPermissionLevel(2))
                                 .then(CommandManager.literal("edit")
@@ -277,6 +292,7 @@ public final class PvPCommands {
                         + "§e/pvp join villagedefense§r 加入村庄保卫战（合作守村）\n"
                         + "§e/pvp join colorblindparty§r 加入色盲派对（站到「文字的颜色」上）\n"
                         + "§e/pvp join deathmatch -k <套件>§r 加入死斗（5 分钟，人头最多者胜）\n"
+                        + "§e/pvp join racing§r 加入亦可赛艇（无需套件，原版船 + 随机冰面赛道竞速）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
@@ -298,7 +314,7 @@ public final class PvPCommands {
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
             player.sendMessage(Messages.error("未知模式: " + modeId
-                    + "（可用: 1v1, 2v2, ffa, sumo, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense, colorblindparty, deathmatch）"), false);
+                    + "（可用: 1v1, 2v2, ffa, sumo, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense, colorblindparty, deathmatch, racing）"), false);
             return 0;
         }
         Kit kit;
@@ -318,6 +334,8 @@ public final class PvPCommands {
             kit = KitManager.villageDefenseKit(); // 村庄保卫战装备由玩法发放
         } else if (type == MatchType.COLORBLIND_PARTY) {
             kit = KitManager.colorblindPartyKit(); // 色盲派对空手开局，无套件
+        } else if (type.isBoatRace()) {
+            kit = KitManager.boatRaceKit(); // 亦可赛艇空手开局，船由玩法统一发放
         } else if (type.isBedWars()) {
             kit = KitManager.bedWarsKit(); // 起床战争装备由玩法发放
         } else {
@@ -366,6 +384,10 @@ public final class PvPCommands {
                 player.sendMessage(Messages.info("已加入死斗：凑齐 " + PvPConfig.INSTANCE.deathmatchStartPlayers
                         + " 人开赛；限时 " + (PvPConfig.INSTANCE.deathmatchDurationSeconds / 60)
                         + " 分钟，死亡立即复活，人头最多者获胜"), false);
+            } else if (type.isBoatRace()) {
+                player.sendMessage(Messages.info("已加入亦可赛艇：凑齐 "
+                        + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛；原版船 + 每场随机生成的冰面赛道（"
+                        + PvPConfig.INSTANCE.boatRaceLaps + " 圈）"), false);
             } else if (type.isBedWars()) {
                 player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")
                         + "）：凑 2 人即开始倒计时，摧毁敌方床获胜"), false);
@@ -760,6 +782,158 @@ public final class PvPCommands {
         } catch (NumberFormatException e) {
             return fallback;
         }
+    }
+
+    private static long parseLongSafe(CommandContext<ServerCommandSource> ctx, String name, long fallback) {
+        try {
+            return Long.parseLong(StringArgumentType.getString(ctx, name));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    /**
+     * 调试：批量跑「亦可赛艇」的随机赛道生成 + 校验，输出通过率、长度 / 曲率 / 可行速度分布。
+     *
+     * <p>控制台也能跑（不需要玩家），所以服务器端可以在没有客户端的情况下验证生成器：
+     * {@code /pvp debug boatrace 200}。
+     *
+     * @param count   生成多少张候选（每张只试一次，用于统计单候选通过率）
+     * @param fixedSeed 指定 Seed（配合 {@code seed <n>} 复现某一张图）；null 表示随机
+     */
+    private static int debugBoatRace(CommandContext<ServerCommandSource> ctx, int count, Long fixedSeed,
+                                    boolean describe) throws CommandSyntaxException {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int total = Math.max(1, Math.min(count, 2000));
+        RaceTrackGenerator.Settings settings = new RaceTrackGenerator.Settings(
+                cfg.boatRaceMinTrackLength, cfg.boatRaceMaxTrackLength, cfg.boatRaceTargetTrackLength,
+                cfg.boatRaceTrackWidth, cfg.boatRaceMinCornerRadius, cfg.boatRaceMinClearance,
+                cfg.boatRaceRunoffWidth, cfg.boatRaceBarrierHeight,
+                cfg.boatRaceCheckpoints, cfg.boatRaceMaxGenerationAttempts, cfg.boatRaceEnableRandomTrack,
+                8, 168.5, 168.5, ArenaTemplate.PLATFORM_Y);
+
+        if (describe && fixedSeed != null) {
+            // 单 Seed 详查：把这一张图的每一项指标和拒绝原因都打出来
+            RaceTrackGenerator.Candidate candidate = RaceTrackGenerator.probe(fixedSeed, settings, false);
+            RaceTrack track = candidate.track();
+            RaceTrackValidator.Result result = candidate.result();
+            ctx.getSource().sendFeedback(() -> Messages.info(String.format(
+                    "Seed %d：%s｜长度 %.0f 格｜宽度 %.0f｜Checkpoint %d｜最小弯半径 %.1f｜"
+                            + "外沿半径 %.1f｜最低可行速度 %.2f 格/tick（%.0f 格/s）｜平均 %.2f 格/tick｜评分 %.1f",
+                    fixedSeed, result.valid() ? "§a合法" : "§c非法", track.length(), track.width(),
+                    track.checkpointCount(), track.minCornerRadius(), track.boundingRadius(),
+                    result.minSpeed(), result.minSpeed() * 20, result.avgSpeed(), result.score())), false);
+            if (!result.valid()) {
+                ctx.getSource().sendFeedback(() -> Messages.warn("拒绝原因：" + result.problemText()), false);
+            }
+            return 1;
+        }
+
+        int valid = 0;
+        int fallback = 0;
+        int firstTry = 0;
+        double minLength = Double.MAX_VALUE;
+        double maxLength = 0;
+        double sumLength = 0;
+        double minRadius = Double.MAX_VALUE;
+        double minSpeed = Double.MAX_VALUE;
+        double sumScore = 0;
+        double worstMs = 0;
+        long started = System.nanoTime();
+        for (int i = 0; i < total; i++) {
+            long seed = fixedSeed != null ? fixedSeed + i : (System.nanoTime() ^ (i * 0x9E3779B97F4A7C15L));
+            long t0 = System.nanoTime();
+            RaceTrackGenerator.Outcome outcome = RaceTrackGenerator.generate(seed, settings);
+            worstMs = Math.max(worstMs, (System.nanoTime() - t0) / 1.0e6);
+            RaceTrack track = outcome.track();
+            RaceTrackValidator.Result result = RaceTrackValidator.validate(track,
+                    new RaceTrackValidator.Limits(cfg.boatRaceMinTrackLength, cfg.boatRaceMaxTrackLength,
+                            cfg.boatRaceTargetTrackLength, cfg.boatRaceMinCornerRadius,
+                            cfg.boatRaceMinClearance, cfg.boatRaceTrackWidth, 40));
+            if (result.valid()) {
+                valid++;
+            }
+            if (outcome.usedFallback()) {
+                fallback++;
+            }
+            if (track.attempt() == 0 && !outcome.usedFallback()) {
+                firstTry++;
+            }
+            minLength = Math.min(minLength, track.length());
+            maxLength = Math.max(maxLength, track.length());
+            sumLength += track.length();
+            minRadius = Math.min(minRadius, track.minCornerRadius());
+            minSpeed = Math.min(minSpeed, result.minSpeed());
+            sumScore += result.score();
+        }
+        double totalMs = (System.nanoTime() - started) / 1.0e6;
+        final int fValid = valid;
+        final int fFallback = fallback;
+        final int fFirstTry = firstTry;
+        final int fTotal = total;
+        final double[] stats = {minLength, maxLength, sumLength / total, minRadius, minSpeed,
+                sumScore / total, totalMs / total, worstMs};
+        ctx.getSource().sendFeedback(() -> Messages.info(String.format(
+                "亦可赛艇 随机赛道自检：%d/%d 合法（%.0f%%）｜兜底 %d｜一次命中 %d｜"
+                        + "长度 %.0f~%.0f（均 %.0f）｜最小弯半径 ≥ %.1f｜最低可行速度 ≥ %.2f 格/tick（%.0f 格/s）｜"
+                        + "平均评分 %.1f｜平均 %.1f ms/张，最慢 %.1f ms",
+                fValid, fTotal, 100.0 * fValid / fTotal, fFallback, fFirstTry,
+                stats[0], stats[1], stats[2], stats[3], stats[4], stats[4] * 20, stats[5], stats[6], stats[7])),
+                false);
+        return 1;
+    }
+
+    /**
+     * 调试：在远离正式对局的区域内真正铺一张随机赛道，并报告方块数与耗时。
+     * 控制台也能跑，用来验证"铺图 + 清场"这条重活路径与真实性能。
+     */
+    private static int debugBoatRaceBuild(CommandContext<ServerCommandSource> ctx, long seed)
+            throws CommandSyntaxException {
+        ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
+        ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
+        if (arena == null) {
+            ctx.getSource().sendError(Text.literal("竞技场世界不可用"));
+            return 0;
+        }
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int region = 970; // 远离正式对局分配的区域（与 /pvp debug 其他模式错开）
+        BlockPos center = new BlockPos(region * ArenaTemplate.REGION_SPACING + cfg.boatRaceSize / 2,
+                ArenaTemplate.PLATFORM_Y + 1, cfg.boatRaceSize / 2);
+        long useSeed = seed != 0L ? seed : (System.nanoTime() & 0xFFFFFFFFL);
+        RaceTrackGenerator.Settings settings = new RaceTrackGenerator.Settings(
+                cfg.boatRaceMinTrackLength, cfg.boatRaceMaxTrackLength, cfg.boatRaceTargetTrackLength,
+                cfg.boatRaceTrackWidth, cfg.boatRaceMinCornerRadius, cfg.boatRaceMinClearance,
+                cfg.boatRaceRunoffWidth, cfg.boatRaceBarrierHeight,
+                cfg.boatRaceCheckpoints, cfg.boatRaceMaxGenerationAttempts, cfg.boatRaceEnableRandomTrack,
+                8, center.getX() + 0.5, center.getZ() + 0.5, ArenaTemplate.PLATFORM_Y);
+        RaceTrackGenerator.Outcome outcome = RaceTrackGenerator.generate(useSeed, settings);
+        RaceTrack track = outcome.track();
+
+        long t0 = System.nanoTime();
+        int placed = RaceMapGenerator.build(arena, track);
+        long buildMs = (System.nanoTime() - t0) / 1_000_000L;
+        long t1 = System.nanoTime();
+        int removed = RaceMapGenerator.clear(arena, track);
+        long clearMs = (System.nanoTime() - t1) / 1_000_000L;
+
+        final long fSeed = track.seed();
+        ctx.getSource().sendFeedback(() -> Messages.info(String.format(
+                "亦可赛艇 铺图自检：seed=%d 长度 %.0f 宽 %.0f CP %d 最小弯半径 %.1f 外沿半径 %.1f｜"
+                        + "铺设 %d 方块（%d ms）｜精确清除 %d 方块（%d ms）",
+                fSeed, track.length(), track.width(), track.checkpointCount(), track.minCornerRadius(),
+                track.boundingRadius(), placed, buildMs, removed, clearMs)), false);
+        if (ctx.getSource().getEntity() instanceof ServerPlayerEntity player) {
+            // 先铺一张不清理的图供玩家查看
+            RaceMapGenerator.build(arena, track);
+            player.teleport(arena, track.centerX(), track.surfaceY() + 24, track.centerZ(), 0, 40);
+            arenaManager.addVisitor(player, 300);
+            player.sendMessage(Messages.gold("已铺好一张 Seed " + fSeed
+                    + " 的赛道并传送到上空（5 分钟后自动回城）"), false);
+        } else {
+            ctx.getSource().sendFeedback(() -> Messages.warn(
+                    "（控制台调用：只做铺设→清除的性能自检，不留地形；加 seed 参数可复现指定赛道）"), false);
+        }
+        return 1;
     }
 
     /** 调试：在竞技场远区生成一张战桥地图（2 队或 4 方）并传送查看（不影响正式对局）。 */

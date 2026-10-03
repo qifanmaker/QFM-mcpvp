@@ -497,6 +497,14 @@ public final class PvPMod implements ModInitializer {
                     && MATCH != null && MATCH.isEliminated(attacker.getUuid())) {
                 return false;
             }
+            // 亦可赛艇：纯竞速，赛道上没有任何伤害来源是有意义的（只有掉落物/摔落/虚空），
+            // 全部取消，避免玩家在弯道被摔掉血影响驾驶手感。
+            if (entity instanceof ServerPlayerEntity raceVictim && MATCH != null) {
+                Match raceMatch = MATCH.getMatchFor(raceVictim);
+                if (raceMatch != null && raceMatch.getType().isBoatRace()) {
+                    return false;
+                }
+            }
             // 色盲派对：玩家之间完全不能互伤。取消 damage() 调用即同时去掉伤害与击退，
             // 本模式只靠"站错颜色掉虚空"淘汰（纯色觉+走位竞速）。
             if (entity instanceof ServerPlayerEntity victim
@@ -537,6 +545,9 @@ public final class PvPMod implements ModInitializer {
                         // 死斗：不淘汰，下一 tick 在离敌人最远的出生点原地复活。
                         // 必须放在下面的 eliminate 分支之前，否则会被当成淘汰处理。
                         match.onDeathmatchDeath(sp, source);
+                    } else if (match.getType().isBoatRace()) {
+                        // 亦可赛艇：没有淘汰这回事，阵亡 = 回位到最近 Checkpoint 重新发船
+                        match.onBoatRaceDeath(sp);
                     } else if (match.getState() == MatchState.ACTIVE) {
                         // 不死图腾救场：空岛/幸运之柱受到致死伤害时消耗图腾取消死亡（非掉虚空→原版逻辑原地复活）
                         if ((match.getType() == MatchType.SKYWARS || match.getType() == MatchType.LUCKY_PILLAR)

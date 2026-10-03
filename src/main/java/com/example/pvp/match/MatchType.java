@@ -23,7 +23,14 @@ public enum MatchType {
     BED_WARS_DOUBLES("bedwars2", "起床战争(双人)"),
     VILLAGE_DEFENSE("villagedefense", "村庄保卫战"),
     COLORBLIND_PARTY("colorblindparty", "色盲派对"),
-    DEATHMATCH("deathmatch", "死斗");
+    DEATHMATCH("deathmatch", "死斗"),
+    /**
+     * 亦可赛艇：原版船 + 冰面 + 程序化随机生成的闭环赛道，多圈竞速。
+     *
+     * <p>id 用 {@code racing}（对应 {@code /pvp join racing}）；{@code boatrace} / {@code boat_race}
+     * 作为别名由 {@link #byId(String)} 归一化后接受。玩家可见的名称一律是「亦可赛艇」。
+     */
+    BOAT_RACE("racing", "亦可赛艇");
 
     private final String id;
     private final String displayName;
@@ -56,6 +63,7 @@ public enum MatchType {
             case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseMinPlayers; // 合作守村，可单人
             case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindMinPlayers;
             case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchMinPlayers;
+            case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceMinPlayers;
         };
     }
 
@@ -79,6 +87,11 @@ public enum MatchType {
         return this == BRIDGE_TEAM;
     }
 
+    /** 是否亦可赛艇（船 + 冰面 + 随机赛道竞速）。 */
+    public boolean isBoatRace() {
+        return this == BOAT_RACE;
+    }
+
     /** 是否"最后存活者获胜"的 FFA 淘汰类玩法（自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 烫手山芋 / 色盲派对）。 */
     public boolean isLastManStanding() {
         return this == FFA || this == SKYWARS || this == LUCKY_PILLAR || this == TNT_RUN || this == HOT_POTATO
@@ -96,9 +109,21 @@ public enum MatchType {
         return (isLastManStanding() && this != COLORBLIND_PARTY) || this == DEATHMATCH;
     }
 
+    /**
+     * 按 id / 枚举名 / 去下划线的枚举名解析模式。
+     *
+     * <p>去下划线是为了让 {@code boatrace}、{@code BOAT_RACE}、{@code boat_race} 都能命中
+     * {@link #BOAT_RACE}（它对外的主 id 是 {@code racing}）。
+     */
     public static MatchType byId(String id) {
+        if (id == null) {
+            return null;
+        }
+        String squashed = id.replace("_", "");
         for (MatchType type : values()) {
-            if (type.id.equalsIgnoreCase(id) || type.name().equalsIgnoreCase(id)) {
+            if (type.id.equalsIgnoreCase(id)
+                    || type.name().equalsIgnoreCase(id)
+                    || type.name().replace("_", "").equalsIgnoreCase(squashed)) {
                 return type;
             }
         }

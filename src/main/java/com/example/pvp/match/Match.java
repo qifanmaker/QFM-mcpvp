@@ -4,6 +4,7 @@ import com.example.pvp.PvPMod;
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
+import com.example.pvp.arena.MapBuildQueue;
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.bedwars.BedWarsLayout;
 import com.example.pvp.arena.bedwars.BedWarsMapLoader;
@@ -14,6 +15,8 @@ import com.example.pvp.arena.heartbeat.HeartbeatLayout;
 import com.example.pvp.arena.hotpotato.HotPotatoLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLoot;
+import com.example.pvp.arena.race.BoatRaceSession;
+import com.example.pvp.arena.race.RaceProgressTracker;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.tntrun.TntRunLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
@@ -233,6 +236,13 @@ public final class Match {
     /** 色盲派对运行时（仅 COLORBLIND_PARTY 模式非空）。 */
     private ColorblindPartySession colorblindSession;
 
+    /**
+     * 亦可赛艇：本场竞速运行时（随机赛道 / 圈数 / Checkpoint / 连续排名 / 掉出赛道回位）。
+     * 玩法逻辑整体放在 {@link BoatRaceSession} 里，Match 只负责生命周期接线，
+     * 与色盲派对的 {@code ColorblindPartySession} 保持一致的分工。
+     */
+    private BoatRaceSession boatRaceSession;
+
     // ---------- 死斗 (Deathmatch) ----------
     /** 人头数 / 死亡数 / 当前连杀（死亡清零）。 */
     private final Map<UUID, Integer> deathmatchKills = new HashMap<>();
@@ -277,6 +287,32 @@ public final class Match {
     private int countdownTicks;
     private int ticks;
 
+    // ---------- 铺图分帧（见 MapBuildQueue） ----------
+
+    /**
+     * 铺图每 tick 的时间预算（毫秒）。一个 tick 有 50 ms，拿出 10 ms 铺图不会影响 TPS；
+     * 几十万方块的床战地图因此会被摊成几十个 tick，而不是让服务端卡住一整秒。
+     */
+    private static final int BUILD_BUDGET_MS = 10;
+    /** 铺图超过这么久还没完就强制一次性写完（宁可卡一下，也不能让对局开不起来）。 */
+    private static final int BUILD_FORCE_FLUSH_TICKS = 20 * 20;
+    /** 铺图期间额外放宽"倒计时卡死"看门狗，避免正常的大地图铺图被判定为异常。 */
+    private static final int BUILD_STUCK_ALLOWANCE_TICKS = 20 * 45;
+
+    /** 本场的铺图暂存队列（生成器把方块/实体记进来，由 tickBuild 分帧落盘）。 */
+    private MapBuildQueue buildQueue;
+    /** 所有生成器是否已跑完（只暂存进队列，还没写进世界）。 */
+    private boolean setupStaged;
+    /** 传送 / 发装 / 组队 / 播报是否已完成（必须在铺图结束之后）。 */
+    private boolean setupFinished;
+    /**
+     * 进入 ACTIVE 的 tick。所有"已进行时间"都从它算起 —— 铺图会额外占用一段倒计时，
+     * 那段时间不属于对局，不能让缩圈/单局时长/计时行提前起跑。
+     */
+    private int activeStartTick = -1;
+    /** 已经花在铺图上的 tick 数。 */
+    private int buildTicks;
+
     private Match(MatchManager manager, int id, MatchType type,
                   List<ServerPlayerEntity> players, int regionIndex, ArenaTemplate template,
                   Map<UUID, Kit> kits) {
@@ -311,7 +347,10 @@ public final class Match {
         this.teams = buildTeams(type, this.players, this.bedWarsLayout);
         this.template = template;
         this.regionIndex = regionIndex;
-        this.initialCountdownTicks = this.type.isBedWars()
+        // 亦可赛艇固定 3-2-1-GO（地图在这一段倒计时的第一帧一次性铺完，见 BoatRaceSession.prepare）
+        this.initialCountdownTicks = this.type.isBoatRace()
+                ? PvPConfig.INSTANCE.boatRaceCountdownSeconds * 20
+                : this.type.isBedWars()
                 ? PvPConfig.INSTANCE.bedWarsCountdownSeconds * 20
                 : PvPConfig.INSTANCE.countdownSeconds * 20;
         this.countdownTicks = this.initialCountdownTicks;
@@ -472,6 +511,21 @@ public final class Match {
             }
             // 大厅出生点：存到 spawns 后在 tickCountdown 里覆盖为大厅
             this.bedWarsLobbyPos = lobby;
+        } else if (type.isBoatRace()) {
+            // 亦可赛艇：赛道在构造期就按本场 Seed 随机生成（纯几何，几毫秒），
+            // 地形的方块放置推迟到 setupPlayers 的第一帧。
+            this.skywarsLayout = null;
+            this.skywarsTheme = null;
+            this.skywarsSeed = id;
+            this.bridgeLayout = null;
+            this.luckyPillarLayout = null;
+            this.tntRunLayout = null;
+            this.heartbeatLayout = null;
+            this.hotPotatoLayout = null;
+            // 每场独立 Seed：与比赛 id 拼在一起，保证同一场比赛的赛道可复现（日志会打出 race seed）。
+            long raceSeed = ((long) id << 32) ^ (System.nanoTime() & 0xFFFFFFFFL);
+            this.boatRaceSession = new BoatRaceSession(this, template, regionIndex, raceSeed, this.players.size());
+            spawnPositions = this.boatRaceSession.spawnPositions();
         } else {
             this.skywarsLayout = null;
             this.skywarsTheme = null;
@@ -613,7 +667,18 @@ public final class Match {
         }
 
         // 超时保护：防止卡死的对局一直占用场地导致后续无法开赛
-        int countdownStuckThreshold = this.initialCountdownTicks + 20 * 10;
+        // 铺图阶段额外放宽：大地图（床战/空岛/竞速）铺图本身要花几十个 tick，
+        // 那不是"倒计时异常"，所以按是否已铺完给不同的阈值。
+        int countdownStuckThreshold = this.initialCountdownTicks + 20 * 10
+                + (this.setupFinished ? 0 : BUILD_STUCK_ALLOWANCE_TICKS);
+        if (this.state == MatchState.COUNTDOWN && !this.setupFinished && this.buildQueue != null
+                && this.buildTicks > BUILD_FORCE_FLUSH_TICKS) {
+            LOGGER.warn("[PvP] 比赛 #{} 铺图已超过 {} 秒，强制一次性写完（避免一直开不了赛）",
+                    this.id, BUILD_FORCE_FLUSH_TICKS / 20);
+            this.buildQueue.forceFlushAll();
+            this.buildQueue = null;
+            this.finishSetup();
+        }
         int activeTimeout;
         if (this.type == MatchType.SKYWARS) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20);
@@ -636,6 +701,9 @@ public final class Match {
         } else if (this.type == MatchType.DEATHMATCH) {
             // 兜底（比正片的 5 分钟长）：正常是 tickDeathmatch 自己按时结束
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.deathmatchTimeoutSeconds * 20);
+        } else if (this.type.isBoatRace()) {
+            // 兜底：正常是全员冲线（或超时按进度结算）由 BoatRaceSession 触发
+            activeTimeout = Math.max(100, PvPConfig.INSTANCE.boatRaceTimeoutSeconds * 20);
         } else {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.matchTimeoutSeconds * 20);
         }
@@ -644,7 +712,8 @@ public final class Match {
             this.cancelMatch("倒计时异常");
             return;
         }
-        if (this.state == MatchState.ACTIVE && this.ticks > this.initialCountdownTicks + activeTimeout) {
+        if (this.state == MatchState.ACTIVE && this.activeStartTick >= 0
+                && this.ticks > this.activeStartTick + activeTimeout) {
             LOGGER.warn("[PvP] 比赛 #{} 超时（{} 秒）结束", this.id, activeTimeout / 20);
             if (this.type == MatchType.HOT_POTATO) {
                 // 烫手山芋超时：当前持有者爆炸淘汰（一次性），若之后仍互传拖时间则 60 秒后强制平局
@@ -656,7 +725,7 @@ public final class Match {
                     } else {
                         this.finishMatch(this.timeoutWinner());
                     }
-                } else if (this.ticks > this.initialCountdownTicks + activeTimeout + 60 * 20) {
+                } else if (this.ticks > this.activeStartTick + activeTimeout + 60 * 20) {
                     this.finishMatch(this.timeoutWinner());
                 }
                 return;
@@ -720,6 +789,9 @@ public final class Match {
                 if (this.type == MatchType.DEATHMATCH) {
                     this.tickDeathmatch();
                 }
+                if (this.type.isBoatRace() && this.boatRaceSession != null) {
+                    this.boatRaceSession.tick(this.ticks);
+                }
                 if (this.type.isBedWars()) {
                     this.tickBedWars();
                 }
@@ -780,7 +852,7 @@ public final class Match {
             return;
         }
         PvPConfig cfg = PvPConfig.INSTANCE;
-        int elapsed = this.ticks - this.initialCountdownTicks;
+        int elapsed = this.activeElapsedTicks();
         int startTick = cfg.skywarsShrinkStartSeconds * 20;
         if (elapsed < startTick) {
             return;
@@ -831,7 +903,7 @@ public final class Match {
             return;
         }
         PvPConfig cfg = PvPConfig.INSTANCE;
-        int elapsed = this.ticks - this.initialCountdownTicks;
+        int elapsed = this.activeElapsedTicks();
         if (elapsed < cfg.skywarsRefillSeconds * 20) {
             return;
         }
@@ -1462,7 +1534,7 @@ public final class Match {
             return;
         }
         int total = Math.max(100, PvPConfig.INSTANCE.heartbeatTimeoutSeconds * 20);
-        int elapsed = this.ticks - this.initialCountdownTicks;
+        int elapsed = this.activeElapsedTicks();
         int remaining = Math.max(0, total - elapsed);
         int seconds = (remaining + 19) / 20;
         this.heartbeatBossBar.setName(Text.literal("§6§l心跳水立方 §f剩余 " + seconds + " 秒"));
@@ -3193,6 +3265,7 @@ public final class Match {
             this.removeInfoScoreboard();
         }
         // 同 finalizeMatch：取消时也要把玩家传送回主城，清场必须让路给客户端的"加载地形中"
+        this.discardArenaEntities();
         this.manager.detachMatch(this);
         this.manager.scheduleFinish(this, FINISH_DELAY_TICKS);
     }
@@ -3211,6 +3284,14 @@ public final class Match {
                 this.colorblindSession.onMatchEnd();
             } catch (Exception e) {
                 LOGGER.warn("[PvP] 色盲派对收尾出错", e);
+            }
+        }
+        if (this.type.isBoatRace() && this.boatRaceSession != null) {
+            // 亦可赛艇：把场上的船全部回收（否则会跟着区块留在场上挡人）
+            try {
+                this.boatRaceSession.onMatchEnd();
+            } catch (Exception e) {
+                LOGGER.warn("[PvP] 亦可赛艇收尾出错", e);
             }
         }
         this.startCelebration(winnerTeam);
@@ -3238,6 +3319,23 @@ public final class Match {
     /** 结算胜者集合：心跳水立方为第一名到达者，其余模式为胜利队伍存活成员。 */
     private Set<UUID> computeWinners() {
         Set<UUID> winners = new HashSet<>();
+        if (this.type.isBoatRace()) {
+            // 竞速：所有跑完全部圈数的人都算胜场；无人跑完（超时）时按当前进度把第一名记为胜者。
+            if (this.boatRaceSession != null) {
+                for (Map.Entry<UUID, RaceProgressTracker> e : this.boatRaceSession.racers().entrySet()) {
+                    if (e.getValue().finished()) {
+                        winners.add(e.getKey());
+                    }
+                }
+                if (winners.isEmpty()) {
+                    List<UUID> ranking = this.boatRaceSession.ranking();
+                    if (!ranking.isEmpty()) {
+                        winners.add(ranking.get(0));
+                    }
+                }
+            }
+            return winners;
+        }
         if (this.type == MatchType.DEATHMATCH) {
             // 死斗：人头最多者胜；并列时比死亡数（少者胜）；仍并列则并列冠军。
             // 提前离场/掉线的人不参与夺冠。
@@ -3311,6 +3409,8 @@ public final class Match {
             this.removeInfoScoreboard();
         }
         this.state = MatchState.ENDED;
+        // 掉落物/残留实体必须在"玩家还站在场上、区域区块一定加载着"的这一帧清掉（见 discardArenaEntities）
+        this.discardArenaEntities();
         // 先把对局从列表里摘掉：玩家可以马上再排队，大厅计分板立刻接管。
         this.manager.detachMatch(this);
         // 清场 + 战绩落盘延后执行。这一帧刚刚把所有人跨维度传送回主城，
@@ -3370,20 +3470,8 @@ public final class Match {
         // 幸运之柱一击必杀等全局标记在对局结束时清空，防止残留到下一场（否则下一场开局就全程生效）
         PvPMod.oneHitKillActive = false;
         try {
-            int mapMaxRadius;
-            if (this.skywarsLayout != null) {
-                mapMaxRadius = this.skywarsLayout.maxRadius();
-            } else if (this.bridgeLayout != null) {
-                mapMaxRadius = this.bridgeLayout.maxRadius();
-            } else if (this.luckyPillarLayout != null) {
-                mapMaxRadius = this.luckyPillarLayout.maxRadius();
-            } else if (this.tntRunLayout != null) {
-                mapMaxRadius = this.tntRunLayout.maxRadius;
-            } else if (this.heartbeatLayout != null) {
-                mapMaxRadius = this.heartbeatLayout.maxRadius();
-            } else if (this.hotPotatoLayout != null) {
-                mapMaxRadius = this.hotPotatoLayout.maxRadius;
-            } else if (this.type.isBedWars()) {
+            int mapMaxRadius = this.arenaClearRadius();
+            if (this.type.isBedWars()) {
                 // 床战：精确清理（地图原始方块 + 玩家放置方块），避免扫整个区域太慢导致残留
                 ArenaWorld arena = this.manager.getArenaManager().getWorld();
                 if (arena != null) {
@@ -3412,9 +3500,11 @@ public final class Match {
                         entity.discard();
                     }
                 }
-                this.manager.cleanupMatch(this);
-                LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
-                return; // 床战已精确清理，不走通用 clearArena
+                // 床战方块已精确清理，不走通用 clearArena；实体清扫与场地释放交给下面的 finally
+            } else if (this.type.isBoatRace() && this.boatRaceSession != null) {
+                // 亦可赛艇：用同一个 Seed 重放同一套布局并换成空气（精确、不占内存），
+                // 不走通用 size×size×高度清场 —— 336×336×320 会卡服。
+                this.boatRaceSession.clearArena();
             } else if (this.type == MatchType.VILLAGE_DEFENSE
                     && this.villageDefenseLayout != null && this.villageDefenseLayout.minCorner != null) {
                 // 村庄保卫战：按实际导入范围（min/max 角）精确清空方块与实体
@@ -3440,18 +3530,82 @@ public final class Match {
                         entity.discard();
                     }
                 }
-                this.manager.cleanupMatch(this);
-                LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
-                return;
             } else {
-                mapMaxRadius = 0;
+                this.manager.getArenaManager().clearArena(this.regionIndex, this.template, mapMaxRadius);
             }
-            this.manager.getArenaManager().clearArena(this.regionIndex, this.template, mapMaxRadius);
         } catch (Exception e) {
             LOGGER.error("[PvP] 清理竞技场出错", e);
+        } finally {
+            // 兜底：拆方块中途抛异常也不能让掉落物/实体留下来（存回区块文件后，下次同区域开赛又冒出来），
+            // 场地更必须在任何情况下都释放
+            this.discardArenaEntities();
+            this.manager.cleanupMatch(this);
+            LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
         }
-        this.manager.cleanupMatch(this);
-        LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
+    }
+
+    /** 村庄保卫战清场半径，与 {@code ArenaWorldManager#clearVillageDefenseRegion} 里的 ±90 保持一致。 */
+    private static final int VILLAGE_DEFENSE_RADIUS = 90;
+
+    /** 该场比赛区域的实际清理半径（各模式布局给出；床战/村庄保卫战按各自地图范围）。 */
+    private int arenaClearRadius() {
+        if (this.skywarsLayout != null) {
+            return this.skywarsLayout.maxRadius();
+        }
+        if (this.bridgeLayout != null) {
+            return this.bridgeLayout.maxRadius();
+        }
+        if (this.luckyPillarLayout != null) {
+            return this.luckyPillarLayout.maxRadius();
+        }
+        if (this.tntRunLayout != null) {
+            return this.tntRunLayout.maxRadius;
+        }
+        if (this.heartbeatLayout != null) {
+            return this.heartbeatLayout.maxRadius();
+        }
+        if (this.hotPotatoLayout != null) {
+            return this.hotPotatoLayout.maxRadius;
+        }
+        if (this.type.isBedWars()) {
+            if (this.bedWarsMapData != null && this.bedWarsMapData.min != null && this.bedWarsMapData.max != null) {
+                return Math.max(this.bedWarsMapData.max.getX() - this.bedWarsMapData.min.getX(),
+                        this.bedWarsMapData.max.getZ() - this.bedWarsMapData.min.getZ()) / 2;
+            }
+            return PvPConfig.INSTANCE.bedWarsSize / 2;
+        }
+        if (this.type == MatchType.VILLAGE_DEFENSE) {
+            return VILLAGE_DEFENSE_RADIUS;
+        }
+        if (this.type.isBoatRace() && this.boatRaceSession != null) {
+            // 赛道外沿半径（含缓冲带与护栏）：清场盒按它算，必须小于区域半间距的一半才能不串场
+            return (int) Math.ceil(this.boatRaceSession.track().boundingRadius());
+        }
+        return 0;
+    }
+
+    /**
+     * 清掉本场比赛区域内的所有非玩家实体（掉落物 / TNT / 箭 / 生物…）。
+     *
+     * <p><b>为什么要在结算那一帧单独做一次</b>：清场整体延后 5 秒是为了让路给客户端的"加载地形中"，
+     * 但那 5 秒里玩家已经被传回主城，区域区块随时会卸载 —— 而实体查询只看实体管理器，
+     * 区块卸载时里面的实体被摘出去写回区块文件，这时再扫就什么都扫不到，掉落物会原样留下来，
+     * 下次同一区域开赛时又冒出来。实体清扫只是一次 AABB 查询，非常便宜，所以在玩家一定还在场上、
+     * 区块一定加载着的结算帧先做掉；延迟清场里那次是兜底（拆箱子掉出来的战利品等）。
+     */
+    private void discardArenaEntities() {
+        try {
+            ArenaWorldManager arenaManager = this.manager.getArenaManager();
+            if (arenaManager == null) {
+                return;
+            }
+            int removed = arenaManager.clearRegionEntities(this.regionIndex, this.template, this.arenaClearRadius());
+            if (removed > 0) {
+                LOGGER.info("[PvP] 比赛 #{} 清掉了 {} 个区域实体（掉落物等）", this.id, removed);
+            }
+        } catch (Exception e) {
+            LOGGER.error("[PvP] 清理比赛 #{} 区域实体出错", this.id, e);
+        }
     }
 
     /** 把玩家背包/护甲/副手物品以掉落物形式丢在原地（死后装备可被其他玩家拾取）。 */
@@ -3655,13 +3809,32 @@ public final class Match {
     // ---------- 内部逻辑 ----------
 
     private void tickCountdown() {
-        if (this.countdownTicks == this.initialCountdownTicks) {
+        if (!this.setupStaged) {
+            // 第一阶段：只把地形"暂存"进队列（生成器一个都不用改，ArenaWorld 负责转发写入）。
+            // 这一步是纯内存操作，比真正写世界快一个数量级，所以不会有卡顿尖峰。
             this.setupPlayers();
+        }
+        if (!this.setupStaged) {
+            return; // 生成阶段就失败了（例如村庄地图导入失败），cancelMatch 已经处理
+        }
+        if (!this.setupFinished) {
+            // 第二阶段：分帧把暂存的地形写进世界。场地没好之前不推进倒计时数字 ——
+            // 3-2-1 必须发生在玩家已经站在场上之后，否则玩家会在主城里看到倒计时。
+            this.buildTicks++;
+            this.tickBuild();
+            if (!this.setupFinished) {
+                this.broadcastBuildProgress();
+                return;
+            }
         }
 
         // 幸运之柱/心跳水立方：开局倒计时锁在出生点/大厅（可转视角）。床战倒计时期间允许移动。
         if (this.type == MatchType.LUCKY_PILLAR || this.type == MatchType.HEARTBEAT) {
             this.lockPlayersToSpawn();
+        }
+        // 亦可赛艇：把船钉在起跑格位上（速度清零 + 位置回写），防抢跑
+        if (this.type.isBoatRace() && this.boatRaceSession != null) {
+            this.boatRaceSession.lockToGrid();
         }
 
         if (this.countdownTicks > 0) {
@@ -3672,6 +3845,7 @@ public final class Match {
             this.countdownTicks--;
         } else {
             this.state = MatchState.ACTIVE;
+            this.activeStartTick = this.ticks;
             if (this.type == MatchType.LUCKY_PILLAR) {
                 // 物品：开赛立即发一轮，之后每隔 interval 秒发；事件仍从 interval 秒后开始
                 this.luckyPillarItemTicks = 1;
@@ -3700,8 +3874,16 @@ public final class Match {
                 // 死斗：正式开跑 5 分钟计时（tickDeathmatch 到点结算）
                 this.deathmatchTicks = Math.max(20, PvPConfig.INSTANCE.deathmatchDurationSeconds * 20);
             }
-            this.broadcast(Messages.gold("战斗开始！"));
-            this.broadcastTitle("开始！");
+            if (this.type.isBoatRace() && this.boatRaceSession != null) {
+                // 亦可赛艇：GO 那一 tick 开始计时（各选手同一基准，方便比总用时）
+                this.boatRaceSession.start(this.ticks);
+                this.broadcast(Messages.gold("🏁 GO！"));
+                this.broadcastTitleBig("§a§lGO!", "§e按顺序穿过所有 Checkpoint，跑满 "
+                        + this.boatRaceSession.laps() + " 圈");
+            } else {
+                this.broadcast(Messages.gold("战斗开始！"));
+                this.broadcastTitle("开始！");
+            }
             for (ServerPlayerEntity player : this.players) {
                 ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
                 if (online != null) {
@@ -3743,41 +3925,89 @@ public final class Match {
         }
     }
 
+    /**
+     * 铺图第一阶段：<b>只生成、不写世界</b>。
+     *
+     * <p>生成器照常调用 {@code arena.setBlockState}，但 {@link ArenaWorld} 处于暂存状态，
+     * 所有写入会进 {@link MapBuildQueue}；实体与方块实体同样被推迟。所以这里跑完不会卡顿，
+     * 真正的重活交给 {@link #tickBuild()} 分帧做。
+     *
+     * <p>这样写的好处：<b>所有模式一个生成器都不用改</b>，却都能把"开赛前卡一秒"变成
+     * "每 tick 十毫秒、几十个 tick 铺完"。
+     */
     private void setupPlayers() {
+        ArenaWorldManager arenaManager = this.manager.getArenaManager();
+        ArenaWorld arena = arenaManager.getWorld();
+        if (arena == null) {
+            LOGGER.error("[PvP] 比赛 #{} 竞技场世界未就绪", this.id);
+            this.cancelMatch("竞技场世界未就绪");
+            return;
+        }
+        // 区域半宽必须 < REGION_SPACING/2：暂存期间"本区域内未暂存即空气"的读判定
+        // 绝不能盖到相邻竞技场，否则那边玩家的方块读取会变成空气、直接掉下去。
+        this.buildQueue = new MapBuildQueue(arena, this.template.getCenter(this.regionIndex),
+                ArenaTemplate.REGION_SPACING / 2 - 16);
+        this.buildTicks = 0;
+        arena.beginStaging(this.buildQueue);
+        boolean ok;
+        try {
+            ok = this.stageArena(arena);
+        } catch (Exception e) {
+            LOGGER.error("[PvP] 比赛 #{} 生成地形出错", this.id, e);
+            ok = false;
+        } finally {
+            arena.endStaging();
+            if (this.buildQueue != null) {
+                this.buildQueue.close();
+            }
+        }
+        if (!ok) {
+            this.buildQueue = null;
+            this.cancelMatch("地形生成失败");
+            return;
+        }
+        this.setupStaged = true;
+    }
+
+    /**
+     * 生成阶段：把所有模式的"铺地形"动作跑一遍，写入被暂存。
+     *
+     * @return false 表示要放弃本场（调用方会 cancelMatch）
+     */
+    private boolean stageArena(ArenaWorld arena) {
+        if (this.type.isBoatRace()) {
+            // 亦可赛艇：赛道（含门架/环境）由 Session 铺设，同样走暂存
+            if (this.boatRaceSession != null) {
+                this.boatRaceSession.stageMap();
+            }
+            return true;
+        }
+
         this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.skywarsSeed,
                 this.players.size(), this.type, this.players);
-        ArenaWorld arena = this.manager.getArenaManager().getWorld();
 
-        boolean skywars = this.type == MatchType.SKYWARS;
-        boolean bridge = this.type.isBridge();
-        boolean luckyPillar = this.type == MatchType.LUCKY_PILLAR;
-        boolean tntRun = this.type == MatchType.TNT_RUN;
-        boolean heartbeat = this.type == MatchType.HEARTBEAT;
-        boolean hotPotato = this.type == MatchType.HOT_POTATO;
-        boolean bedWars = this.type.isBedWars();
-        boolean villageDefense = this.type == MatchType.VILLAGE_DEFENSE;
-        boolean colorblindParty = this.type == MatchType.COLORBLIND_PARTY;
+        if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
+            // 色盲派对的第 1 回合地板：必须在暂存阶段铺（构造器里只算出生点）
+            this.colorblindSession.stageFloor();
+        }
 
-        if (villageDefense) {
+        if (this.type == MatchType.VILLAGE_DEFENSE && this.villageDefenseLayout == null) {
             // 村庄保卫战：从 maps/villagedefense/<map>/ 导入地图（一次），失败则取消对局
             try {
-                if (this.villageDefenseLayout == null) {
-                    this.villageDefenseLayout = this.importVillageMap(arena);
-                }
+                this.villageDefenseLayout = this.importVillageMap(arena);
             } catch (Exception e) {
                 LOGGER.error("[PvP] 村庄保卫战地图导入失败", e);
-                this.cancelMatch("地图导入失败：" + e.getMessage());
-                return;
+                return false;
             }
         }
 
-        if (bedWars) {
+        if (this.type.isBedWars()) {
             // 起床战争：贴地图 + 生成商店实体（村民=普通商店，僵尸=团队升级商店）
+            // 实体在这里只是被暂存，等方块全部落盘后由队列统一生成 —— 那时区块一定已加载。
             BedWarsMapPaster.paste(arena, this.bedWarsMapData, this.template.getCenter(this.regionIndex));
             for (BedWarsLayout.Team t : this.bedWarsLayout.teams()) {
                 BlockPos shopPos = t.shop.add(this.bedWarsOffset);
                 BlockPos upgradePos = t.upgradeShop.add(this.bedWarsOffset);
-                // 普通商店村民
                 net.minecraft.entity.passive.VillagerEntity villager =
                         new net.minecraft.entity.passive.VillagerEntity(
                                 net.minecraft.entity.EntityType.VILLAGER, arena);
@@ -3790,7 +4020,6 @@ public final class Match {
                 villager.setAiDisabled(true);
                 arena.spawnEntity(villager);
                 this.bedWarsShopEntities.put(villager.getUuid(), "shop:" + t.index);
-                // 团队升级商店僵尸
                 net.minecraft.entity.mob.ZombieEntity zombie =
                         new net.minecraft.entity.mob.ZombieEntity(arena);
                 zombie.refreshPositionAndAngles(upgradePos.getX() + 0.5, upgradePos.getY(), upgradePos.getZ() + 0.5, 0, 0);
@@ -3803,6 +4032,86 @@ public final class Match {
                 arena.spawnEntity(zombie);
                 this.bedWarsShopEntities.put(zombie.getUuid(), "upgrade:" + t.index);
             }
+        }
+        return true;
+    }
+
+    /**
+     * 每个倒计时 tick 用固定时间预算把暂存的地形落盘；全部写完就进入 {@link #finishSetup()}。
+     * 这样一帧的工作量有上界，服务器 TPS 不会被铺图拖垮。
+     */
+    private void tickBuild() {
+        MapBuildQueue queue = this.buildQueue;
+        if (queue == null) {
+            this.finishSetup();
+            return;
+        }
+        if (queue.flush(BUILD_BUDGET_MS)) {
+            LOGGER.info("[PvP] 比赛 #{} 铺图完成：{} 个方块 / {} tick（最后一次 flush {} ms）",
+                    this.id, queue.totalStaged(), this.buildTicks,
+                    String.format(java.util.Locale.ROOT, "%.1f", queue.lastFlushMillis()));
+            this.buildQueue = null;
+            this.finishSetup();
+        } else if (this.buildTicks % 100 == 0) {
+            LOGGER.info("[PvP] 比赛 #{} 铺图中 {}/{} 方块（已 {} tick）",
+                    this.id, queue.placedCount(), queue.totalStaged(), this.buildTicks);
+        }
+    }
+
+    /** 铺图期间给玩家一点反馈（动作栏百分比 + 屏幕中央提示）。 */
+    private void broadcastBuildProgress() {
+        if (this.buildTicks == 1) {
+            this.broadcastTitleBig("§e竞技场生成中…", "§7每场比赛的地形都是现生成的");
+        }
+        if (this.buildTicks % 20 != 0) {
+            return;
+        }
+        MapBuildQueue queue = this.buildQueue;
+        int percent = queue == null ? 100 : (int) Math.round(queue.progress() * 100);
+        for (ServerPlayerEntity player : this.players) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online != null) {
+                online.sendMessage(Text.literal("§e正在生成竞技场… §f" + percent + "%"), true);
+            }
+        }
+    }
+
+    /**
+     * 铺图第二阶段收尾：把玩家真正放到场上、发装备、建队伍、播报。
+     *
+     * <p>必须在<b>方块全部落盘之后</b>才做：在此之前玩家传送到出生点只会掉进虚空。
+     * 因此本方法由 {@link #tickBuild()} 在铺图完成时调用，而不是在倒计时第一帧。
+     */
+    private void finishSetup() {
+        if (this.setupFinished) {
+            return;
+        }
+        this.setupFinished = true;
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null) {
+            return;
+        }
+
+        if (this.type.isBoatRace()) {
+            // 队伍仍然要建：CollisionRule.NEVER 让玩家之间不互相挤（否则发车时会把彼此的船顶歪）
+            this.createScoreboardTeams();
+            if (this.boatRaceSession != null) {
+                this.boatRaceSession.finishPrepare();
+            }
+            return;
+        }
+
+        boolean skywars = this.type == MatchType.SKYWARS;
+        boolean bridge = this.type.isBridge();
+        boolean luckyPillar = this.type == MatchType.LUCKY_PILLAR;
+        boolean tntRun = this.type == MatchType.TNT_RUN;
+        boolean heartbeat = this.type == MatchType.HEARTBEAT;
+        boolean hotPotato = this.type == MatchType.HOT_POTATO;
+        boolean bedWars = this.type.isBedWars();
+        boolean villageDefense = this.type == MatchType.VILLAGE_DEFENSE;
+        boolean colorblindParty = this.type == MatchType.COLORBLIND_PARTY;
+
+        if (bedWars) {
             this.createScoreboardTeams();
             this.broadcast(Messages.info("起床战争开始！地图：§e" + this.bedWarsLayout.mapName()
                     + "§r，请在等待大厅就绪，摧毁敌方床并淘汰所有人即可获胜！"));
@@ -3844,56 +4153,17 @@ public final class Match {
                 this.applyBridgeGear(online);
             } else if (skywars) {
                 // 空岛战争：无套件，生存模式空手开局，开箱搜刮装备
-                online.getInventory().clear();
-                online.setHealth(online.getMaxHealth());
-                online.getHungerManager().setFoodLevel(20);
-                online.getHungerManager().setSaturationLevel(5f);
-                online.setAbsorptionAmount(0);
-                online.setFireTicks(0);
-                online.fallDistance = 0;
-                online.clearStatusEffects();
-                online.changeGameMode(GameMode.SURVIVAL);
-                online.currentScreenHandler.sendContentUpdates();
+                this.clearForBareStart(online, GameMode.SURVIVAL, 5f, false);
             } else if (luckyPillar) {
                 // 幸运之柱：无套件，生存模式空手开局，等随机物品发放
-                online.getInventory().clear();
-                online.setHealth(online.getMaxHealth());
-                online.getHungerManager().setFoodLevel(20);
-                online.getHungerManager().setSaturationLevel(5f);
-                online.setAbsorptionAmount(0);
-                online.setFireTicks(0);
-                online.fallDistance = 0;
-                online.clearStatusEffects();
-                online.changeGameMode(GameMode.SURVIVAL);
-                online.currentScreenHandler.sendContentUpdates();
+                this.clearForBareStart(online, GameMode.SURVIVAL, 5f, false);
             } else if (tntRun) {
                 // TNT 跑酷：无套件，生存模式空手开局，靠地面刷新火焰弹/TNT 掉落物
-                online.getInventory().clear();
-                online.setHealth(online.getMaxHealth());
-                online.getHungerManager().setFoodLevel(20);
-                online.getHungerManager().setSaturationLevel(5f);
-                online.setAbsorptionAmount(0);
-                online.setFireTicks(0);
-                online.fallDistance = 0;
-                online.clearStatusEffects();
-                online.changeGameMode(GameMode.SURVIVAL);
-                // 给饱和效果：跑步/跳跃不掉饥饿
-                online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
-                online.currentScreenHandler.sendContentUpdates();
+                this.clearForBareStart(online, GameMode.SURVIVAL, 5f, true);
             } else if (heartbeat || hotPotato || villageDefense || colorblindParty) {
                 // 心跳水立方 / 烫手山芋 / 村庄保卫战 / 色盲派对：无套件，冒险模式空手开局
                 // （专注玩法本身，不能放/拆方块 —— 色盲派对尤其要防止搭桥躲避）
-                online.getInventory().clear();
-                online.setHealth(online.getMaxHealth());
-                online.getHungerManager().setFoodLevel(20);
-                online.getHungerManager().setSaturationLevel(5f);
-                online.setAbsorptionAmount(0);
-                online.setFireTicks(0);
-                online.fallDistance = 0;
-                online.clearStatusEffects();
-                online.changeGameMode(GameMode.ADVENTURE);
-                online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
-                online.currentScreenHandler.sendContentUpdates();
+                this.clearForBareStart(online, GameMode.ADVENTURE, 5f, true);
                 if (heartbeat && this.heartbeatBossBar == null) {
                     // 心跳水立方：开局创建屏幕上方 Boss 条倒计时（全员可见）
                     this.heartbeatBossBar = new ServerBossBar(Text.literal("§6心跳水立方"),
@@ -3948,6 +4218,30 @@ public final class Match {
         }
     }
 
+    /** 无套件模式的统一开局状态：清背包、满血、清效果、指定游戏模式、可选饱和效果。 */
+    private void clearForBareStart(ServerPlayerEntity online, GameMode mode, float saturation,
+                                  boolean saturationEffect) {
+        online.getInventory().clear();
+        online.setHealth(online.getMaxHealth());
+        online.getHungerManager().setFoodLevel(20);
+        online.getHungerManager().setSaturationLevel(saturation);
+        online.setAbsorptionAmount(0);
+        online.setFireTicks(0);
+        online.fallDistance = 0;
+        online.clearStatusEffects();
+        online.changeGameMode(mode);
+        if (saturationEffect) {
+            online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
+        }
+        online.currentScreenHandler.sendContentUpdates();
+    }
+
+    /** ACTIVE 已经过去的 tick 数（铺图占用的时间不算进去）。 */
+    private int activeElapsedTicks() {
+        int base = this.activeStartTick >= 0 ? this.activeStartTick : this.ticks;
+        return Math.max(0, this.ticks - base);
+    }
+
     private void checkWinCondition() {
         MatchTeam winner = this.computeWinner();
         if (winner != null) {
@@ -3956,6 +4250,12 @@ public final class Match {
     }
 
     private MatchTeam computeWinner() {
+        if (this.type.isBoatRace()) {
+            // 亦可赛艇没有"活着的队伍只剩一个"这回事（全员同一队且没人被淘汰），
+            // 必须在这里返回 null，否则一进 ACTIVE 就会被通用逻辑判成"仅剩一队获胜"直接结算。
+            // 结束时机完全由 BoatRaceSession 控制（全员冲线 / 超时按进度）。
+            return null;
+        }
         if (this.type == MatchType.DEATHMATCH) {
             // 死斗：没有人被淘汰，"剩几个"毫无意义 —— 胜负由 tickDeathmatch 的 5 分钟计时器
             // 调 finishMatch(teams.get(0)) 触发，再由 computeWinners 按人头算出真正的冠军。
@@ -4000,6 +4300,10 @@ public final class Match {
     }
 
     private void announceResult(Set<UUID> winners) {
+        if (this.type.isBoatRace()) {
+            this.announceBoatRaceResult();
+            return;
+        }
         if (this.type == MatchType.DEATHMATCH) {
             this.announceDeathmatchResult(winners);
             return;
@@ -4169,8 +4473,17 @@ public final class Match {
             if (sbTeam != null) {
                 for (ServerPlayerEntity player : this.players) {
                     ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-                    if (online != null) {
+                    if (online == null) {
+                        continue;
+                    }
+                    // 原版 Scoreboard.removeScoreHolderFromTeam 在"该玩家当前不在这个队"时会抛
+                    // IllegalStateException（多队模式里必然发生：清 0 队时会连带清 1 队的成员，
+                    // 而血量标签管理器也会把玩家挪进自己的队）。这里逐人兜住，
+                    // 否则一个异常就会让后面的队伍/objective 清理全部中断。
+                    try {
                         scoreboard.removeScoreHolderFromTeam(online.getGameProfile().getName(), sbTeam);
+                    } catch (IllegalStateException ignored) {
+                        // 玩家不在这个队（或已被血量标签挪到别的队）——本来就没什么可清的
                     }
                 }
                 scoreboard.removeTeam(sbTeam);
@@ -4314,6 +4627,39 @@ public final class Match {
                 this.setInfoLine(scoreboard, objective,
                         "§7…还有 " + (ranking.size() - capacity) + " 名玩家未显示", score--);
             }
+        } else if (this.type.isBoatRace() && this.boatRaceSession != null) {
+            // 亦可赛艇：完赛进度 + 实时名次表（圈数 / Checkpoint）。正文只有 ~10 行，
+            // 人多时用最后一行提示还有多少人没显示（原版 sidebar 上限 15 行，绕不过去）。
+            this.setInfoLine(scoreboard, objective, "§b已完赛 §f" + this.boatRaceSession.finishedCount()
+                    + "§7/§f" + this.players.size(), score--);
+            this.setInfoLine(scoreboard, objective, "§7圈数 §f" + this.boatRaceSession.laps()
+                    + "§7  CP §f" + this.boatRaceSession.checkpointCount(), score--);
+            this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
+            List<UUID> raceRanking = this.boatRaceSession.ranking();
+            int raceSlots = score + 1;
+            int raceShown = raceRanking.size() <= raceSlots ? raceRanking.size()
+                    : Math.max(0, raceSlots - 1);
+            for (int i = 0; i < raceShown; i++) {
+                UUID uuid = raceRanking.get(i);
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
+                RaceProgressTracker tracker = this.boatRaceSession.trackerOf(uuid);
+                if (online == null || tracker == null) {
+                    continue;
+                }
+                String name = online.getGameProfile().getName();
+                if (tracker.finished()) {
+                    this.setInfoLine(scoreboard, objective, " §a★ §f" + name + " §7"
+                            + RaceProgressTracker.formatTicks(tracker.finishTicks()), score--);
+                } else {
+                    this.setInfoLine(scoreboard, objective, " §e" + (i + 1) + ". §f" + name
+                            + " §7" + tracker.lapsCompleted() + "L " + tracker.checkpointsPassed()
+                            + "/" + this.boatRaceSession.checkpointCount() + "CP", score--);
+                }
+            }
+            if (raceShown < raceRanking.size() && score >= 0) {
+                this.setInfoLine(scoreboard, objective,
+                        "§7…还有 " + (raceRanking.size() - raceShown) + " 名玩家未显示", score--);
+            }
         } else if (this.type.isLastManStanding()) {
             // FFA/空岛战争/幸运之柱/TNT 跑酷/烫手山芋：模式专属事件倒计时 + 存活玩家列表（玩家数量见头部）
             if (this.type == MatchType.SKYWARS) {
@@ -4419,6 +4765,7 @@ public final class Match {
             case VILLAGE_DEFENSE -> "§2";
             case COLORBLIND_PARTY -> "§d";
             case DEATHMATCH -> "§4";
+            case BOAT_RACE -> "§b";
         };
         return "模式: " + color + this.type.getDisplayName();
     }
@@ -4447,6 +4794,8 @@ public final class Match {
             case VILLAGE_DEFENSE -> "§7地图: §eVD"; // 地图名在 Match 接线后替换为导入的地图名
             case COLORBLIND_PARTY -> "§7地图: §e彩色地板";
             case DEATHMATCH -> "§7地图: §e平地竞技场"; // 复用 Layout.FFA 的场地
+            case BOAT_RACE -> "§7地图: §b随机冰面赛道 §7(" + (this.boatRaceSession != null
+                    ? this.boatRaceSession.trackSummary() : "生成中") + ")";
         };
     }
 
@@ -4466,7 +4815,7 @@ public final class Match {
             // 死斗是限时模式，玩家关心的是还剩多久而不是打了多久
             case ACTIVE -> this.type == MatchType.DEATHMATCH
                     ? "§c剩余 §f" + formatTime(Math.max(0, (this.deathmatchTicks + 19) / 20))
-                    : "§a已进行 §f" + formatTime(Math.max(0, (this.ticks - this.initialCountdownTicks) / 20));
+                    : "§a已进行 §f" + formatTime(this.activeElapsedTicks() / 20);
             case CELEBRATING -> "§6结算中...";
             default -> "§7准备中...";
         };
@@ -4478,7 +4827,7 @@ public final class Match {
             return "§7缩圈: -";
         }
         PvPConfig cfg = PvPConfig.INSTANCE;
-        int elapsed = Math.max(0, (this.ticks - this.initialCountdownTicks) / 20);
+        int elapsed = this.activeElapsedTicks() / 20;
         int startSec = cfg.skywarsShrinkStartSeconds;
         if (elapsed < startSec) {
             return "§c缩圈 §7" + formatTime(startSec - elapsed) + " 后";
@@ -4641,6 +4990,131 @@ public final class Match {
     /** 本场唯一队伍（FFA / 合作类模式用；色盲派对结算需要它触发 finishMatch）。 */
     public MatchTeam firstTeam() {
         return this.teams.isEmpty() ? null : this.teams.get(0);
+    }
+
+    /** 本场参赛玩家（按开局顺序；亦可赛艇用它分配起跑格位）。 */
+    public List<ServerPlayerEntity> players() {
+        return this.players;
+    }
+
+    /** 比赛已运行的 tick 数（从 Match 构造后第一次 tick 开始计数，单调递增）。 */
+    public int matchTicks() {
+        return this.ticks;
+    }
+
+    /** 按 UUID 取在线玩家（各模式 Session 用）。 */
+    public ServerPlayerEntity onlinePlayer(UUID uuid) {
+        return this.manager.getOnlinePlayer(uuid);
+    }
+
+    /** 亦可赛艇运行时（非竞速模式返回 null）。 */
+    public BoatRaceSession boatRaceSession() {
+        return this.boatRaceSession;
+    }
+
+    /** 亦可赛艇：重生（MatchManager 兜底转发）——同样按"回位 + 重新发船"处理。 */
+    public void boatRaceRespawn(ServerPlayerEntity player) {
+        if (this.boatRaceSession != null) {
+            this.boatRaceSession.recover(player, "重生");
+        }
+    }
+
+    /** 亦可赛艇：掉出虚空兜底（MatchManager.sweepArenaWorld 转发）。 */
+    public void boatRaceVoidFall(ServerPlayerEntity player) {
+        if (this.boatRaceSession == null) {
+            this.teleportToSpawn(player);
+            return;
+        }
+        RaceProgressTracker tracker = this.boatRaceSession.trackerOf(player.getUuid());
+        if (tracker != null && tracker.finished()) {
+            this.makeGhost(player); // 已完赛的观众掉出虚空 → 送回观战台
+            return;
+        }
+        this.boatRaceSession.recover(player, "掉出赛道");
+    }
+
+    /** 亦可赛艇：掉线退赛（把该玩家从本场名次表摘掉，比赛继续）。 */
+    public void onBoatRaceDisconnect(ServerPlayerEntity player) {
+        if (this.boatRaceSession != null) {
+            this.boatRaceSession.onDisconnect(player);
+        }
+    }
+
+    /** 亦可赛艇：阵亡（PvPMod 的 ALLOW_DEATH 转发）——不淘汰，送回最近 Checkpoint 继续比赛。 */
+    public void onBoatRaceDeath(ServerPlayerEntity player) {
+        if (this.boatRaceSession != null) {
+            this.boatRaceSession.onDeath(player);
+        } else {
+            player.setHealth(player.getMaxHealth());
+            player.setFireTicks(0);
+            player.fallDistance = 0;
+        }
+    }
+
+    /** 参赛玩家的名字（即使已下线也拿得到，用于结算排名）。 */
+    private String nameOf(UUID uuid) {
+        for (ServerPlayerEntity player : this.players) {
+            if (player.getUuid().equals(uuid)) {
+                return player.getGameProfile().getName();
+            }
+        }
+        return "?";
+    }
+
+    /**
+     * 亦可赛艇结算：广播完整名次（含用时 / 圈数进度），并给每名选手发一条"你的排名 + 用时"。
+     *
+     * <p>复用项目已有的 {@code StatsStore} 记录胜场（见 {@link #computeWinners()}），
+     * 不另建经济/统计系统。
+     */
+    private void announceBoatRaceResult() {
+        BoatRaceSession session = this.boatRaceSession;
+        this.broadcast(Messages.gold("🏁 亦可赛艇结束"));
+        if (session == null) {
+            return;
+        }
+        List<UUID> ranking = session.ranking();
+        int shown = 0;
+        for (int i = 0; i < ranking.size(); i++) {
+            UUID uuid = ranking.get(i);
+            RaceProgressTracker tracker = session.trackerOf(uuid);
+            if (tracker == null) {
+                continue;
+            }
+            int place = i + 1;
+            String line = BoatRaceSession.medal(place) + " §f" + this.nameOf(uuid);
+            if (tracker.finished()) {
+                line += " §7用时 §a" + RaceProgressTracker.formatTicks(tracker.finishTicks());
+                if (tracker.bestLapTicks() >= 0) {
+                    line += " §7最快单圈 §d" + RaceProgressTracker.formatTicks(tracker.bestLapTicks());
+                }
+            } else {
+                line += " §7未完成（第 " + tracker.currentLap() + "/" + session.laps()
+                        + " 圈，CP " + tracker.checkpointsPassed() + "/" + session.checkpointCount() + "）";
+            }
+            // 15 人以上只广播前 8 名，避免刷屏；每个人仍然会收到自己的那一条
+            if (shown < 8) {
+                this.broadcast(Messages.prefix(Text.literal(line)));
+                shown++;
+            }
+        }
+        this.broadcast(Messages.info("本场赛道 Seed §7" + session.seed() + "§r（同 Seed 可复现同一张图）"));
+        for (ServerPlayerEntity player : this.players) {
+            RaceProgressTracker tracker = session.trackerOf(player.getUuid());
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (tracker == null || online == null) {
+                continue;
+            }
+            int place = tracker.place() > 0 ? tracker.place() : ranking.size();
+            MutableText mine = Text.literal("你的排名：").formatted(Formatting.GRAY)
+                    .append(Text.literal("#" + place).formatted(Formatting.GOLD))
+                    .append(Text.literal("　用时：").formatted(Formatting.GRAY))
+                    .append(Text.literal(tracker.finished()
+                                    ? RaceProgressTracker.formatTicks(tracker.finishTicks())
+                                    : "未完成")
+                            .formatted(tracker.finished() ? Formatting.GREEN : Formatting.RED));
+            online.sendMessage(Messages.prefix(mine), false);
+        }
     }
 
     /** 色盲派对：右击投票纸（PvPMod 转发）。 */
