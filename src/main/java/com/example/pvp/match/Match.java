@@ -3832,9 +3832,10 @@ public final class Match {
         if (this.type == MatchType.LUCKY_PILLAR || this.type == MatchType.HEARTBEAT) {
             this.lockPlayersToSpawn();
         }
-        // 亦可赛艇：把船钉在起跑格位上（速度清零 + 位置回写），防抢跑
+        // 亦可赛艇：倒计时期间保证玩家还在自己的船上（可以在船上移动，但下不了船）。
+        // 抢跑由起跑线上的发车挡板挡住，GO 时撤掉。
         if (this.type.isBoatRace() && this.boatRaceSession != null) {
-            this.boatRaceSession.lockToGrid();
+            this.boatRaceSession.tickCountdownHold();
         }
 
         if (this.countdownTicks > 0) {
@@ -4634,6 +4635,11 @@ public final class Match {
                     + "§7/§f" + this.players.size(), score--);
             this.setInfoLine(scoreboard, objective, "§7圈数 §f" + this.boatRaceSession.laps()
                     + "§7  CP §f" + this.boatRaceSession.checkpointCount(), score--);
+            // 侧边栏是全场共用的一份，放不了"每个人自己剩几个氮气"（那个在动作栏 HUD 里按人显示），
+            // 所以这里只放规则提示
+            this.setInfoLine(scoreboard, objective, "§b氮气 §7右键用 · 每 §f"
+                    + PvPConfig.INSTANCE.boatRaceNitroIntervalSeconds + "s §7+1 · 上限 §f"
+                    + PvPConfig.INSTANCE.boatRaceNitroMaxStack, score--);
             this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
             List<UUID> raceRanking = this.boatRaceSession.ranking();
             int raceSlots = score + 1;

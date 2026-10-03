@@ -183,7 +183,9 @@ public final class PvPCommands {
                                                         .executes(ctx -> debugBoatRace(ctx, 1,
                                                                 parseLongSafe(ctx, "seed", 0L), true))))
                                         .then(CommandManager.literal("build")
-                                                .executes(ctx -> debugBoatRaceBuild(ctx, 0L)))))
+                                                .executes(ctx -> debugBoatRaceBuild(ctx, 0L)))
+                                        .then(CommandManager.literal("nitro")
+                                                .executes(ctx -> debugBoatRaceNitro(ctx)))))
                         .then(CommandManager.literal("bedwars")
                                 .requires(source -> source.hasPermissionLevel(2))
                                 .then(CommandManager.literal("edit")
@@ -810,7 +812,7 @@ public final class PvPCommands {
                 cfg.boatRaceTrackWidth, cfg.boatRaceMinCornerRadius, cfg.boatRaceMinClearance,
                 cfg.boatRaceRunoffWidth, cfg.boatRaceBarrierHeight,
                 cfg.boatRaceCheckpoints, cfg.boatRaceMaxGenerationAttempts, cfg.boatRaceEnableRandomTrack,
-                8, 168.5, 168.5, ArenaTemplate.PLATFORM_Y);
+                8, cfg.boatRaceMinStraightLength, 168.5, 168.5, ArenaTemplate.PLATFORM_Y);
 
         if (describe && fixedSeed != null) {
             // 单 Seed 详查：把这一张图的每一项指标和拒绝原因都打出来
@@ -849,7 +851,8 @@ public final class PvPCommands {
             RaceTrackValidator.Result result = RaceTrackValidator.validate(track,
                     new RaceTrackValidator.Limits(cfg.boatRaceMinTrackLength, cfg.boatRaceMaxTrackLength,
                             cfg.boatRaceTargetTrackLength, cfg.boatRaceMinCornerRadius,
-                            cfg.boatRaceMinClearance, cfg.boatRaceTrackWidth, 40));
+                            cfg.boatRaceMinClearance, cfg.boatRaceTrackWidth, 40,
+                            cfg.boatRaceMinStraightLength));
             if (result.valid()) {
                 valid++;
             }
@@ -884,6 +887,29 @@ public final class PvPCommands {
     }
 
     /**
+     * 调试：给自己强制开一次氮气加速，随后每 10 tick 打一条测速日志。
+     *
+     * <p>用途：验证"服务端改船速"这条路径真的生效，以及加速上限确实是 1.6 倍。
+     * 控制台也能用：{@code execute as <玩家> run pvp debug boatrace nitro}
+     * （必须在比赛中、坐在船上）。
+     */
+    private static int debugBoatRaceNitro(CommandContext<ServerCommandSource> ctx)
+            throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        Match match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+        if (match == null || !match.getType().isBoatRace() || match.boatRaceSession() == null) {
+            player.sendMessage(Messages.error("你不在亦可赛艇对局中"), false);
+            return 0;
+        }
+        if (!match.boatRaceSession().debugActivateNitro(player)) {
+            player.sendMessage(Messages.error("对局还没开始（或你还没被登记为本场选手）"), false);
+            return 0;
+        }
+        player.sendMessage(Messages.info("已强制开启氮气加速，测速日志请见服务端控制台"), false);
+        return 1;
+    }
+
+    /**
      * 调试：在远离正式对局的区域内真正铺一张随机赛道，并报告方块数与耗时。
      * 控制台也能跑，用来验证"铺图 + 清场"这条重活路径与真实性能。
      */
@@ -905,13 +931,24 @@ public final class PvPCommands {
                 cfg.boatRaceTrackWidth, cfg.boatRaceMinCornerRadius, cfg.boatRaceMinClearance,
                 cfg.boatRaceRunoffWidth, cfg.boatRaceBarrierHeight,
                 cfg.boatRaceCheckpoints, cfg.boatRaceMaxGenerationAttempts, cfg.boatRaceEnableRandomTrack,
-                8, center.getX() + 0.5, center.getZ() + 0.5, ArenaTemplate.PLATFORM_Y);
+                8, cfg.boatRaceMinStraightLength, center.getX() + 0.5, center.getZ() + 0.5, ArenaTemplate.PLATFORM_Y);
         RaceTrackGenerator.Outcome outcome = RaceTrackGenerator.generate(useSeed, settings);
         RaceTrack track = outcome.track();
 
         long t0 = System.nanoTime();
         int placed = RaceMapGenerator.build(arena, track);
         long buildMs = (System.nanoTime() - t0) / 1_000_000L;
+        // 发车挡板自检：数量 + 首格坐标 + 实际读回来的方块，方便用 /execute if block 复核
+        java.util.List<BlockPos> barrier = RaceMapGenerator.startBarrierPositions(track);
+        final String barrierProbe;
+        if (barrier.isEmpty()) {
+            barrierProbe = "无";
+        } else {
+            BlockPos first = barrier.get(0);
+            net.minecraft.block.BlockState state = arena.getBlockState(first);
+            barrierProbe = barrier.size() + " 个，首格 (" + first.getX() + "," + first.getY() + ","
+                    + first.getZ() + ") = " + net.minecraft.registry.Registries.BLOCK.getId(state.getBlock());
+        }
         long t1 = System.nanoTime();
         int removed = RaceMapGenerator.clear(arena, track);
         long clearMs = (System.nanoTime() - t1) / 1_000_000L;
@@ -919,9 +956,9 @@ public final class PvPCommands {
         final long fSeed = track.seed();
         ctx.getSource().sendFeedback(() -> Messages.info(String.format(
                 "亦可赛艇 铺图自检：seed=%d 长度 %.0f 宽 %.0f CP %d 最小弯半径 %.1f 外沿半径 %.1f｜"
-                        + "铺设 %d 方块（%d ms）｜精确清除 %d 方块（%d ms）",
+                        + "铺设 %d 方块（%d ms）｜发车挡板 %s｜精确清除 %d 方块（%d ms）",
                 fSeed, track.length(), track.width(), track.checkpointCount(), track.minCornerRadius(),
-                track.boundingRadius(), placed, buildMs, removed, clearMs)), false);
+                track.boundingRadius(), placed, buildMs, barrierProbe, removed, clearMs)), false);
         if (ctx.getSource().getEntity() instanceof ServerPlayerEntity player) {
             // 先铺一张不清理的图供玩家查看
             RaceMapGenerator.build(arena, track);

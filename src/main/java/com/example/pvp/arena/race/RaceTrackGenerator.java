@@ -43,8 +43,14 @@ public final class RaceTrackGenerator {
      */
     private static final double MIN_AMPLITUDE = 0.12;
     private static final double MAX_AMPLITUDE = 0.30;
-    /** 起跑格位：首行离起终点线的距离、行距、单格横向间距（格）。 */
-    private static final double GRID_FIRST_ROW_BACK = 2.0;
+    /**
+     * 起跑格位：首行离起终点线的距离、行距、单格横向间距（格）。
+     *
+     * <p>首行留 {@link #GRID_FIRST_ROW_BACK} 格是为了给起跑线上的<b>发车挡板</b>留出余量
+     * （挡板就立在起终点线上，2 格高，GO 时撤掉）—— 船头离挡板约 3 格，不会一出生就顶上去。
+     * 人数超出一排时<b>只往后加排</b>，不改变赛道宽度，所以列数与列距是固定的。
+     */
+    private static final double GRID_FIRST_ROW_BACK = 4.0;
     private static final double GRID_ROW_SPACING = 5.0;
     private static final double GRID_COLUMN_SPACING = 3.5;
 
@@ -58,7 +64,7 @@ public final class RaceTrackGenerator {
                            double width, double minCornerRadius, double minClearance,
                            int runoffWidth, int barrierHeight,
                            int checkpointCount, int maxAttempts, boolean randomTrack,
-                           int playerCount,
+                           int playerCount, double minStraightLength,
                            double centerX, double centerZ, int surfaceY) {
     }
 
@@ -110,6 +116,7 @@ public final class RaceTrackGenerator {
         }
 
         RaceTrack best = null;
+        RaceTrackValidator.Result bestResult = null;
         double bestScore = Double.NEGATIVE_INFINITY;
         int bestAttempt = -1;
         String lastProblem = null;
@@ -131,14 +138,17 @@ public final class RaceTrackGenerator {
             if (result.score() > bestScore) {
                 bestScore = result.score();
                 best = candidate;
+                bestResult = result;
                 bestAttempt = attempt;
             }
         }
 
         if (best != null) {
             notes.add(String.format("已在 %d 个候选中选定 Seed=%d（第 %d 次尝试；评分 %.1f，长度 %.0f，"
-                            + "最小弯半径 %.1f，宽度 %.0f，Checkpoint %d）",
+                            + "大直道 %.0f，起点直道 %.0f，最小弯半径 %.1f，宽度 %.0f，Checkpoint %d）",
                     attempts, best.seed(), bestAttempt + 1, bestScore, best.length(),
+                    bestResult == null ? 0.0 : bestResult.longestStraight(),
+                    bestResult == null ? 0.0 : bestResult.startStraightLength(),
                     best.minCornerRadius(), best.width(), best.checkpointCount()));
             return new Outcome(best, attempts, false, List.copyOf(notes));
         }
@@ -158,7 +168,7 @@ public final class RaceTrackGenerator {
         int rows = (int) Math.ceil(Math.max(1, s.playerCount()) / (double) columns);
         double gridDepth = GRID_FIRST_ROW_BACK + rows * GRID_ROW_SPACING + 8.0;
         return new RaceTrackValidator.Limits(s.minLength(), s.maxLength(), s.targetLength(),
-                s.minCornerRadius(), s.minClearance(), s.width(), gridDepth);
+                s.minCornerRadius(), s.minClearance(), s.width(), gridDepth, s.minStraightLength());
     }
 
     /**
@@ -277,8 +287,9 @@ public final class RaceTrackGenerator {
             zs[i] = pz[seg] + t * (pz[j] - pz[seg]);
         }
 
-        // ---- 3. 起终点线放在最平直处 ----
-        int pivot = straightestIndex(xs, zs);
+        // ---- 3. 起终点线放在最平直处（窗口要够长到容下整个起跑格位阵） ----
+        int pivot = straightestIndex(xs, zs, settings.width(), Math.max(1, settings.playerCount()),
+                settings.minStraightLength());
         xs = rotate(xs, pivot);
         zs = rotate(zs, pivot);
 
@@ -419,11 +430,17 @@ public final class RaceTrackGenerator {
      * "最平直的一段"的末端索引：让该索引之前的 {@code window} 格累计转角最小。
      * 起终点线设在这里，发车区就是直道 —— 前排不会一出发就撞弯，后排也不会被弯道挤成一团。
      */
-    private static int straightestIndex(double[] xs, double[] zs) {
+    private static int straightestIndex(double[] xs, double[] zs, double width, int playerCount,
+                                        double minStraightLength) {
         int n = xs.length;
+        // 窗口 = max(格位阵长度 + 起步 30 格, 要求的大直道长度)：
+        // 前者保证人数再多整排格位都落在直道上，后者让"起终点线正好钉在大直道头上"，
+        // 也就是每张图的发车直道就是那条大直道 —— 氮气有地方用。
+        int rows = (int) Math.ceil(playerCount / (double) columnsFor(width));
+        double gridNeed = GRID_FIRST_ROW_BACK + rows * GRID_ROW_SPACING + 30;
         int window = Math.max(24, (int) Math.round(
-                (GRID_FIRST_ROW_BACK + 8 * GRID_ROW_SPACING + 24) / RaceTrack.STEP));
-        window = Math.max(1, Math.min(window, n / 4));
+                Math.max(gridNeed, minStraightLength) / RaceTrack.STEP));
+        window = Math.max(1, Math.min(window, n / 2));
 
         double[] turn = new double[n];
         double[] heading = new double[n];

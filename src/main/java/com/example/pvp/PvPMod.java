@@ -21,6 +21,7 @@ import com.example.pvp.match.EliminationCause;
 import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchState;
+import com.example.pvp.arena.race.BoatRaceSession;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.match.VillageDefenseKits;
@@ -77,6 +78,22 @@ import java.util.UUID;
  * PvP 匹配 Mod 入口：注册虚空生成器、加载配置、挂接生命周期事件。
  */
 public final class PvPMod implements ModInitializer {
+    /**
+     * 亦可赛艇：骑乘输入转发（来自 {@code ServerPlayNetworkHandlerMixin}），用于"空格喷氮气"。
+     *
+     * <p>放在 PvPMod 做静态入口是为了让 Mixin 只依赖 mod 主类，不直接依赖对局内部结构。
+     */
+    public static void onRiderInput(ServerPlayerEntity player, boolean jumping) {
+        if (MATCH == null) {
+            return;
+        }
+        Match match = MATCH.getMatchFor(player);
+        if (match == null || !match.getType().isBoatRace() || match.boatRaceSession() == null) {
+            return;
+        }
+        match.boatRaceSession().onRiderJumpInput(player, jumping);
+    }
+
     public static final String MOD_ID = "pvp";
     public static final Logger LOGGER = LogUtils.getLogger();
 
@@ -274,6 +291,21 @@ public final class PvPMod implements ModInitializer {
             // 进服显示插件名 + 版本号，方便确认是否最新版本
             handler.player.sendMessage(Messages.gold(
                     "§6PvP 匹配 Mod §fv" + version() + " §r已连接，右键指南针打开菜单"), false);
+        });
+
+        // 亦可赛艇：右键使用氮气。必须放在最前面 —— 船在冰上速度极快，右键要立刻响应，
+        // 而且这条路径要先于"幽灵禁用手持物品"等判断（竞速里不存在幽灵，但保持顺序稳定）。
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            ItemStack stack = player.getStackInHand(hand);
+            if (player instanceof ServerPlayerEntity sp && MATCH != null
+                    && BoatRaceSession.isNitroItem(stack)) {
+                Match m = MATCH.getMatchFor(sp);
+                if (m != null && m.getType().isBoatRace() && m.boatRaceSession() != null) {
+                    return m.boatRaceSession().useNitro(sp, stack)
+                            ? TypedActionResult.success(stack) : TypedActionResult.fail(stack);
+                }
+            }
+            return TypedActionResult.pass(stack);
         });
 
         UseItemCallback.EVENT.register((player, world, hand) -> {

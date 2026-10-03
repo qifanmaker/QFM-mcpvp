@@ -12,6 +12,7 @@
     "PlayerEntityMixin",
     "LivingEntityMixin",
     "ServerPlayerEntityMixin",
+    "ServerPlayNetworkHandlerMixin",
     "FishingBobberEntityMixin",
     "EnderPearlItemMixin",
     "FireChargeItemMixin",

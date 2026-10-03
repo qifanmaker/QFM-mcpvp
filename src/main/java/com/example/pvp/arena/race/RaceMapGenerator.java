@@ -13,6 +13,8 @@ import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
 
@@ -43,6 +45,15 @@ public final class RaceMapGenerator {
     private static final int GATE_HEIGHT = 4;
     /** 内场地面相对冰面的高度差（格）：低一层平台，掉下去 = 离开赛道 → 触发回位。 */
     private static final int GROUND_DROP = 10;
+    /**
+     * 发车挡板高度（格）：立在起终点线上、横跨整个走廊（冰面 + 两侧缓冲带），
+     * 把船挡在起跑线之后。GO 时被 {@link #clearStartBarrier} 撤掉。
+     *
+     * <p>1 格其实就够（原版船 {@code maxUpStep = 0}，1 格也是硬墙），2 格纯粹是为了看得清
+     * —— 它同时正好填在起终点门架下方，视觉上就是一道"发车闸门"。
+     */
+    private static final int START_BARRIER_HEIGHT = 2;
+
     /**
      * 环境装饰离赛道走廊的最小净空（格）。
      *
@@ -114,6 +125,7 @@ public final class RaceMapGenerator {
         placed += rasterizeRibbon(arena, track, cleaning(clearing, surface), cleaning(clearing, runoff),
                 cleaning(clearing, barrier));
         placed += buildGates(arena, track, clearing);
+        placed += buildStartBarrier(arena, track, clearing);
         placed += buildEnvironment(arena, track, clearing);
         return placed;
     }
@@ -260,6 +272,83 @@ public final class RaceMapGenerator {
         } catch (Exception ignored) {
             // 展示实体只是锦上添花，失败不影响比赛
         }
+    }
+
+    // ==================== 发车挡板 ====================
+
+    /**
+     * 发车挡板的方块坐标（确定性，铺场与清场共用同一份）。
+     *
+     * <p>沿<b>起终点线的平面</b>横跨整个走廊：从 -走廊半宽 到 +走廊半宽，两端正好顶到护栏，
+     * 所以没有任何缝可以绕过去（冰面 + 两侧缓冲带全被挡住）。高度 {@link #START_BARRIER_HEIGHT} 格。
+     *
+     * <p>玩家侧表现：船停在挡板后面，倒计时期间可以在格位附近自由划动但过不去线；
+     * GO 那一 tick 挡板消失，所有人一起冲出去。
+     */
+    public static List<BlockPos> startBarrierPositions(RaceTrack track) {
+        RaceTrack.Checkpoint line = track.checkpoint(0);
+        double half = track.corridorHalfWidth();
+        int y = track.surfaceY();
+        int steps = (int) Math.ceil(half * 2.0) + 1;
+        List<BlockPos> positions = new ArrayList<>();
+        LinkedHashSet<Long> seen = new java.util.LinkedHashSet<>();
+        for (int s = 0; s <= steps; s++) {
+            double lateral = -half + (2.0 * half) * s / steps;
+            int bx = (int) Math.floor(line.x() + line.normalX() * lateral);
+            int bz = (int) Math.floor(line.z() + line.normalZ() * lateral);
+            for (int h = 1; h <= START_BARRIER_HEIGHT; h++) {
+                long key = BlockPos.asLong(bx, y + h, bz);
+                if (seen.add(key)) {
+                    positions.add(BlockPos.fromLong(key));
+                }
+            }
+        }
+        return positions;
+    }
+
+    /** 铺发车挡板（红白相间，看起来就是一条赛车道闸门；约 40 个方块）。 */
+    private static int buildStartBarrier(ArenaWorld arena, RaceTrack track, boolean clearing) {
+        RaceTrack.Checkpoint line = track.checkpoint(0);
+        double half = track.corridorHalfWidth();
+        int y = track.surfaceY();
+        int steps = (int) Math.ceil(half * 2.0) + 1;
+        int placed = 0;
+        LinkedHashSet<Long> seen = new java.util.LinkedHashSet<>();
+        for (int s = 0; s <= steps; s++) {
+            double lateral = -half + (2.0 * half) * s / steps;
+            int bx = (int) Math.floor(line.x() + line.normalX() * lateral);
+            int bz = (int) Math.floor(line.z() + line.normalZ() * lateral);
+            BlockState state = (s % 2 == 0)
+                    ? Blocks.RED_CONCRETE.getDefaultState() : Blocks.WHITE_CONCRETE.getDefaultState();
+            for (int h = 1; h <= START_BARRIER_HEIGHT; h++) {
+                long key = BlockPos.asLong(bx, y + h, bz);
+                if (!seen.add(key)) {
+                    continue;
+                }
+                arena.setBlockState(BlockPos.fromLong(key), cleaning(clearing, state), PLACE_FLAGS);
+                placed++;
+            }
+        }
+        return placed;
+    }
+
+    /**
+     * 撤掉发车挡板（GO 那一 tick 调用）。
+     *
+     * <p>这是本模式唯一一处"开赛后还会改地形"的地方，就 40 来个方块，直接写世界即可
+     * （此时已经退出暂存阶段）。清场时 {@link #clear} 会把它当空气再重放一遍，不冲突。
+     *
+     * @return 实际撤掉的方块数
+     */
+    public static int clearStartBarrier(ArenaWorld arena, RaceTrack track) {
+        int removed = 0;
+        for (BlockPos pos : startBarrierPositions(track)) {
+            if (!arena.getBlockState(pos).isAir()) {
+                arena.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                removed++;
+            }
+        }
+        return removed;
     }
 
     // ==================== 环境 ====================

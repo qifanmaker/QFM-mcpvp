@@ -7,23 +7,45 @@ import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchState;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.LoreComponent;
+import net.minecraft.component.type.NbtComponent;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.vehicle.BoatEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -56,6 +78,40 @@ public final class BoatRaceSession {
     /** 回位后把玩家放在最近 Checkpoint 之后这么多格，避免正好压在门框上。 */
     private static final double RESPAWN_AHEAD = 3.0;
 
+    // ---------- 氮气加速 ----------
+
+    /** 氮气物品的 NBT 标记（与项目其它自研物品一致：自定义数据 + 唯一 key）。 */
+    public static final String NITRO_ITEM_TAG = "pvp.boatrace_nitro";
+    /**
+     * 原版船的推力（格/tick²），与 {@code BoatEntity.controlBoat()} 里的常量一致。
+     * 极速 = 推力 / (1 − 冰面保持率)：0.04 / (1 − 0.98) = 2.0 格/tick（40 格/秒）。
+     */
+    private static final double BOAT_THRUST = 0.04;
+    /** packed_ice / ice 的摩擦保持率，与原版方块注册值一致。 */
+    private static final double ICE_SLIPPERINESS = 0.98;
+    /** 冰面极速（格/tick）。 */
+    private static final double ICE_TOP_SPEED = BOAT_THRUST / (1.0 - ICE_SLIPPERINESS);
+    /** 加速期间每隔多少 tick 冒一次粒子（别每 tick 都发包）。 */
+    private static final int NITRO_PARTICLE_INTERVAL = 4;
+    /**
+     * 氮气冰带只往船前方多铺这么多格。
+     *
+     * <p>刻意压到 2 格：客户端要收到方块更新才会用新滑度算摩擦，所以必须往前留一点；
+     * 但留太多就等于在赛道上给所有人铺了一条加速路（别人跟着走也能提速）。
+     * 现在船身后面一走就立刻还原，所以"跟着你走"蹭不到，只有正好挡在你前面的人能吃到 2 格。
+     */
+    private static final int NITRO_ICE_LEAD = 2;
+    /**
+     * 原版方块的滑度（冰面/浮冰 0.98、蓝冰 0.989，取自原版方块注册值）。
+     * 用来反推"氮气方块相对赛道冰面是几倍极速"，这样倍率不用手填、换方块自动跟着变。
+     */
+    private static final Map<Block, Double> SLIPPERINESS = Map.of(
+            Blocks.PACKED_ICE, 0.98,
+            Blocks.ICE, 0.98,
+            Blocks.FROSTED_ICE, 0.98,
+            Blocks.BLUE_ICE, 0.989);
+
+
     private final Match match;
     private final ArenaTemplate template;
     private final int regionIndex;
@@ -70,6 +126,21 @@ public final class BoatRaceSession {
     private final Map<UUID, Integer> stuckTicks = new HashMap<>();
     private final Map<UUID, Integer> outOfBoatTicks = new HashMap<>();
     private final List<UUID> finishOrder = new ArrayList<>();
+    /** 玩家 → 剩余加速 tick 数。 */
+    private final Map<UUID, Integer> nitroTicks = new HashMap<>();
+    /** 距下次补氮气的计时（tick）。 */
+    private int nitroGrantTimer;
+    /** 调试用：>0 时每 10 tick 打一条加速测速日志；配合 /pvp debug boatrace nitro。 */
+    private int nitroProbeTicks;
+    private final Map<UUID, Vec3d> nitroProbeLastPos = new HashMap<>();
+    /** 玩家 → 上一 tick 是否按着空格（用于取"按下"的上升沿，实现空格喷氮气）。 */
+    private final Map<UUID, Boolean> jumpHeld = new HashMap<>();
+    /** 玩家 → 他这次加速当前覆盖的方块（每一格都带引用计数，多人重叠时不会互相踩）。 */
+    private final Map<UUID, Set<Long>> nitroWindows = new HashMap<>();
+    /** 方块 → 原方块；key 存在即表示"这格现在是我们涂的氮气方块"。 */
+    private final Map<Long, BlockState> nitroIceRestore = new HashMap<>();
+    /** 方块 → 当前有几个玩家的窗口盖着它（归零才还原）。 */
+    private final Map<Long, Integer> nitroIceRefs = new HashMap<>();
 
     private boolean started;
     private boolean mapBuilt;
@@ -90,7 +161,7 @@ public final class BoatRaceSession {
                 cfg.boatRaceTrackWidth, cfg.boatRaceMinCornerRadius, cfg.boatRaceMinClearance,
                 cfg.boatRaceRunoffWidth, cfg.boatRaceBarrierHeight,
                 cfg.boatRaceCheckpoints, cfg.boatRaceMaxGenerationAttempts, cfg.boatRaceEnableRandomTrack,
-                this.playerCount,
+                this.playerCount, cfg.boatRaceMinStraightLength,
                 template.getCenter(regionIndex).getX() + 0.5,
                 template.getCenter(regionIndex).getZ() + 0.5,
                 ArenaTemplate.PLATFORM_Y);
@@ -197,16 +268,24 @@ public final class BoatRaceSession {
                 + "｜最小弯半径 §e" + Math.round(this.track.minCornerRadius()) + "§r 格"
                 + "｜Seed §7" + this.track.seed()));
         this.match.broadcastToMatch(Messages.info("按顺序穿过所有 Checkpoint 才算一圈；"
-                + "掉出赛道或船被毁会自动送回最近 Checkpoint。GO 之前不要松开方向键 :)"));
+                + "掉出赛道或船被毁会自动送回最近 Checkpoint。"));
+        this.match.broadcastToMatch(Messages.info("倒计时期间可以在船上自由移动，但下不了船；"
+                + "起跑线上的发车挡板会在 GO 那一刻撤掉。"));
     }
 
-    /** 倒计时期间调用：把每条船钉在格位上（速度清零 + 位置/朝向回写），防止抢跑。 */
-    public void lockToGrid() {
+    /**
+     * 倒计时期间调用：<b>只保证玩家还在自己的船上</b>，不再清速度 / 不再回写坐标。
+     *
+     * <p>所以玩家在倒计时里可以在格位附近自由划动（也能撞着玩），但过不去起跑线 ——
+     * 起跑线上立着 {@link RaceMapGenerator} 铺的发车挡板，GO 那一 tick 才撤掉。
+     * 这比"每 tick 把船钉死"自然得多，同时又不会有人抢跑。
+     *
+     * <p>下船（shift）由这里兜住：一旦发现玩家没骑在自己的船上，立刻重新塞回去。
+     * 不在传输层拦截而是"每 tick 复位"，是因为后者不碰原版的乘客集合，零风险；
+     * 客户端最多看到一帧的分离，实际体验是下不去船。
+     */
+    public void tickCountdownHold() {
         if (this.started) {
-            return;
-        }
-        ArenaWorld arena = this.match.arenaWorld();
-        if (arena == null) {
             return;
         }
         for (ServerPlayerEntity player : this.match.onlineParticipants()) {
@@ -216,19 +295,26 @@ public final class BoatRaceSession {
             }
             BoatEntity boat = this.boatOf(player);
             if (boat == null) {
+                // 船没了（被炸/被顶掉/实体还没进世界）→ 重新发一条并上船
                 this.placeOnGrid(player);
                 continue;
             }
-            boat.setVelocity(Vec3d.ZERO);
-            boat.velocityDirty = true;
-            boat.refreshPositionAndAngles(slot.x(), this.track.surfaceY() + 1.0, slot.z(), slot.yaw(), 0.0F);
+            if (player.getVehicle() != boat) {
+                player.startRiding(boat, true);
+            }
         }
     }
 
-    /** GO：开始计时。 */
+    /** GO：撤掉起跑线挡板，然后开始计时。 */
     public void start(int matchTicks) {
         if (this.started) {
             return;
+        }
+        // 挡板必须在任何人压线之前撤掉：它横跨整条走廊，船过不去，也就没人能提前起跑。
+        ArenaWorld arena = this.match.arenaWorld();
+        if (arena != null) {
+            int removed = RaceMapGenerator.clearStartBarrier(arena, this.track);
+            LOGGER.info("[PvP] 亦可赛艇 seed {} 撤掉发车挡板 {} 个方块", this.track.seed(), removed);
         }
         this.started = true;
         for (ServerPlayerEntity player : this.match.onlineParticipants()) {
@@ -236,6 +322,11 @@ public final class BoatRaceSession {
             if (tracker != null) {
                 tracker.arm(player.getX(), player.getZ(), matchTicks);
             }
+        }
+        // 开局先送 1 个，让玩家第一时间就知道有这件道具；之后每 interval 秒补 1 个
+        this.nitroGrantTimer = 0;
+        for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+            this.giveNitro(player);
         }
         this.updateRanking();
     }
@@ -258,6 +349,7 @@ public final class BoatRaceSession {
         if (this.tickCounter % RECOVERY_INTERVAL == 0) {
             this.checkAnomalies(matchTicks);
         }
+        this.tickNitro();
         if (this.tickCounter % (PLACE_INTERVAL * 20) == 0) {
             // 每 5 秒做一次自检：兜底补门是"漏判"的信号，出现了就要看赛道/判定是不是有问题
             for (Map.Entry<UUID, RaceProgressTracker> e : this.racers.entrySet()) {
@@ -277,6 +369,9 @@ public final class BoatRaceSession {
     /** 比赛结束（庆祝阶段开始）时调用：清掉场上的船，别让它们留到下一场。 */
     public void onMatchEnd() {
         this.matchEnded = true;
+        this.nitroTicks.clear();
+        this.jumpHeld.clear();
+        this.releaseAllNitroIce();
         for (UUID boatId : List.copyOf(this.boats.values())) {
             Entity entity = this.findEntity(boatId);
             if (entity != null) {
@@ -300,6 +395,7 @@ public final class BoatRaceSession {
         if (arena == null) {
             return;
         }
+        this.releaseAllNitroIce();
         long t0 = System.nanoTime();
         int removed = RaceMapGenerator.clear(arena, this.track);
         this.mapBuilt = false;
@@ -395,6 +491,8 @@ public final class BoatRaceSession {
      * 比赛只能干等到超时。Match 侧仍会按参赛名单给他记一场败场（见 Match.finalizeMatch）。
      */
     public void onDisconnect(ServerPlayerEntity player) {
+        this.jumpHeld.remove(player.getUuid());
+        this.releaseNitroWindow(player.getUuid());
         this.discardBoat(player);
         this.racers.remove(player.getUuid());
         this.stuckTicks.remove(player.getUuid());
@@ -574,10 +672,390 @@ public final class BoatRaceSession {
             text.append(Text.literal(" §7| §d最快 "
                     + RaceProgressTracker.formatTicks(tracker.bestLapTicks())));
         }
+        int boostTicks = this.nitroBoostTicks(player.getUuid());
+        if (boostTicks > 0) {
+            text.append(Text.literal(" §7| §b§l加速 "
+                    + String.format(java.util.Locale.ROOT, "%.1f", boostTicks / 20.0) + "s"));
+        } else {
+            int nitro = this.nitroCount(player);
+            if (nitro > 0) {
+                text.append(Text.literal(" §7| §b氮气§f x" + nitro + " §7(右键/空格)"));
+            }
+        }
         if (tracker.wrongWay()) {
             text.append(Text.literal(" §7| §c§l⚠ 逆行了！"));
         }
         return text;
+    }
+
+    // ==================== 氮气加速 ====================
+
+    /**
+     * 造一个氮气道具：火焰粉 + 自定义名字 + 唯一 NBT 标记 + 附魔光效（和烫手山芋一个套路）。
+     */
+    private ItemStack createNitroItem() {
+        ItemStack stack = new ItemStack(Items.BLAZE_POWDER);
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§b§l氮气加速"));
+        NbtCompound nbt = new NbtCompound();
+        nbt.putString(NITRO_ITEM_TAG, "1");
+        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+        stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+                Text.literal("§7右键 或 §f空格§7 使用：§b" + PvPConfig.INSTANCE.boatRaceNitroBoostSeconds
+                        + " 秒§7 内极速 §b×" + formatMultiplier(this.nitroSpeedMultiplier())),
+                Text.literal("§8必须坐在船上；每 §7"
+                        + PvPConfig.INSTANCE.boatRaceNitroIntervalSeconds
+                        + "§8 秒自动补充，最多存 §7"
+                        + PvPConfig.INSTANCE.boatRaceNitroMaxStack + "§8 个"))));
+        MinecraftServer server = this.match.arenaWorld() == null ? null : this.match.arenaWorld().getServer();
+        if (server != null) {
+            Registry<Enchantment> registry = server.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
+            RegistryEntry<Enchantment> unbreaking = registry.getEntry(Enchantments.UNBREAKING).orElse(null);
+            if (unbreaking != null) {
+                stack.addEnchantment(unbreaking, 1);
+            }
+        }
+        return stack;
+    }
+
+    /** 该物品是不是本模式的氮气（按 NBT 标记判定，不会误吃玩家自己的火焰粉）。 */
+    public static boolean isNitroItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        NbtComponent nbt = stack.get(DataComponentTypes.CUSTOM_DATA);
+        return nbt != null && nbt.copyNbt().contains(NITRO_ITEM_TAG);
+    }
+
+    /** 玩家手上囤了几个氮气。 */
+    public int nitroCount(ServerPlayerEntity player) {
+        var inventory = player.getInventory();
+        int count = 0;
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (isNitroItem(stack)) {
+                count += stack.getCount();
+            }
+        }
+        return count;
+    }
+
+    /** 还剩多少 tick 加速（0 = 没在加速）。 */
+    public int nitroBoostTicks(UUID uuid) {
+        return this.nitroTicks.getOrDefault(uuid, 0);
+    }
+
+    private void giveNitro(ServerPlayerEntity player) {
+        ItemStack stack = this.createNitroItem();
+        if (!player.getInventory().insertStack(stack)) {
+            // 竞速中背包是空的，正常不会走到；真满了就掉在脚边，别凭空消失
+            player.dropItem(stack, false);
+        }
+        player.currentScreenHandler.sendContentUpdates();
+    }
+
+    /**
+     * 右键使用氮气（由 {@code PvPMod} 的 UseItemCallback 转发）。
+     *
+     * @return 是否消费了这次使用
+     */
+    public boolean useNitro(ServerPlayerEntity player, ItemStack stack) {
+        if (!this.canUseNitro(player)) {
+            if (this.started && !this.matchEnded && this.boatOf(player) == null) {
+                player.sendMessage(Messages.warn("必须坐在船上才能使用氮气"), true);
+            }
+            return false;
+        }
+        return this.activateNitro(player, stack);
+    }
+
+    /** 真正吃掉一颗氮气并点亮加速（右键与空格两条触发路径共用）。 */
+    private boolean activateNitro(ServerPlayerEntity player, ItemStack stack) {
+        stack.decrement(1);
+        int add = Math.max(1, PvPConfig.INSTANCE.boatRaceNitroBoostSeconds) * 20;
+        this.nitroTicks.merge(player.getUuid(), add, Integer::sum);
+        ArenaWorld arena = this.match.arenaWorld();
+        if (arena != null) {
+            arena.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH, SoundCategory.PLAYERS, 1.0F, 1.4F);
+            arena.spawnParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 0.4, player.getZ(),
+                    14, 0.3, 0.2, 0.3, 0.05);
+        }
+        player.sendMessage(Text.literal("§b§l氮气加速！§r §7"
+                + PvPConfig.INSTANCE.boatRaceNitroBoostSeconds + " 秒内极速 ×"
+                + formatMultiplier(this.nitroSpeedMultiplier())), true);
+        return true;
+    }
+
+    /**
+     * 氮气方块相对赛道冰面的极速倍率：极速 = 推力 / (1 − 滑度)，
+     * 所以倍率 = (1 − 冰面滑度) / (1 − 氮气滑度)。浮冰 0.98 与蓝冰 0.989 → 0.02 / 0.011 ≈ 1.82。
+     */
+    public double nitroSpeedMultiplier() {
+        double surface = 1.0 - SLIPPERINESS.getOrDefault(
+                PvPConfig.INSTANCE.getBoatRaceSurfaceBlock(), 0.98);
+        double nitro = 1.0 - SLIPPERINESS.getOrDefault(
+                PvPConfig.INSTANCE.getBoatRaceNitroBlock(), 0.989);
+        return (surface <= 1.0e-6 || nitro <= 1.0e-6) ? 1.0 : surface / nitro;
+    }
+
+    /**
+     * 骑乘输入回调（由 {@code ServerPlayNetworkHandlerMixin} 转发）：检测"空格按下"的上升沿 → 喷氮气。
+     *
+     * <p><b>为什么要加空格这个触发方式</b>：按住 W 前进时，鼠标右键的物品使用会被客户端吞掉 ——
+     * 驾驶时准星常常压在冰面或船身上，右键会先去做方块/实体交互就结束了，
+     * 物品使用包根本不发（所以之前的右键"只有停下来/瞄准天空时才有用"）。
+     * 而骑乘状态下客户端每 tick 都会发 {@code PlayerInputC2SPacket}（前进/跳跃/潜行），
+     * 它不经过准星判定、按住 W 也照发；船又用不到跳跃键，所以空格是最稳的触发键。
+     * 右键依然保留可用（瞄天空/终点方向时）。
+     */
+    public void onRiderJumpInput(ServerPlayerEntity player, boolean jumping) {
+        boolean was = Boolean.TRUE.equals(this.jumpHeld.put(player.getUuid(), jumping));
+        if (jumping && !was) {
+            this.tryUseNitro(player);
+        }
+    }
+
+    /** 从物品栏里找一颗氮气用掉（空格触发用）。 */
+    public boolean tryUseNitro(ServerPlayerEntity player) {
+        if (!this.canUseNitro(player)) {
+            return false;
+        }
+        var inventory = player.getInventory();
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (isNitroItem(stack)) {
+                return this.activateNitro(player, stack);
+            }
+        }
+        player.sendMessage(Text.literal("§7没有氮气了（每 §f"
+                + PvPConfig.INSTANCE.boatRaceNitroIntervalSeconds + "§7 秒补 1 个）"), true);
+        return false;
+    }
+
+    /** 能否使用氮气：比赛进行中、未冲线、且正坐在自己的船上。 */
+    private boolean canUseNitro(ServerPlayerEntity player) {
+        if (this.matchEnded || !this.started || this.match.getState() != MatchState.ACTIVE) {
+            return false;
+        }
+        RaceProgressTracker tracker = this.racers.get(player.getUuid());
+        if (tracker == null || tracker.finished()) {
+            return false;
+        }
+        BoatEntity boat = this.boatOf(player);
+        return boat != null && player.getVehicle() == boat;
+    }
+
+    private static String formatMultiplier(double multiplier) {
+        return String.format(java.util.Locale.ROOT, "%.2f", multiplier);
+    }
+
+    private static String d1(double value) {
+        return String.format(java.util.Locale.ROOT, "%.1f", value);
+    }
+
+    private static String d2(double value) {
+        return String.format(java.util.Locale.ROOT, "%.2f", value);
+    }
+
+    /**
+     * 每 tick：补氮气 + 结算加速。
+     *
+     * <p><b>为什么必须改船的速度</b>：原版的速度/跳跃药水走的是玩家属性，而船的位移只由
+     * {@code BoatEntity.controlBoat()} 自己算，跟玩家属性完全无关 —— 所以"喝速度药水"对船毫无作用。
+     * 只能由服务端在 tick 里给船加推力（下面 {@link #applyNitroThrust}），
+     * 好处是船本来就是服务端权威的，不需要客户端 Mod。
+     */
+    private void tickNitro() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int interval = Math.max(1, cfg.boatRaceNitroIntervalSeconds) * 20;
+        int maxStack = Math.max(1, cfg.boatRaceNitroMaxStack);
+
+        if (++this.nitroGrantTimer >= interval) {
+            this.nitroGrantTimer = 0;
+            for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+                RaceProgressTracker tracker = this.racers.get(player.getUuid());
+                if (tracker == null || tracker.finished()) {
+                    continue;
+                }
+                if (this.nitroCount(player) >= maxStack) {
+                    continue;
+                }
+                this.giveNitro(player);
+                player.sendMessage(Text.literal("§b氮气 +1 §7（右键 或 空格使用）"), true);
+            }
+        }
+
+        if (this.nitroTicks.isEmpty()) {
+            this.releaseAllNitroIce();
+            return;
+        }
+        for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+            UUID uuid = player.getUuid();
+            Integer left = this.nitroTicks.get(uuid);
+            if (left == null) {
+                continue;
+            }
+            if (left <= 0) {
+                this.nitroTicks.remove(uuid);
+                this.releaseNitroWindow(uuid);
+                continue;
+            }
+            this.applyNitroIce(player);
+            this.nitroTicks.put(uuid, left - 1);
+            if (left % NITRO_PARTICLE_INTERVAL == 0) {
+                ArenaWorld arena = this.match.arenaWorld();
+                if (arena != null) {
+                    arena.spawnParticles(ParticleTypes.CLOUD, player.getX() - Math.sin(Math.toRadians(player.getYaw())) * 1.2,
+                            player.getY() + 0.3, player.getZ() + Math.cos(Math.toRadians(player.getYaw())) * 1.2,
+                            2, 0.1, 0.05, 0.1, 0.01);
+                }
+            }
+            if (this.nitroProbeTicks > 0 && left % 10 == 0) {
+                BoatEntity boat = this.boatOf(player);
+                if (boat != null) {
+                    Vec3d now = boat.getPos();
+                    Vec3d last = this.nitroProbeLastPos.put(uuid, now);
+                    if (last != null) {
+                        // 实测位移才是真速度（velocity 对骑乘中的船没有参考价值）
+                        double perTick = now.distanceTo(last) / 10.0;
+                        LOGGER.info("[PvP] 氮气测速 {}：剩余 {} tick，实测 {} 格/tick（{} 格/秒），"
+                                        + "位置 ({}, {}, {})，氮气方块 {} 格",
+                                player.getGameProfile().getName(), left,
+                                String.format(java.util.Locale.ROOT, "%.3f", perTick),
+                                String.format(java.util.Locale.ROOT, "%.1f", perTick * 20),
+                                (int) Math.floor(now.x), (int) Math.floor(now.y), (int) Math.floor(now.z),
+                                this.nitroIceRestore.size());
+                    }
+                }
+            }
+        }
+        this.refreshNitroIce();
+        if (this.nitroProbeTicks > 0 && --this.nitroProbeTicks <= 0) {
+            LOGGER.info("[PvP] 氮气测速结束");
+        }
+    }
+
+    /**
+     * 铺氮气冰带：把船底（以及前方 {@link #NITRO_ICE_LEAD} 格）的赛道冰面换成氮气方块，
+     * 让<b>客户端自己</b>把船开到更高的极速。
+     *
+     * <p>只记录"这次加速覆盖了哪些格子"，真正的涂/还原交给 {@link #refreshNitroIce()} 按并集统一结算，
+     * 这样多个人同时喷氮气时窗口重叠也不会互相踩。
+     */
+    private void applyNitroIce(ServerPlayerEntity player) {
+        BoatEntity boat = this.boatOf(player);
+        if (boat == null || player.getVehicle() != boat) {
+            this.releaseNitroWindow(player.getUuid());
+            return;
+        }
+        Vec3d velocity = boat.getVelocity();
+        double length = velocity.horizontalLength();
+        double aheadX = length < 0.01 ? -Math.sin(Math.toRadians(boat.getYaw())) : velocity.x / length;
+        double aheadZ = length < 0.01 ? Math.cos(Math.toRadians(boat.getYaw())) : velocity.z / length;
+        Set<Long> window = new HashSet<>();
+        Box base = boat.getBoundingBox().expand(1.0);
+        for (int lead = 0; lead <= NITRO_ICE_LEAD; lead++) {
+            Box box = base.offset(aheadX * lead, 0.0, aheadZ * lead);
+            for (int x = (int) Math.floor(box.minX); x <= (int) Math.floor(box.maxX); x++) {
+                for (int z = (int) Math.floor(box.minZ); z <= (int) Math.floor(box.maxZ); z++) {
+                    window.add(BlockPos.asLong(x, this.track.surfaceY(), z));
+                }
+            }
+        }
+        this.nitroWindows.put(player.getUuid(), window);
+    }
+
+    /**
+     * 把"所有加速玩家窗口的并集"刷成氮气方块，并立刻还原已经被窗口抛弃的格子。
+     *
+     * <p>这是"别人蹭不到"的关键：船一走，身后的格子当 tick 就还原成普通冰面，
+     * 所以跟着你走的人得不到任何加成（只有正好在你前方 2 格以内的人会短暂吃到）。
+     */
+    private void refreshNitroIce() {
+        ArenaWorld arena = this.match.arenaWorld();
+        if (arena == null) {
+            return;
+        }
+        Block nitroBlock = PvPConfig.INSTANCE.getBoatRaceNitroBlock();
+        Block surfaceBlock = PvPConfig.INSTANCE.getBoatRaceSurfaceBlock();
+        Set<Long> union = new HashSet<>();
+        for (Set<Long> window : this.nitroWindows.values()) {
+            union.addAll(window);
+        }
+        // 1) 不再被任何窗口覆盖的 → 立刻还原
+        Iterator<Map.Entry<Long, BlockState>> iterator = this.nitroIceRestore.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Long, BlockState> entry = iterator.next();
+            if (union.contains(entry.getKey())) {
+                continue;
+            }
+            arena.setBlockState(BlockPos.fromLong(entry.getKey()), entry.getValue(), 3);
+            this.nitroIceRefs.remove(entry.getKey());
+            iterator.remove();
+        }
+        // 2) 新进入窗口的 → 换成氮气方块（只动赛道冰面，雪地/护栏/门架不碰）
+        for (Long key : union) {
+            if (this.nitroIceRestore.containsKey(key)) {
+                this.nitroIceRefs.merge(key, 1, Integer::sum);
+                continue;
+            }
+            BlockPos pos = BlockPos.fromLong(key);
+            BlockState current = arena.getBlockState(pos);
+            if (current.isAir() || current.isOf(nitroBlock) || !current.isOf(surfaceBlock)) {
+                continue;
+            }
+            this.nitroIceRestore.put(key, current);
+            this.nitroIceRefs.put(key, 1);
+            arena.setBlockState(pos, nitroBlock.getDefaultState(), 3);
+        }
+    }
+
+    /** 某个玩家不再加速：丢掉他的窗口，下一 tick 统一还原。 */
+    private void releaseNitroWindow(UUID uuid) {
+        this.nitroWindows.remove(uuid);
+    }
+
+    /** 全场都不加速了：还原所有氮气方块。 */
+    private void releaseAllNitroIce() {
+        if (this.nitroWindows.isEmpty() && this.nitroIceRestore.isEmpty()) {
+            return;
+        }
+        this.nitroWindows.clear();
+        this.nitroIceRefs.clear();
+        ArenaWorld arena = this.match.arenaWorld();
+        int restored = 0;
+        if (arena != null) {
+            for (Map.Entry<Long, BlockState> entry : this.nitroIceRestore.entrySet()) {
+                arena.setBlockState(BlockPos.fromLong(entry.getKey()), entry.getValue(), 3);
+                restored++;
+            }
+        }
+        this.nitroIceRestore.clear();
+        if (restored > 0) {
+            LOGGER.info("[PvP] 亦可赛艇 seed {} 氮气冰带已还原 {} 个方块", this.track.seed(), restored);
+        }
+    }
+
+    /** 调试：为某名玩家开一次加速，并打 3 秒测速日志（{@code /pvp debug boatrace nitro}）。 */
+    public boolean debugActivateNitro(ServerPlayerEntity player) {
+        RaceProgressTracker tracker = this.racers.get(player.getUuid());
+        if (tracker == null || !this.started) {
+            return false;
+        }
+        int ticks = Math.max(1, PvPConfig.INSTANCE.boatRaceNitroBoostSeconds) * 20;
+        this.nitroTicks.merge(player.getUuid(), ticks, Integer::sum);
+        this.nitroProbeTicks = ticks + 40;
+        BoatEntity boat = this.boatOf(player);
+        if (boat != null) {
+            this.nitroProbeLastPos.put(player.getUuid(), boat.getPos());
+        }
+        double multiplier = this.nitroSpeedMultiplier();
+        LOGGER.info("[PvP] 氮气测速开始：{}，加速 {} tick（{} 秒）；赛道冰面极速 {} → 氮气极速 {} 格/tick"
+                        + "（{} 格/秒，×{}；氮气方块 = {}）",
+                player.getGameProfile().getName(), ticks, ticks / 20,
+                d2(ICE_TOP_SPEED), d2(ICE_TOP_SPEED * multiplier), d1(ICE_TOP_SPEED * multiplier * 20),
+                formatMultiplier(multiplier), PvPConfig.INSTANCE.boatRaceNitroBlock);
+        return true;
     }
 
     // ==================== 查询（Match 侧边栏 / 结算用） ====================
@@ -732,9 +1210,16 @@ public final class BoatRaceSession {
         return entity != null && !entity.isRemoved() ? entity : null;
     }
 
-    /** 车道两侧门框之间留出的通路是否被门架挡住（调试/测试用）。 */
+    /**
+     * 车道两侧门框之间留出的通路是否被挡（调试/测试用）。
+     *
+     * <p>跳过起终点线：它在 GO 之前本来就立着发车挡板，那是设计的一部分。
+     */
     public boolean gatePathClear(ArenaWorld arena) {
         for (RaceTrack.Checkpoint gate : this.track.checkpoints()) {
+            if (gate.isFinishLine()) {
+                continue;
+            }
             for (double lat = -this.track.halfWidth(); lat <= this.track.halfWidth(); lat += 1.0) {
                 BlockPos pos = new BlockPos(
                         (int) Math.floor(gate.x() + gate.normalX() * lat),

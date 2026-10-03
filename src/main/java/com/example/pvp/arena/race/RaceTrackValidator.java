@@ -78,7 +78,8 @@ public final class RaceTrackValidator {
      */
     public record Result(boolean valid, List<String> problems,
                          double minRadius, double clearance,
-                         double minSpeed, double avgSpeed, double score) {
+                         double minSpeed, double avgSpeed, double score,
+                         double longestStraight, double startStraightLength) {
         public String problemText() {
             return String.join("; ", this.problems);
         }
@@ -97,7 +98,8 @@ public final class RaceTrackValidator {
      */
     public record Limits(double minLength, double maxLength, double targetLength,
                          double minCornerRadius, double minClearance,
-                         double width, double gridDepth) {
+                         double width, double gridDepth,
+                         double minStraightLength) {
     }
 
     /**
@@ -118,7 +120,7 @@ public final class RaceTrackValidator {
                            int directionChanges, double straightFraction,
                            double[] classFraction,
                            double minSpeed, double avgSpeed, double fullThrottleFraction,
-                           double longestStraight) {
+                           double longestStraight, double startStraightLength) {
     }
 
     /**
@@ -273,10 +275,21 @@ public final class RaceTrackValidator {
                     startMinRadius, MIN_START_STRAIGHT_RADIUS));
         }
 
+        // ---- 9. 必须有一条大直道：氮气（1.82 倍极速＝72 格/秒）只能在直道上用，
+        //         没有直道的图这个道具就是废的。起点直道还要单独够长（发车 + 第一条加速跑道）。
+        if (limits.minStraightLength() > 0 && profile.longestStraight() < limits.minStraightLength()) {
+            problems.add(String.format("最长直道 %.0f < %.0f 格（缺少大直道）",
+                    profile.longestStraight(), limits.minStraightLength()));
+        }
+        // 起点直道不单独设硬门槛：发车区已经有 MIN_START_STRAIGHT_RADIUS 兜着，
+        // 而"曲线从哪儿开始算直"在极坐标曲线上是渐变的，再卡一道只会把好图也拒掉。
+        // 大直道落在整圈哪个位置由生成器的取点窗口负责往起点方向偏。
+
         boolean valid = problems.isEmpty();
         double score = valid ? score(track, limits, profile, clearance) : 0;
         return new Result(valid, List.copyOf(problems), profile.minRadius(), clearance,
-                profile.minSpeed(), profile.avgSpeed(), score);
+                profile.minSpeed(), profile.avgSpeed(), score,
+                profile.longestStraight(), profile.startStraightLength());
     }
 
     // ---------- 评分 ----------
@@ -437,7 +450,16 @@ public final class RaceTrackValidator {
         return new Profile(radius, minRadius, totalTurning, directionChanges,
                 straight / (double) n, fraction,
                 minSpeed, sumSpeed / n, fullThrottle / (double) n,
-                longestRun(radius, STRAIGHT_RADIUS));
+                longestRun(radius, STRAIGHT_RADIUS), runFrom(radius, STRAIGHT_RADIUS));
+    }
+
+    /** 从 index 0（起终点线）开始、连续满足 {@code radius >= threshold} 的长度（格）。 */
+    private static double runFrom(double[] radius, double threshold) {
+        int count = 0;
+        while (count < radius.length && radius[count] >= threshold) {
+            count++;
+        }
+        return count * RaceTrack.STEP;
     }
 
     /** 连续满足 {@code radius >= threshold} 的最长段长度（格）。 */

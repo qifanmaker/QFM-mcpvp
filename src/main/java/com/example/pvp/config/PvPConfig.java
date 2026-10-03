@@ -271,8 +271,11 @@ public final class PvPConfig {
     public int boatRaceQueueCountdownSeconds = 30;
     /** 不足开赛人数时等待填充的最长时间（秒），超时按当前人数开赛。 */
     public int boatRaceFillTimeoutSeconds = 60;
-    /** 开赛倒计时（秒）：3-2-1-GO。地图在这段时间的第一帧一次性生成完毕。 */
-    public int boatRaceCountdownSeconds = 3;
+    /**
+     * 开赛倒计时（秒）。地图生成被切成"暂存 → 分帧落盘"，铺图完成之前不会开始数秒，
+     * 所以这 5 秒玩家一定已经站在起跑格位上了（船上，起跑线挡板后面）。
+     */
+    public int boatRaceCountdownSeconds = 5;
     /** 圈数（1~3 手感最好；每圈走同一条赛道）。 */
     public int boatRaceLaps = 3;
     /**
@@ -338,6 +341,56 @@ public final class PvPConfig {
     public int boatRaceOffTrackMargin = 3;
     /** 竞技场区域边长（生成/清理边界；必须 2*size/2 = size < REGION_SPACING 才不串场）。 */
     public int boatRaceSize = 336;
+
+    // ---------- 亦可赛艇：氮气加速 ----------
+    /**
+     * 每隔多少秒补 1 个氮气（只发给比赛进行中、还没冲线的人）。
+     * 默认 15 秒，配合下面的"手上最多 3 个"，一场 3 圈的比赛大约能用 6~8 次。
+     */
+    public int boatRaceNitroIntervalSeconds = 15;
+    /** 手里最多囤几个氮气（防止前半段攒一堆、最后连喷）。 */
+    public int boatRaceNitroMaxStack = 3;
+    /** 一个氮气的加速持续时长（秒）。 */
+    public int boatRaceNitroBoostSeconds = 3;
+    /**
+     * 氮气期间把船底冰面换成什么方块（倍率由方块滑度自动推算，不用手填）。
+     *
+     * <p><b>为什么只能"换方块"、不能"改船速"</b>（这版是实测结论，不是推测）：
+     * 船是被玩家骑的载具，原版 {@code ServerPlayNetworkHandler.onVehicleMove} 每 tick 都
+     * {@code updatePositionAndAngles(客户端上报坐标)} —— 船的位置/速度由<b>客户端权威</b>。
+     * 服务端 {@code setVelocity} 的结果下一 tick 就被丢掉：实测给静止的船持续叠加推力，
+     * 船速始终精确等于"刚加的那一点推力"（0.02 格/tick），既不会累积也推不动船；
+     * 而客户端那侧 {@code onEntityVelocityUpdate -> setVelocityClient} 虽然无条件执行，
+     * 也改不动本机正在驾驶的船。客户端唯一真正读的物理输入是<b>方块滑度</b>。
+     *
+     * <p>倍率由滑度反推：极速 = 推力 / (1 − 滑度)。
+     * 浮冰 0.98 → 2.0 格/tick（40 格/秒）；蓝冰 0.989 → 3.64 格/tick（72.7 格/秒）→
+     * <b>1.82 倍</b>。原版只有这两档，所以能做出来的倍率只有 1.0 与 1.82；
+     * 想要任意倍率（例如 1.6）必须配客户端 Mod。
+     */
+    public String boatRaceNitroBlock = "minecraft:blue_ice";
+    /**
+     * 每张图必须有的"大直道"最小长度（格）。
+     *
+     * <p>不是评分项而是<b>硬性生成要求</b>：校验器会拒掉最长直道不够长的候选（换 seed 重试），
+     * 生成器还会把起终点线钉在大直道头上，所以每张图的<b>发车直道就是大直道</b>。
+     * 原因：氮气把极速抬到 72 格/秒，弯道极限却只有 20~36 格/秒 —— 没有直道这道具就是废的。
+     *
+     * <p><b>当前只能硬性保证 40 格</b>：现有极坐标傅里叶曲线实测的"最长直道"只有
+     * min 40 / avg 83 / max 168 格，把要求往上抬就开始大量兜底成"正圆"（那种图根本没有直道）：
+     *
+     * <pre>
+     *   要求 ≥40  → 兜底  0.0%      要求 ≥80  → 兜底 21.7%
+     *   要求 ≥60  → 兜底  2.0%      要求 ≥90  → 兜底 64.0%
+     *   要求 ≥70  → 兜底  6.7%      要求 ≥100 → 兜底 84.7%
+     * </pre>
+     *
+     * <p>所以这里先取"能 100% 保证"的 40 格（≈ 冰面极速 1 秒、氮气 0.6 秒）。
+     * 要真正做出 110~150 格的<b>大直道</b>，必须换赛道构建方式 ——
+     * 极坐标曲线在数学上做不出长直线段，得改成"直线段 + 圆弧"拼接（见后续计划），
+     * 而不是继续在这里调阈值。
+     */
+    public double boatRaceMinStraightLength = 40.0;
 
     // ---------- 起床战争 (Bed Wars) ----------
     /** 区域覆盖边长（生成/清理边界，需覆盖整张地图；Hypixel 图约 100 格）。 */
@@ -935,6 +988,26 @@ public final class PvPConfig {
             this.boatRaceSize = defaults.boatRaceSize;
             changed = true;
         }
+        if (this.boatRaceNitroIntervalSeconds <= 0) {
+            this.boatRaceNitroIntervalSeconds = defaults.boatRaceNitroIntervalSeconds;
+            changed = true;
+        }
+        if (this.boatRaceNitroMaxStack <= 0) {
+            this.boatRaceNitroMaxStack = defaults.boatRaceNitroMaxStack;
+            changed = true;
+        }
+        if (this.boatRaceNitroBoostSeconds <= 0) {
+            this.boatRaceNitroBoostSeconds = defaults.boatRaceNitroBoostSeconds;
+            changed = true;
+        }
+        if (this.boatRaceMinStraightLength <= 0) {
+            this.boatRaceMinStraightLength = defaults.boatRaceMinStraightLength;
+            changed = true;
+        }
+        if (this.boatRaceNitroBlock == null || this.boatRaceNitroBlock.isBlank()) {
+            this.boatRaceNitroBlock = defaults.boatRaceNitroBlock;
+            changed = true;
+        }
         return changed;
     }
 
@@ -970,6 +1043,12 @@ public final class PvPConfig {
     public Block getBoatRaceBarrierBlock() {
         return parseBlock(this.boatRaceBarrierBlock, Blocks.ICE);
     }
+
+    /** 亦可赛艇：氮气方块（默认蓝冰）。 */
+    public Block getBoatRaceNitroBlock() {
+        return parseBlock(this.boatRaceNitroBlock, Blocks.BLUE_ICE);
+    }
+
 
     private static Block parseBlock(String id, Block fallback) {
         if (id == null) {
