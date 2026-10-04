@@ -32,19 +32,32 @@ import java.util.UUID;
  * 而名字本身 64 格内可见。为了让血条跟名字一样远，改用原版 {@code text_display} 实体：
  * 它是 0×0 碰撞箱的纯展示实体，不挡射线、不参与战斗，而且客户端不需要装本 mod。
  *
- * <p><b>位置靠「骑在玩家身上」，不是每 tick 发坐标包</b>：第一版是服务端自己算世界坐标 +
- * {@code refreshPositionAndAngles}，玩家一走动血条就明显拖在后面（2 tick 一发包 + 客户端 2 tick 插值）。
- * 现在改成 {@code display.startRiding(player)}：乘客的位置由<b>客户端每 tick</b> 用
- * {@code ClientWorld.tickEntity → tickPassenger → vehicle.updatePassengerPosition} 从载具（玩家）
- * 的位置现算——和玩家模型同源、零延迟、零位置包；服务端算的是同一个公式，所以实体跟踪器看不到位移，
- * 连一个移动包都不发。{@code EntityTrackerEntry#tick} 里对 {@code entity.hasVehicle()} 也是直接跳过位置同步。
+ * <p><b>位置靠「骑在玩家身上」，不是每 tick 发坐标包</b>：乘客的位置由客户端<b>自己</b>每 tick 现算 ——
+ * {@code ClientWorld} 的 tick 循环对 {@code hasVehicle()} 的实体走 {@code Entity.tickRiding()}，
+ * 而 {@code tickRiding()} 会回头调用载具的 {@code updatePassengerPosition(this)}；服务端
+ * {@code ServerWorld.tickPassenger} 走的是同一条路。两边都把它摆到 {@code PASSENGER} 附着点
+ * （玩家碰撞箱顶端），所以一个位置包都不需要发。
+ *
+ * <p><b>为什么必须骑乘、不能改成「服务端每 tick setPosition」</b>（两种写法都出现过，骑乘才是对的）：
+ * <ul>
+ *   <li><b>否则玩家会看见自己的名字、挡视线</b>：setPosition 时标签跟着<b>服务端</b>的你，而第一人称
+ *       相机跟着<b>客户端预测</b>的你，两者只在静止时重合。竖直 billboard 的文本平面正好穿过实体自身的
+ *       x/z 竖轴 —— 相机在这根轴上时文字是边缘朝向（看不见），一旦两者分开，平面就转向相机、整块文字
+ *       进入视野；而它离相机只有半格，一进视野就占掉屏幕上沿。骑乘时位置由客户端从载具现算，恒等于
+ *       相机所在的竖轴，文字始终呈边缘朝向 —— 第一人称看不见、F5 正常可见，与原版铭牌行为一致。</li>
+ *   <li><b>否则标签相对玩家模型领先一 tick</b>：{@code DisplayEntity} 收到位置包走的是
+ *       {@code updateTrackedPositionAndAngles → InterpolationTarget → tick() 里 apply + resetPosition()}，
+ *       而 {@code resetPosition()} 会抹掉本 tick 的插值（{@code teleportDuration = 0} 时立即 apply）。
+ *       玩家模型是插值的、标签不插值，标签就沿运动方向领先最多一 tick 的位移并在 20 Hz 来回摆，
+ *       速度越快越明显（竞速里船速可达 1~2 格/tick）。</li>
+ * </ul>
  *
  * <p>用哪一点吸附：{@code EntityAttachmentType.PASSENGER} 对玩家是 {@code (0, 身高, 0)}（碰撞箱顶端，
  * 实测 1.8），而原版铭牌画在 {@code NAME_TAG 附着点 + 0.5}，所以骑上去落在铭牌下方 0.5 格。
  * {@code TextDisplayEntityRenderer} 内部同样是 {@code -0.025} 缩放，所以 transformation scale = 1.0
  * 时字号和原版铭牌一模一样。
  *
- * <p><b>为什么还要往下压 healthTagHeightOffset</b>（反编译 {@code EntityRenderer#renderLabelIfPresent}
+ * <p><b>为什么要抬 healthTagHeightOffset</b>（反编译 {@code EntityRenderer#renderLabelIfPresent}
  * 与 {@code DisplayEntityRenderer$TextDisplayEntityRenderer#render} 对出来的账）：
  * <ul>
  *   <li>显示实体：先 {@code rotateY(π)} 再 {@code scale(-0.025)}，等价于 {@code scale(0.025, -0.025, 0.025)},
@@ -55,14 +68,13 @@ import java.util.UUID;
  *       即 [身高 + 0.275, 身高 + 0.5]。</li>
  * </ul>
  * 中间只剩 {@code 0.275 - 0.25 = 0.025} 格（正好一个字体像素）—— 背景框（左右各外扩 1 像素）
- * 还正好贴死，看着就是和名字糊在一起。所以默认在<b>屏幕方向</b>往下压 0.1 格把两者分开。
+ * 还正好贴死，看着就是和名字糊在一起。所以默认往上抬 {@code healthTagHeightOffset = 0.275} 格，
+ * 让血量行正好落在原姓名标签占的高度上。
  *
- * <p>这个偏移是 billboard 局部坐标：{@code DisplayEntityRenderer#render} 里是
- * {@code push → multiply(billboardRotation) → multiplyPositionMatrix(transformation)}，平移在旋转之后，
- * 而 billboard 的旋转是「相机旋转的逆」（外加 180° 偏航，不影响 Y 轴），所以局部 +Y 恒等于<b>屏幕上方</b>。
- * 副作用：原版铭牌是世界坐标（身高 + 0.5），玩家越往下看，它在屏幕上离头顶越近（{@code ×cos(俯仰)}），
- * 而我们的偏移是屏幕固定的 —— 所以俯仰超过 ~40° 时两者还是会贴近。这是几何上无法规避的，
- * 想彻底避免只能调小 {@code healthTagScale} 让这行字更矮。
+ * <p>这个偏移量是 billboard 局部坐标：{@code DisplayEntityRenderer#render} 里是
+ * {@code push → multiply(billboardRotation) → multiplyPositionMatrix(transformation)}，平移在旋转之后。
+ * 因为用的是 {@code BillboardMode.VERTICAL}（只绕 Y 轴转向相机、不跟随俯仰），局部 +Y 恒等于<b>世界 +Y</b>，
+ * 所以偏移不会随观察者俯仰在屏幕上漂移。要改字号就调 {@code healthTagScale}。
  */
 public final class HealthTagManager {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -155,18 +167,31 @@ public final class HealthTagManager {
         DisplayEntity.TextDisplayEntity display = this.tags.remove(uuid);
         this.lastText.remove(uuid);
         if (display != null) {
+            detachAndDiscard(display);
             this.owned.remove(display.getUuid());
-            if (!display.isRemoved()) {
-                display.discard();
-            }
         }
+    }
+
+    /**
+     * 先把标签从玩家身上摘下来，再销毁。
+     *
+     * <p><b>顺序不能反</b>：{@code text_display} 是<b>可存档</b>实体（{@code EntityType.TEXT_DISPLAY}
+     * 注册时没有 {@code disableSaving()}，{@code EntityType.Builder} 的 saveable 默认为 true），
+     * 而 {@code Entity#writeNbt} 会把乘客写进载具的 {@code Passengers} NBT。直接 discard 的话
+     * 玩家 playerdata 里会留一条指向已销毁实体的乘客记录，下次登录又把它加载出来变孤儿
+     * （虽然 {@link #handleEntityLoad} 能兜住，但没必要制造这种垃圾）。
+     */
+    private static void detachAndDiscard(DisplayEntity.TextDisplayEntity display) {
+        if (display == null || display.isRemoved()) {
+            return;
+        }
+        display.stopRiding(); // 没有载具时是空操作
+        display.discard();
     }
 
     public void clearAll() {
         for (DisplayEntity.TextDisplayEntity display : this.tags.values()) {
-            if (display != null && !display.isRemoved()) {
-                display.discard();
-            }
+            detachAndDiscard(display);
         }
         this.tags.clear();
         this.owned.clear();
@@ -209,9 +234,10 @@ public final class HealthTagManager {
         DisplayEntity.TextDisplayEntity display = this.tags.get(uuid);
         // 两种情况下手上的实体已经没用了：被竞技场清场 discard 掉了，或者玩家换维度后它留在了旧世界
         if (display != null && (display.isRemoved() || display.getWorld() != world)) {
-            if (!display.isRemoved()) {
-                display.discard();
-            }
+            detachAndDiscard(display);
+            // 旧 UUID 也要从 owned 里摘掉：每次清场/换维度都会换一个新实体，
+            // 不清的话这个集合只增不减（它对孤儿判定没影响，但会一直涨）
+            this.owned.remove(display.getUuid());
             this.tags.remove(uuid);
             this.lastText.remove(uuid);
             display = null;
@@ -224,8 +250,18 @@ public final class HealthTagManager {
             this.tags.put(uuid, display);
         }
 
-        // 不挂载在玩家上：服务端每 tick 同步独立实体的位置，包含本地玩家的预测移动。
-        display.setPosition(player.getX(), player.getY() + player.getHeight(), player.getZ());
+        // 位置交给载具：客户端每 tick 用 tickRiding → updatePassengerPosition 现算，服务端走
+        // ServerWorld.tickPassenger 同一条路，所以正常情况下这里一个字都不用写。
+        // 只在乘客关系掉了的时候补一次 —— 换维度、玩家重生换了实体实例、原版 removeAllPassengers
+        // 等都会让 getVehicle() 对不上。
+        if (display.getVehicle() != player) {
+            display.stopRiding(); // 先干净地离开旧载具，避免同时挂在两张乘客表里
+            // 骑不上（例如 canStartRiding 因为潜行返回 false）就退回逐 tick 硬同步：
+            // 宁可退化成"自己能看见自己"，也不能把标签永久冻在生成点。
+            if (!display.startRiding(player, true)) {
+                display.setPosition(player.getX(), player.getY() + player.getHeight(), player.getZ());
+            }
+        }
 
         if (!updateText) {
             return;
@@ -286,6 +322,12 @@ public final class HealthTagManager {
             this.owned.remove(display.getUuid());
             LOGGER.warn("[PvP] 生成血量标签实体失败: {}", player.getGameProfile().getName());
             return null;
+        }
+        // 骑到玩家身上：此后位置全部由载具的 updatePassengerPosition 负责（见类注释）。
+        // 用 force=true —— 玩家潜行时 canStartRiding 会返回 false，但不该因此让血条消失。
+        // 这里失败也不致命：refresh() 每 tick 还会重试，失败时退回硬同步。
+        if (!display.startRiding(player, true)) {
+            LOGGER.warn("[PvP] 血量标签未能骑上玩家，退回逐 tick 硬同步: {}", player.getGameProfile().getName());
         }
         return display;
     }
