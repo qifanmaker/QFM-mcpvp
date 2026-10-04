@@ -2,11 +2,18 @@ package com.example.pvp.hud;
 
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.mixin.DisplayEntityInvoker;
+import com.example.pvp.mixin.EntityS2CPacketAccessor;
 import com.example.pvp.mixin.TextDisplayEntityInvoker;
 import com.mojang.logging.LogUtils;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.decoration.DisplayEntity;
+import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.EntitiesDestroyS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityPositionS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityTrackerUpdateS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -32,28 +39,24 @@ import java.util.UUID;
  * 而名字本身 64 格内可见。为了让血条跟名字一样远，改用原版 {@code text_display} 实体：
  * 它是 0×0 碰撞箱的纯展示实体，不挡射线、不参与战斗，而且客户端不需要装本 mod。
  *
- * <p><b>位置靠「骑在玩家身上」，不是每 tick 发坐标包</b>：乘客的位置由客户端<b>自己</b>每 tick 现算 ——
- * {@code ClientWorld} 的 tick 循环对 {@code hasVehicle()} 的实体走 {@code Entity.tickRiding()}，
- * 而 {@code tickRiding()} 会回头调用载具的 {@code updatePassengerPosition(this)}；服务端
- * {@code ServerWorld.tickPassenger} 走的是同一条路。两边都把它摆到 {@code PASSENGER} 附着点
- * （玩家碰撞箱顶端），所以一个位置包都不需要发。
+ * <p><b>位置由服务端每 tick 推</b>：{@code refresh()} 把实体摆到玩家碰撞箱顶端。这条路径依赖位置包
+ * 正常下发 —— 实体<b>没有载具</b>时 {@code EntityTrackerEntry} 才会同步它的位置。
  *
- * <p><b>为什么必须骑乘、不能改成「服务端每 tick setPosition」</b>（两种写法都出现过，骑乘才是对的）：
- * <ul>
- *   <li><b>否则玩家会看见自己的名字、挡视线</b>：setPosition 时标签跟着<b>服务端</b>的你，而第一人称
- *       相机跟着<b>客户端预测</b>的你，两者只在静止时重合。竖直 billboard 的文本平面正好穿过实体自身的
- *       x/z 竖轴 —— 相机在这根轴上时文字是边缘朝向（看不见），一旦两者分开，平面就转向相机、整块文字
- *       进入视野；而它离相机只有半格，一进视野就占掉屏幕上沿。骑乘时位置由客户端从载具现算，恒等于
- *       相机所在的竖轴，文字始终呈边缘朝向 —— 第一人称看不见、F5 正常可见，与原版铭牌行为一致。</li>
- *   <li><b>否则标签相对玩家模型领先一 tick</b>：{@code DisplayEntity} 收到位置包走的是
- *       {@code updateTrackedPositionAndAngles → InterpolationTarget → tick() 里 apply + resetPosition()}，
- *       而 {@code resetPosition()} 会抹掉本 tick 的插值（{@code teleportDuration = 0} 时立即 apply）。
- *       玩家模型是插值的、标签不插值，标签就沿运动方向领先最多一 tick 的位移并在 20 Hz 来回摆，
- *       速度越快越明显（竞速里船速可达 1~2 格/tick）。</li>
- * </ul>
+ * <p><b>试过但行不通的方案：让标签骑在玩家身上</b>（{@code startRiding(player, true)}）。理论上两个好处 ——
+ * 乘客位置由客户端从载具现算（第一人称时恒等于相机所在的竖轴，文字呈边缘朝向、自己看不见），
+ * 且完全不依赖位置包。实测结果是标签<b>冻结在生成点一动不动</b>：只要实体有了载具，
+ * {@code EntityTrackerEntry} 就不再发它的位置包，客户端把标签画在哪儿就完全取决于"这个玩家多了个乘客"
+ * 那条 {@code EntityPassengersSetS2CPacket} 是否被接收并生效；实测客户端并没有把它当成乘客，
+ * 于是服务端一直在正确跟随、玩家画面里却停在原地，而且再没有任何包能把它纠正回来。
+ * 所以位置改回服务端驱动。（同样的原因：这条路上"没收到同步包"没有任何自愈手段。）
  *
- * <p>用哪一点吸附：{@code EntityAttachmentType.PASSENGER} 对玩家是 {@code (0, 身高, 0)}（碰撞箱顶端，
- * 实测 1.8），而原版铭牌画在 {@code NAME_TAG 附着点 + 0.5}，所以骑上去落在铭牌下方 0.5 格。
+ * <p><b>「自己看不见自己的名字」改用不发包解决</b>：既然没法靠骑乘让文字对自己呈边缘朝向，
+ * 就干脆<b>不把标签实体发给本人</b> —— {@link #shouldHideOwnTag} 在
+ * {@code ServerPlayNetworkHandler.sendPacket} 上拦掉属于该玩家自己的标签实体包。代价是 F5 也看不到
+ * 自己的标签（原版 F5 能看见），换来的是"第一人称绝不挡视线"，而且完全不依赖客户端行为。
+ *
+ * <p>用哪一点定位：{@code EntityAttachmentType.PASSENGER} 对玩家是 {@code (0, 身高, 0)}（碰撞箱顶端，
+ * 实测 1.8），而原版铭牌画在 {@code NAME_TAG 附着点 + 0.5}，所以标签落在铭牌下方 0.5 格。
  * {@code TextDisplayEntityRenderer} 内部同样是 {@code -0.025} 缩放，所以 transformation scale = 1.0
  * 时字号和原版铭牌一模一样。
  *
@@ -162,36 +165,79 @@ public final class HealthTagManager {
         }
     }
 
+    /**
+     * 这个包要不要对该玩家拦掉（因为它是该玩家自己的血量标签实体的包）。
+     *
+     * <p>用途：方案 A —— 标签实体照常发给其他所有人，唯独不发给它服务的那位玩家自己，
+     * 这样第一人称就不会有一块贴脸的名字/血量挡住视野。
+     *
+     * <p>必须拦掉 {@code EntitySpawnS2CPacket}（客户端一旦不知道这个实体，后面所有针对它的包都会被
+     * 当成未知 id 丢掉）；其余几类是顺手省带宽：位置/相对移动是每 tick 都在发的，
+     * 文本更新与销毁包也一并不发，免得给一个客户端根本不知道的实体白白发包。
+     *
+     * <p>这个方法在每个出站包上都会被调用一次，所以前面只做"该玩家有没有标签"这一次哈希查找，
+     * 类型判断全部放在后面。
+     */
+    public static boolean shouldHideOwnTag(Packet<?> packet, ServerPlayerEntity viewer) {
+        HealthTagManager manager = instance;
+        if (manager == null || viewer == null) {
+            return false;
+        }
+        DisplayEntity.TextDisplayEntity own = manager.tags.get(viewer.getUuid());
+        if (own == null) {
+            return false;
+        }
+        int id = own.getId();
+        // 销毁包一次带多个 id，单独判
+        if (packet instanceof EntitiesDestroyS2CPacket destroy) {
+            return destroy.getEntityIds().contains(id);
+        }
+        return tagEntityIdOf(packet) == id;
+    }
+
+    /** 这个包携带的实体 id（与血量标签无关的包一律返回 -1；实体 id 不会是负数）。 */
+    private static int tagEntityIdOf(Packet<?> packet) {
+        if (packet instanceof EntitySpawnS2CPacket spawn) {
+            return spawn.getEntityId();
+        }
+        if (packet instanceof EntityPositionS2CPacket position) {
+            return position.getEntityId();
+        }
+        if (packet instanceof EntityS2CPacket relative) {
+            return ((EntityS2CPacketAccessor) relative).pvp$getEntityId();
+        }
+        if (packet instanceof EntityTrackerUpdateS2CPacket trackerUpdate) {
+            return trackerUpdate.id();
+        }
+        return -1;
+    }
+
     /** 玩家掉线：实体跟着走（否则会留在原地当孤儿）。 */
     public void remove(UUID uuid) {
         DisplayEntity.TextDisplayEntity display = this.tags.remove(uuid);
         this.lastText.remove(uuid);
         if (display != null) {
-            detachAndDiscard(display);
+            discardTag(display);
             this.owned.remove(display.getUuid());
         }
     }
 
     /**
-     * 先把标签从玩家身上摘下来，再销毁。
+     * 销毁标签实体。
      *
-     * <p><b>顺序不能反</b>：{@code text_display} 是<b>可存档</b>实体（{@code EntityType.TEXT_DISPLAY}
-     * 注册时没有 {@code disableSaving()}，{@code EntityType.Builder} 的 saveable 默认为 true），
-     * 而 {@code Entity#writeNbt} 会把乘客写进载具的 {@code Passengers} NBT。直接 discard 的话
-     * 玩家 playerdata 里会留一条指向已销毁实体的乘客记录，下次登录又把它加载出来变孤儿
-     * （虽然 {@link #handleEntityLoad} 能兜住，但没必要制造这种垃圾）。
+     * <p>{@code text_display} 是<b>可存档</b>实体（{@code EntityType.TEXT_DISPLAY} 注册时没有
+     * {@code disableSaving()}），所以它会随区块写进存档 —— 正常关服路径由
+     * {@link #onServerStopping()} 提前拆掉，硬杀留下的残骸由 {@link #handleEntityLoad} 清。
      */
-    private static void detachAndDiscard(DisplayEntity.TextDisplayEntity display) {
-        if (display == null || display.isRemoved()) {
-            return;
+    private static void discardTag(DisplayEntity.TextDisplayEntity display) {
+        if (display != null && !display.isRemoved()) {
+            display.discard();
         }
-        display.stopRiding(); // 没有载具时是空操作
-        display.discard();
     }
 
     public void clearAll() {
         for (DisplayEntity.TextDisplayEntity display : this.tags.values()) {
-            detachAndDiscard(display);
+            discardTag(display);
         }
         this.tags.clear();
         this.owned.clear();
@@ -242,7 +288,7 @@ public final class HealthTagManager {
         DisplayEntity.TextDisplayEntity display = this.tags.get(uuid);
         // 两种情况下手上的实体已经没用了：被竞技场清场 discard 掉了，或者玩家换维度后它留在了旧世界
         if (display != null && (display.isRemoved() || display.getWorld() != world)) {
-            detachAndDiscard(display);
+            discardTag(display);
             // 旧 UUID 也要从 owned 里摘掉：每次清场/换维度都会换一个新实体，
             // 不清的话这个集合只增不减（它对孤儿判定没影响，但会一直涨）
             this.owned.remove(display.getUuid());
@@ -258,18 +304,10 @@ public final class HealthTagManager {
             this.tags.put(uuid, display);
         }
 
-        // 位置交给载具：客户端每 tick 用 tickRiding → updatePassengerPosition 现算，服务端走
-        // ServerWorld.tickPassenger 同一条路，所以正常情况下这里一个字都不用写。
-        // 只在乘客关系掉了的时候补一次 —— 换维度、玩家重生换了实体实例、原版 removeAllPassengers
-        // 等都会让 getVehicle() 对不上。
-        if (display.getVehicle() != player) {
-            display.stopRiding(); // 先干净地离开旧载具，避免同时挂在两张乘客表里
-            // 骑不上（例如 canStartRiding 因为潜行返回 false）就退回逐 tick 硬同步：
-            // 宁可退化成"自己能看见自己"，也不能把标签永久冻在生成点。
-            if (!display.startRiding(player, true)) {
-                display.setPosition(player.getX(), player.getY() + player.getHeight(), player.getZ());
-            }
-        }
+        // 位置由服务端每 tick 推。必须保证这个实体"没有载具" —— 一旦挂上载具，
+        // EntityTrackerEntry 就不再同步它的位置，客户端画在哪儿全看那条乘客同步包有没有生效，
+        // 而实测客户端不会把它当乘客，结果是标签冻在生成点（见类注释）。
+        display.setPosition(player.getX(), player.getY() + player.getHeight(), player.getZ());
 
         if (!updateText) {
             return;
@@ -330,12 +368,6 @@ public final class HealthTagManager {
             this.owned.remove(display.getUuid());
             LOGGER.warn("[PvP] 生成血量标签实体失败: {}", player.getGameProfile().getName());
             return null;
-        }
-        // 骑到玩家身上：此后位置全部由载具的 updatePassengerPosition 负责（见类注释）。
-        // 用 force=true —— 玩家潜行时 canStartRiding 会返回 false，但不该因此让血条消失。
-        // 这里失败也不致命：refresh() 每 tick 还会重试，失败时退回硬同步。
-        if (!display.startRiding(player, true)) {
-            LOGGER.warn("[PvP] 血量标签未能骑上玩家，退回逐 tick 硬同步: {}", player.getGameProfile().getName());
         }
         return display;
     }

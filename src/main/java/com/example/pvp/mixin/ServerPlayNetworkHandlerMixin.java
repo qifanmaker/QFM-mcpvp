@@ -18,6 +18,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 它不经过准星判定、按住 W 也照发；船又用不到跳跃键，所以空格是最稳的触发键。
  *
  * <p>注入在 TAIL：原版 {@code updateInput} 先照常执行（车辆物理还依赖它），我们只旁听一份。
+ *
+ * <p>注：血量标签拦出站包的那段注入不在这里 —— {@code sendPacket} 声明在父类
+ * {@code ServerCommonNetworkHandler} 上，而 Mixin 不会去父类找 {@code @Inject} 目标，
+ * 所以单独放在 {@link ServerCommonNetworkHandlerMixin}。
  */
 @Mixin(ServerPlayNetworkHandler.class)
 public abstract class ServerPlayNetworkHandlerMixin {
