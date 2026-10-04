@@ -912,7 +912,12 @@ public final class Match {
             return; // 场地未就绪，下一 tick 再试
         }
         this.skywarsChestRefilled = true;
-        SkyWarsMapGenerator.refillChests(arena, this.skywarsLayout, this.skywarsTheme, this.players);
+        int[] chestStats = SkyWarsMapGenerator.refillChests(arena, this.skywarsLayout, this.skywarsTheme,
+                this.players);
+        // 自检：补货前"已有物资"的箱子数应该 > 0（说明开局那次装填是成功的）；
+        // 恒为 0 就说明开局装填没生效，箱子是空的
+        LOGGER.info("[PvP] 比赛 #{} 空岛箱子补货：找到 {} 个箱子，其中 {} 个补货前已有物资",
+                this.id, chestStats[0], chestStats[1]);
         this.broadcastTitleBig("§6§l物资刷新！", "§f全图箱子已重置新物资");
         this.broadcast(Text.literal("§e[空岛战争] §f" + (cfg.skywarsRefillSeconds / 60) + " 分钟已到，所有箱子物资已刷新！"));
     }

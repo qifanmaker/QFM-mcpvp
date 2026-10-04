@@ -220,25 +220,34 @@ public final class SkyWarsMapGenerator {
      *
      * @param players 本场原始玩家列表（重新计算弱势补偿，结果与生成时一致）
      */
-    public static void refillChests(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
-                                    List<ServerPlayerEntity> players) {
+    /**
+     * 定时补货。
+     *
+     * @return {@code {找到的箱子数, 补货前就已经有物资的箱子数}}。第二个数是个很有用的自检：
+     *         正常情况下开局那次装填已经把箱子塞满了，所以第一次补货时它应该 &gt; 0；
+     *         如果恒为 0，说明"开局装填"没生效（历史上空岛箱子变空就是这个原因）。
+     */
+    public static int[] refillChests(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
+                                     List<ServerPlayerEntity> players) {
         if (world == null || layout == null) {
-            return;
+            return new int[]{0, 0};
         }
         int[] handicaps = players == null ? new int[0] : SkyWarsLoot.handicapForMatch(players);
+        int[] stats = new int[2];
 
         List<SkyWarsLayout.Island> spawnIslands = layout.spawnIslands();
         for (int i = 0; i < spawnIslands.size(); i++) {
-            refillIslandChests(world, spawnIslands.get(i), false, false, theme, handicapAt(handicaps, i));
+            refillIslandChests(world, spawnIslands.get(i), false, false, theme, handicapAt(handicaps, i), stats);
         }
         List<SkyWarsLayout.Island> midIslands = layout.midIslands();
         for (int i = 0; i < midIslands.size(); i++) {
-            refillIslandChests(world, midIslands.get(i), false, false, theme, handicapAt(handicaps, i));
+            refillIslandChests(world, midIslands.get(i), false, false, theme, handicapAt(handicaps, i), stats);
         }
         List<SkyWarsLayout.Island> middleIslands = layout.middleIslands();
         for (int i = 0; i < middleIslands.size(); i++) {
-            refillIslandChests(world, middleIslands.get(i), true, i == 0, theme, 0);
+            refillIslandChests(world, middleIslands.get(i), true, i == 0, theme, 0, stats);
         }
+        return stats;
     }
 
     private static int handicapAt(int[] handicaps, int i) {
@@ -246,11 +255,15 @@ public final class SkyWarsMapGenerator {
     }
 
     private static void refillIslandChests(ArenaWorld world, SkyWarsLayout.Island island, boolean middle,
-                                           boolean ring, SkyWarsTheme theme, int handicap) {
+                                           boolean ring, SkyWarsTheme theme, int handicap, int[] stats) {
         for (int i = 0; i < island.chests().size(); i++) {
             BlockPos pos = islandChestPos(island, i, middle, ring, theme);
             BlockEntity be = world.getBlockEntity(pos);
             if (be instanceof ChestBlockEntity chest) {
+                stats[0]++;
+                if (!chest.isEmpty()) {
+                    stats[1]++;
+                }
                 chest.clear(); // 清空旧物资，再重新塞满全新随机战利品
                 SkyWarsLoot.populate(chest, middle, handicap);
             }

@@ -1,6 +1,7 @@
 package com.example.pvp.arena;
 
 import com.example.pvp.mixin.MinecraftServerAccess;
+import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
@@ -90,6 +91,33 @@ public class ArenaWorld extends ServerWorld {
     }
 
     // ==================== 世界读写拦截 ====================
+
+    /**
+     * 暂存期间读取方块实体：方块还没真正写进世界，所以 vanilla 只会返回 null，
+     * 而生成器普遍依赖"放完箱子立刻拿它的 block entity 塞战利品"
+     * （空岛箱子变空就是这么来的）。这里按暂存状态现造一个并登记进队列，
+     * 落盘时随方块一起写进世界，内容（战利品/库存）不会丢。
+     */
+    @Override
+    public BlockEntity getBlockEntity(BlockPos pos) {
+        MapBuildQueue queue = this.staging;
+        if (queue != null && queue.inRegion(pos)) {
+            BlockEntity staged = queue.blockEntityAt(pos);
+            if (staged != null) {
+                return staged;
+            }
+            BlockState state = queue.peek(pos);
+            if (state != null && state.getBlock() instanceof BlockEntityProvider provider) {
+                BlockEntity created = provider.createBlockEntity(pos, state);
+                if (created != null) {
+                    queue.deferBlockEntity(created);
+                    return created;
+                }
+            }
+            return null;
+        }
+        return super.getBlockEntity(pos);
+    }
 
     @Override
     public boolean setBlockState(BlockPos pos, BlockState state, int flags, int maxUpdateDepth) {

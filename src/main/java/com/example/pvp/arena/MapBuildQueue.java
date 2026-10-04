@@ -123,7 +123,30 @@ public final class MapBuildQueue {
                 && Math.abs(pos.getZ() - this.centerZ) <= this.halfExtent;
     }
 
+    /**
+     * 暂存期间"取用"方块实体：生成器常见的写法是
+     * {@code setBlockState(箱子) -> getBlockEntity(pos) -> 塞战利品}，
+     * 但暂存时方块还没进世界，vanilla 那边根本没有 block entity。
+     * 所以这里按暂存状态现造一个并登记，落盘时再真正写进世界。
+     */
+    public BlockEntity blockEntityAt(BlockPos pos) {
+        for (BlockEntity blockEntity : this.blockEntities) {
+            if (blockEntity.getPos().equals(pos)) {
+                return blockEntity;
+            }
+        }
+        return null;
+    }
+
     public void deferBlockEntity(BlockEntity blockEntity) {
+        // 同一坐标只保留最后登记的那一个：上面"现造"和生成器显式的 addBlockEntity
+        // 可能都登记一次，去重避免同一格落盘两遍、也保证后填的内容不被旧实例覆盖。
+        for (int i = this.blockEntities.size() - 1; i >= 0; i--) {
+            if (this.blockEntities.get(i).getPos().equals(blockEntity.getPos())) {
+                this.blockEntities.set(i, blockEntity);
+                return;
+            }
+        }
         this.blockEntities.add(blockEntity);
     }
 
