@@ -260,6 +260,8 @@ public final class BoatRaceSession {
             this.match.cancelMatch("竞技场世界未就绪");
             return;
         }
+        // 摆位之前先把区域里的船扫干净：绝不带着上一局/抖动漏下的空船开局
+        this.sweepStrayBoats(arena);
         for (ServerPlayerEntity player : this.match.onlineParticipants()) {
             if (!this.racers.containsKey(player.getUuid())) {
                 this.racers.put(player.getUuid(), new RaceProgressTracker(this.track, this.laps));
@@ -1306,7 +1308,24 @@ public final class BoatRaceSession {
         player.startRiding(boat, true);
     }
 
+    /**
+     * 收掉玩家当前这条船。
+     *
+     * <p>这里踩过一个坑：原来先 {@code boats.remove(uuid)}，为 null 就直接 return，
+     * 而 {@code findEntity}（{@code arena.getEntity(uuid)}）又会偶尔查不到刚 spawn 的实体 ——
+     * 两个早退加起来的结果是"旧船根本没被移除"，于是地上留下一条<b>空船</b>。
+     * 倒计时抖动那几 tick 每次漏一条，开局就能看到玩家身后躺着好几条空船（实测 4 条）。
+     *
+     * <p>所以现在<b>先处理玩家实际骑着的那条</b>（不依赖任何查找表），
+     * 再兜底处理登记过的那条；任何一条都不允许被静默跳过。
+     */
     private void discardBoat(ServerPlayerEntity player) {
+        // 1) 玩家正骑着的船：这是最可靠的来源，不查表
+        if (player.getVehicle() instanceof BoatEntity ridden && !ridden.isRemoved()) {
+            player.stopRiding();
+            ridden.discard();
+        }
+        // 2) 登记过的船（可能不是他骑着的那条，也可能是没骑上的）
         UUID boatId = this.boats.remove(player.getUuid());
         if (boatId == null) {
             return;
@@ -1318,6 +1337,31 @@ public final class BoatRaceSession {
             }
             entity.discard();
         }
+    }
+
+    /**
+     * 清掉本场区域里所有"不属于本场登记船"的船（上一局残留、抖动漏掉的空船、
+     * 玩家自己放的等等）。
+     *
+     * <p>这是"开局身后躺着几条空船"的最后一道保险：不管历史上哪个环节漏了，
+     * 开局摆位之前先把区域里的船扫干净，就不会出现"还没出发就一堆空船挡在后面"。
+     * 清到东西会打 WARN —— 正常应该是 0，不为 0 就说明上游还有路径在漏船。
+     */
+    private int sweepStrayBoats(ArenaWorld arena) {
+        double half = PvPConfig.INSTANCE.boatRaceSize / 2.0;
+        Box box = new Box(
+                this.track.centerX() - half, arena.getBottomY(), this.track.centerZ() - half,
+                this.track.centerX() + half, arena.getTopY(), this.track.centerZ() + half);
+        List<BoatEntity> strays = arena.getEntitiesByClass(BoatEntity.class, box,
+                boat -> !this.boats.containsValue(boat.getUuid()));
+        for (BoatEntity boat : strays) {
+            boat.discard();
+        }
+        if (!strays.isEmpty()) {
+            LOGGER.warn("[PvP] 亦可赛艇：开局清扫掉 {} 条残留空船（上游有路径漏掉了 discardBoat）",
+                    strays.size());
+        }
+        return strays.size();
     }
 
     private BoatEntity boatOf(ServerPlayerEntity player) {
