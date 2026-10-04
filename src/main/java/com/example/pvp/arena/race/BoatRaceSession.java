@@ -91,6 +91,11 @@ public final class BoatRaceSession {
     private static final double ICE_SLIPPERINESS = 0.98;
     /** 冰面极速（格/tick）。 */
     private static final double ICE_TOP_SPEED = BOAT_THRUST / (1.0 - ICE_SLIPPERINESS);
+    /** 起跑格位上方要保证为空气的格数（船高不到 1 格，留 3 格足够）。 */
+    private static final int GRID_HEADROOM = 3;
+    /** 重新摆位的冷却（tick）：避免"查不到船"这类瞬态导致每 tick discard+respawn 抖动。 */
+    private static final long GRID_REPLACE_COOLDOWN = 10L;
+
     /** 加速期间每隔多少 tick 冒一次粒子（别每 tick 都发包）。 */
     private static final int NITRO_PARTICLE_INTERVAL = 4;
     /**
@@ -135,6 +140,8 @@ public final class BoatRaceSession {
     private final Map<UUID, Vec3d> nitroProbeLastPos = new HashMap<>();
     /** 玩家 → 上一 tick 是否按着空格（用于取"按下"的上升沿，实现空格喷氮气）。 */
     private final Map<UUID, Boolean> jumpHeld = new HashMap<>();
+    /** 玩家 → 允许下次"重新摆位"的最早 tick（防抖动）。 */
+    private final Map<UUID, Long> gridReplaceAt = new HashMap<>();
     /** 玩家 → 他这次加速当前覆盖的方块（每一格都带引用计数，多人重叠时不会互相踩）。 */
     private final Map<UUID, Set<Long>> nitroWindows = new HashMap<>();
     /** 方块 → 原方块；key 存在即表示"这格现在是我们涂的氮气方块"。 */
@@ -260,6 +267,17 @@ public final class BoatRaceSession {
             this.placeOnGrid(player);
         }
 
+        if (!this.racers.isEmpty()) {
+            ServerPlayerEntity first = this.match.onlineParticipants().stream().findFirst().orElse(null);
+            if (first != null) {
+                BoatEntity boat = this.boatOf(first);
+                LOGGER.info("[PvP] 亦可赛艇 seed {} 起跑检查：玩家 y={} 船 y={}（冰面 Y={}）",
+                        this.track.seed(),
+                        String.format(java.util.Locale.ROOT, "%.3f", first.getY()),
+                        boat == null ? "无船" : String.format(java.util.Locale.ROOT, "%.3f", boat.getY()),
+                        this.track.surfaceY());
+            }
+        }
         this.match.broadcastToMatch(Messages.gold("🏁 亦可赛艇 —— 驾驶原版船，在随机冰面赛道上跑 "
                 + this.laps + " 圈！"));
         this.match.broadcastToMatch(Messages.info("赛道：长 §e" + Math.round(this.track.length())
@@ -293,16 +311,57 @@ public final class BoatRaceSession {
             if (slot == null) {
                 continue;
             }
-            BoatEntity boat = this.boatOf(player);
-            if (boat == null) {
-                // 船没了（被炸/被顶掉/实体还没进世界）→ 重新发一条并上船
-                this.placeOnGrid(player);
+            // 判据用"玩家此刻是否骑着一条活着的船"，**不要**用 UUID 查表：
+            // arena.getEntity(uuid) 有偶发查不到的时刻（实体刚 spawn、区块/查找表还没跟上），
+            // 一旦据此判定"船丢了"，就会每 tick 把船 discard 再 respawn ——
+            // 而每次 discard 都要 stopRiding() 重新安置玩家位置，
+            // 这正是"开局有概率被卡在地里一格深"的来源。
+            if (player.getVehicle() instanceof BoatEntity ridden && !ridden.isRemoved()) {
+                this.fixStuckOnGrid(player, ridden);
                 continue;
             }
-            if (player.getVehicle() != boat) {
+            // 没骑船：先看能不能找回原来那条并塞回去；确实找不到才重新摆位，且加冷却防抖动
+            BoatEntity boat = this.boatOf(player);
+            if (boat != null) {
                 player.startRiding(boat, true);
+                this.fixStuckOnGrid(player, boat);
+                continue;
             }
+            if (this.match.matchTicks() < this.gridReplaceAt.getOrDefault(player.getUuid(), 0L)) {
+                continue;
+            }
+            this.gridReplaceAt.put(player.getUuid(), this.match.matchTicks() + GRID_REPLACE_COOLDOWN);
+            this.placeOnGrid(player);
         }
+    }
+
+    /**
+     * 倒计时期间的自愈兜底：只要玩家或他的船陷到冰面以下，就原地重新摆一次。
+     *
+     * <p>背景：开局有低概率"被卡在地里一格深"——船生成/上船时序和方块占位组合出来的偶发状态，
+     * 一旦发生，船在方块里靠物理是推不出来的，玩家只能等回位，体验极差。
+     * 与其赌它不复现，不如倒计时期间每 tick 花一次 Y 比较把它兜住：
+     * 发现陷下去就清格位上方 + 重新传送 + 重新发船，并打 WARN 留证据。
+     *
+     * <p>注意只在<b>倒计时</b>里做（发车后玩家在地面以下属于正常驾驶，交给回位逻辑），
+     * 所以不会干扰比赛。
+     */
+    private void fixStuckOnGrid(ServerPlayerEntity player, BoatEntity boat) {
+        // 船必须正好停在冰面之上（surfaceY + 1）。
+        // 玩家不能用绝对 Y 判：正常骑在船上时玩家 Y 是 boatY - 0.412（约 100.588），
+        // 那是"腿在船舱里"的正常姿态，不是陷地；只有比自己的船还低一大截才算异常。
+        double expected = this.track.surfaceY() + 1.0;
+        boolean boatStuck = boat.getY() < expected - 0.01;
+        boolean playerBelowBoat = player.getY() < boat.getY() - 0.6;
+        if (!boatStuck && !playerBelowBoat) {
+            return;
+        }
+        LOGGER.warn("[PvP] 亦可赛艇：检测到 {} 起跑陷进地面（玩家 y={} 船 y={}，船应在 {}），已重新摆位",
+                player.getGameProfile().getName(),
+                String.format(java.util.Locale.ROOT, "%.3f", player.getY()),
+                String.format(java.util.Locale.ROOT, "%.3f", boat.getY()),
+                String.format(java.util.Locale.ROOT, "%.3f", expected));
+        this.placeOnGrid(player);
     }
 
     /** GO：撤掉起跑线挡板，然后开始计时。 */
@@ -1157,10 +1216,76 @@ public final class BoatRaceSession {
         player.changeGameMode(GameMode.SURVIVAL);
         player.setInvulnerable(true);
         double y = this.track.surfaceY() + 1.0;
+        // 格位上方必须全是空气。赛道本身铺完时应该是空的，但只要有**任何**东西占了那一格
+        // （上一局残留、环境装饰长到跑道上、异常方块…），船就会连人一起生成在方块内部，
+        // 表现就是"开局卡在地里一格深"（船在方块里，物理推不出来，只能等回位）。
+        // 所以上船前主动清一遍格位上方 —— 只清 surfaceY 以上，脚下的冰面一格都不动。
+        int cleared = this.clearGridHeadroom(arena, slot);
         player.teleport(arena, slot.x(), y, slot.z(), slot.yaw(), 0.0F);
         player.setVelocity(Vec3d.ZERO);
         player.currentScreenHandler.sendContentUpdates();
         this.spawnBoatFor(player, slot.x(), y, slot.z(), slot.yaw());
+        // 自检：连人带船都得在冰面之上，否则把现场打进日志（含该格实际方块）
+        this.checkGridClearance(arena, player, slot, cleared);
+    }
+
+    /**
+     * 清掉起跑格位上方 3 格的方块（按船的实际占位算 2×2 列）。
+     *
+     * <p>为什么必须做：船是被 spawn 在格位坐标上的，若那一格被方块占着，船会直接卡在方块里，
+     * 冰面摩擦再滑也没用 —— 玩家只能等"卡住回位"。这类占用不一定是本局造成的
+     * （上一局残留、环境装饰、异常方块都可能），所以每局开局都清一遍最稳。
+     *
+     * @return 实际清掉的方块数（正常应为 0；不为 0 就说明这里本来有东西，日志会记下来）
+     */
+    private int clearGridHeadroom(ArenaWorld arena, RaceTrack.GridSlot slot) {
+        int surfaceY = this.track.surfaceY();
+        int minX = (int) Math.floor(slot.x() - 0.7);
+        int maxX = (int) Math.floor(slot.x() + 0.7);
+        int minZ = (int) Math.floor(slot.z() - 0.7);
+        int maxZ = (int) Math.floor(slot.z() + 0.7);
+        int cleared = 0;
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                for (int dy = 1; dy <= GRID_HEADROOM; dy++) {
+                    BlockPos pos = new BlockPos(x, surfaceY + dy, z);
+                    if (!arena.getBlockState(pos).isAir()) {
+                        arena.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                        cleared++;
+                    }
+                }
+            }
+        }
+        return cleared;
+    }
+
+    /**
+     * 自检：玩家与他的船都必须在冰面之上，否则打日志（带该格实际方块）。
+     * 出现这条告警基本就等于"开局卡在地里"，所以宁可吵一点也要留下现场。
+     */
+    private void checkGridClearance(ArenaWorld arena, ServerPlayerEntity player,
+                                    RaceTrack.GridSlot slot, int cleared) {
+        double floor = this.track.surfaceY() + 0.5;
+        BoatEntity boat = this.boatOf(player);
+        double boatY = boat == null ? Double.NaN : boat.getY();
+        if (player.getY() >= floor && (Double.isNaN(boatY) || boatY >= floor)) {
+            if (cleared > 0) {
+                LOGGER.warn("[PvP] 亦可赛艇：起跑格位上方清掉 {} 个方块（本应全是空气）；玩家 {}",
+                        cleared, player.getGameProfile().getName());
+            }
+            return;
+        }
+        BlockPos feet = new BlockPos((int) Math.floor(slot.x()), this.track.surfaceY(), (int) Math.floor(slot.z()));
+        LOGGER.warn("[PvP] 亦可赛艇：{} 起跑陷入地面！玩家 y={} 船 y={}（冰面 {}），"
+                        + "格位方块={} 上方={}；已清理 {} 格",
+                player.getGameProfile().getName(),
+                String.format(java.util.Locale.ROOT, "%.3f", player.getY()),
+                Double.isNaN(boatY) ? "无船" : String.format(java.util.Locale.ROOT, "%.3f", boatY),
+                this.track.surfaceY(),
+                net.minecraft.registry.Registries.BLOCK.getId(arena.getBlockState(feet).getBlock()),
+                net.minecraft.registry.Registries.BLOCK.getId(
+                        arena.getBlockState(feet.up()).getBlock()),
+                cleared);
     }
 
     private void spawnBoatFor(ServerPlayerEntity player, double x, double y, double z, float yaw) {
@@ -1197,11 +1322,17 @@ public final class BoatRaceSession {
 
     private BoatEntity boatOf(ServerPlayerEntity player) {
         UUID boatId = this.boats.get(player.getUuid());
-        if (boatId == null) {
-            return null;
+        if (boatId != null) {
+            Entity entity = this.findEntity(boatId);
+            if (entity instanceof BoatEntity boat && !boat.isRemoved()) {
+                return boat;
+            }
         }
-        Entity entity = this.findEntity(boatId);
-        return entity instanceof BoatEntity boat && !boat.isRemoved() ? boat : null;
+        // 兜底：实体查找表偶尔落后于 spawn（船刚生成时 arena.getEntity(uuid) 可能查不到，
+        // 实测在 finishPrepare 里就会遇到）。这时"玩家实际骑的是什么"才是权威信息。
+        // 没有这条兜底，"查不到船"会被上游当成"船没了"：倒计时每 tick 重发船（把人塞进地里），
+        // 或者氮气判定为"不在船上"而喷不出来。
+        return player.getVehicle() instanceof BoatEntity ridden && !ridden.isRemoved() ? ridden : null;
     }
 
     /** 按 UUID 在竞技场世界 + 本场玩家实体范围里找实体（船可能刚被移除）。 */
