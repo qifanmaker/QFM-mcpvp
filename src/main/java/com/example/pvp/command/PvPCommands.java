@@ -689,9 +689,21 @@ public final class PvPCommands {
         return 1;
     }
 
+    /**
+     * 把 UUID 解析成显示用的名字。<b>离线玩家也要显示用户名</b>，不要藏成"(离线)"：
+     * 原来离线一律返回占位文字，战绩榜/排行榜上看到一排"(离线)"根本不知道是谁。
+     * 离线时从服务器用户缓存（UserCache，服务端会缓存见过的玩家档案）取历史名字，
+     * 只有缓存里也没有才退回占位文字。
+     */
     private static String resolveName(UUID uuid) {
         ServerPlayerEntity online = PvPMod.SERVER.getPlayerManager().getPlayer(uuid);
-        return online != null ? online.getGameProfile().getName() : "§7(离线)";
+        if (online != null) {
+            return online.getGameProfile().getName();
+        }
+        return PvPMod.SERVER.getUserCache().getByUuid(uuid)
+                .map(com.mojang.authlib.GameProfile::getName)
+                .filter(name -> name != null && !name.isBlank())
+                .orElse("§7(离线)");
     }
 
     private static int listKits(ServerCommandSource source) {

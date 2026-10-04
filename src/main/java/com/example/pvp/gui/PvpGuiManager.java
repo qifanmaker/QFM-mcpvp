@@ -13,6 +13,7 @@ import com.example.pvp.practice.PracticeManager;
 import com.example.pvp.practice.PracticeType;
 import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.text.Messages;
+import com.mojang.authlib.GameProfile;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
 import net.minecraft.component.type.NbtComponent;
@@ -1166,9 +1167,23 @@ public final class PvpGuiManager {
         return result;
     }
 
+    /**
+     * 把 UUID 解析成显示用的名字。
+     *
+     * <p><b>离线玩家也要把用户名显示出来</b>：原来离线一律显示 {@code §7(离线)}，
+     * 等于把名字藏了 —— 战绩榜上看到一排"(离线)"根本不知道是谁。
+     * 离线时改从服务器用户缓存（{@code UserCache}，服务端会缓存见过的玩家档案）里取历史名字，
+     * 只有连缓存里都查不到（例如换了 UUID / 缓存被清）才退回占位文字。
+     */
     private String resolveName(UUID uuid) {
         ServerPlayerEntity online = PvPMod.SERVER.getPlayerManager().getPlayer(uuid);
-        return online != null ? online.getGameProfile().getName() : "§7(离线)";
+        if (online != null) {
+            return online.getGameProfile().getName();
+        }
+        return PvPMod.SERVER.getUserCache().getByUuid(uuid)
+                .map(GameProfile::getName)
+                .filter(name -> name != null && !name.isBlank())
+                .orElse("§7(离线)");
     }
 
     private static ItemStack makeButton(Item item, String name, String... lore) {
