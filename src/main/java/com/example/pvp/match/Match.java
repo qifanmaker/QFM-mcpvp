@@ -3266,6 +3266,8 @@ public final class Match {
         }
         // 同 finalizeMatch：取消时也要把玩家传送回主城，清场必须让路给客户端的"加载地形中"
         this.discardArenaEntities();
+        // 全局状态跟着"对局结束"这一帧释放，不留给 5 秒后的延迟清场（见 releaseMatchGlobals）
+        this.releaseMatchGlobals();
         this.manager.detachMatch(this);
         this.manager.scheduleFinish(this, FINISH_DELAY_TICKS);
     }
@@ -3411,6 +3413,8 @@ public final class Match {
         this.state = MatchState.ENDED;
         // 掉落物/残留实体必须在"玩家还站在场上、区域区块一定加载着"的这一帧清掉（见 discardArenaEntities）
         this.discardArenaEntities();
+        // 全局状态同样在这一帧释放：等 5 秒后的延迟清场再放，会踩到这段窗口里新开的对局
+        this.releaseMatchGlobals();
         // 先把对局从列表里摘掉：玩家可以马上再排队，大厅计分板立刻接管。
         this.manager.detachMatch(this);
         // 清场 + 战绩落盘延后执行。这一帧刚刚把所有人跨维度传送回主城，
@@ -3426,6 +3430,19 @@ public final class Match {
     private static final int FINISH_DELAY_TICKS = 100;
 
     /** 由 {@code MatchManager.tickPendingFinishes()} 在结算几秒后调用：落盘 + 清场并释放场地。 */
+    /**
+     * 释放本场比赛占用的<b>全局状态</b>。
+     *
+     * <p><b>必须在结算/取消那一帧立刻做，绝不能拖到延迟清场</b>：延迟清场要等
+     * {@link MatchManager#FINISH_DELAY_TICKS}，这几秒里新的一局完全可能已经开始，
+     * 而"幸运之柱一击必杀"这类标记是全局的（{@code PvPMod.oneHitKillActive}）。
+     * 旧局的延迟清场如果再来复位一次，就会把<b>新局</b>的标记中途打掉 ——
+     * 玩家看到的现象就是"新开一局之后一击必杀突然没用了"。
+     */
+    private void releaseMatchGlobals() {
+        PvPMod.oneHitKillActive = false;
+    }
+
     void deferredFinish() {
         long started = System.nanoTime();
         try {
@@ -3467,8 +3484,15 @@ public final class Match {
 
     /** 清理竞技场地形并释放场地（无论结束流程是否出错都必须执行）。 */
     private void cleanupArenaAndRelease() {
-        // 幸运之柱一击必杀等全局标记在对局结束时清空，防止残留到下一场（否则下一场开局就全程生效）
-        PvPMod.oneHitKillActive = false;
+        // ---- 保护：延迟清场前先确认"这个区域还是我的" ----
+        // 正常情况下区域在延迟窗口里一直占着（release 在 finally 里），但只要有任何一条路径
+        // 提前把它放出去，这里就会把**新一局的场地**当成旧场地清掉。宁可不清、并留下告警。
+        Match owner = this.manager.regionOwner(this.regionIndex);
+        if (owner != null && owner != this) {
+            LOGGER.warn("[PvP] 比赛 #{} 放弃延迟清场：区域 {} 已被比赛 #{} 占用（照清会把新场地拆掉）",
+                    this.id, this.regionIndex, owner.getId());
+            return;   // 必须在 try 之外返回，否则 finally 会把新对局的区域释放掉
+        }
         try {
             int mapMaxRadius = this.arenaClearRadius();
             if (this.type.isBedWars()) {

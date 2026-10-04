@@ -608,6 +608,23 @@ public final class MatchManager {
         this.matches.remove(match);
     }
 
+    /**
+     * 当前占用该区域的<b>存活</b>对局；没有则返回 {@code null}（区域空着）。
+     *
+     * <p>用途：延迟清场（{@link Match#deferredFinish()}）在下手拆方块前先确认区域还是自己的。
+     * 区域在延迟窗口里本来一直占着（{@code allocatedRegions}），但这是"最后一道闸"——
+     * 万一将来有别的路径提前释放，也不会把新一局的场地当旧场地清掉。
+     * 直接扫 {@code matches} 而不是维护一张 region→owner 映射，是为了不引入会和真实状态不一致的第二份数据。
+     */
+    public Match regionOwner(int regionIndex) {
+        for (Match match : this.matches) {
+            if (match.getRegionIndex() == regionIndex) {
+                return match;
+            }
+        }
+        return null;
+    }
+
     /** 把"清场 + 战绩落盘"这一帧重活延后 {@code delayTicks} 再执行（见 {@link #pendingFinishes}）。 */
     public void scheduleFinish(Match match, int delayTicks) {
         this.pendingFinishes.add(new PendingFinish(match, this.server.getTicks() + delayTicks));

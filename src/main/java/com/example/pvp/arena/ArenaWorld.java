@@ -94,7 +94,11 @@ public class ArenaWorld extends ServerWorld {
     @Override
     public boolean setBlockState(BlockPos pos, BlockState state, int flags, int maxUpdateDepth) {
         MapBuildQueue queue = this.staging;
-        if (queue != null) {
+        // 只暂存"本场铺图区域"内的写入。别的区域（例如上一局延后 5 秒的延迟清场，
+        // 正好在这一帧把旧场地拆掉）必须直接落到世界里：否则那些空气写入会被塞进本场的
+        // 队列里，轻则被推迟到本场铺完之后、重则在本场队列已 flush 之后才进来而彻底丢失，
+        // 表现就是"新开一局，上一局的地图还留在那儿"。
+        if (queue != null && queue.inRegion(pos)) {
             queue.stage(pos, state);
             return true;
         }
