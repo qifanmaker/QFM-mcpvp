@@ -207,12 +207,20 @@ public final class RaceProgressTracker {
         return Event.LAP;
     }
 
-    /** 回位后重新计时这一圈（回位是"重新出发"，不能让玩家因为回位白捡/白亏圈时间）。 */
-    public void onRecovered(long tick) {
+    /**
+     * 回位（被传送回最近 Checkpoint）后的记账：<b>只累计次数，绝不动单圈计时</b>。
+     *
+     * <p>这里原来有一行 {@code lapStartTick = tick}，是错的：单圈计时一旦从"被传送的那一刻"
+     * 重新起算，玩家在圈中被回位之后跑完的那一圈就会少算掉回位之前已经跑过的时间，
+     * 于是<b>凭空产生一个很快的单圈</b>（最坏情况是在终点前撞掉、被送回线前一点，那一圈会接近 0 秒），
+     * 最快单圈记录直接失真。回位真正该付出的代价就是"实实在在损失的时间"，
+     * 所以计时必须从<b>上一次过起终点线</b>连续算下去，跟回位无关。
+     *
+     * <p>注意 {@link #snapTo} 仍然必须在回位时调用 —— 它只重置"扫掠起点"，
+     * 避免瞬移被误判成穿门，和计时是两件事。
+     */
+    public void onRecovered() {
         this.recoveries++;
-        if (this.running && !this.finished) {
-            this.lapStartTick = tick;
-        }
     }
 
     // ---------- 进度 / 排名 ----------
@@ -393,6 +401,17 @@ public final class RaceProgressTracker {
 
     public long lastLapTicks() {
         return this.lastLapTicks;
+    }
+
+    /**
+     * 本圈已经跑了多少 tick（从上次过起终点线算起，回位不会重置）。
+     * 计时必须在"上一次过线"连续算下去，这样回位损失的时间会如实计入本圈。
+     */
+    public long currentLapTicks(long nowTick) {
+        if (this.lapStartTick < 0 || !this.running) {
+            return 0L;
+        }
+        return Math.max(0L, nowTick - this.lapStartTick);
     }
 
     public long bestLapTicks() {

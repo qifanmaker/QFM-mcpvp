@@ -449,7 +449,8 @@ public final class BoatRaceSession {
         this.discardBoat(player);
         tracker.snapTo(x, z);
         if (this.started) {
-            tracker.onRecovered(this.match.matchTicks());
+            // 只记账，不动单圈计时（见 RaceProgressTracker#onRecovered 的说明）
+            tracker.onRecovered();
         }
         player.stopRiding();
         player.teleport(arena, x, y, z, RaceTrackGenerator.yawOf(home.dirX(), home.dirZ()), 0.0F);
@@ -668,6 +669,9 @@ public final class BoatRaceSession {
         text.append(Text.literal(" §7| §bCP §f" + tracker.checkpointsPassed()
                 + "§7/§f" + this.track.checkpointCount()));
         text.append(Text.literal(" §7| §a" + RaceProgressTracker.formatTicks(tracker.elapsedTicks(matchTicks))));
+        // 本圈实时计时：回位不会再重置它，所以"被送回去损失了多少时间"一眼可见
+        text.append(Text.literal(" §7| §f本圈 §e"
+                + RaceProgressTracker.formatTicks(tracker.currentLapTicks(matchTicks))));
         if (tracker.bestLapTicks() >= 0) {
             text.append(Text.literal(" §7| §d最快 "
                     + RaceProgressTracker.formatTicks(tracker.bestLapTicks())));
