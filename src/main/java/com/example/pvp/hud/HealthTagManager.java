@@ -200,9 +200,17 @@ public final class HealthTagManager {
             var scoreboard = this.server.getScoreboard();
             var hiddenTeam = scoreboard.getTeam(HIDDEN_NAME_TEAM);
             if (hiddenTeam != null) {
-                for (ServerPlayerEntity player : this.server.getPlayerManager().getPlayerList()) {
-                    scoreboard.removeScoreHolderFromTeam(player.getGameProfile().getName(), hiddenTeam);
-                }
+                // 只 removeTeam 就够了：vanilla 的 Scoreboard.removeTeam 内部会遍历该队成员，
+                // 把他们逐个从 teamsByScoreHolder 里摘掉，不需要我们自己逐人清。
+                //
+                // 千万别改回「逐人 scoreboard.removeScoreHolderFromTeam(name, hiddenTeam)」：
+                // 原版那个方法在玩家当前不在该队时会抛 IllegalStateException（见
+                // Match.removeScoreboardTeams 里同款的逐人兜底），而对局中的玩家正在
+                // pvp_<id>_<i> 队里、必然不在 pvp_health_names —— 只要有对局在跑这里就必抛。
+                // 后果之所以严重，是因为 clearAll 会被 SERVER_STOPPING 调用，而 Fabric 把
+                // SERVER_STOPPING 注入在 MinecraftServer.shutdown() 的 HEAD：异常一抛，
+                // 后面的 saveAllPlayerData / disconnectAllPlayers / save / close 全部跳过，
+                // 玩家数据与世界都不会落盘。tick() 里关掉功能那条路径则会让服务端 tick 崩溃。
                 scoreboard.removeTeam(hiddenTeam);
             }
             for (ServerPlayerEntity player : this.server.getPlayerManager().getPlayerList()) {
