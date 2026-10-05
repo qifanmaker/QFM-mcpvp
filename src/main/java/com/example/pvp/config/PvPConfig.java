@@ -282,7 +282,7 @@ public final class PvPConfig {
      * 赛道宽度（格，建议 9~15）。
      * 船在冰上速度极快、转向半径大，过窄会变成"撞墙比赛"，过宽则失去走线意义。
      */
-    public int boatRaceTrackWidth = 12;
+    public int boatRaceTrackWidth = 16;
     /**
      * 赛道两侧的减速缓冲带宽度（格）：缓冲带用高摩擦方块（默认雪块 0.6），冲出赛道会被吃掉速度。
      * 原版船的"地面摩擦"取船底 1mm 切片 ±1 格内所有方块 slipperiness 的<b>平均值</b>，
@@ -315,9 +315,9 @@ public final class PvPConfig {
      * </ul>
      * 低于该值的候选赛道会被校验器直接拒掉。
      */
-    public double boatRaceMinCornerRadius = 25.0;
+    public double boatRaceMinCornerRadius = 32.0;
     /** 非相邻赛道段之间的最小净空（格）：防止赛道自贴/合并，等于消灭"看不清走哪条"的严重自交。 */
-    public double boatRaceMinClearance = 26.0;
+    public double boatRaceMinClearance = 32.0;
     /**
      * 冰面方块。packed_ice = 原版冰面滑度 0.98 → 极速 40 格/秒；
      * blue_ice = 0.989 → 极速 72.7 格/秒，但过弯半径需要 ~330 格，本模式的区域尺寸放不下
