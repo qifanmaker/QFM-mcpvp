@@ -409,6 +409,13 @@ public final class Match {
             LuckyPillarLayout.PlatformStyle forced = manager.consumePendingLuckyPillarStyle();
             this.luckyPillarLayout = LuckyPillarLayout.compute(template.getCenter(regionIndex),
                     id, this.players.size(), forced);
+            // 选图与实际是否一致的直接证据：强制值 vs 最终生效值。
+            // 如果这里 forced 不是 null 而实际风格不同，说明问题在 compute；
+            // 如果 forced 是 null（选了图但这里没拿到），说明这一局是在选择之前就已经创建好的，
+            // 选择只能作用于下一局 —— 这两种情况以前完全看不出来。
+            LOGGER.info("[PvP] 幸运之柱选图：强制={} → 实际={}（seed {}）",
+                    forced == null ? "随机" : forced.getDisplayName(),
+                    this.luckyPillarLayout.platformStyle().getDisplayName(), id);
             spawnPositions = this.luckyPillarLayout.spawns();
         } else if (type == MatchType.TNT_RUN) {
             this.skywarsLayout = null;

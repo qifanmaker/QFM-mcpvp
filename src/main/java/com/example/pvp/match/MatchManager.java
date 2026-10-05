@@ -785,6 +785,12 @@ public final class MatchManager {
      */
     private int luckyPillarSeedAvoidingRepeat(ArenaTemplate template, int regionIndex,
                                               int baseId, int playerCount) {
+        // 有强制风格时不参与"避免重复"：既不需要换 seed，更不能把随机风格记进
+        // lastLuckyPillarStyle —— 否则"选了图"这一局的风格记录是随机的，
+        // 下次避免重复时会按错误的基准去跳，表现出来就像"选图和实际图对不上"。
+        if (this.peekPendingLuckyPillarStyle() != null) {
+            return baseId;
+        }
         int id = baseId;
         for (int i = 0; i < 20; i++) {
             LuckyPillarLayout layout = LuckyPillarLayout.compute(
