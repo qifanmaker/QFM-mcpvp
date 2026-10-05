@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 1;
+    public static final int CURRENT_CONFIG_VERSION = 2;
 
     /**
      * 生成这份文件时的配置版本。
@@ -97,6 +97,21 @@ public final class PvPConfig {
     public int skywarsShrinkBlocksPerStage = 4;
     public int skywarsShrinkMinRadius = 8;
     /** 开赛多少秒后触发"物资刷新"事件：清空并重新塞满全图所有箱子（默认 180s=3 分钟）。 */
+    /**
+     * 空岛战争"掉入虚空"的判定深度（相对 {@code PLATFORM_Y} 往下多少格）。
+     *
+     * <p>原来硬编码 -8 格，太浅了：空岛地图的构建/清理盒本身就到 -16 格，
+     * 从高岛往低处跳、下落超过 8 格就会在空中被判成"掉入虚空"，
+     * 结果白吃一个不死图腾并被传送回去。现在放到 18，只有真正掉出地图才会触发。
+     *
+     * <p><b>这个值被夹在一个窄区间里，改之前必须两头顶着看</b>：
+     * 上界是地图自身的构建/清理盒底（{@code PLATFORM_Y - 16}，低于它的位置不可能是正常落脚点），
+     * 下界是本模式"掉虚空淘汰"的深度（{@code PLATFORM_Y - 20}）。
+     * 一旦 ≥ 20，持图腾的玩家会先被淘汰、图腾根本救不上（我第一版取 28 就踩了这个）。
+     * 所以取 18 = 比所有结构都低、又比淘汰线高 2 格。
+     */
+    public int skywarsVoidSaveDepth = 18;
+
     public int skywarsRefillSeconds = 180;
 
     // ---------- 战桥 (Bridge) ----------
@@ -1029,6 +1044,10 @@ public final class PvPConfig {
         }
         if (this.boatRaceMinStraightLength <= 0) {
             this.boatRaceMinStraightLength = defaults.boatRaceMinStraightLength;
+            changed = true;
+        }
+        if (this.skywarsVoidSaveDepth <= 0) {
+            this.skywarsVoidSaveDepth = defaults.skywarsVoidSaveDepth;
             changed = true;
         }
         if (this.boatRaceNitroBlock == null || this.boatRaceNitroBlock.isBlank()) {

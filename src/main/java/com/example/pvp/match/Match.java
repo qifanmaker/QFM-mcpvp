@@ -931,7 +931,9 @@ public final class Match {
         if (arena == null) {
             return;
         }
-        double rescueY = ArenaTemplate.PLATFORM_Y - 8; // 岛面下 8 格且不在地面视为掉入虚空
+        // 判定深度可配（默认 28）：原来硬编码 8，太浅 —— 地图构建盒本身就到 -16，
+        // 从高岛往低处跳就会在空中被误判成掉虚空，白吃一个不死图腾
+        double rescueY = ArenaTemplate.PLATFORM_Y - PvPConfig.INSTANCE.skywarsVoidSaveDepth;
         for (ServerPlayerEntity player : this.players) {
             if (this.eliminated.contains(player.getUuid())) {
                 continue;
@@ -1156,7 +1158,7 @@ public final class Match {
         }
 
         // 掉入虚空且持有不死图腾 → 消耗救回自己柱顶（每 tick 检查，先于死亡判定保证必被救到）
-        double rescueY = ArenaTemplate.PLATFORM_Y - 8;
+        double rescueY = ArenaTemplate.PLATFORM_Y - PvPConfig.INSTANCE.skywarsVoidSaveDepth;
         for (ServerPlayerEntity online : this.aliveOnlineInArena()) {
             if (online.getY() < rescueY && !online.isOnGround()) {
                 this.tryTotemSave(online, true); // 掉虚空：传送救回
