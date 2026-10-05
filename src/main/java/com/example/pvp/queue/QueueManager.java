@@ -60,6 +60,42 @@ public final class QueueManager {
     private Integer boatRaceCountdownTicks;
     private Integer boatRaceFillTicks;
 
+    /** 玩家选的亦可赛艇圈数（3/5/7/10）；没选过就用配置默认值。 */
+    private final java.util.Map<java.util.UUID, Integer> boatRaceLapsChoice = new java.util.HashMap<>();
+
+    /** 记录某玩家想跑的圈数（开赛前都可以改）。 */
+    public void setBoatRaceLapsChoice(java.util.UUID uuid, int laps) {
+        this.boatRaceLapsChoice.put(uuid, Math.max(1, laps));
+    }
+
+    /** 某玩家想跑的圈数。 */
+    public int boatRaceLapsChoice(java.util.UUID uuid) {
+        return this.boatRaceLapsChoice.getOrDefault(uuid, PvPConfig.INSTANCE.boatRaceLaps);
+    }
+
+    /**
+     * 决定本场圈数：<b>按参赛玩家的多数意见，平票取大的那个</b>。
+     *
+     * <p>为什么不是"第一个人说了算"、也不是"取最大/最小"：排队是陌生人凑的局，"主机"概念很弱；
+     * 多数意见最不容易让多数人难受，平票取大则避免"想跑 10 圈的被迫跑 3 圈"。
+     */
+    public int resolveBoatRaceLaps(java.util.List<ServerPlayerEntity> players) {
+        java.util.Map<Integer, Integer> votes = new java.util.HashMap<>();
+        for (ServerPlayerEntity player : players) {
+            votes.merge(this.boatRaceLapsChoice(player.getUuid()), 1, Integer::sum);
+        }
+        int best = PvPConfig.INSTANCE.boatRaceLaps;
+        int bestCount = -1;
+        for (java.util.Map.Entry<Integer, Integer> entry : votes.entrySet()) {
+            if (entry.getValue() > bestCount
+                    || (entry.getValue() == bestCount && entry.getKey() > best)) {
+                best = entry.getKey();
+                bestCount = entry.getValue();
+            }
+        }
+        return best;
+    }
+
     public QueueManager(MinecraftServer server) {
         this.server = server;
     }

@@ -121,7 +121,7 @@ public final class BoatRaceSession {
     private final ArenaTemplate template;
     private final int regionIndex;
     private final int playerCount;
-    private final int laps;
+    private int laps;
     private final RaceTrack track;
     private final List<String> generationNotes;
 
@@ -198,6 +198,14 @@ public final class BoatRaceSession {
 
     public RaceTrack track() {
         return this.track;
+    }
+
+    /**
+     * 开赛前覆盖本场圈数（按参赛玩家的多数意见决定，见 {@code QueueManager#resolveBoatRaceLaps}）。
+     * 必须在 {@code stageMap}/{@code finishPrepare} 之前调用 —— 那两处会按圈数建进度追踪器。
+     */
+    public void setLaps(int laps) {
+        this.laps = Math.max(1, laps);
     }
 
     public int laps() {

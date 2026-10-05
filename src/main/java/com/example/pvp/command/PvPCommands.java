@@ -136,6 +136,11 @@ public final class PvPCommands {
                                 .executes(ctx -> showStats(ctx.getSource(), ctx.getSource().getPlayerOrThrow()))
                                 .then(CommandManager.argument("player", EntityArgumentType.player())
                                         .executes(ctx -> showStats(ctx.getSource(), EntityArgumentType.getPlayer(ctx, "player")))))
+                        .then(CommandManager.literal("racinglaps")
+                                .then(CommandManager.argument("laps",
+                                                com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 20))
+                                        .executes(ctx -> setRacingLaps(ctx,
+                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "laps")))))
                         .then(CommandManager.literal("top")
                                 .executes(ctx -> showTop(ctx)))
                         .then(CommandManager.literal("kit")
@@ -704,6 +709,16 @@ public final class PvPCommands {
                 .map(com.mojang.authlib.GameProfile::getName)
                 .filter(name -> name != null && !name.isBlank())
                 .orElse("§7(离线)");
+    }
+
+    /** 亦可赛艇：选择本场圈数（聊天里那 4 个可点选项就是走这条命令）。 */
+    private static int setRacingLaps(CommandContext<ServerCommandSource> ctx, int laps)
+            throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        PvPMod.QUEUE.setBoatRaceLapsChoice(player.getUuid(), laps);
+        player.sendMessage(Messages.info("亦可赛艇圈数已设为 §e" + laps + "§r 圈"
+                + "（开赛前按全场多数意见生效）"), false);
+        return 1;
     }
 
     private static int listKits(ServerCommandSource source) {

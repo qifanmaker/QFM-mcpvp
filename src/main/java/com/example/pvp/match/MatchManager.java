@@ -504,6 +504,10 @@ public final class MatchManager {
         Match match;
         try {
             match = Match.create(this, id, type, players, regionIndex, template, kits);
+            // 亦可赛艇：按参赛玩家的多数意见决定本场圈数（必须在开赛铺图之前设好）
+            if (type.isBoatRace() && match.boatRaceSession() != null && com.example.pvp.PvPMod.QUEUE != null) {
+                match.boatRaceSession().setLaps(com.example.pvp.PvPMod.QUEUE.resolveBoatRaceLaps(players));
+            }
         } catch (Exception e) {
             // 构造失败（如床战地图加载失败）：释放已分配的区域，避免泄漏与 tick 崩溃
             LOGGER.error("[PvP] 创建比赛失败（模式 {}），释放场地", type, e);

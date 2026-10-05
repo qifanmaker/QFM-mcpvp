@@ -829,6 +829,28 @@ public final class PvpGuiManager {
 
     // ---------- 内部：点击逻辑 ----------
 
+    /**
+     * 亦可赛艇：把圈数选项做成可点击聊天菜单（点一下 = {@code /pvp racinglaps N}）。
+     *
+     * <p>没有单独做 GUI 页：排队到开赛有几十秒倒计时，聊天里点一下足够，
+     * 而且不耦合 GUI 框架，回归风险小。开赛前按全场多数意见生效。
+     */
+    private void sendRaceLapsChooser(ServerPlayerEntity player) {
+        net.minecraft.text.MutableText text = Text.literal("§b§l亦可赛艇 §r§7想跑几圈？ ");
+        for (int laps : new int[]{3, 5, 7, 10}) {
+            text.append(Text.literal("§a[" + laps + " 圈] ")
+                    .setStyle(net.minecraft.text.Style.EMPTY
+                            .withClickEvent(new net.minecraft.text.ClickEvent(
+                                    net.minecraft.text.ClickEvent.Action.RUN_COMMAND,
+                                    "/pvp racinglaps " + laps))
+                            .withHoverEvent(new net.minecraft.text.HoverEvent(
+                                    net.minecraft.text.HoverEvent.Action.SHOW_TEXT,
+                                    Text.literal("把本场设为 " + laps + " 圈")))));
+        }
+        text.append(Text.literal("§7（开赛前可随时改，按多数意见生效）"));
+        player.sendMessage(text, false);
+    }
+
     private void onClickMain(ServerPlayerEntity player, GuiContext ctx, int slot) {
         switch (slot) {
             case 9 -> this.openPvpCategory(player);
@@ -842,7 +864,10 @@ public final class PvpGuiManager {
             case 16 -> this.openKitInfoPage(player);
             case 17 -> this.openPracticeCategory(player);
             // 亦可赛艇：无套件，直接加入
-            case 18 -> this.joinQueue(player, MatchType.BOAT_RACE, KitManager.boatRaceKit());
+            case 18 -> {
+                this.joinQueue(player, MatchType.BOAT_RACE, KitManager.boatRaceKit());
+                this.sendRaceLapsChooser(player);
+            }
             case 21 -> {
                 // OP 立即开始：排队空岛/幸运之柱/床战时可先选地图/主题，其余模式直接开
                 QueueEntry entry = PvPMod.QUEUE.getEntry(player);
