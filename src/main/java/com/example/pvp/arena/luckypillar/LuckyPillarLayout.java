@@ -24,7 +24,16 @@ public final class LuckyPillarLayout {
     public static final int PILLAR_WIDTH = 1;
 
     /** 掉出平台下方多少格判定死亡（"掉下平台 20 格死亡"）。 */
-    public static final int FALL_DEATH_BELOW_PLATFORM = 20;
+    /**
+     * 掉出平台下方多少格判定虚空死亡。
+     *
+     * <p>原来是 20，玩家反馈"判定太高"（掉下去几乎立刻死、没有任何挽救余地）。
+     * 平台本身有虚空洞，掉进去就是一路下坠，20 格不到 1 秒就死了。
+     * 现在放到 32：给末影珍珠/自救留出反应时间，也让不死图腾救得回来 ——
+     * 图腾救回判定在 {@code PLATFORM_Y - 18}，必须<b>比死亡线更浅</b>（先触发）才有意义，
+     * 20 的时候两者只差 2 格，实际上图腾几乎救不上。
+     */
+    public static final int FALL_DEATH_BELOW_PLATFORM = 32;
 
     /** 地图最大半径额外边距。 */
     public static final int MAX_RADIUS_MARGIN = 4;
