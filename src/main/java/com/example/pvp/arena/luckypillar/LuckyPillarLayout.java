@@ -1,5 +1,6 @@
 package com.example.pvp.arena.luckypillar;
 
+import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.config.PvPConfig;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
@@ -234,8 +235,13 @@ public final class LuckyPillarLayout {
         double ringR = centerDist / (2.0 * Math.sin(Math.PI / n)); // 圆环半径，保证相邻柱子恰好隔 gap 格
 
         Random random = new Random(seed * 31L + playerCount * 17L);
-        int topY = mapCenter.getY() + Math.max(4, cfg.luckyPillarHeight);
-        int platformY = topY - Math.max(4, cfg.luckyPillarPlatformGap); // 柱顶下方的大平台表面
+        // 地图必须锚在标准平台层上（和其它模式一致）。
+        // 原来是"平台 = 柱顶 - luckyPillarPlatformGap"，也就是整张图从柱顶往下减出来 ——
+        // gap 一大，平台/支撑/出生点以及所有相对平台的判定（虚空死亡、图腾救回）
+        // 会一起沉到 PLATFORM_Y 以下，玩家反馈的"幸运之柱地图刷新位置太低"就是这个。
+        // 现在改成：平台表面固定贴 PLATFORM_Y，柱顶 = 平台 + 柱高。
+        int platformY = ArenaTemplate.PLATFORM_Y;
+        int topY = platformY + Math.max(4, cfg.luckyPillarHeight);
 
         List<Pillar> pillars = new ArrayList<>();
         List<BlockPos> spawns = new ArrayList<>();
