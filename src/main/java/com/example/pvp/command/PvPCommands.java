@@ -864,7 +864,8 @@ public final class PvPCommands {
                     new RaceTrackValidator.Limits(cfg.boatRaceMinTrackLength, cfg.boatRaceMaxTrackLength,
                             cfg.boatRaceTargetTrackLength, cfg.boatRaceMinCornerRadius,
                             cfg.boatRaceMinClearance, cfg.boatRaceTrackWidth, 40,
-                            cfg.boatRaceMinStraightLength));
+                            cfg.boatRaceMinStraightLength,
+                            cfg.boatRaceMinCornerRadius * RaceTrackValidator.OPPOSITE_CORNER_FACTOR));
             if (result.valid()) {
                 valid++;
             }

@@ -299,7 +299,7 @@ public final class PvPConfig {
     /** Checkpoint 数量；0 = 按赛道长度自动（约每 60 格一个，限制在 6~18）。 */
     public int boatRaceCheckpoints = 0;
     /** 最大生成尝试次数：每次失败后 seed+1 重来，直到出现合法赛道。 */
-    public int boatRaceMaxGenerationAttempts = 24;
+    public int boatRaceMaxGenerationAttempts = 32;
     /** 是否随机生成赛道。关掉则使用确定性的"安全椭圆"（调试用，玩家体验会差很多）。 */
     public boolean boatRaceEnableRandomTrack = true;
     /**

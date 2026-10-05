@@ -35,6 +35,8 @@ public final class RaceTrackValidator {
     /** Checkpoint 数量的合法区间。 */
     private static final int MIN_CHECKPOINTS = 4;
     private static final int MAX_CHECKPOINTS = 24;
+    /** 反向弯的判定倍数：两侧的弯都要 ≤ 该倍数 × 最小弯半径，否则算"只有一个转向"。 */
+    public static final double OPPOSITE_CORNER_FACTOR = 4.0;
     /** 平直段判定阈值（曲率半径 ≥ 该值算"几乎直线"）。 */
     private static final double STRAIGHT_RADIUS = 150.0;
 
@@ -99,7 +101,7 @@ public final class RaceTrackValidator {
     public record Limits(double minLength, double maxLength, double targetLength,
                          double minCornerRadius, double minClearance,
                          double width, double gridDepth,
-                         double minStraightLength) {
+                         double minStraightLength, double minOppositeCornerRadius) {
     }
 
     /**
@@ -285,6 +287,17 @@ public final class RaceTrackValidator {
         // 而"曲线从哪儿开始算直"在极坐标曲线上是渐变的，再卡一道只会把好图也拒掉。
         // 大直道落在整圈哪个位置由生成器的取点窗口负责往起点方向偏。
 
+        // ---- 10. 左右两侧都必须有"真弯" ----
+        // 极坐标曲线天生"一个方向转弯紧、另一个方向转弯松"，不卡这一条就会出现
+        // 整圈只往一个方向转的图（玩家反馈"只有右转弯"）。要求两个转向各自都存在
+        // 半径不超过 OPPOSITE_CORNER_FACTOR × 最小弯半径 的弯。
+        double[] dirRadii = directionRadii(track);
+        double oppositeLimit = limits.minOppositeCornerRadius();
+        if (oppositeLimit > 0 && (dirRadii[0] > oppositeLimit || dirRadii[1] > oppositeLimit)) {
+            problems.add(String.format("缺少另一侧的弯（两侧最小曲率半径 %.0f / %.0f，要求都 ≤ %.0f）",
+                    dirRadii[0], dirRadii[1], oppositeLimit));
+        }
+
         boolean valid = problems.isEmpty();
         double score = valid ? score(track, limits, profile, clearance) : 0;
         return new Result(valid, List.copyOf(problems), profile.minRadius(), clearance,
@@ -451,6 +464,31 @@ public final class RaceTrackValidator {
                 straight / (double) n, fraction,
                 minSpeed, sumSpeed / n, fullThrottle / (double) n,
                 longestRun(radius, STRAIGHT_RADIUS), runFrom(radius, STRAIGHT_RADIUS));
+    }
+
+    /**
+     * 两个转向各自的最小曲率半径：{@code [0]} 是三点叉积为正的一侧，{@code [1]} 为负的一侧。
+     * 某一侧若整圈都没出现过（值为 {@code MAX_VALUE}），说明这张图<b>只有一个转向</b>。
+     */
+    private static double[] directionRadii(RaceTrack track) {
+        double[] min = {Double.MAX_VALUE, Double.MAX_VALUE};
+        for (int s = 2; s < (int) track.length(); s++) {
+            double ax = track.sampleX(s - 1) - track.sampleX(s - 2);
+            double az = track.sampleZ(s - 1) - track.sampleZ(s - 2);
+            double bx = track.sampleX(s) - track.sampleX(s - 1);
+            double bz = track.sampleZ(s) - track.sampleZ(s - 1);
+            double cross = ax * bz - az * bx;
+            if (Math.abs(cross) < 1.0e-9) {
+                continue;
+            }
+            double angle = Math.abs(cross) / (Math.hypot(ax, az) * Math.hypot(bx, bz));
+            if (angle < 1.0e-9) {
+                continue;
+            }
+            int index = cross > 0 ? 0 : 1;
+            min[index] = Math.min(min[index], RaceTrack.STEP / angle);
+        }
+        return min;
     }
 
     /** 从 index 0（起终点线）开始、连续满足 {@code radius >= threshold} 的长度（格）。 */

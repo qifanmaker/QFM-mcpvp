@@ -41,8 +41,20 @@ public final class RaceTrackGenerator {
      * 太小 → 生成出来都是"接近正圆"，没有直道也没有明显弯；太大 → 弯太急被校验器拒掉。
      * 实测区间取 0.12~0.30（配合"造直道"谐波，总振幅最高约 0.55 R0）。
      */
-    private static final double MIN_AMPLITUDE = 0.12;
-    private static final double MAX_AMPLITUDE = 0.30;
+    /**
+     * 谐波振幅占基准半径的比例区间。
+     *
+     * <p><b>为什么下限必须抬到 0.20 以上</b>：极坐标曲线在 θ 处的曲率分子是
+     * {@code N = r² + 2r'² − r·r''}；对 {@code r = R0 + A·cos(kθ)} 在内凹处（θ=π/k）
+     * 有 {@code N = (R0−A)(R0 − A − A·k²)}，<b>只有 {@code A/R0 > 1/(k²+1)} 时 N 才为负</b>，
+     * 也就是才会出现"反方向的弯"。k=2 时阈值是 0.20、k=3 是 0.10。
+     *
+     * <p>原来取 0.12~0.30，导致大量图整圈的曲率符号不变 —— 实测 41% 的图<b>只有一个转向</b>
+     * （玩家反馈"地图只有右转弯"就是这个）。现在下限 0.22 保证 k=2 谐波也能翻向，
+     * 上限 0.45 让反向弯能紧到位（振幅越大，内凹处的弯越急）。
+     */
+    private static final double MIN_AMPLITUDE = 0.22;
+    private static final double MAX_AMPLITUDE = 0.33;
     /**
      * 起跑格位：首行离起终点线的距离、行距、单格横向间距（格）。
      *
@@ -83,7 +95,7 @@ public final class RaceTrackGenerator {
 
     /** 只生成一个候选（Seed 不偏移）并校验，不做多候选筛选、也不退回兜底。 */
     public static Candidate probe(long seed, Settings settings, boolean circular) {
-        RaceTrack track = build(seed, 0, settings, circular);
+        RaceTrack track = build(seed, 0, settings, circular, false);
         return new Candidate(track, RaceTrackValidator.validate(track, limits(settings)));
     }
 
@@ -106,7 +118,7 @@ public final class RaceTrackGenerator {
         RaceTrackValidator.Limits limits = limits(settings);
 
         if (!settings.randomTrack()) {
-            RaceTrack fixed = build(baseSeed, 0, settings, true);
+            RaceTrack fixed = build(baseSeed, 0, settings, true, false);
             RaceTrackValidator.Result result = RaceTrackValidator.validate(fixed, limits);
             notes.add("boatRaceEnableRandomTrack=false：使用确定性正圆赛道（调试用）");
             if (!result.valid()) {
@@ -125,7 +137,7 @@ public final class RaceTrackGenerator {
         for (int attempt = 0; attempt < attempts; attempt++) {
             RaceTrack candidate;
             try {
-                candidate = build(baseSeed + attempt, attempt, settings, false);
+                candidate = build(baseSeed + attempt, attempt, settings, false, false);
             } catch (RuntimeException e) {
                 lastProblem = "生成异常 " + e;
                 continue;
@@ -153,9 +165,31 @@ public final class RaceTrackGenerator {
             return new Outcome(best, attempts, false, List.copyOf(notes));
         }
 
-        // 全部候选都不合法：先如实报告失败，再退回确定性正圆，保证对局仍然能开起来。
+        // 全部候选都不合法时，先用**旧振幅区间**再来一轮：那一轮不卡"双侧真弯"
+        // （旧区间本来就做不出反向弯），退化成"老式单转向赛道"也比一张无聊正圆好。
+        for (int attempt = 0; attempt < Math.max(8, attempts / 2); attempt++) {
+            RaceTrack candidate;
+            try {
+                candidate = build(baseSeed + attempts + attempt, attempt, settings, false, true);
+            } catch (RuntimeException e) {
+                continue;
+            }
+            RaceTrackValidator.Result relaxed = RaceTrackValidator.validate(candidate, relaxedLimits(settings));
+            if (relaxed.valid() && relaxed.score() > bestScore) {
+                bestScore = relaxed.score();
+                best = candidate;
+                bestResult = relaxed;
+                bestAttempt = attempts + attempt;
+            }
+        }
+        if (best != null) {
+            notes.add("大直道/双侧真弯要求太严，已退用旧振幅区间生成（无反向弯，但不影响可玩性）");
+            return new Outcome(best, attempts, false, List.copyOf(notes));
+        }
+
+        // 还是不合法：先如实报告失败，再退回确定性正圆，保证对局仍然能开起来。
         notes.add("随机赛道生成失败：已尝试 " + attempts + " 次，最后一次原因：" + lastProblem);
-        RaceTrack fallback = build(baseSeed, attempts, settings, true);
+        RaceTrack fallback = build(baseSeed, attempts, settings, true, false);
         RaceTrackValidator.Result fallbackResult = RaceTrackValidator.validate(fallback, limits);
         notes.add("已退回确定性正圆赛道"
                 + (fallbackResult.valid() ? "（校验通过）" : "（仍未通过：" + fallbackResult.problemText() + "）"));
@@ -163,12 +197,22 @@ public final class RaceTrackGenerator {
     }
 
     /** 校验器用的硬性约束；起跑区长度按实际格位排布算出。 */
+    /** 放宽版判据：不卡"双侧真弯"（旧振幅区间用它做回退）。 */
+    private static RaceTrackValidator.Limits relaxedLimits(Settings s) {
+        int columns = Math.max(1, columnsFor(s.width()));
+        int rows = (int) Math.ceil(Math.max(1, s.playerCount()) / (double) columns);
+        double gridDepth = GRID_FIRST_ROW_BACK + rows * GRID_ROW_SPACING + 8.0;
+        return new RaceTrackValidator.Limits(s.minLength(), s.maxLength(), s.targetLength(),
+                s.minCornerRadius(), s.minClearance(), s.width(), gridDepth, s.minStraightLength(), 0.0);
+    }
+
     private static RaceTrackValidator.Limits limits(Settings s) {
         int columns = columnsFor(s.width());
         int rows = (int) Math.ceil(Math.max(1, s.playerCount()) / (double) columns);
         double gridDepth = GRID_FIRST_ROW_BACK + rows * GRID_ROW_SPACING + 8.0;
         return new RaceTrackValidator.Limits(s.minLength(), s.maxLength(), s.targetLength(),
-                s.minCornerRadius(), s.minClearance(), s.width(), gridDepth, s.minStraightLength());
+                s.minCornerRadius(), s.minClearance(), s.width(), gridDepth, s.minStraightLength(),
+                s.minCornerRadius() * RaceTrackValidator.OPPOSITE_CORNER_FACTOR);
     }
 
     /**
@@ -190,7 +234,8 @@ public final class RaceTrackGenerator {
      *
      * @param circular true = 确定性正圆（兜底 / 调试），false = 按 Seed 随机
      */
-    private static RaceTrack build(long seed, int attempt, Settings settings, boolean circular) {
+    private static RaceTrack build(long seed, int attempt, Settings settings, boolean circular,
+                                   boolean relaxedAmplitude) {
         Random random = new Random(seed * 0x9E3779B97F4A7C15L + 0x632BE59BD9B4E019L);
 
         double targetLength = clamp(settings.targetLength(), settings.minLength(), settings.maxLength());
@@ -226,7 +271,9 @@ public final class RaceTrackGenerator {
             amplitudes[0] = -aStraight;
             phases[0] = random.nextDouble() * 2.0 * Math.PI;
 
-            double totalAmp = MIN_AMPLITUDE + random.nextDouble() * (MAX_AMPLITUDE - MIN_AMPLITUDE);
+            double totalAmp = relaxedAmplitude
+                    ? 0.12 + random.nextDouble() * 0.18     // 旧区间：能过其它判据，但做不出反向弯
+                    : MIN_AMPLITUDE + random.nextDouble() * (MAX_AMPLITUDE - MIN_AMPLITUDE);
             double sum = 0;
             double[] raw = new double[styleHarmonics.length];
             for (int i = 0; i < styleHarmonics.length; i++) {
