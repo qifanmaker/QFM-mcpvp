@@ -23,6 +23,23 @@ public final class PvPConfig {
 
     public static PvPConfig INSTANCE = new PvPConfig();
 
+    /**
+     * 配置版本。<b>任何时候改了某个字段的默认值，就把它 +1。</b>
+     *
+     * <p>为什么需要它：原来的规则是"config.json 里的值优先"，于是代码里改了默认值以后
+     * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
+     * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
+     */
+    public static final int CURRENT_CONFIG_VERSION = 1;
+
+    /**
+     * 生成这份文件时的配置版本。
+     *
+     * <p>初值刻意留 0（旧文件没有这个键，Gson 会保留字段初值），所以老配置一定判定为"过期"
+     * 并被重置一次；{@link #save()} 每次写出前都会把它盖成 {@link #CURRENT_CONFIG_VERSION}。
+     */
+    public int configVersion = 0;
+
     /** 自由乱斗：凑齐最少人数后开始倒计时开赛。 */
     public int ffaMinPlayers = 3;
     public int ffaCountdownSeconds = 60;
@@ -451,6 +468,16 @@ public final class PvPConfig {
         } else {
             LOGGER.info("[PvP] 未找到配置文件，生成默认配置 {}", path);
             save();
+        }
+        // 默认值世代变了（CURRENT_CONFIG_VERSION 被 +1）→ 直接整份重置为新默认值并写回。
+        // 这是刻意的取舍：宁可覆盖掉文件里的自定义调参，也不能让改过的默认值被旧文件静默盖住。
+        if (INSTANCE.configVersion != CURRENT_CONFIG_VERSION) {
+            LOGGER.warn("[PvP] 默认值已变更（配置版本 {} → {}）：{} 已按新默认值重置，"
+                            + "原先的自定义调参需要重新设置",
+                    INSTANCE.configVersion, CURRENT_CONFIG_VERSION, path);
+            INSTANCE = new PvPConfig();
+            save();
+            return;
         }
         // 兼容旧配置：新版本新增字段在旧 config.json 中缺失时用默认值补齐
         boolean migrated = INSTANCE.migrateOldConfig();
@@ -1015,6 +1042,8 @@ public final class PvPConfig {
         Path path = getConfigPath();
         try {
             Files.createDirectories(path.getParent());
+            // 写出前盖上当前版本号：这样"哪一代默认值生成的这份文件"是可判定的
+            INSTANCE.configVersion = CURRENT_CONFIG_VERSION;
             Files.writeString(path, GSON.toJson(INSTANCE));
         } catch (IOException e) {
             LOGGER.warn("[PvP] 无法保存配置 {}", path, e);
