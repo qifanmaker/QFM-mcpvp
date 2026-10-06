@@ -10,6 +10,16 @@ package com.example.pvp.arena.race;
  * 一旦引用它，这段纯策略就没法离线跑了。
  */
 final class RaceLoot {
+    /**
+     * 抽取权重参数（都来自配置）。
+     *
+     * @param trapLeader   速冻胶权重（第一名侧）
+     * @param trapLast     速冻胶权重（最后一名侧）
+     * @param shieldWeight 鱼鳞护盾权重（对所有名次相同，刻意很低）
+     */
+    record WeightConfig(double trapLeader, double trapLast, double shieldWeight) {
+    }
+
     private RaceLoot() {
     }
 
@@ -23,8 +33,8 @@ final class RaceLoot {
      *
      * @return 长度为 4 的权重数组，顺序见类注释；保证全为正且和大于 0
      */
-    static double[] weights(int place, int total, double shieldWeight) {
-        double shield = Math.max(0.0, shieldWeight);
+    static double[] weights(int place, int total, WeightConfig cfg) {
+        double shield = Math.max(0.0, cfg.shieldWeight());
         if (total <= 1) {
             return new double[]{1.0, 1.0, 1.0, shield};
         }
@@ -32,7 +42,9 @@ final class RaceLoot {
         // r = 0（第一名）… 1（最后一名）
         double r = (clampedPlace - 1) / (double) (total - 1);
         double nitro = 40.0;
-        double trap = 15.0 + 35.0 * r;
+        // 速冻胶与墨水弹是按名次加权的攻击类；两者的权重都由配置给（默认速冻胶更低：
+        // 它是最难躲的一件，压上去几乎停住，出场太多会让比赛变成"排雷"）。
+        double trap = cfg.trapLeader() + (cfg.trapLast() - cfg.trapLeader()) * r;
         double ink = 10.0 + 25.0 * r;
         if (clampedPlace <= 1) {
             // 领先者拿不到攻击类：道具战是给后面的人追回来的手段，不是扩大差距的工具

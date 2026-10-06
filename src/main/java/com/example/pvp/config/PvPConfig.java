@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 6;
+    public static final int CURRENT_CONFIG_VERSION = 7;
 
     /**
      * 生成这份文件时的配置版本。
@@ -436,6 +436,16 @@ public final class PvPConfig {
      * 关掉就是四种等概率。
      */
     public boolean boatRaceItemRanksWeighted = true;
+    /**
+     * 速冻胶的抽取权重（第一名侧 / 最后一名侧，中间名次线性插值）。
+     *
+     * <p>刻意压得比墨水弹低：速冻胶是<b>最难躲</b>的一件（一条雪带横在赛道上，
+     * 压上去速度几乎归零），出场太多会让比赛变成"排雷"而不是走线。
+     * 参照：氮气固定 40、墨水弹 10~35、护盾固定 2。
+     * 用 {@code /pvp debug boatrace items draw <人数> <名次> <次数>} 可以直接看真实出现率。
+     */
+    public double boatRaceItemTrapWeightLeader = 5.0;
+    public double boatRaceItemTrapWeightLast = 20.0;
     /** 速冻胶：存在时长（秒）。 */
     public int boatRaceItemTrapSeconds = 5;
     /** 速冻胶：横向宽度（格，会换算成中心线两侧的格数）。 */
@@ -1171,6 +1181,14 @@ public final class PvPConfig {
         }
         if (this.boatRaceItemBoxMaxHold <= 0) {
             this.boatRaceItemBoxMaxHold = defaults.boatRaceItemBoxMaxHold;
+            changed = true;
+        }
+        if (this.boatRaceItemTrapWeightLeader < 0.0) {
+            this.boatRaceItemTrapWeightLeader = defaults.boatRaceItemTrapWeightLeader;
+            changed = true;
+        }
+        if (this.boatRaceItemTrapWeightLast < 0.0) {
+            this.boatRaceItemTrapWeightLast = defaults.boatRaceItemTrapWeightLast;
             changed = true;
         }
         if (this.boatRaceItemTrapSeconds <= 0) {

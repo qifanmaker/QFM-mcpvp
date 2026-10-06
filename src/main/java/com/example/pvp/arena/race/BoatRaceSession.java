@@ -1442,8 +1442,16 @@ public final class BoatRaceSession {
             return RaceItem.values()[this.random.nextInt(RaceItem.values().length)];
         }
         // 权重下标 = RaceItem.values() 顺序（NITRO / TRAP / INK / SHIELD），策略见 RaceLoot
-        double[] weights = RaceLoot.weights(place, total, cfg.boatRaceItemShieldWeight);
+        double[] weights = RaceLoot.weights(place, total, this.weightConfig());
         return RaceItem.values()[RaceLoot.pick(weights, this.random.nextDouble())];
+    }
+
+    /** 当前配置下的抽签权重参数。 */
+    private RaceLoot.WeightConfig weightConfig() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        return new RaceLoot.WeightConfig(
+                cfg.boatRaceItemTrapWeightLeader, cfg.boatRaceItemTrapWeightLast,
+                cfg.boatRaceItemShieldWeight);
     }
 
     /**
@@ -1895,6 +1903,38 @@ public final class BoatRaceSession {
             return "无";
         }
         return net.minecraft.registry.Registries.BLOCK.getId(arena.getBlockState(pos).getBlock()).toString();
+    }
+
+    /**
+     * 调试/调参：按<b>当前配置</b>的名次权重抽 {@code count} 次，返回各道具出现率。
+     *
+     * <p>静态、不需要对局与玩家，所以控制台随时能跑 —— 调权重时不用开一局真的去捡箱子，
+     * 一眼就能看到"这件道具到底多久出一次"。
+     */
+    public static String debugDrawReport(int total, int place, int count, long seed) {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        RaceLoot.WeightConfig weights = new RaceLoot.WeightConfig(
+                cfg.boatRaceItemTrapWeightLeader, cfg.boatRaceItemTrapWeightLast,
+                cfg.boatRaceItemShieldWeight);
+        double[] table = RaceLoot.weights(place, total, weights);
+        int[] hits = new int[RaceItem.values().length];
+        java.util.Random random = new java.util.Random(seed);
+        for (int i = 0; i < count; i++) {
+            hits[RaceLoot.pick(table, random.nextDouble())]++;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("抽签分布：第 ").append(place).append("/").append(total).append(" 名 × ")
+                .append(count).append(" 次（权重");
+        for (int i = 0; i < table.length; i++) {
+            sb.append(" ").append(RaceItem.values()[i].id()).append("=").append(d1(table[i]));
+        }
+        sb.append("）→");
+        for (int i = 0; i < hits.length; i++) {
+            sb.append(" ").append(RaceItem.values()[i].id()).append(" ")
+                    .append(String.format(java.util.Locale.ROOT, "%.2f%%",
+                            hits[i] * 100.0 / Math.max(1, count)));
+        }
+        return sb.toString();
     }
 
     /** 调试：直接给玩家一件道具（{@code /pvp debug boatrace item <id>}）。 */

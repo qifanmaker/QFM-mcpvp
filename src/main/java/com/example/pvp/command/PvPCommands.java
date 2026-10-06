@@ -209,6 +209,18 @@ public final class PvPCommands {
                                                         .executes(ctx -> debugBoatRaceUse(ctx)))
                                                 .then(CommandManager.literal("grip")
                                                         .executes(ctx -> debugBoatRaceGrip(ctx)))
+                                                .then(CommandManager.literal("draw")
+                                                        .then(CommandManager.argument("total",
+                                                                        StringArgumentType.word())
+                                                                .then(CommandManager.argument("place",
+                                                                                StringArgumentType.word())
+                                                                        .then(CommandManager.argument("count",
+                                                                                        StringArgumentType.word())
+                                                                                .executes(ctx -> debugBoatRaceDraw(
+                                                                                        ctx,
+                                                                                        parseIntSafe(ctx, "total", 8),
+                                                                                        parseIntSafe(ctx, "place", 4),
+                                                                                        parseIntSafe(ctx, "count", 20000)))))))
                                                 .then(CommandManager.literal("give")
                                                         .then(CommandManager.argument("id",
                                                                         StringArgumentType.word())
@@ -1049,6 +1061,23 @@ public final class PvPCommands {
         }
         player.sendMessage(Messages.info("已把你挪到缓冲带并强制结冰；"
                 + "脚下与到期还原的方块见控制台日志"), false);
+        return 1;
+    }
+
+    /**
+     * 调试/调参：打印当前配置下的抽取分布（控制台也能跑）。
+     *
+     * <p>用法：{@code /pvp debug boatrace items draw <总人数> <名次> <抽样次数>}，
+     * 例如 {@code draw 8 4 20000} = 8 人局第 4 名的 2 万次抽样出现率。
+     */
+    private static int debugBoatRaceDraw(CommandContext<ServerCommandSource> ctx,
+                                         int total, int place, int count) {
+        int safeTotal = Math.max(1, Math.min(32, total));
+        int safePlace = Math.max(1, Math.min(safeTotal, place));
+        int safeCount = Math.max(1, Math.min(2_000_000, count));
+        String report = com.example.pvp.arena.race.BoatRaceSession.debugDrawReport(
+                safeTotal, safePlace, safeCount, System.nanoTime());
+        ctx.getSource().sendFeedback(() -> Messages.info(report), false);
         return 1;
     }
 
