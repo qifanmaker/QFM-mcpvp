@@ -8,24 +8,16 @@ import com.example.pvp.match.MatchState;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
@@ -41,10 +33,10 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -80,8 +72,19 @@ public final class BoatRaceSession {
 
     // ---------- 氮气加速 ----------
 
-    /** 氮气物品的 NBT 标记（与项目其它自研物品一致：自定义数据 + 唯一 key）。 */
-    public static final String NITRO_ITEM_TAG = "pvp.boatrace_nitro";
+    /**
+     * 速冻胶铺下去用哪个方块：雪块（滑度 0.6，和赛道两侧的缓冲带同材质）。
+     *
+     * <p><b>为什么减速道具只有"几乎停住"这一档</b>：极速 = 0.04 / (1 − 滑度)，而原版方块只有
+     * 0.6（绝大多数方块）、0.8（黏液块）、0.98（冰）、0.989（蓝冰）四个值 ——
+     * 0.6 对应 0.1 格/tick（2 格/秒），相对赛道上的 40 格/秒就是"停住"。
+     * 所以减速道具的平衡只能靠<b>面积 × 存在时间</b>，不能靠强度；也正因如此，
+     * 速冻胶刻意做得窄（默认 6 格 / 赛道 16 格）且短命（6 秒），永远留得下绕行空间。
+     *
+     * <p>选雪块而不是石头/混凝土，是因为它和缓冲带同材质：冰面上出现白色方块，
+     * 玩家的直觉就是"那是缓冲区，进去就没速度"。
+     */
+    private static final Block TRAP_BLOCK = Blocks.SNOW_BLOCK;
     /**
      * 原版船的推力（格/tick²），与 {@code BoatEntity.controlBoat()} 里的常量一致。
      * 极速 = 推力 / (1 − 冰面保持率)：0.04 / (1 − 0.98) = 2.0 格/tick（40 格/秒）。
@@ -95,6 +98,13 @@ public final class BoatRaceSession {
     private static final int GRID_HEADROOM = 3;
     /** 重新摆位的冷却（tick）：避免"查不到船"这类瞬态导致每 tick discard+respawn 抖动。 */
     private static final long GRID_REPLACE_COOLDOWN = 10L;
+    /**
+     * 左键"用道具"的冷却（tick）。
+     *
+     * <p>客户端按住左键时会每 tick 重发挖掘续期包，服务端分不清"点了一下"和"一直按着"，
+     * 所以只能靠冷却限流；1 秒一次既够用（道具也就 2 件），又不会一按就把手上的道具全烧掉。
+     */
+    private static final long ATTACK_USE_COOLDOWN = 20L;
 
     /** 加速期间每隔多少 tick 冒一次粒子（别每 tick 都发包）。 */
     private static final int NITRO_PARTICLE_INTERVAL = 4;
@@ -142,16 +152,44 @@ public final class BoatRaceSession {
     private final Map<UUID, Boolean> jumpHeld = new HashMap<>();
     /** 玩家 → 允许下次"重新摆位"的最早 tick（防抖动）。 */
     private final Map<UUID, Long> gridReplaceAt = new HashMap<>();
-    /** 玩家 → 他这次加速当前覆盖的方块（每一格都带引用计数，多人重叠时不会互相踩）。 */
+    /** 玩家 → 左键"用道具"的冷却结束 tick。 */
+    private final Map<UUID, Long> attackUseCooldownUntil = new HashMap<>();
+    /** 玩家 → 上次"没有道具"提示的 tick（限流，别刷屏）。 */
+    private final Map<UUID, Long> emptyItemMessageAt = new HashMap<>();
+    /** 玩家 → 他这次加速当前覆盖的方块；真正的落方块由 {@link #overlay} 统一做。 */
     private final Map<UUID, Set<Long>> nitroWindows = new HashMap<>();
-    /** 方块 → 原方块；key 存在即表示"这格现在是我们涂的氮气方块"。 */
-    private final Map<Long, BlockState> nitroIceRestore = new HashMap<>();
-    /** 方块 → 当前有几个玩家的窗口盖着它（归零才还原）。 */
-    private final Map<Long, Integer> nitroIceRefs = new HashMap<>();
+    /**
+     * 赛道地表的统一覆写层：氮气（加速）与速冻胶（减速）都要改船脚下的方块，
+     * 各自维护还原表会互相把对方的覆写当成"原方块"，所以收敛到一层里仲裁。
+     */
+    private final SurfaceOverlay overlay;
+    /** 赛道道具箱：过门横排，扫掠拾取，吃到后原地重生。 */
+    private final RaceItemBoxes itemBoxes;
+    /** 玩家 → 鱼鳞护盾失效 tick（护盾期间免疫速冻胶与墨水弹）。 */
+    private final Map<UUID, Long> shieldUntil = new HashMap<>();
+    /**
+     * 玩家 → 他此刻"带护盾压着"的格子：交给 {@link SurfaceOverlay} 暂时还原成原方块，
+     * 这样护盾才能真的免疫减速带（否则"免疫速冻胶"只是句空话）。
+     */
+    private final Map<UUID, Set<Long>> guardWindows = new HashMap<>();
+    /** 抽道具用的随机源：以赛道 Seed 派生，同一场的抽取序列可复现，方便事后查证。 */
+    private final Random random;
 
     private boolean started;
     private boolean mapBuilt;
     private boolean matchEnded;
+    /** 调试：打开后每次箱子拾取/重生/覆写刷新都打日志（{@code /pvp debug boatrace items} 打开）。 */
+    private boolean debugItems;
+    /** 调试：最近一次速冻胶铺了哪些格子（自检采样用）。 */
+    private Set<Long> lastTrapCells = Set.of();
+    /** 调试：>0 时倒计时，归零后打印采样格的方块，用来验证速冻胶"到期还原"。 */
+    private int overlayProbeTicks;
+    private BlockPos overlayProbePos;
+    /** 调试：拾取链路自检——沿中心线逐步把玩家推过第一个道具箱（服务器侧，不需要客户端操作）。 */
+    private List<double[]> itemProbePath;
+    private int itemProbeStep;
+    private ServerPlayerEntity itemProbePlayer;
+    private int itemProbeStartCount;
     private int tickCounter;
     private List<UUID> ranking = List.of();
 
@@ -162,6 +200,9 @@ public final class BoatRaceSession {
         this.playerCount = Math.max(1, playerCount);
         PvPConfig cfg = PvPConfig.INSTANCE;
         this.laps = Math.max(1, cfg.boatRaceLaps);
+        this.overlay = new SurfaceOverlay(
+                cfg.getBoatRaceSurfaceBlock(), cfg.getBoatRaceNitroBlock(), TRAP_BLOCK);
+        this.random = new Random(seed * 0x9E3779B97F4A7C15L + 17L);
 
         RaceTrackGenerator.Settings settings = new RaceTrackGenerator.Settings(
                 cfg.boatRaceMinTrackLength, cfg.boatRaceMaxTrackLength, cfg.boatRaceTargetTrackLength,
@@ -178,6 +219,8 @@ public final class BoatRaceSession {
         long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
         this.track = outcome.track();
         this.generationNotes = outcome.notes();
+        this.itemBoxes = new RaceItemBoxes(this.track,
+                cfg.boatRaceItemBoxGateOffset, cfg.boatRaceItemBoxLaneOffset, cfg.boatRaceItemBoxLanes);
 
         // Seed 是最重要的可复现信息：同一 Seed + 同一配置必然生成完全相同的赛道。
         LOGGER.info("[PvP] 亦可赛艇 赛道生成完毕 race seed: {} (请求 seed={}, 候选={}, 兜底={}, 耗时={} ms)",
@@ -392,10 +435,22 @@ public final class BoatRaceSession {
                 tracker.arm(player.getX(), player.getZ(), matchTicks);
             }
         }
-        // 开局先送 1 个，让玩家第一时间就知道有这件道具；之后每 interval 秒补 1 个
+        // 开局先送 1 个氮气：让玩家第一时间知道有道具、也知道怎么用（右键/空格）。
+        // 之后不再定时补 —— 道具全部来自赛道上的道具箱（见 RaceItemBoxes），
+        // 否则"每 15 秒白送一个"会盖过箱子的作用。
         this.nitroGrantTimer = 0;
         for (ServerPlayerEntity player : this.match.onlineParticipants()) {
-            this.giveNitro(player);
+            this.giveItem(player, RaceItem.NITRO);
+        }
+        if (arena != null && PvPConfig.INSTANCE.boatRaceItemBoxesEnabled) {
+            int spawned = this.itemBoxes.spawnAll(arena);
+            LOGGER.info("[PvP] 亦可赛艇 seed {} 道具箱已生成 {}/{} 个"
+                            + "（门后 {} 格 × {} 道门 × {} 车道，拾取半径 {}，重生 {} 秒）",
+                    this.track.seed(), spawned, this.itemBoxes.size(),
+                    PvPConfig.INSTANCE.boatRaceItemBoxGateOffset, this.track.checkpointCount(),
+                    PvPConfig.INSTANCE.boatRaceItemBoxLanes,
+                    PvPConfig.INSTANCE.boatRaceItemBoxPickupRadius,
+                    PvPConfig.INSTANCE.boatRaceItemBoxRespawnSeconds);
         }
         this.updateRanking();
     }
@@ -406,6 +461,9 @@ public final class BoatRaceSession {
             return;
         }
         this.tickCounter++;
+        if (this.itemProbePath != null) {
+            this.stepItemProbe();
+        }
         for (ServerPlayerEntity player : this.match.onlineParticipants()) {
             this.tickRacer(player, matchTicks);
         }
@@ -418,7 +476,12 @@ public final class BoatRaceSession {
         if (this.tickCounter % RECOVERY_INTERVAL == 0) {
             this.checkAnomalies(matchTicks);
         }
+        this.tickShields(matchTicks);
         this.tickNitro();
+        this.tickItemBoxes(matchTicks);
+        if (this.overlayProbeTicks > 0 && --this.overlayProbeTicks == 0) {
+            this.logOverlayProbe();
+        }
         if (this.tickCounter % (PLACE_INTERVAL * 20) == 0) {
             // 每 5 秒做一次自检：兜底补门是"漏判"的信号，出现了就要看赛道/判定是不是有问题
             for (Map.Entry<UUID, RaceProgressTracker> e : this.racers.entrySet()) {
@@ -435,12 +498,17 @@ public final class BoatRaceSession {
         }
     }
 
-    /** 比赛结束（庆祝阶段开始）时调用：清掉场上的船，别让它们留到下一场。 */
+    /** 比赛结束（庆祝阶段开始）时调用：清掉场上的船与道具箱，别让它们留到下一场。 */
     public void onMatchEnd() {
         this.matchEnded = true;
         this.nitroTicks.clear();
         this.jumpHeld.clear();
-        this.releaseAllNitroIce();
+        this.shieldUntil.clear();
+        this.releaseSurfaceOverlay();
+        int boxes = this.itemBoxes.discardAll();
+        if (boxes > 0) {
+            LOGGER.info("[PvP] 亦可赛艇 seed {} 回收道具箱 {} 个", this.track.seed(), boxes);
+        }
         for (UUID boatId : List.copyOf(this.boats.values())) {
             Entity entity = this.findEntity(boatId);
             if (entity != null) {
@@ -464,7 +532,8 @@ public final class BoatRaceSession {
         if (arena == null) {
             return;
         }
-        this.releaseAllNitroIce();
+        this.releaseSurfaceOverlay();
+        this.itemBoxes.discardAll();
         long t0 = System.nanoTime();
         int removed = RaceMapGenerator.clear(arena, this.track);
         this.mapBuilt = false;
@@ -517,6 +586,8 @@ public final class BoatRaceSession {
 
         this.discardBoat(player);
         tracker.snapTo(x, z);
+        // 回位是一次传送：清掉道具箱的扫掠历史，别拿"传送前的位置"当线段
+        this.itemBoxes.forget(player.getUuid());
         if (this.started) {
             // 只记账，不动单圈计时（见 RaceProgressTracker#onRecovered 的说明）
             tracker.onRecovered();
@@ -563,6 +634,10 @@ public final class BoatRaceSession {
     public void onDisconnect(ServerPlayerEntity player) {
         this.jumpHeld.remove(player.getUuid());
         this.releaseNitroWindow(player.getUuid());
+        this.itemBoxes.forget(player.getUuid());
+        this.shieldUntil.remove(player.getUuid());
+        this.attackUseCooldownUntil.remove(player.getUuid());
+        this.emptyItemMessageAt.remove(player.getUuid());
         this.discardBoat(player);
         this.racers.remove(player.getUuid());
         this.stuckTicks.remove(player.getUuid());
@@ -584,6 +659,9 @@ public final class BoatRaceSession {
         }
         RaceProgressTracker.Event event = tracker.update(
                 player.getX(), player.getY(), player.getZ(), matchTicks);
+        // 道具箱拾取：必须用扫掠（上一 tick → 本 tick 的线段），
+        // 因为氮气时一 tick 能跑 3.64 格，"半径内"这种点判定会整段跳过箱子。
+        this.tryPickupBox(player, tracker, matchTicks);
         switch (event) {
             case CHECKPOINT -> {
                 // 单个 Checkpoint 不刷屏，只在 HUD 里体现进度
@@ -596,6 +674,92 @@ public final class BoatRaceSession {
             case FINISH -> this.onRacerFinished(player, tracker);
             default -> {
             }
+        }
+    }
+
+    // ==================== 道具箱 ====================
+
+    /**
+     * 道具箱拾取判定。
+     *
+     * <p>三个刻意的限制：<b>只有正向行进才算</b>（逆行/倒车回吃不算，天然反刷）、
+     * <b>手上满了就不吃</b>（箱子留在赛道上给别人，而不是吃掉后凭空消失）、
+     * <b>两次拾取之间有冷却</b>（一 tick 扫过一整排不会把 3 个箱子全吃掉）。
+     */
+    private void tryPickupBox(ServerPlayerEntity player, RaceProgressTracker tracker, int matchTicks) {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        if (!cfg.boatRaceItemBoxesEnabled || this.itemBoxes.size() == 0) {
+            return;
+        }
+        // 先做扫掠查询（顺便刷新"上一 tick 位置"，别让线段跨度越拖越大），再决定收不收
+        RaceItemBoxes.Slot slot = this.itemBoxes.pickup(player, matchTicks,
+                !tracker.wrongWay(), cfg.boatRaceItemBoxPickupRadius, 2.0,
+                cfg.boatRaceItemBoxPickupCooldownTicks);
+        if (slot == null) {
+            return;
+        }
+        if (this.itemCount(player) >= Math.max(1, cfg.boatRaceItemBoxMaxHold)) {
+            // 手上满了：箱子留在赛道上给别人，而不是被吃掉后凭空消失
+            return;
+        }
+        this.itemBoxes.consume(slot, matchTicks,
+                Math.max(1, cfg.boatRaceItemBoxRespawnSeconds) * 20L);
+        RaceItem item = this.drawItem(player);
+        this.giveItem(player, item);
+        ArenaWorld arena = this.match.arenaWorld();
+        if (arena != null) {
+            arena.playSound(null, slot.x, slot.surfaceY + 1.0, slot.z,
+                    SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, 0.8F, 1.4F);
+            arena.spawnParticles(ParticleTypes.CRIT, slot.x, slot.surfaceY + 1.2, slot.z,
+                    8, 0.2, 0.2, 0.2, 0.05);
+        }
+        player.sendMessage(Text.literal("§7道具箱 → " + item.coloredName()), true);
+        if (this.debugItems) {
+            LOGGER.info("[PvP] 道具箱：{} 吃到 {}（门 {}，位置 {}, {}），存活 {}/{}",
+                    player.getGameProfile().getName(), item.id(), slot.gate,
+                    (int) slot.x, (int) slot.z, this.itemBoxes.liveCount(), this.itemBoxes.size());
+        }
+    }
+
+    /** 每 tick：重生到点的箱子。 */
+    private void tickItemBoxes(int matchTicks) {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        if (!cfg.boatRaceItemBoxesEnabled || this.itemBoxes.size() == 0) {
+            return;
+        }
+        int spawned = this.itemBoxes.tickRespawn(this.match.arenaWorld(), matchTicks);
+        if (spawned > 0 && this.debugItems) {
+            LOGGER.info("[PvP] 道具箱重生 {} 个，存活 {}/{}",
+                    spawned, this.itemBoxes.liveCount(), this.itemBoxes.size());
+        }
+    }
+
+    /** 每 tick：清掉过期的护盾。 */
+    private void tickShields(int matchTicks) {
+        if (!this.shieldUntil.isEmpty()) {
+            this.shieldUntil.entrySet().removeIf(entry -> entry.getValue() <= matchTicks);
+        }
+        this.guardWindows.clear();
+        if (this.shieldUntil.isEmpty() || !this.started || this.matchEnded) {
+            return;
+        }
+        for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+            if (!this.shieldUntil.containsKey(player.getUuid())) {
+                continue;
+            }
+            BoatEntity boat = this.boatOf(player);
+            if (boat == null || player.getVehicle() != boat) {
+                continue;
+            }
+            // 护盾只能"保护脚底"：把船身范围（±1 格）内被涂上减速带的格子暂时还原
+            Set<Long> window = new HashSet<>();
+            Box box = boat.getBoundingBox().expand(1.0);
+            for (int x = (int) Math.floor(box.minX); x <= (int) Math.floor(box.maxX); x++) {
+                for (int z = (int) Math.floor(box.minZ); z <= (int) Math.floor(box.maxZ); z++) {
+                    window.add(BlockPos.asLong(x, this.track.surfaceY(), z));
+                }
+            }
+            this.guardWindows.put(player.getUuid(), window);
         }
     }
 
@@ -749,11 +913,27 @@ public final class BoatRaceSession {
         if (boostTicks > 0) {
             text.append(Text.literal(" §7| §b§l加速 "
                     + String.format(java.util.Locale.ROOT, "%.1f", boostTicks / 20.0) + "s"));
-        } else {
-            int nitro = this.nitroCount(player);
-            if (nitro > 0) {
-                text.append(Text.literal(" §7| §b氮气§f x" + nitro + " §7(右键/空格)"));
+        }
+        // 道具栏：只显示手上真有的（附剩余护盾时间），最多 4 种，够短
+        long shieldLeft = this.shieldUntil.getOrDefault(player.getUuid(), 0L) - matchTicks;
+        if (shieldLeft > 0) {
+            text.append(Text.literal(" §7| " + RaceItem.SHIELD.coloredShortName() + "§f "
+                    + String.format(java.util.Locale.ROOT, "%.1f", shieldLeft / 20.0) + "s"));
+        }
+        StringBuilder items = new StringBuilder();
+        RaceItem held = RaceItem.of(player.getMainHandStack());
+        for (RaceItem kind : RaceItem.values()) {
+            int count = this.itemCount(player, kind);
+            if (count > 0) {
+                // 手上拿的那件高亮 + 箭头：骑船时只能靠滚轮选，"当前选中哪件"必须一眼可见
+                boolean selected = kind == held;
+                items.append(selected ? " §f§l▶" : " §7")
+                        .append(kind.coloredShortName()).append("§f x").append(count);
             }
+        }
+        if (!items.isEmpty()) {
+            text.append(Text.literal(" §7|" + items));
+            text.append(Text.literal(" §8(滚轮选/空格用)"));
         }
         if (tracker.wrongWay()) {
             text.append(Text.literal(" §7| §c§l⚠ 逆行了！"));
@@ -764,52 +944,68 @@ public final class BoatRaceSession {
     // ==================== 氮气加速 ====================
 
     /**
-     * 造一个氮气道具：火焰粉 + 自定义名字 + 唯一 NBT 标记 + 附魔光效（和烫手山芋一个套路）。
+     * 造一件道具：图标 + 自定义名字 + 唯一 NBT 标记 + 附魔光效 + 两行 lore（和烫手山芋一个套路）。
+     *
+     * <p>lore 的第二行会按道具说明不同的"存量规则"：氮气可能来自定时补给，
+     * 其余三件只来自赛道道具箱 —— 这两句直接决定玩家知不知道去哪儿弄道具，所以必须准确。
      */
-    private ItemStack createNitroItem() {
-        ItemStack stack = new ItemStack(Items.BLAZE_POWDER);
-        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§b§l氮气加速"));
-        NbtCompound nbt = new NbtCompound();
-        nbt.putString(NITRO_ITEM_TAG, "1");
-        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+    private ItemStack createItem(RaceItem kind) {
+        ItemStack stack = kind.create();
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        String amount = switch (kind) {
+            case NITRO -> "§b" + cfg.boatRaceNitroBoostSeconds + " 秒§7 内极速 §b×"
+                    + formatMultiplier(this.nitroSpeedMultiplier());
+            case TRAP -> "§f" + cfg.boatRaceItemTrapSeconds + " 秒§7 内，压上去的人速度掉到 §f2 格/秒";
+            case INK -> "让前一名玩家失明 §5" + d1(cfg.boatRaceItemInkSeconds) + " 秒";
+            case SHIELD -> "§6" + cfg.boatRaceItemShieldSeconds + " 秒§7 内免疫速冻胶与墨水弹";
+        };
+        String source = cfg.boatRaceNitroIntervalSeconds > 0
+                ? "§8坐在船上用；赛道上每 §7" + cfg.boatRaceNitroIntervalSeconds + "§8 秒补 1 个"
+                : "§8坐在船上用；道具从赛道上飘着的宝箱里吃";
         stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.literal("§7右键 或 §f空格§7 使用：§b" + PvPConfig.INSTANCE.boatRaceNitroBoostSeconds
-                        + " 秒§7 内极速 §b×" + formatMultiplier(this.nitroSpeedMultiplier())),
-                Text.literal("§8必须坐在船上；每 §7"
-                        + PvPConfig.INSTANCE.boatRaceNitroIntervalSeconds
-                        + "§8 秒自动补充，最多存 §7"
-                        + PvPConfig.INSTANCE.boatRaceNitroMaxStack + "§8 个"))));
-        MinecraftServer server = this.match.arenaWorld() == null ? null : this.match.arenaWorld().getServer();
-        if (server != null) {
-            Registry<Enchantment> registry = server.getRegistryManager().get(RegistryKeys.ENCHANTMENT);
-            RegistryEntry<Enchantment> unbreaking = registry.getEntry(Enchantments.UNBREAKING).orElse(null);
-            if (unbreaking != null) {
-                stack.addEnchantment(unbreaking, 1);
-            }
-        }
+                Text.literal("§7滚轮选中，按 §f空格§7 或 §f左键§7 使用：" + amount),
+                Text.literal(source + "，手上最多 §7" + cfg.boatRaceItemBoxMaxHold + "§8 件"))));
         return stack;
     }
 
-    /** 该物品是不是本模式的氮气（按 NBT 标记判定，不会误吃玩家自己的火焰粉）。 */
+    /** 是不是本模式的氮气（按 NBT 标记判定，不会误吃玩家自己的火焰粉）。 */
     public static boolean isNitroItem(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
-            return false;
-        }
-        NbtComponent nbt = stack.get(DataComponentTypes.CUSTOM_DATA);
-        return nbt != null && nbt.copyNbt().contains(NITRO_ITEM_TAG);
+        return RaceItem.of(stack) == RaceItem.NITRO;
     }
 
-    /** 玩家手上囤了几个氮气。 */
-    public int nitroCount(ServerPlayerEntity player) {
+    /** 是不是本模式的某件道具；不是则返回 null（右键/空格两条触发路径都用它分发）。 */
+    public static RaceItem itemKindOf(ItemStack stack) {
+        return RaceItem.of(stack);
+    }
+
+    /** 玩家手上囤了几件指定道具。 */
+    public int itemCount(ServerPlayerEntity player, RaceItem kind) {
         var inventory = player.getInventory();
         int count = 0;
         for (int i = 0; i < inventory.size(); i++) {
             ItemStack stack = inventory.getStack(i);
-            if (isNitroItem(stack)) {
+            if (RaceItem.of(stack) == kind) {
                 count += stack.getCount();
             }
         }
         return count;
+    }
+
+    /** 玩家手上所有本模式道具的总数（"手上最多几件"按这个算）。 */
+    public int itemCount(ServerPlayerEntity player) {
+        var inventory = player.getInventory();
+        int count = 0;
+        for (int i = 0; i < inventory.size(); i++) {
+            if (RaceItem.of(inventory.getStack(i)) != null) {
+                count += inventory.getStack(i).getCount();
+            }
+        }
+        return count;
+    }
+
+    /** 玩家手上囤了几个氮气。 */
+    public int nitroCount(ServerPlayerEntity player) {
+        return this.itemCount(player, RaceItem.NITRO);
     }
 
     /** 还剩多少 tick 加速（0 = 没在加速）。 */
@@ -817,28 +1013,72 @@ public final class BoatRaceSession {
         return this.nitroTicks.getOrDefault(uuid, 0);
     }
 
-    private void giveNitro(ServerPlayerEntity player) {
-        ItemStack stack = this.createNitroItem();
+    /** 还剩多少 tick 护盾（0 = 没护盾）。 */
+    public int shieldTicks(UUID uuid) {
+        return (int) Math.max(0L, this.shieldUntil.getOrDefault(uuid, 0L) - this.match.matchTicks());
+    }
+
+    /**
+     * 把一件道具塞进玩家背包，并<b>自动把快捷栏选中切到它</b>。
+     *
+     * <p>为什么自动切：骑船时选道具只能靠滚轮/数字键，而道具是"吃到就想立刻用"的东西
+     * （氮气追人、胶甩追兵）。不自动切的话每拿到一件都要多一步滚轮操作，
+     * 在 40 格/秒下这一下就是几十格。选中的槽位会同步给客户端（否则客户端手上还是旧物品）。
+     */
+    private void giveItem(ServerPlayerEntity player, RaceItem kind) {
+        ItemStack stack = this.createItem(kind);
         if (!player.getInventory().insertStack(stack)) {
             // 竞速中背包是空的，正常不会走到；真满了就掉在脚边，别凭空消失
             player.dropItem(stack, false);
         }
+        this.selectItemSlot(player, kind);
         player.currentScreenHandler.sendContentUpdates();
     }
 
+    /** 把快捷栏选中切到指定道具所在的那一格（找不到就保持不动）。 */
+    private void selectItemSlot(ServerPlayerEntity player, RaceItem kind) {
+        var inventory = player.getInventory();
+        int hotbar = net.minecraft.entity.player.PlayerInventory.getHotbarSize();
+        for (int i = 0; i < Math.min(hotbar, inventory.size()); i++) {
+            if (RaceItem.of(inventory.getStack(i)) == kind) {
+                if (inventory.selectedSlot != i) {
+                    inventory.selectedSlot = i;
+                    if (player.networkHandler != null) {
+                        player.networkHandler.sendPacket(
+                                new net.minecraft.network.packet.s2c.play.UpdateSelectedSlotS2CPacket(i));
+                    }
+                }
+                return;
+            }
+        }
+    }
+
     /**
-     * 右键使用氮气（由 {@code PvPMod} 的 UseItemCallback 转发）。
+     * 右键使用道具（由 {@code PvPMod} 的 UseItemCallback 转发）。按 NBT 标记分发到具体道具。
      *
      * @return 是否消费了这次使用
      */
-    public boolean useNitro(ServerPlayerEntity player, ItemStack stack) {
-        if (!this.canUseNitro(player)) {
+    public boolean useItem(ServerPlayerEntity player, ItemStack stack, RaceItem kind) {
+        if (kind == null) {
+            return false;
+        }
+        if (!this.canUseItem(player)) {
             if (this.started && !this.matchEnded && this.boatOf(player) == null) {
-                player.sendMessage(Messages.warn("必须坐在船上才能使用氮气"), true);
+                player.sendMessage(Messages.warn("必须坐在船上才能使用道具"), true);
             }
             return false;
         }
-        return this.activateNitro(player, stack);
+        return switch (kind) {
+            case NITRO -> this.activateNitro(player, stack);
+            case TRAP -> this.activateTrap(player, stack);
+            case INK -> this.activateInk(player, stack);
+            case SHIELD -> this.activateShield(player, stack);
+        };
+    }
+
+    /** 兼容旧调用点：等价于用一颗氮气。 */
+    public boolean useNitro(ServerPlayerEntity player, ItemStack stack) {
+        return this.useItem(player, stack, RaceItem.NITRO);
     }
 
     /** 真正吃掉一颗氮气并点亮加速（右键与空格两条触发路径共用）。 */
@@ -859,6 +1099,201 @@ public final class BoatRaceSession {
         return true;
     }
 
+    // ==================== 速冻胶 / 墨水弹 / 鱼鳞护盾 ====================
+
+    /**
+     * 速冻胶：在<b>身后</b> {@code boatRaceItemTrapBehind} 格的赛道上铺一条雪带。
+     *
+     * <p><b>为什么铺身后而不是身前</b>：身前等于给自己下套（40 格/秒下根本来不及绕），
+     * 身后则正好落在追你的人的路线上 —— 这也是本模式里唯一"真正能打到人"的攻击手段：
+     * 压上去的人速度会从 40 格/秒掉到 2 格/秒（原版只有"滑/不滑"两档，没有轻减速）。
+     *
+     * <p>位置取<b>中心线</b>而不是"玩家正后方"：写死横向偏移时，弯道上会把雪带铺到缓冲带/护栏外面。
+     * 宽度默认 6 格 / 赛道 16 格，永远留得下 10 格绕行空间，任何情况下都不会把路封死；
+     * 落在非赛道方块（雪地缓冲带、护栏、门架）上的格子会被 {@link SurfaceOverlay} 自动忽略。
+     */
+    private boolean activateTrap(ServerPlayerEntity player, ItemStack stack) {
+        return this.activateTrapAt(player, stack,
+                PvPConfig.INSTANCE.boatRaceItemTrapBehind);
+    }
+
+    /** 速冻胶的实际铺设逻辑；{@code behind} 为正表示铺在身后，负值表示铺在前方（调试用）。 */
+    private boolean activateTrapAt(ServerPlayerEntity player, ItemStack stack, double behindBlocks) {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int samples = this.track.sampleCount();
+        if (samples <= 0) {
+            return false;
+        }
+        int center = this.track.nearestSample(player.getX(), player.getZ());
+        int behind = (int) Math.round(behindBlocks);
+        int base = Math.floorMod(center - behind, samples);
+        int halfLength = Math.max(0, (Math.max(1, cfg.boatRaceItemTrapLength) - 1) / 2);
+        double halfWidth = Math.max(1.0, cfg.boatRaceItemTrapWidth / 2.0);
+
+        Set<Long> positions = new HashSet<>();
+        for (int step = -halfLength; step <= halfLength; step++) {
+            int index = Math.floorMod(base + step, samples);
+            double cx = this.track.sampleX(index);
+            double cz = this.track.sampleZ(index);
+            double nx = this.track.sampleNormalX(index);
+            double nz = this.track.sampleNormalZ(index);
+            for (double lat = -halfWidth; lat <= halfWidth; lat += 1.0) {
+                positions.add(BlockPos.asLong(
+                        (int) Math.floor(cx + nx * lat),
+                        this.track.surfaceY(),
+                        (int) Math.floor(cz + nz * lat)));
+            }
+        }
+
+        stack.decrement(1);
+        this.overlay.addTrap(positions,
+                this.match.matchTicks() + Math.max(1, cfg.boatRaceItemTrapSeconds) * 20L);
+        this.lastTrapCells = positions;
+        this.refreshSurfaceOverlay();
+        player.sendMessage(Text.literal("§f§l速冻胶！§r §7已在身后铺开（"
+                + cfg.boatRaceItemTrapWidth + "×" + cfg.boatRaceItemTrapLength + " 格，"
+                + cfg.boatRaceItemTrapSeconds + " 秒）"), true);
+        ArenaWorld arena = this.match.arenaWorld();
+        if (arena != null) {
+            arena.playSound(null, this.track.sampleX(base), this.track.surfaceY(), this.track.sampleZ(base),
+                    SoundEvents.BLOCK_SNOW_PLACE, SoundCategory.PLAYERS, 1.0F, 0.8F);
+        }
+        if (this.debugItems) {
+            LOGGER.info("[PvP] 速冻胶：{} 在身后 {} 格铺了 {} 格（{} 宽 × {} 长），覆写层共 {} 格",
+                    player.getGameProfile().getName(), behind, positions.size(),
+                    cfg.boatRaceItemTrapWidth, cfg.boatRaceItemTrapLength, this.overlay.cellCount());
+        }
+        return true;
+    }
+
+    /**
+     * 墨水弹：让<b>前一名</b>玩家失明（附带一半时长的反胃）。
+     *
+     * <p>这是唯一的"纯状态效果"道具：玩家属性/效果对船的位移完全无效（实测），
+     * 但对<b>观感</b>有效 —— 高速走线靠的就是视野，所以失明在竞速里恰好是恰到好处的攻击。
+     *
+     * <p>目标选择：名次在你前一位的那名<b>未完赛</b>选手；已经是第一名时改为离你最近的追赶者。
+     * 场上没有其他选手时不消耗道具（避免白白用掉）。
+     */
+    private boolean activateInk(ServerPlayerEntity player, ItemStack stack) {
+        ServerPlayerEntity target = this.itemTarget(player);
+        if (target == null) {
+            player.sendMessage(Text.literal("§7没有可以下手的对手（道具未消耗）"), true);
+            return false;
+        }
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        stack.decrement(1);
+        if (this.isShielded(target)) {
+            player.sendMessage(Text.literal("§7墨水被 §6" + target.getGameProfile().getName()
+                    + "§7 的鱼鳞护盾挡下了"), true);
+            target.sendMessage(Text.literal("§6鱼鳞护盾§r 挡下了一发墨水弹"), true);
+            return true;
+        }
+        int blindTicks = (int) Math.max(1.0, cfg.boatRaceItemInkSeconds * 20.0);
+        target.addStatusEffect(new StatusEffectInstance(
+                StatusEffects.BLINDNESS, blindTicks, 0, false, false, true));
+        target.addStatusEffect(new StatusEffectInstance(
+                StatusEffects.NAUSEA, Math.max(1, blindTicks / 2), 0, false, false, true));
+        player.sendMessage(Text.literal("§5§l墨水弹！§r §7正中 §f"
+                + target.getGameProfile().getName()), true);
+        target.sendMessage(Text.literal("§5§l被墨水糊住了！§r §7看不清路（"
+                + d1(cfg.boatRaceItemInkSeconds) + " 秒）"), true);
+        ArenaWorld arena = this.match.arenaWorld();
+        if (arena != null) {
+            arena.playSound(null, target.getX(), target.getY(), target.getZ(),
+                    SoundEvents.ENTITY_SQUID_SQUIRT, SoundCategory.PLAYERS, 1.0F, 0.7F);
+        }
+        if (this.debugItems) {
+            LOGGER.info("[PvP] 墨水弹：{} → {}（失明 {} tick）",
+                    player.getGameProfile().getName(), target.getGameProfile().getName(), blindTicks);
+        }
+        return true;
+    }
+
+    /**
+     * 鱼鳞护盾：一段时间内免疫速冻胶与墨水弹（不免疫撞墙/掉赛道这类物理事故）。
+     *
+     * <p>已有护盾时按"叠加时长"处理（封顶两次，避免囤成无限护盾）。
+     */
+    private boolean activateShield(ServerPlayerEntity player, ItemStack stack) {
+        int ticks = Math.max(1, PvPConfig.INSTANCE.boatRaceItemShieldSeconds) * 20;
+        stack.decrement(1);
+        long now = this.match.matchTicks();
+        long current = Math.max(now, this.shieldUntil.getOrDefault(player.getUuid(), 0L));
+        this.shieldUntil.put(player.getUuid(), current + ticks);
+        player.sendMessage(Text.literal("§6§l鱼鳞护盾！§r §7接下来 "
+                + d1((current + ticks - now) / 20.0) + " 秒免疫速冻胶与墨水弹"), true);
+        ArenaWorld arena = this.match.arenaWorld();
+        if (arena != null) {
+            arena.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ITEM_SHIELD_BLOCK, SoundCategory.PLAYERS, 1.0F, 1.2F);
+        }
+        return true;
+    }
+
+    /** 该玩家此刻是否带着护盾。 */
+    public boolean isShielded(ServerPlayerEntity player) {
+        return this.shieldUntil.getOrDefault(player.getUuid(), 0L) > this.match.matchTicks();
+    }
+
+    /** 墨水的目标：名次前一位的未完赛选手；自己第一时就打离自己最近的追赶者。 */
+    private ServerPlayerEntity itemTarget(ServerPlayerEntity player) {
+        List<UUID> order = this.ranking.isEmpty()
+                ? new ArrayList<>(this.racers.keySet()) : this.ranking;
+        int index = order.indexOf(player.getUuid());
+        if (index < 0 || order.size() < 2) {
+            return null;
+        }
+        for (int i = index - 1; i >= 0; i--) {
+            ServerPlayerEntity ahead = this.onlineRacer(order.get(i));
+            if (ahead != null) {
+                return ahead;
+            }
+        }
+        for (int i = index + 1; i < order.size(); i++) {
+            ServerPlayerEntity behind = this.onlineRacer(order.get(i));
+            if (behind != null) {
+                return behind;
+            }
+        }
+        return null;
+    }
+
+    /** 名次表里的 UUID → 还在场上、且没冲线的选手（冲线的人已经转旁观，不该再被道具打）。 */
+    private ServerPlayerEntity onlineRacer(UUID uuid) {
+        RaceProgressTracker tracker = this.racers.get(uuid);
+        if (tracker == null || tracker.finished()) {
+            return null;
+        }
+        for (ServerPlayerEntity other : this.match.onlineParticipants()) {
+            if (other.getUuid().equals(uuid)) {
+                return other;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 抽一件道具。
+     *
+     * <p>默认按名次加权：{@code r} = 0 表示第一名、1 表示最后一名。
+     * 落后者拿到攻击类（速冻胶/墨水弹）的权重随 r 线性上升，领先者<b>只出防御类</b>
+     * —— 目的是抑制"第一名越跑越远"的滚雪球，让道具战成为追回来的手段，而不是扩大差距的工具。
+     * 权重关掉（{@code boatRaceItemRanksWeighted=false}）时四件等概率。
+     */
+    private RaceItem drawItem(ServerPlayerEntity player) {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int total = Math.max(1, this.racers.size());
+        RaceProgressTracker tracker = this.racers.get(player.getUuid());
+        int place = tracker == null || tracker.place() <= 0 ? total : tracker.place();
+        if (!cfg.boatRaceItemRanksWeighted || total <= 1) {
+            return RaceItem.values()[this.random.nextInt(RaceItem.values().length)];
+        }
+        // 权重下标 = RaceItem.values() 顺序（NITRO / TRAP / INK / SHIELD），策略见 RaceLoot
+        double[] weights = RaceLoot.weights(place, total);
+        return RaceItem.values()[RaceLoot.pick(weights, this.random.nextDouble())];
+    }
+
     /**
      * 氮气方块相对赛道冰面的极速倍率：极速 = 推力 / (1 − 滑度)，
      * 所以倍率 = (1 − 冰面滑度) / (1 − 氮气滑度)。浮冰 0.98 与蓝冰 0.989 → 0.02 / 0.011 ≈ 1.82。
@@ -872,7 +1307,7 @@ public final class BoatRaceSession {
     }
 
     /**
-     * 骑乘输入回调（由 {@code ServerPlayNetworkHandlerMixin} 转发）：检测"空格按下"的上升沿 → 喷氮气。
+     * 骑乘输入回调（由 {@code ServerPlayNetworkHandlerMixin} 转发）：检测"空格按下"的上升沿 → 用一件道具。
      *
      * <p><b>为什么要加空格这个触发方式</b>：按住 W 前进时，鼠标右键的物品使用会被客户端吞掉 ——
      * 驾驶时准星常常压在冰面或船身上，右键会先去做方块/实体交互就结束了，
@@ -884,29 +1319,90 @@ public final class BoatRaceSession {
     public void onRiderJumpInput(ServerPlayerEntity player, boolean jumping) {
         boolean was = Boolean.TRUE.equals(this.jumpHeld.put(player.getUuid(), jumping));
         if (jumping && !was) {
-            this.tryUseNitro(player);
+            this.tryUseItem(player);
         }
     }
 
-    /** 从物品栏里找一颗氮气用掉（空格触发用）。 */
-    public boolean tryUseNitro(ServerPlayerEntity player) {
-        if (!this.canUseNitro(player)) {
+    /**
+     * 从物品栏里找一件道具用掉（空格触发用）。
+     *
+     * <p>优先用<b>手上拿着</b>的那件（玩家可以用滚轮选定要喷什么），手里不是道具时
+     * 退化成"找第一颗氮气"—— 和加道具系统之前的行为保持一致（空格 = 喷氮气）。
+     */
+    public boolean tryUseItem(ServerPlayerEntity player) {
+        if (!this.canUseItem(player)) {
             return false;
+        }
+        ItemStack held = player.getMainHandStack();
+        RaceItem kind = RaceItem.of(held);
+        if (kind != null) {
+            return this.useItem(player, held, kind);
         }
         var inventory = player.getInventory();
         for (int i = 0; i < inventory.size(); i++) {
             ItemStack stack = inventory.getStack(i);
-            if (isNitroItem(stack)) {
+            if (RaceItem.of(stack) == RaceItem.NITRO) {
                 return this.activateNitro(player, stack);
             }
         }
-        player.sendMessage(Text.literal("§7没有氮气了（每 §f"
-                + PvPConfig.INSTANCE.boatRaceNitroIntervalSeconds + "§7 秒补 1 个）"), true);
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        if (this.takeEmptyItemMessage(player.getUuid(), this.match.matchTicks())) {
+            player.sendMessage(Text.literal(cfg.boatRaceItemBoxesEnabled
+                    ? "§7没有道具了（赛道上的宝箱里可以吃；滚轮选中一件再按空格/左键）"
+                    : "§7没有氮气了（每 §f" + cfg.boatRaceNitroIntervalSeconds + "§7 秒补 1 个）"), true);
+        }
         return false;
     }
 
-    /** 能否使用氮气：比赛进行中、未冲线、且正坐在自己的船上。 */
-    private boolean canUseNitro(ServerPlayerEntity player) {
+    /** 兼容旧调用点：等价于按空格用一件道具。 */
+    public boolean tryUseNitro(ServerPlayerEntity player) {
+        return this.tryUseItem(player);
+    }
+
+    /**
+     * 左键回调（由 {@code PvPMod} 的 AttackBlockCallback 转发，返回值会取消破坏方块）。
+     *
+     * <p>两个职责：
+     * <ol>
+     *   <li><b>用道具的第二通道</b>：骑船时右键会被客户端吞掉，空格虽然可靠但玩家习惯不一，
+     *       左键在驾驶时一定会到（准星基本都压在冰面上）。</li>
+     *   <li><b>禁止挖赛道</b>：竞速里破坏赛道方块只有害处 —— 空手挖浮冰 2.5 秒一块，
+     *       挖出的坑让跟在后面的人掉出赛道回位。这条保护原来漏了（战桥/床战/幸运之柱/TNT 跑酷都有）。</li>
+     * </ol>
+     *
+     * <p>注意左键<b>按住不放时客户端每 tick 都会重发</b> {@code START_DESTROY_BLOCK}（挖掘续期包），
+     * 两种包在服务端无法区分，所以这里给"用道具"加了冷却；不加的话按住左键会瞬间把手上的道具全烧掉。
+     */
+    public void onAttackInput(ServerPlayerEntity player) {
+        if (this.matchEnded || !this.started) {
+            return;
+        }
+        long now = this.match.matchTicks();
+        if (now < this.attackUseCooldownUntil.getOrDefault(player.getUuid(), 0L)) {
+            return;
+        }
+        this.attackUseCooldownUntil.put(player.getUuid(), now + ATTACK_USE_COOLDOWN);
+        if (this.tryUseItem(player)) {
+            return;
+        }
+        // 没有可用道具：也不要刷屏，"没有道具"的提示交给 takeEmptyItemMessage 限流
+        if (this.takeEmptyItemMessage(player.getUuid(), now)) {
+            player.sendMessage(Text.literal("§7手上没有道具（滚轮选中一件再按空格/左键）"), true);
+        }
+    }
+
+    /** "没有道具"这类提示的限流：同一名玩家 1 秒最多收到一次。 */
+    private boolean takeEmptyItemMessage(UUID uuid, long now) {
+        long last = this.emptyItemMessageAt.getOrDefault(uuid, Long.MIN_VALUE);
+        if (now - last < 20) {
+            return false;
+        }
+        this.emptyItemMessageAt.put(uuid, now);
+        return true;
+    }
+
+    /** 能否使用道具：比赛进行中、未冲线、且正坐在自己的船上。 */
+    private boolean canUseItem(ServerPlayerEntity player) {
         if (this.matchEnded || !this.started || this.match.getState() != MatchState.ACTIVE) {
             return false;
         }
@@ -931,19 +1427,20 @@ public final class BoatRaceSession {
     }
 
     /**
-     * 每 tick：补氮气 + 结算加速。
+     * 每 tick：定时补氮气（可关）+ 结算加速 + 刷新地表覆写。
      *
-     * <p><b>为什么必须改船的速度</b>：原版的速度/跳跃药水走的是玩家属性，而船的位移只由
-     * {@code BoatEntity.controlBoat()} 自己算，跟玩家属性完全无关 —— 所以"喝速度药水"对船毫无作用。
-     * 只能由服务端在 tick 里给船加推力（下面 {@link #applyNitroThrust}），
-     * 好处是船本来就是服务端权威的，不需要客户端 Mod。
+     * <p><b>为什么加速只能"换脚下方块"、不能"改船速"</b>：船是被玩家骑的载具，
+     * 原版 {@code ServerPlayNetworkHandler.onVehicleMove} 每 tick 都用客户端上报的坐标覆盖服务端位置，
+     * 服务端 {@code setVelocity} 的结果下一 tick 就被丢掉（实测给静止的船持续加推力，
+     * 船速始终等于"刚加的那一点"，推不动）。客户端唯一真正读的物理输入是<b>方块滑度</b>。
      */
     private void tickNitro() {
         PvPConfig cfg = PvPConfig.INSTANCE;
-        int interval = Math.max(1, cfg.boatRaceNitroIntervalSeconds) * 20;
+        int intervalSeconds = cfg.boatRaceNitroIntervalSeconds;
         int maxStack = Math.max(1, cfg.boatRaceNitroMaxStack);
 
-        if (++this.nitroGrantTimer >= interval) {
+        // 0 = 关闭定时补给（默认）：道具改由赛道上的道具箱产出，这里再送就太多了
+        if (intervalSeconds > 0 && ++this.nitroGrantTimer >= intervalSeconds * 20) {
             this.nitroGrantTimer = 0;
             for (ServerPlayerEntity player : this.match.onlineParticipants()) {
                 RaceProgressTracker tracker = this.racers.get(player.getUuid());
@@ -953,13 +1450,15 @@ public final class BoatRaceSession {
                 if (this.nitroCount(player) >= maxStack) {
                     continue;
                 }
-                this.giveNitro(player);
+                this.giveItem(player, RaceItem.NITRO);
                 player.sendMessage(Text.literal("§b氮气 +1 §7（右键 或 空格使用）"), true);
             }
         }
 
         if (this.nitroTicks.isEmpty()) {
-            this.releaseAllNitroIce();
+            // 没人加速：清掉所有加速窗口，但**不能**顺手还原 —— 速冻胶可能还在场
+            this.nitroWindows.clear();
+            this.refreshSurfaceOverlay();
             return;
         }
         for (ServerPlayerEntity player : this.match.onlineParticipants()) {
@@ -992,17 +1491,17 @@ public final class BoatRaceSession {
                         // 实测位移才是真速度（velocity 对骑乘中的船没有参考价值）
                         double perTick = now.distanceTo(last) / 10.0;
                         LOGGER.info("[PvP] 氮气测速 {}：剩余 {} tick，实测 {} 格/tick（{} 格/秒），"
-                                        + "位置 ({}, {}, {})，氮气方块 {} 格",
+                                        + "位置 ({}, {}, {})，覆写层 {} 格（其中加速 {} 格）",
                                 player.getGameProfile().getName(), left,
                                 String.format(java.util.Locale.ROOT, "%.3f", perTick),
                                 String.format(java.util.Locale.ROOT, "%.1f", perTick * 20),
                                 (int) Math.floor(now.x), (int) Math.floor(now.y), (int) Math.floor(now.z),
-                                this.nitroIceRestore.size());
+                                this.overlay.cellCount(), this.overlay.boostCellCount());
                     }
                 }
             }
         }
-        this.refreshNitroIce();
+        this.refreshSurfaceOverlay();
         if (this.nitroProbeTicks > 0 && --this.nitroProbeTicks <= 0) {
             LOGGER.info("[PvP] 氮气测速结束");
         }
@@ -1012,7 +1511,7 @@ public final class BoatRaceSession {
      * 铺氮气冰带：把船底（以及前方 {@link #NITRO_ICE_LEAD} 格）的赛道冰面换成氮气方块，
      * 让<b>客户端自己</b>把船开到更高的极速。
      *
-     * <p>只记录"这次加速覆盖了哪些格子"，真正的涂/还原交给 {@link #refreshNitroIce()} 按并集统一结算，
+     * <p>只记录"这次加速覆盖了哪些格子"，真正的涂/还原交给 {@link #refreshSurfaceOverlay()} 按并集统一结算，
      * 这样多个人同时喷氮气时窗口重叠也不会互相踩。
      */
     private void applyNitroIce(ServerPlayerEntity player) {
@@ -1039,47 +1538,32 @@ public final class BoatRaceSession {
     }
 
     /**
-     * 把"所有加速玩家窗口的并集"刷成氮气方块，并立刻还原已经被窗口抛弃的格子。
+     * 把"所有加速玩家窗口的并集"和"还在生效的速冻胶"交给 {@link SurfaceOverlay} 统一落方块。
      *
-     * <p>这是"别人蹭不到"的关键：船一走，身后的格子当 tick 就还原成普通冰面，
+     * <p>这是"别人蹭不到氮气"的关键：船一走，身后的格子当 tick 就还原成普通冰面，
      * 所以跟着你走的人得不到任何加成（只有正好在你前方 2 格以内的人会短暂吃到）。
+     *
+     * <p>速冻胶不在这里铺（它是"一次性铺一片、到期还原"），但必须<b>走同一条刷新路径</b>：
+     * 否则氮气还原时会把盖在同一格上的雪带一起抹掉。
      */
-    private void refreshNitroIce() {
+    private void refreshSurfaceOverlay() {
         ArenaWorld arena = this.match.arenaWorld();
         if (arena == null) {
             return;
         }
-        Block nitroBlock = PvPConfig.INSTANCE.getBoatRaceNitroBlock();
-        Block surfaceBlock = PvPConfig.INSTANCE.getBoatRaceSurfaceBlock();
         Set<Long> union = new HashSet<>();
         for (Set<Long> window : this.nitroWindows.values()) {
             union.addAll(window);
         }
-        // 1) 不再被任何窗口覆盖的 → 立刻还原
-        Iterator<Map.Entry<Long, BlockState>> iterator = this.nitroIceRestore.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<Long, BlockState> entry = iterator.next();
-            if (union.contains(entry.getKey())) {
-                continue;
-            }
-            arena.setBlockState(BlockPos.fromLong(entry.getKey()), entry.getValue(), 3);
-            this.nitroIceRefs.remove(entry.getKey());
-            iterator.remove();
+        Set<Long> guard = new HashSet<>();
+        for (Set<Long> window : this.guardWindows.values()) {
+            guard.addAll(window);
         }
-        // 2) 新进入窗口的 → 换成氮气方块（只动赛道冰面，雪地/护栏/门架不碰）
-        for (Long key : union) {
-            if (this.nitroIceRestore.containsKey(key)) {
-                this.nitroIceRefs.merge(key, 1, Integer::sum);
-                continue;
-            }
-            BlockPos pos = BlockPos.fromLong(key);
-            BlockState current = arena.getBlockState(pos);
-            if (current.isAir() || current.isOf(nitroBlock) || !current.isOf(surfaceBlock)) {
-                continue;
-            }
-            this.nitroIceRestore.put(key, current);
-            this.nitroIceRefs.put(key, 1);
-            arena.setBlockState(pos, nitroBlock.getDefaultState(), 3);
+        int changed = this.overlay.refresh(arena, union, guard, this.match.matchTicks());
+        if (changed > 0 && this.debugItems) {
+            LOGGER.info("[PvP] 地表覆写刷新：改动 {} 格（加速窗口 {}，护盾窗口 {}，减速 {}），覆写层共 {} 格",
+                    changed, union.size(), guard.size(), this.overlay.trapCellCount(),
+                    this.overlay.cellCount());
         }
     }
 
@@ -1088,25 +1572,208 @@ public final class BoatRaceSession {
         this.nitroWindows.remove(uuid);
     }
 
-    /** 全场都不加速了：还原所有氮气方块。 */
-    private void releaseAllNitroIce() {
-        if (this.nitroWindows.isEmpty() && this.nitroIceRestore.isEmpty()) {
-            return;
-        }
+    /**
+     * 立刻还原全部地表覆写（氮气 + 速冻胶）并清空状态。
+     *
+     * <p>比赛结束 / 清场前必须调用，且必须在 {@code RaceMapGenerator.clear} <b>之前</b>：
+     * 精确清场会把赛道变成空气，之后这里再"还原"就会留下一条多余的冰带。
+     */
+    private int releaseSurfaceOverlay() {
         this.nitroWindows.clear();
-        this.nitroIceRefs.clear();
+        this.guardWindows.clear();
         ArenaWorld arena = this.match.arenaWorld();
-        int restored = 0;
-        if (arena != null) {
-            for (Map.Entry<Long, BlockState> entry : this.nitroIceRestore.entrySet()) {
-                arena.setBlockState(BlockPos.fromLong(entry.getKey()), entry.getValue(), 3);
-                restored++;
+        int restored = this.overlay.restoreAll(arena);
+        if (restored > 0) {
+            LOGGER.info("[PvP] 亦可赛艇 seed {} 地表覆写已还原 {} 个方块（氮气/速冻胶）",
+                    this.track.seed(), restored);
+        }
+        return restored;
+    }
+
+    // ==================== 调试入口 ====================
+
+    /**
+     * 调试：打印道具箱布局与地表覆写状态（{@code /pvp debug boatrace items}）。
+     *
+     * <p>离线自检只能证明几何正确，真机上"箱子到底有没有生成/能不能吃到"必须看这些数字，
+     * 所以这里把布局、在场数、覆写格数、每个箱子的坐标一起打出来。
+     */
+    public String debugItemReport(ServerPlayerEntity player) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("道具箱：在场 ").append(this.itemBoxes.liveCount())
+                .append("/").append(this.itemBoxes.size())
+                .append("（门后 ").append(d1(PvPConfig.INSTANCE.boatRaceItemBoxGateOffset))
+                .append(" 格 × ").append(this.track.checkpointCount()).append(" 道门 × ")
+                .append(PvPConfig.INSTANCE.boatRaceItemBoxLanes).append(" 车道）");
+        sb.append("｜地表覆写 ").append(this.overlay.cellCount()).append(" 格（加速 ")
+                .append(this.overlay.boostCellCount()).append(" / 减速 ")
+                .append(this.overlay.trapCellCount()).append(" / 护盾屏蔽 ")
+                .append(this.overlay.guardCellCount()).append("）");
+        sb.append("｜").append(player.getGameProfile().getName()).append(" 持有");
+        for (RaceItem kind : RaceItem.values()) {
+            sb.append(" ").append(kind.id()).append("=").append(this.itemCount(player, kind));
+        }
+        sb.append(" 护盾=").append(this.shieldTicks(player.getUuid())).append("tick");
+        if (!this.itemBoxes.slots().isEmpty()) {
+            RaceItemBoxes.Slot first = this.itemBoxes.slots().get(0);
+            sb.append("｜首箱 (").append((int) first.x).append(",").append((int) first.z)
+                    .append(") 门").append(first.gate);
+        }
+        this.debugItems = true;
+        LOGGER.info("[PvP] 亦可赛艇 seed {} 道具自检：{}", this.track.seed(), sb);
+        return sb.toString();
+    }
+
+    /** 调试：立刻在身后铺一条速冻胶（不走物品，直接验证覆写层与还原）。 */
+    public boolean debugPlaceTrap(ServerPlayerEntity player) {
+        return this.debugPlaceTrap(player, PvPConfig.INSTANCE.boatRaceItemTrapBehind);
+    }
+
+    /**
+     * 调试：在指定偏移处铺速冻胶（0 = 正好铺在脚下，用来验证"护盾免疫减速带"）。
+     *
+     * <p>日志会打出<b>玩家脚下那一格</b>的方块：没有护盾时应该是雪块，
+     * 带着护盾时同一格必须还是浮冰 —— 这就是护盾是否真的生效的判据。
+     */
+    public boolean debugPlaceTrap(ServerPlayerEntity player, double behindBlocks) {
+        if (!this.started) {
+            return false;
+        }
+        // 复用同一条路径：造一个一次性堆叠，用完即弃
+        ItemStack fake = RaceItem.TRAP.create();
+        boolean ok = this.activateTrapAt(player, fake, behindBlocks);
+        if (ok) {
+            this.debugItems = true;
+            ArenaWorld arena = this.match.arenaWorld();
+            // 自检：采样一格，现在应该是雪块；等速冻胶过期后再采样一次，应该回到原方块
+            Long sample = this.lastTrapCells.isEmpty() ? null : this.lastTrapCells.iterator().next();
+            this.overlayProbePos = sample == null ? null : BlockPos.fromLong(sample);
+            this.overlayProbeTicks = Math.max(1, PvPConfig.INSTANCE.boatRaceItemTrapSeconds) * 20 + 20;
+            LOGGER.info("[PvP] 速冻胶调试：{} 铺设完成，覆写层 {} 格（{} 秒后过期，{} tick 后自检采样格）"
+                            + "；采样格 {} = {}",
+                    player.getGameProfile().getName(), this.overlay.cellCount(),
+                    PvPConfig.INSTANCE.boatRaceItemTrapSeconds, this.overlayProbeTicks,
+                    this.overlayProbePos, this.blockName(arena, this.overlayProbePos));
+            LOGGER.info("[PvP] 速冻胶调试：{} 脚下 ({}, {}, {}) = {}（护盾 {}）",
+                    player.getGameProfile().getName(),
+                    player.getBlockX(), this.track.surfaceY(), player.getBlockZ(),
+                    this.blockName(arena, new BlockPos(player.getBlockX(), this.track.surfaceY(),
+                            player.getBlockZ())),
+                    this.isShielded(player) ? "开" : "关");
+        }
+        return ok;
+    }
+
+    /** 调试：等价于按空格用一件道具（走 tryUseItem 的完整分发，不需要客户端按键）。 */
+    public boolean debugUseItem(ServerPlayerEntity player) {
+        if (!this.started) {
+            return false;
+        }
+        this.debugItems = true;
+        boolean used = this.tryUseItem(player);
+        LOGGER.info("[PvP] 调试用道具：{} → {}（护盾 {}）", player.getGameProfile().getName(),
+                used ? "成功" : "失败（手上没有道具 / 没有目标）", this.shieldTicks(player.getUuid()));
+        return used;
+    }
+
+    /** 调试自检：打印采样格在覆写层清空后的方块（应与铺设前一致）。 */
+    private void logOverlayProbe() {
+        ArenaWorld arena = this.match.arenaWorld();
+        LOGGER.info("[PvP] 速冻胶自检：到期后覆写层 {} 格（加速 {} / 减速 {}），采样格 {} = {}",
+                this.overlay.cellCount(), this.overlay.boostCellCount(), this.overlay.trapCellCount(),
+                this.overlayProbePos, this.blockName(arena, this.overlayProbePos));
+    }
+
+    private String blockName(ArenaWorld arena, BlockPos pos) {
+        if (arena == null || pos == null) {
+            return "无";
+        }
+        return net.minecraft.registry.Registries.BLOCK.getId(arena.getBlockState(pos).getBlock()).toString();
+    }
+
+    /** 调试：直接给玩家一件道具（{@code /pvp debug boatrace item <id>}）。 */
+    public boolean debugGrantItem(ServerPlayerEntity player, RaceItem kind) {
+        if (kind == null || !this.started) {
+            return false;
+        }
+        this.giveItem(player, kind);
+        LOGGER.info("[PvP] 调试发道具：{} → {}（持有 {} 件）",
+                player.getGameProfile().getName(), kind.id(), this.itemCount(player));
+        return true;
+    }
+
+    /**
+     * 调试：拾取链路自检。
+     *
+     * <p><b>为什么需要它</b>：箱子的几何与扫掠判定可以离线验证（{@code ItemHarness}），
+     * 但"箱子实体真的生成了""船开过去真的能吃到""吃到真的进了背包"这三步只有真机能验；
+     * 而真机上我们没法注入按键把船开起来（客户端输入被环境禁掉了）。
+     *
+     * <p>做法：找到第一排里落在中心线上的那个箱子，沿中心线从它前面 4 格开始，
+     * 每 tick 把玩家"重新发船"到下一格（船的位移是客户端权威的，所以只能走
+     * 回位那套"下船 → 传送 → 重新发船"，直接 teleport 骑着的船会被客户端上报的坐标顶回去）。
+     * 每一步都是 1 格/ tick 的正常位移，扫掠判定按真实路径走 —— 吃到箱子会走完整的
+     * {@code tryPickupBox} → 抽签 → 入背包流程。
+     */
+    public boolean debugStartPickupProbe(ServerPlayerEntity player) {
+        if (!this.started || this.itemBoxes.size() == 0) {
+            return false;
+        }
+        RaceItemBoxes.Slot target = null;
+        int bestGate = Integer.MAX_VALUE;
+        double bestLat = Double.MAX_VALUE;
+        for (RaceItemBoxes.Slot slot : this.itemBoxes.slots()) {
+            double lat = this.track.distanceToCenterline(slot.x, slot.z);
+            if (slot.gate < bestGate || (slot.gate == bestGate && lat < bestLat)) {
+                bestGate = slot.gate;
+                bestLat = lat;
+                target = slot;
             }
         }
-        this.nitroIceRestore.clear();
-        if (restored > 0) {
-            LOGGER.info("[PvP] 亦可赛艇 seed {} 氮气冰带已还原 {} 个方块", this.track.seed(), restored);
+        if (target == null) {
+            return false;
         }
+        int samples = this.track.sampleCount();
+        int center = this.track.nearestSample(target.x, target.z);
+        List<double[]> path = new ArrayList<>();
+        for (int offset = -4; offset <= 2; offset++) {
+            int index = Math.floorMod(center + offset, samples);
+            path.add(new double[]{this.track.sampleX(index), this.track.sampleZ(index)});
+        }
+        this.itemProbePath = path;
+        this.itemProbeStep = 0;
+        this.itemProbePlayer = player;
+        this.itemProbeStartCount = this.itemCount(player);
+        this.debugItems = true;
+        LOGGER.info("[PvP] 拾取自检开始：{} 从箱前方 4 格起步，目标箱 ({}, {})（门 {}，横向 {}），"
+                        + "当前持有 {} 件",
+                player.getGameProfile().getName(), (int) target.x, (int) target.z, target.gate,
+                d1(bestLat), this.itemProbeStartCount);
+        return true;
+    }
+
+    /** 拾取自检每 tick 走一步。 */
+    private void stepItemProbe() {
+        ArenaWorld arena = this.match.arenaWorld();
+        ServerPlayerEntity player = this.itemProbePlayer;
+        if (arena == null || player == null || this.itemProbeStep >= this.itemProbePath.size()) {
+            int after = player == null ? -1 : this.itemCount(player);
+            LOGGER.info("[PvP] 拾取自检结束：持有 {} → {} 件，拾取{}",
+                    this.itemProbeStartCount, after,
+                    after > this.itemProbeStartCount ? "成功" : "失败（没吃到箱子）");
+            this.itemProbePath = null;
+            this.itemProbePlayer = null;
+            return;
+        }
+        double[] point = this.itemProbePath.get(this.itemProbeStep++);
+        double[] next = this.itemProbeStep < this.itemProbePath.size()
+                ? this.itemProbePath.get(this.itemProbeStep) : point;
+        float yaw = RaceTrackGenerator.yawOf(next[0] - point[0], next[1] - point[1]);
+        double y = this.track.surfaceY() + 1.0;
+        this.discardBoat(player);
+        player.teleport(arena, point[0], y, point[1], yaw, 0.0F);
+        player.setVelocity(Vec3d.ZERO);
+        this.spawnBoatFor(player, point[0], y, point[1], yaw);
     }
 
     /** 调试：为某名玩家开一次加速，并打 3 秒测速日志（{@code /pvp debug boatrace nitro}）。 */

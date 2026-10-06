@@ -22,6 +22,7 @@ import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchState;
 import com.example.pvp.arena.race.BoatRaceSession;
+import com.example.pvp.arena.race.RaceItem;
 import com.example.pvp.match.MatchType;
 import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.match.VillageDefenseKits;
@@ -293,16 +294,19 @@ public final class PvPMod implements ModInitializer {
                     "§6PvP 匹配 Mod §fv" + version() + " §r已连接，右键指南针打开菜单"), false);
         });
 
-        // 亦可赛艇：右键使用氮气。必须放在最前面 —— 船在冰上速度极快，右键要立刻响应，
-        // 而且这条路径要先于"幽灵禁用手持物品"等判断（竞速里不存在幽灵，但保持顺序稳定）。
+        // 亦可赛艇：右键使用道具（氮气/速冻胶/墨水弹/鱼鳞护盾）。必须放在最前面 ——
+        // 船在冰上速度极快，右键要立刻响应，而且这条路径要先于"幽灵禁用手持物品"等判断
+        // （竞速里不存在幽灵，但保持顺序稳定）。具体分发见 BoatRaceSession.useItem。
         UseItemCallback.EVENT.register((player, world, hand) -> {
             ItemStack stack = player.getStackInHand(hand);
-            if (player instanceof ServerPlayerEntity sp && MATCH != null
-                    && BoatRaceSession.isNitroItem(stack)) {
-                Match m = MATCH.getMatchFor(sp);
-                if (m != null && m.getType().isBoatRace() && m.boatRaceSession() != null) {
-                    return m.boatRaceSession().useNitro(sp, stack)
-                            ? TypedActionResult.success(stack) : TypedActionResult.fail(stack);
+            if (player instanceof ServerPlayerEntity sp && MATCH != null) {
+                RaceItem kind = BoatRaceSession.itemKindOf(stack);
+                if (kind != null) {
+                    Match m = MATCH.getMatchFor(sp);
+                    if (m != null && m.getType().isBoatRace() && m.boatRaceSession() != null) {
+                        return m.boatRaceSession().useItem(sp, stack, kind)
+                                ? TypedActionResult.success(stack) : TypedActionResult.fail(stack);
+                    }
                 }
             }
             return TypedActionResult.pass(stack);
@@ -644,6 +648,12 @@ public final class PvPMod implements ModInitializer {
                 if (match != null && match.getType().isBedWars()) {
                     return match.onBedwarsBlockBreak(sp, pos);
                 }
+                // 亦可赛艇：赛道方块一律不可破坏。玩家手上没有方块也没有工具，这条纯属保护 ——
+                // 空手挖浮冰 2.5 秒一块，挖出来的坑会让跟在后面的人掉出赛道回位。
+                // （第一道拦截在 AttackBlockCallback，这里兜住其它可能走到破坏判定的路径。）
+                if (match != null && match.getType().isBoatRace()) {
+                    return false;
+                }
                 // 幸运之柱：柱子（柱身 + 平台）不可破坏，玩家放置的方块可拆
                 if (match != null && match.getType() == MatchType.LUCKY_PILLAR) {
                     if (match.getState() != MatchState.ACTIVE) {
@@ -745,6 +755,21 @@ public final class PvPMod implements ModInitializer {
                 }
             }
             return ActionResult.PASS;
+        });
+
+        // 亦可赛艇：左键 = 用掉手上那件道具（空格之外的第二通道，骑船时右键会被客户端吞掉），
+        // 同时一律取消破坏方块 —— 竞速里挖赛道只有害处（空手挖浮冰 2.5 秒一块，
+        // 挖出的坑会让跟在后面的人掉出赛道回位）。返回 SUCCESS 即在服务端拦下这次破坏。
+        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+            if (!(player instanceof ServerPlayerEntity sp) || MATCH == null) {
+                return ActionResult.PASS;
+            }
+            Match m = MATCH.getMatchFor(sp);
+            if (m == null || !m.getType().isBoatRace() || m.boatRaceSession() == null) {
+                return ActionResult.PASS;
+            }
+            m.boatRaceSession().onAttackInput(sp);
+            return ActionResult.SUCCESS;
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {

@@ -87,6 +87,12 @@ public final class PvPCommands {
                             .map(p -> p.getFileName().toString())
                             .toList(), builder);
 
+    /** 亦可赛艇的道具 id（{@code RaceItem.id()}），调试发道具用。 */
+    private static final SuggestionProvider<ServerCommandSource> RACE_ITEM_SUGGESTIONS =
+            (ctx, builder) -> CommandSource.suggestMatching(
+                    java.util.Arrays.stream(com.example.pvp.arena.race.RaceItem.values())
+                            .map(com.example.pvp.arena.race.RaceItem::id).toList(), builder);
+
     private PvPCommands() {
     }
 
@@ -190,7 +196,23 @@ public final class PvPCommands {
                                         .then(CommandManager.literal("build")
                                                 .executes(ctx -> debugBoatRaceBuild(ctx, 0L)))
                                         .then(CommandManager.literal("nitro")
-                                                .executes(ctx -> debugBoatRaceNitro(ctx)))))
+                                                .executes(ctx -> debugBoatRaceNitro(ctx)))
+                                        .then(CommandManager.literal("items")
+                                                .executes(ctx -> debugBoatRaceItems(ctx))
+                                                .then(CommandManager.literal("pickup")
+                                                        .executes(ctx -> debugBoatRacePickup(ctx)))
+                                                .then(CommandManager.literal("trap")
+                                                        .executes(ctx -> debugBoatRaceTrap(ctx, false))
+                                                        .then(CommandManager.literal("here")
+                                                                .executes(ctx -> debugBoatRaceTrap(ctx, true))))
+                                                .then(CommandManager.literal("use")
+                                                        .executes(ctx -> debugBoatRaceUse(ctx)))
+                                                .then(CommandManager.literal("give")
+                                                        .then(CommandManager.argument("id",
+                                                                        StringArgumentType.word())
+                                                                .suggests(RACE_ITEM_SUGGESTIONS)
+                                                                .executes(ctx -> debugBoatRaceGive(ctx,
+                                                                        StringArgumentType.getString(ctx, "id"))))))))
                         .then(CommandManager.literal("bedwars")
                                 .requires(source -> source.hasPermissionLevel(2))
                                 .then(CommandManager.literal("edit")
@@ -934,6 +956,116 @@ public final class PvPCommands {
             return 0;
         }
         player.sendMessage(Messages.info("已强制开启氮气加速，测速日志请见服务端控制台"), false);
+        return 1;
+    }
+
+    /**
+     * 调试：打印亦可赛艇的道具系统状态（箱子布局/在场数/地表覆写格数），并打开道具详细日志。
+     *
+     * <p>为什么需要它：箱子是否真的生成、能不能被扫掠吃到、速冻胶是否真的落到冰面上，
+     * 这些只有真机跑起来才知道 —— 离线自检只能证明几何正确。
+     * 打开后 {@code BoatRaceSession} 会为每次拾取/重生/覆写刷新打 INFO 日志。
+     */
+    private static int debugBoatRaceItems(CommandContext<ServerCommandSource> ctx)
+            throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        Match match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+        if (match == null || !match.getType().isBoatRace() || match.boatRaceSession() == null) {
+            player.sendMessage(Messages.error("你不在亦可赛艇对局中"), false);
+            return 0;
+        }
+        player.sendMessage(Messages.info(match.boatRaceSession().debugItemReport(player)), false);
+        return 1;
+    }
+
+    /**
+     * 调试：拾取链路自检。
+     *
+     * <p>真机上没法注入按键把船开起来，所以这一步由服务端代劳：把玩家沿中心线一步步推过
+     * 第一个道具箱（下船 → 传送 → 重新发船，因为骑着的船位置是客户端权威的），
+     * 期间走的是完整的扫掠拾取 → 抽签 → 入背包流程，结果打在控制台日志里。
+     */
+    private static int debugBoatRacePickup(CommandContext<ServerCommandSource> ctx)
+            throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        Match match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+        if (match == null || !match.getType().isBoatRace() || match.boatRaceSession() == null) {
+            player.sendMessage(Messages.error("你不在亦可赛艇对局中"), false);
+            return 0;
+        }
+        if (!match.boatRaceSession().debugStartPickupProbe(player)) {
+            player.sendMessage(Messages.error("对局还没开始，或本局没有道具箱"), false);
+            return 0;
+        }
+        player.sendMessage(Messages.info("拾取自检已开始（约 7 tick 走完），结果见控制台日志"), false);
+        return 1;
+    }
+
+    /**
+     * 调试：铺一条速冻胶。
+     *
+     * <p>{@code here} = 正好铺在脚下 —— 用来验证"鱼鳞护盾免疫减速带"：
+     * 日志里的"脚下那一格"在没有护盾时是雪块，带护盾时必须是浮冰。
+     */
+    private static int debugBoatRaceTrap(CommandContext<ServerCommandSource> ctx, boolean here)
+            throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        Match match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+        if (match == null || !match.getType().isBoatRace() || match.boatRaceSession() == null) {
+            player.sendMessage(Messages.error("你不在亦可赛艇对局中"), false);
+            return 0;
+        }
+        boolean ok = here
+                ? match.boatRaceSession().debugPlaceTrap(player, 0.0)
+                : match.boatRaceSession().debugPlaceTrap(player);
+        if (!ok) {
+            player.sendMessage(Messages.error("对局还没开始（或你还没被登记为本场选手）"), false);
+            return 0;
+        }
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int y = match.boatRaceSession().track().surfaceY();
+        player.sendMessage(Messages.info("已铺好速冻胶（" + (here ? "脚下" : "身后")
+                + "，" + cfg.boatRaceItemTrapWidth + "×" + cfg.boatRaceItemTrapLength
+                + " 格，Y=" + y + "，" + cfg.boatRaceItemTrapSeconds
+                + " 秒后自动还原）；方块与还原详情见控制台日志"), false);
+        return 1;
+    }
+
+    /** 调试：等价于按空格用一件道具（服务端直接分发，用来验证道具效果本身）。 */
+    private static int debugBoatRaceUse(CommandContext<ServerCommandSource> ctx)
+            throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        Match match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+        if (match == null || !match.getType().isBoatRace() || match.boatRaceSession() == null) {
+            player.sendMessage(Messages.error("你不在亦可赛艇对局中"), false);
+            return 0;
+        }
+        boolean used = match.boatRaceSession().debugUseItem(player);
+        player.sendMessage(Messages.info(used ? "已用掉一件道具" : "没有用出去（手上没道具/没有目标）"), false);
+        return used ? 1 : 0;
+    }
+
+    /** 调试：直接发一件道具。 */
+    private static int debugBoatRaceGive(CommandContext<ServerCommandSource> ctx, String id)
+            throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        Match match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+        if (match == null || !match.getType().isBoatRace() || match.boatRaceSession() == null) {
+            player.sendMessage(Messages.error("你不在亦可赛艇对局中"), false);
+            return 0;
+        }
+        com.example.pvp.arena.race.RaceItem kind =
+                com.example.pvp.arena.race.RaceItem.byId(id.toLowerCase(java.util.Locale.ROOT));
+        if (kind == null) {
+            player.sendMessage(Messages.error("未知道具 id：" + id
+                    + "（可用：nitro/trap/ink/shield）"), false);
+            return 0;
+        }
+        if (!match.boatRaceSession().debugGrantItem(player, kind)) {
+            player.sendMessage(Messages.error("对局还没开始（或你还没被登记为本场选手）"), false);
+            return 0;
+        }
+        player.sendMessage(Messages.info("已发放道具 " + kind.coloredName()), false);
         return 1;
     }
 

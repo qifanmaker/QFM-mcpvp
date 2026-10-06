@@ -341,6 +341,26 @@ public final class RaceTrack {
     }
 
     /**
+     * 点到线段的距离（平面）。
+     *
+     * <p>道具箱的拾取判定用它：把箱子看成一个立着的圆柱，"线段到圆心的距离 ≤ 半径"
+     * 就等价于"这一 tick 船划过的线段穿过了圆柱"。用线段而不是点，是因为氮气时
+     * 一 tick 能跑 3.64 格，逐 tick 的点判定会整段跳过箱子（Checkpoint 判定踩过同一个坑）。
+     *
+     * <p>放在这里而不是 {@code RaceItemBoxes} 里，是为了保持"赛道几何不依赖 Minecraft 类型"，
+     * 好让它能被离线批量校验。
+     */
+    public static double distanceToSegment(double px, double pz,
+                                           double ax, double az, double bx, double bz) {
+        double dx = bx - ax;
+        double dz = bz - az;
+        double length2 = dx * dx + dz * dz;
+        double t = length2 < 1.0e-9 ? 0.0 : ((px - ax) * dx + (pz - az) * dz) / length2;
+        t = Math.max(0.0, Math.min(1.0, t));
+        return Math.hypot(px - (ax + dx * t), pz - (az + dz * t));
+    }
+
+    /**
      * (x, z) 在赛道上的弧长位置（0..length），带亚格精度。
      *
      * <p>做法：先找最近采样点，再投影到它两侧的折线段上取最近的那条，返回 {@code (段起点索引 + t) * STEP}。

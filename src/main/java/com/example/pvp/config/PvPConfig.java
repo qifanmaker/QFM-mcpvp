@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 2;
+    public static final int CURRENT_CONFIG_VERSION = 3;
 
     /**
      * 生成这份文件时的配置版本。
@@ -376,10 +376,13 @@ public final class PvPConfig {
 
     // ---------- 亦可赛艇：氮气加速 ----------
     /**
-     * 每隔多少秒补 1 个氮气（只发给比赛进行中、还没冲线的人）。
-     * 默认 15 秒，配合下面的"手上最多 3 个"，一场 3 圈的比赛大约能用 6~8 次。
+     * 每隔多少秒补 1 个氮气（只发给比赛进行中、还没冲线的人）。<b>0 = 关闭</b>。
+     *
+     * <p>默认已改为 0（关闭）：道具现在从赛道上的道具箱里来（见下面「亦可赛艇：赛道道具」一节），
+     * 再叠一个"每 15 秒白送一个"就太多了（一场 3 圈会多出 6~8 个）。
+     * 想回退到"定时发氮气"的老手感，把它设成 15 即可。
      */
-    public int boatRaceNitroIntervalSeconds = 15;
+    public int boatRaceNitroIntervalSeconds = 0;
     /** 手里最多囤几个氮气（防止前半段攒一堆、最后连喷）。 */
     public int boatRaceNitroMaxStack = 3;
     /** 一个氮气的加速持续时长（秒）。 */
@@ -401,6 +404,50 @@ public final class PvPConfig {
      * 想要任意倍率（例如 1.6）必须配客户端 Mod。
      */
     public String boatRaceNitroBlock = "minecraft:blue_ice";
+
+    // ---------- 亦可赛艇：赛道道具 ----------
+    /**
+     * 是否在赛道上刷道具箱。
+     *
+     * <p>箱子摆在每个 Checkpoint 门后 {@link #boatRaceItemBoxGateOffset} 格处、横排
+     * {@link #boatRaceItemBoxLanes} 个；船开过去吃掉 → 随机给一件道具 → 若干秒后在原地重生。
+     * 位置全部由 Checkpoint 数据推导，绝不会落进护栏/缓冲带/门架里。
+     */
+    public boolean boatRaceItemBoxesEnabled = true;
+    /** 箱子距所属门的弧长（格）。太近会和门架的柱子/横梁挤在一起，太远玩家就找不到对应关系了。 */
+    public double boatRaceItemBoxGateOffset = 12.0;
+    /** 横排几个箱子（1/3/5 都行；3 = 左中右）。 */
+    public int boatRaceItemBoxLanes = 3;
+    /** 相邻车道的横向间距（格）。当前赛道宽 16（半宽 8），4.0 时最外道中心在 ±4.0。 */
+    public double boatRaceItemBoxLaneOffset = 4.0;
+    /** 拾取半径（格）：船的行进线段离箱子中心这么近就算吃到。 */
+    public double boatRaceItemBoxPickupRadius = 2.2;
+    /** 被吃掉后多少秒重生。 */
+    public int boatRaceItemBoxRespawnSeconds = 4;
+    /** 两次拾取之间的最小间隔（tick）：防止一 tick 扫过一整排把 3 个箱子全吃掉。 */
+    public int boatRaceItemBoxPickupCooldownTicks = 10;
+    /** 每人最多同时持有几件道具（所有道具合计，防止前半段囤一堆）。 */
+    public int boatRaceItemBoxMaxHold = 2;
+    /**
+     * 抽道具是否按名次加权。
+     *
+     * <p>开启时：领先者只出防御类（氮气/护盾），落后者拿攻击类（速冻胶/墨水弹）的权重显著提高 ——
+     * 目的是抑制"第一名越跑越远"的滚雪球，让道具战成为追回来的手段。
+     * 关掉就是四种等概率。
+     */
+    public boolean boatRaceItemRanksWeighted = true;
+    /** 速冻胶：存在时长（秒）。 */
+    public int boatRaceItemTrapSeconds = 6;
+    /** 速冻胶：横向宽度（格，会换算成中心线两侧的格数）。 */
+    public int boatRaceItemTrapWidth = 6;
+    /** 速冻胶：铺在身后多少格（沿弧长）。 */
+    public double boatRaceItemTrapBehind = 14.0;
+    /** 速冻胶：沿赛道方向的长度（格）。 */
+    public int boatRaceItemTrapLength = 5;
+    /** 墨水弹：失明时长（秒）。 */
+    public double boatRaceItemInkSeconds = 2.0;
+    /** 鱼鳞护盾：免疫道具的时长（秒）。 */
+    public int boatRaceItemShieldSeconds = 8;
     /**
      * 每张图必须有的"大直道"最小长度（格）。
      *
@@ -1030,7 +1077,8 @@ public final class PvPConfig {
             this.boatRaceSize = defaults.boatRaceSize;
             changed = true;
         }
-        if (this.boatRaceNitroIntervalSeconds <= 0) {
+        // 0 是合法值（= 关闭定时补氮气，改用赛道道具箱），所以只拦负数
+        if (this.boatRaceNitroIntervalSeconds < 0) {
             this.boatRaceNitroIntervalSeconds = defaults.boatRaceNitroIntervalSeconds;
             changed = true;
         }
@@ -1052,6 +1100,60 @@ public final class PvPConfig {
         }
         if (this.boatRaceNitroBlock == null || this.boatRaceNitroBlock.isBlank()) {
             this.boatRaceNitroBlock = defaults.boatRaceNitroBlock;
+            changed = true;
+        }
+        // ---- 赛道道具箱 ----
+        if (this.boatRaceItemBoxGateOffset < 2.0) {
+            this.boatRaceItemBoxGateOffset = defaults.boatRaceItemBoxGateOffset;
+            changed = true;
+        }
+        if (this.boatRaceItemBoxLanes <= 0 || this.boatRaceItemBoxLanes > 9) {
+            this.boatRaceItemBoxLanes = defaults.boatRaceItemBoxLanes;
+            changed = true;
+        }
+        if (this.boatRaceItemBoxLaneOffset <= 0.0) {
+            this.boatRaceItemBoxLaneOffset = defaults.boatRaceItemBoxLaneOffset;
+            changed = true;
+        }
+        if (this.boatRaceItemBoxPickupRadius <= 0.0) {
+            this.boatRaceItemBoxPickupRadius = defaults.boatRaceItemBoxPickupRadius;
+            changed = true;
+        }
+        if (this.boatRaceItemBoxRespawnSeconds <= 0) {
+            this.boatRaceItemBoxRespawnSeconds = defaults.boatRaceItemBoxRespawnSeconds;
+            changed = true;
+        }
+        if (this.boatRaceItemBoxPickupCooldownTicks < 0) {
+            this.boatRaceItemBoxPickupCooldownTicks = defaults.boatRaceItemBoxPickupCooldownTicks;
+            changed = true;
+        }
+        if (this.boatRaceItemBoxMaxHold <= 0) {
+            this.boatRaceItemBoxMaxHold = defaults.boatRaceItemBoxMaxHold;
+            changed = true;
+        }
+        if (this.boatRaceItemTrapSeconds <= 0) {
+            this.boatRaceItemTrapSeconds = defaults.boatRaceItemTrapSeconds;
+            changed = true;
+        }
+        // 减速带宽度至少 3 格（1 格宽的"胶"在 40 格/秒下根本踩不到），上限取赛道宽度的 3/4
+        if (this.boatRaceItemTrapWidth < 3 || this.boatRaceItemTrapWidth > this.boatRaceTrackWidth) {
+            this.boatRaceItemTrapWidth = Math.min(defaults.boatRaceItemTrapWidth, this.boatRaceTrackWidth);
+            changed = true;
+        }
+        if (this.boatRaceItemTrapBehind <= 0.0) {
+            this.boatRaceItemTrapBehind = defaults.boatRaceItemTrapBehind;
+            changed = true;
+        }
+        if (this.boatRaceItemTrapLength <= 0) {
+            this.boatRaceItemTrapLength = defaults.boatRaceItemTrapLength;
+            changed = true;
+        }
+        if (this.boatRaceItemInkSeconds <= 0.0) {
+            this.boatRaceItemInkSeconds = defaults.boatRaceItemInkSeconds;
+            changed = true;
+        }
+        if (this.boatRaceItemShieldSeconds <= 0) {
+            this.boatRaceItemShieldSeconds = defaults.boatRaceItemShieldSeconds;
             changed = true;
         }
         return changed;
