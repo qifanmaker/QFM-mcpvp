@@ -26,15 +26,18 @@ public enum RaceItem {
     /** 氮气加速：把脚下（含前方 2 格）的冰面换成蓝冰，极速 ×1.82。 */
     NITRO("nitro", "氮气加速", Items.BLAZE_POWDER, Formatting.AQUA,
             "脚下冰面换成蓝冰，极速 ×§f1.82"),
-    /** 速冻胶：在身后铺一条雪带，压上去从 40 格/秒掉到 2 格/秒。 */
+    /**
+     * 速冻胶：在身后铺一条<b>短</b>雪带。
+     *
+     * <p>短是关键：雪块滑度 0.6（极速 2 格/秒）与原版唯一的高滑度档 0.98（40 格/秒）之间没有
+     * 中间档，所以"减速"的力度只能靠<b>你在雪上待几 tick</b> 来调 —— 3 格长只待 1~2 tick，
+     * 速度掉到 10 格/秒左右就回到冰面，几秒内恢复满速，绝不会停住（5 格长就会一路衰减到 2 格/秒）。
+     */
     TRAP("trap", "速冻胶", Items.SNOWBALL, Formatting.WHITE,
-            "在身后铺一条雪带，压上去几乎停住"),
+            "在身后铺一条短雪带：压上去顿一下掉速，但停不下来"),
     /** 墨水弹：让前一名玩家短暂失明（纯观感效果，但对高速走线很致命）。 */
     INK("ink", "墨水弹", Items.INK_SAC, Formatting.DARK_PURPLE,
-            "让前一名玩家短暂失明"),
-    /** 鱼鳞护盾：一段时间内免疫速冻胶与墨水弹。 */
-    SHIELD("shield", "鱼鳞护盾", Items.NAUTILUS_SHELL, Formatting.GOLD,
-            "短时间内免疫速冻胶与墨水弹");
+            "让前一名玩家短暂失明");
 
     /** 道具标记的 NBT key；值是 {@link #id()}。 */
     public static final String ITEM_TAG = "pvp.boatrace_item";

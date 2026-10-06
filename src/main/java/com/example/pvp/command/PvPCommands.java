@@ -1004,8 +1004,7 @@ public final class PvPCommands {
     /**
      * 调试：铺一条速冻胶。
      *
-     * <p>{@code here} = 正好铺在脚下 —— 用来验证"鱼鳞护盾免疫减速带"：
-     * 日志里的"脚下那一格"在没有护盾时是雪块，带护盾时必须是浮冰。
+     * <p>{@code here} = 正好铺在脚下，用来确认雪带真的落在赛道上（日志会打出脚下那一格）。
      */
     private static int debugBoatRaceTrap(CommandContext<ServerCommandSource> ctx, boolean here)
             throws CommandSyntaxException {
@@ -1058,7 +1057,7 @@ public final class PvPCommands {
                 com.example.pvp.arena.race.RaceItem.byId(id.toLowerCase(java.util.Locale.ROOT));
         if (kind == null) {
             player.sendMessage(Messages.error("未知道具 id：" + id
-                    + "（可用：nitro/trap/ink/shield）"), false);
+                    + "（可用：nitro/trap/ink）"), false);
             return 0;
         }
         if (!match.boatRaceSession().debugGrantItem(player, kind)) {

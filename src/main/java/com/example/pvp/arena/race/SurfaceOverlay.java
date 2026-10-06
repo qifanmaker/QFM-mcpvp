@@ -40,8 +40,6 @@ final class SurfaceOverlay {
         BlockState applied;
         boolean boost;
         boolean trap;
-        /** 有护盾的玩家正压在这一格上：暂时还原成原方块（优先级最高）。 */
-        boolean guard;
 
         Cell(BlockState original) {
             this.original = original;
@@ -89,17 +87,6 @@ final class SurfaceOverlay {
         return count;
     }
 
-    /** 只因为"护盾窗口"被接管、当前状态仍是原方块的格子数（自检用）。 */
-    int guardCellCount() {
-        int count = 0;
-        for (Cell cell : this.cells.values()) {
-            if (cell.guard) {
-                count++;
-            }
-        }
-        return count;
-    }
-
     boolean isEmpty() {
         return this.cells.isEmpty() && this.trapUntil.isEmpty();
     }
@@ -108,13 +95,10 @@ final class SurfaceOverlay {
      * 应用本 tick 的目标状态。
      *
      * @param boostUnion 本 tick 所有加速窗口的并集（外面按玩家 UUID 维护窗口，这里只认并集）
-     * @param guardUnion 本 tick 所有"带护盾的船正压着"的格子：这些格就算有减速带也要还原成原方块，
-     *                   否则"免疫速冻胶"就是假的。它只在玩家压着的那 1~2 tick 生效
-     *                   （40 格/秒一闪而过），所以不会在减速带上留下能被人利用的缺口。
      * @param nowTick    服务器 tick，用来判定减速带是否过期
      * @return 实际改动的方块数（用于日志/自检，判断"有没有真的生效"）
      */
-    int refresh(ArenaWorld arena, Set<Long> boostUnion, Set<Long> guardUnion, long nowTick) {
+    int refresh(ArenaWorld arena, Set<Long> boostUnion, long nowTick) {
         if (arena == null) {
             return 0;
         }
@@ -122,7 +106,6 @@ final class SurfaceOverlay {
             this.trapUntil.entrySet().removeIf(entry -> entry.getValue() <= nowTick);
         }
         Set<Long> needed = new HashSet<>(boostUnion);
-        needed.addAll(guardUnion);
         needed.addAll(this.trapUntil.keySet());
 
         int changed = 0;
@@ -139,10 +122,8 @@ final class SurfaceOverlay {
             }
             boolean boost = boostUnion.contains(key);
             boolean trap = this.trapUntil.containsKey(key);
-            boolean guard = guardUnion.contains(key);
-            // 优先级：护盾 > 减速带 > 加速带 > 原方块
-            BlockState desired = guard ? cell.original
-                    : trap ? this.trapBlock.getDefaultState()
+            // 优先级：减速带 > 加速带 > 原方块
+            BlockState desired = trap ? this.trapBlock.getDefaultState()
                     : boost ? this.boostBlock.getDefaultState()
                     : cell.original;
             if (cell.applied != desired) {
@@ -152,7 +133,6 @@ final class SurfaceOverlay {
             }
             cell.boost = boost;
             cell.trap = trap;
-            cell.guard = guard;
         }
         // 2) 已经不需要覆写的格子：还原 + 从表里删掉
         if (!this.cells.isEmpty()) {

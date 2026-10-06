@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 3;
+    public static final int CURRENT_CONFIG_VERSION = 4;
 
     /**
      * 生成这份文件时的配置版本。
@@ -437,17 +437,23 @@ public final class PvPConfig {
      */
     public boolean boatRaceItemRanksWeighted = true;
     /** 速冻胶：存在时长（秒）。 */
-    public int boatRaceItemTrapSeconds = 6;
+    public int boatRaceItemTrapSeconds = 5;
     /** 速冻胶：横向宽度（格，会换算成中心线两侧的格数）。 */
     public int boatRaceItemTrapWidth = 6;
     /** 速冻胶：铺在身后多少格（沿弧长）。 */
     public double boatRaceItemTrapBehind = 14.0;
-    /** 速冻胶：沿赛道方向的长度（格）。 */
-    public int boatRaceItemTrapLength = 5;
+    /**
+     * 速冻胶：沿赛道方向的长度（格）——<b>这就是"减速力度"的旋钮</b>。
+     *
+     * <p>原版只有"滑（0.98 → 40 格/秒）/ 不滑（0.6 → 2 格/秒）"两档，做不出"稍慢"，
+     * 所以力度只能靠你在雪上待几 tick 控制：2 格 ≈ 顿一下（约 25 格/秒），
+     * 3 格 ≈ 明显掉速但不掉停（约 10 格/秒，1~2 tick 后回到冰面），
+     * 5 格以上会一路衰减到 2 格/秒，就是"卡住"。
+     * 默认 3：即使全速喷氮气（3.64 格/tick）也不可能把它整个跳过去。
+     */
+    public int boatRaceItemTrapLength = 3;
     /** 墨水弹：失明时长（秒）。 */
     public double boatRaceItemInkSeconds = 2.0;
-    /** 鱼鳞护盾：免疫道具的时长（秒）。 */
-    public int boatRaceItemShieldSeconds = 8;
     /**
      * 每张图必须有的"大直道"最小长度（格）。
      *
@@ -1150,10 +1156,6 @@ public final class PvPConfig {
         }
         if (this.boatRaceItemInkSeconds <= 0.0) {
             this.boatRaceItemInkSeconds = defaults.boatRaceItemInkSeconds;
-            changed = true;
-        }
-        if (this.boatRaceItemShieldSeconds <= 0) {
-            this.boatRaceItemShieldSeconds = defaults.boatRaceItemShieldSeconds;
             changed = true;
         }
         return changed;
