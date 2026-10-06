@@ -198,6 +198,13 @@ public final class MatchManager {
                 match.cancelMatch("所有玩家离线");
                 continue;
             }
+            // 全员主动离场（/hub、弃权、主城自愈）→ 空场立刻结束，别占着区域与并发名额等超时
+            if (match.getState() != MatchState.ENDED && match.allPlayersLeft()) {
+                LOGGER.info("[PvP] 比赛 {} 全员已离场，直接结束（不再占着区域与并发名额等超时）",
+                        match.getType().getId());
+                match.cancelMatch("所有玩家已离场");
+                continue;
+            }
             match.tick();
         }
 
@@ -312,7 +319,35 @@ public final class MatchManager {
             if (player.getWorld().getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
                 continue;
             }
+            this.releaseStaleMatchState(player);
             this.applyLobbyProtectionTo(player);
+        }
+    }
+
+    /**
+     * 自愈：<b>人已经在主城，却还被一场进行中的对局算作参赛者</b> → 清掉这份残留状态。
+     *
+     * <p>不清掉的话，队列开新局时 {@code createMatch} 会判定"玩家已在比赛中"直接放弃，
+     * 表现就是"人站在主城，却永远排不上队"（也是 /hub 之后想换别的玩法时踩到的坑）。
+     *
+     * <p>只处理 {@link MatchState#ACTIVE}：组队/倒计时阶段各自有流程负责（掉线会取消对局），
+     * 庆祝阶段玩家本来就还在场地里看烟花，不该被当成残留。
+     * 清理动作直接复用对局已有的两条离场路径（弃权 / 观战者退出），不另造一套。
+     */
+    private void releaseStaleMatchState(ServerPlayerEntity player) {
+        Match match = this.getMatchFor(player);
+        if (match == null || match.getState() != MatchState.ACTIVE) {
+            return;
+        }
+        String name = player.getGameProfile().getName();
+        if (match.isEliminated(player.getUuid())) {
+            match.spectatorLeave(player, false);
+            LOGGER.warn("[PvP] 清理残留对局状态：{} 在主城但仍是被淘汰的观战者（比赛 {}），已按退出处理",
+                    name, match.getType().getId());
+        } else {
+            match.leaveMatch(player);
+            LOGGER.warn("[PvP] 清理残留对局状态：{} 在主城但仍算在比赛 {} 里，已按弃权处理（可重新加入）",
+                    name, match.getType().getId());
         }
     }
 
@@ -528,7 +563,9 @@ public final class MatchManager {
 
     public Match getMatchFor(UUID uuid) {
         for (Match match : this.matches) {
-            if (match.contains(uuid)) {
+            // owns 而不是 contains：提前离场（/hub、/pvp tpout、旁观者退出）的人已经在主城，
+            // 必须让他能重新排队；本局名单里仍然保留他，用于结算与播报。
+            if (match.owns(uuid)) {
                 return match;
             }
         }

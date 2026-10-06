@@ -642,6 +642,18 @@ public final class Match {
         return this.id;
     }
 
+    /**
+     * 该玩家是否还算"这一场的人"（{@link MatchManager#getMatchFor} 用）。
+     *
+     * <p>与 {@link #contains} 的区别：已经<b>提前离场</b>（/hub、/pvp tpout、旁观者退出）的玩家
+     * 仍然留在 {@code players} 名单里（本局的队伍/结算/播报还要用），
+     * 但对"他现在属于哪场对局"这个问题必须回答<b>不属于</b>：
+     * 否则他人站在主城，队列开新局时却因为"已在比赛中"被挡掉，永远排不上队。
+     */
+    public boolean owns(UUID uuid) {
+        return this.contains(uuid) && !this.leftEarly.contains(uuid);
+    }
+
     public boolean contains(UUID uuid) {
         for (ServerPlayerEntity player : this.players) {
             if (player.getUuid().equals(uuid)) {
@@ -3220,6 +3232,27 @@ public final class Match {
     }
 
     /** 所有参赛玩家是否都已离线。 */
+    /**
+     * 所有参赛者都已经<b>主动离场</b>（/hub、/pvp tpout、旁观者退出、主城自愈清理）。
+     *
+     * <p>这种"空场"必须尽快结束：它一个活跃玩家都没有，却还占着竞技场区域和一个并发名额
+     * （{@code maxConcurrentMatches} 默认 4）。不结束的话，凑够几个空场就会谁都开不了新局 ——
+     * 表现和"主城玩家还挂在比赛里"是同一类问题：人在大厅，局却卡着。
+     *
+     * <p>掉线不算主动离场（那条路由 {@link #allPlayersOffline()} 处理）。
+     */
+    public boolean allPlayersLeft() {
+        if (this.players.isEmpty()) {
+            return false;
+        }
+        for (ServerPlayerEntity player : this.players) {
+            if (!this.leftEarly.contains(player.getUuid())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public boolean allPlayersOffline() {
         for (ServerPlayerEntity player : this.players) {
             if (this.manager.getOnlinePlayer(player.getUuid()) != null) {
