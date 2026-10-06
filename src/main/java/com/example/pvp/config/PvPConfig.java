@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 8;
+    public static final int CURRENT_CONFIG_VERSION = 9;
 
     /**
      * 生成这份文件时的配置版本。
@@ -337,6 +337,23 @@ public final class PvPConfig {
      * 于是"哪一侧是内线"整体反转 —— 同一副骨架能出两种走线完全不同的图，成本为零。
      */
     public boolean boatRaceMirrorRandom = true;
+    /**
+     * 是否生成分岔路（内线短但要过 S 形减速弯，外线更长但能全速跑）。
+     *
+     * <p>岔口区间由生成器在"最直的一段"里选，内外线长度不同但<b>赛段进度</b>一致，
+     * 所以排名/过门/圈数完全公平；两条路线的估计通行时间之差被限制在 {@code 18%} 以内
+     * （只作用于岔口这一小段），落在岔口内部的 Checkpoint 会重新分配到别处。
+     *
+     * <p><b>默认关闭的原因</b>：本模式的赛道是极坐标波形闭环，没有长直道（"近似直线"最长约
+     * 40~100 格），而分岔要求一段 130 格以上、曲率一致（干净圆弧）且外侧还有区域空间的段落。
+     * 实测只有约 <b>1/10</b> 的 Seed 能找到同时满足"两条路半径都 ≥ 32 格""中间留 3 格分隔带"
+     * "段内通行时间差 ≤ 18%""不超出竞技场区域"的方案。打开它是有收益的（抽到就是惊喜），
+     * 但"每张图都有分岔"需要先把赛道构建从极坐标曲线换成"直线段 + 圆弧"拼接
+     * （见 {@code boatRaceMinStraightLength} 的说明）。离线自检见 ForkHarness。
+     */
+    public boolean boatRaceForksEnabled = false;
+    /** 赛道长度达到该值（格）时放 2 条分岔，否则 1 条。 */
+    public int boatRaceForkLongTrackLength = 650;
     /**
      * 赛道两侧的减速缓冲带宽度（格）：缓冲带用高摩擦方块（默认雪块 0.6），冲出赛道会被吃掉速度。
      * 原版船的"地面摩擦"取船底 1mm 切片 ±1 格内所有方块 slipperiness 的<b>平均值</b>，

@@ -129,6 +129,7 @@ public final class RaceMapGenerator {
         int placed = 0;
         placed += rasterizeRibbon(arena, track, cleaning(clearing, surface), cleaning(clearing, runoff),
                 cleaning(clearing, barrier));
+        placed += buildForkIslands(arena, track, cleaning(clearing, barrier), clearing);
         placed += buildGates(arena, track, clearing, theme);
         placed += buildStartBarrier(arena, track, clearing);
         placed += buildEnvironment(arena, track, clearing, theme);
@@ -172,9 +173,11 @@ public final class RaceMapGenerator {
                 }
                 double px = x + 0.5;
                 double pz = z + 0.5;
-                int i = track.nearestSample(px, pz);
-                double lat = (px - track.sampleX(i)) * track.sampleNormalX(i)
-                        + (pz - track.sampleZ(i)) * track.sampleNormalZ(i);
+                // 取"主线 ∪ 分岔支路"里最近的那条路：岔口两条走廊的带子自然融成一片扇面，
+                // 中段两条走廊各自成路、中间剩下的部分由 buildForkIslands 填成中央分隔岛。
+                int i = track.nearestSurface(px, pz);
+                double lat = (px - track.surfaceX(i)) * track.surfaceNormalX(i)
+                        + (pz - track.surfaceZ(i)) * track.surfaceNormalZ(i);
                 double al = Math.abs(lat);
                 if (al <= half - 0.5) {
                     arena.setBlockState(new BlockPos(x, y, z), surface, PLACE_FLAGS);
@@ -188,6 +191,61 @@ public final class RaceMapGenerator {
                 } else if (al <= halfRunoff + 0.5) {
                     for (int h = 0; h < track.barrierHeight(); h++) {
                         arena.setBlockState(new BlockPos(x, y + h, z), barrier, PLACE_FLAGS);
+                        placed++;
+                    }
+                }
+            }
+        }
+        return placed;
+    }
+
+    /**
+     * 分岔的中段：两条路线之间的楔形区填成"中央分隔岛"。
+     *
+     * <p>并集栅格化只能保证"每条走廊自己的冰面 + 缓冲带 + 护栏"，两条走廊中间那块
+     * （离两条中心线都超过"冰面 + 缓冲带 + 半格"）不属于任何一条走廊，会留成空档。
+     * 这里按<b>同一横截面</b>配对（支路采样点的投影进度 ↔ 主线同进度的采样点），把两者之间
+     * 除缓冲带以外的部分铺成护栏材质的实心岛：宽度随岔口张开、在岔口/汇合口自然收成 0，
+     * 所以岔口处不会有墙横在路中间。
+     */
+    private static int buildForkIslands(ArenaWorld arena, RaceTrack track, BlockState barrier,
+                                        boolean clearing) {
+        if (track.branchCount() == 0) {
+            return 0;
+        }
+        int y = track.surfaceY();
+        int height = Math.max(1, track.barrierHeight());
+        double halfRunoff = track.halfWidth() + track.runoffWidth();
+        double keep = halfRunoff - 0.5;
+        int placed = 0;
+        for (RaceTrack.Branch branch : track.branches()) {
+            for (int k = 0; k < branch.sampleCount(); k++) {
+                // 支路采样点的投影进度 → 主线同进度的采样点（主线进度 = 下标 × STEP）
+                double progress = branch.progressAt(k);
+                int inner = Math.floorMod((int) Math.round(progress / RaceTrack.STEP), track.sampleCount());
+                double ax = track.sampleX(inner);
+                double az = track.sampleZ(inner);
+                double bx = branch.x(k);
+                double bz = branch.z(k);
+                double dx = bx - ax;
+                double dz = bz - az;
+                double distance = Math.hypot(dx, dz);
+                double from = keep;
+                double to = distance - keep;
+                if (to <= from) {
+                    continue;
+                }
+                int steps = (int) Math.ceil(to - from);
+                for (int s = 0; s <= steps; s++) {
+                    double t = (from + s) / distance;
+                    if (t > 1.0) {
+                        break;
+                    }
+                    int px = (int) Math.floor(ax + dx * t);
+                    int pz = (int) Math.floor(az + dz * t);
+                    // 往下多铺 2 层，看起来是一块实心岛而不是悬空的一层墙
+                    for (int h = -2; h < height; h++) {
+                        arena.setBlockState(new BlockPos(px, y + h, pz), barrier, PLACE_FLAGS);
                         placed++;
                     }
                 }

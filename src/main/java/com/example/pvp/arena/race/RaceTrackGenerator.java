@@ -62,6 +62,11 @@ public final class RaceTrackGenerator {
      * （挡板就立在起终点线上，2 格高，GO 时撤掉）—— 船头离挡板约 3 格，不会一出生就顶上去。
      * 人数超出一排时<b>只往后加排</b>，不改变赛道宽度，所以列数与列距是固定的。
      */
+    /**
+     * 岔口前留出的"无门"余量（格）：道具箱默认摆在门后 12 格，门离岔口太近就会把箱子
+     * 放进岔口里（只有走内线的人吃得到）。生成器刻意不读配置，所以这里取固定余量。
+     */
+    private static final double CHECKPOINT_FORK_MARGIN = 22.0;
     private static final double GRID_FIRST_ROW_BACK = 4.0;
     private static final double GRID_ROW_SPACING = 5.0;
     private static final double GRID_COLUMN_SPACING = 3.5;
@@ -79,7 +84,8 @@ public final class RaceTrackGenerator {
                            int playerCount, double minStraightLength,
                            double centerX, double centerZ, int surfaceY,
                            boolean randomWidth, double widthMin, double widthMax,
-                           boolean randomMirror) {
+                           boolean randomMirror,
+                           boolean forksEnabled, double forkLongTrackLength) {
     }
 
     /** 生成结果：最终赛道 + 尝试次数 + 是否退回兜底 + 日志行。 */
@@ -401,8 +407,92 @@ public final class RaceTrackGenerator {
         xs = rotate(xs, pivot);
         zs = rotate(zs, pivot);
 
-        // ---- 4. 切向 / 法向 ----
-        int count = n;
+        // ---- 4. 切向 / 法向（第一遍：分岔构造要用基准法向） ----
+        double[][] frame = frame(xs, zs);
+
+        // ---- 4.5 分岔：把主线的一段改造成"内线减速弯"，另加一条外线支路 ----
+        int forkCount = 0;
+        if (settings.forksEnabled()) {
+            forkCount = length(xs) >= settings.forkLongTrackLength() ? 2 : 1;
+        }
+        RaceForkBuilder.Result forks = RaceForkBuilder.build(xs, zs, frame, width,
+                settings.runoffWidth(), forkCount, settings.minCornerRadius(), settings.minClearance(),
+                settings.centerX(), settings.centerZ());
+        xs = forks.xs;
+        zs = forks.zs;
+
+        // ---- 4.6 重新计算切向 / 法向（内线段改变了那段几何） ----
+        frame = frame(xs, zs);
+        int count = xs.length;
+        double[] dirXs = frame[0];
+        double[] dirZs = frame[1];
+        double[] normalXs = frame[2];
+        double[] normalZs = frame[3];
+
+        double length = count * RaceTrack.STEP;
+        Geometry geo = new Geometry(xs, zs, dirXs, dirZs, normalXs, normalZs, length);
+
+        // ---- 4.7 支路对象：进度 = 岔口 A 到汇合口 B 的赛段坐标（同一横截面 → 同一进度） ----
+        List<RaceTrack.Branch> branches = new ArrayList<>(forks.specs.size());
+        for (int b = 0; b < forks.specs.size(); b++) {
+            RaceForkBuilder.Spec spec = forks.specs.get(b);
+            double pA = spec.startIndex * RaceTrack.STEP;
+            double pB = (spec.startIndex + spec.innerCount - 1) * RaceTrack.STEP;
+            int m = spec.xs.length;
+            double[] progress = new double[m];
+            double[] bDirX = new double[m];
+            double[] bDirZ = new double[m];
+            double[] bNormalX = new double[m];
+            double[] bNormalZ = new double[m];
+            for (int k = 0; k < m; k++) {
+                progress[k] = pA + (pB - pA) * spec.us[k];
+                int kp = Math.min(m - 1, k + 1);
+                int km = Math.max(0, k - 1);
+                double dx = spec.xs[kp] - spec.xs[km];
+                double dz = spec.zs[kp] - spec.zs[km];
+                double len = Math.hypot(dx, dz);
+                if (len <= 1.0e-9) {
+                    bDirX[k] = k > 0 ? bDirX[k - 1] : 1.0;
+                    bDirZ[k] = k > 0 ? bDirZ[k - 1] : 0.0;
+                } else {
+                    bDirX[k] = dx / len;
+                    bDirZ[k] = dz / len;
+                }
+                bNormalX[k] = -bDirZ[k];
+                bNormalZ[k] = bDirX[k];
+            }
+            branches.add(new RaceTrack.Branch(b, spec.xs, spec.zs, bDirX, bDirZ,
+                    bNormalX, bNormalZ, progress, spec.length, pA, pB));
+        }
+
+        // ---- 5. Checkpoint：沿弧长等距，index 0 = 起终点线；落在岔口内部的直接去掉 ----
+        // （岔口内部两条路线的场景不同，门放在那里就必须每条路一个门，判定会翻倍复杂；
+        //   去掉之后岔口里没有门，但两端的岔口/汇合口本身在两条路线上是同一个点，不影响过门。）
+        int wanted = settings.checkpointCount() > 0
+                ? settings.checkpointCount()
+                : clampInt((int) Math.round(length / 60.0), 6, 18);
+        List<Double> stages = checkpointStages(length, wanted, branches);
+        List<RaceTrack.Checkpoint> checkpoints = new ArrayList<>(stages.size() + 1);
+        checkpoints.add(gate(geo, 0, 0.0, width));
+        int index = 1;
+        for (double stage : stages) {
+            checkpoints.add(gate(geo, index++, stage, width));
+        }
+        int checkpointCount = checkpoints.size() - 1;
+
+        // ---- 6. 起跑格位 ----
+        List<RaceTrack.GridSlot> grid = buildGrid(geo, width,
+                Math.max(1, settings.playerCount()));
+
+        return new RaceTrack(seed, attempt, settings.centerX(), settings.centerZ(), settings.surfaceY(),
+                width / 2.0, settings.runoffWidth(), settings.barrierHeight(),
+                xs, zs, dirXs, dirZs, normalXs, normalZs, branches, forks.notes,
+                checkpoints, grid, checkpointCount, minCornerRadius(xs, zs), -1);
+    }
+
+    /** 主线的切向 / 法向：{@code [dirX, dirZ, normalX, normalZ]}。 */
+    private static double[][] frame(double[] xs, double[] zs) {
+        int count = xs.length;
         double[] dirXs = new double[count];
         double[] dirZs = new double[count];
         double[] normalXs = new double[count];
@@ -423,28 +513,83 @@ public final class RaceTrackGenerator {
             normalXs[i] = -dirZs[i];
             normalZs[i] = dirXs[i];
         }
+        return new double[][]{dirXs, dirZs, normalXs, normalZs};
+    }
 
-        double length = count * RaceTrack.STEP;
-        Geometry geo = new Geometry(xs, zs, dirXs, dirZs, normalXs, normalZs, length);
+    private static double length(double[] xs) {
+        return xs.length * RaceTrack.STEP;
+    }
 
-        // ---- 5. Checkpoint：沿弧长等距，index 0 = 起终点线 ----
-        int checkpointCount = settings.checkpointCount() > 0
-                ? settings.checkpointCount()
-                : clampInt((int) Math.round(length / 60.0), 6, 18);
-        List<RaceTrack.Checkpoint> checkpoints = new ArrayList<>(checkpointCount + 1);
-        checkpoints.add(gate(geo, 0, 0.0, width));
-        for (int k = 1; k <= checkpointCount; k++) {
-            checkpoints.add(gate(geo, k, length * k / (checkpointCount + 1.0), width));
+    private static boolean insideFork(List<RaceTrack.Branch> branches, double stage) {
+        for (RaceTrack.Branch b : branches) {
+            if (stage > b.startProgress() && stage < b.endProgress()) {
+                return true;
+            }
         }
+        return false;
+    }
 
-        // ---- 6. 起跑格位 ----
-        List<RaceTrack.GridSlot> grid = buildGrid(geo, width,
-                Math.max(1, settings.playerCount()));
-
-        return new RaceTrack(seed, attempt, settings.centerX(), settings.centerZ(), settings.surfaceY(),
-                width / 2.0, settings.runoffWidth(), settings.barrierHeight(),
-                xs, zs, dirXs, dirZs, normalXs, normalZs,
-                checkpoints, grid, checkpointCount, minCornerRadius(xs, zs), -1);
+    /**
+     * Checkpoint 的赛段位置：把 {@code wanted} 道门按"可用赛段长度"等分。
+     *
+     * <p>落在岔口内部的赛段不摆门 —— 岔口里两条路线的场景不同，门放在那里就必须每条路一个门，
+     * 判定会翻倍复杂；而岔口/汇合口本身在两条路线上是同一个点，所以不会被漏掉。
+     * 不能简单删掉这些门（12 道会掉到 6 道，HUD 与节奏都变了），所以在<b>剩下的可用区间里
+     * 按长度重新等分</b>：门数不变，只是岔口那一段没有门。
+     *
+     * <p>岔口前还要多留 {@code 箱子偏移 + 6} 格：道具箱摆在门后 12 格，门离岔口太近的话
+     * 箱子会落进岔口（只有走内线的人吃得到），那是"不公平的补给"。
+     */
+    private static List<Double> checkpointStages(double length, int wanted,
+                                                 List<RaceTrack.Branch> branches) {
+        List<double[]> allowed = new ArrayList<>();
+        if (branches.isEmpty()) {
+            allowed.add(new double[]{0.0, length});
+        } else {
+            double margin = CHECKPOINT_FORK_MARGIN;
+            List<double[]> forbidden = new ArrayList<>();
+            for (RaceTrack.Branch b : branches) {
+                forbidden.add(new double[]{Math.max(0.0, b.startProgress() - margin), b.endProgress()});
+            }
+            // 起终点线两侧留白：起跑格位 + 发车挡板在长度侧，道具箱在门后 12 格，
+            // 所以两侧各留 56 格不摆门 —— 否则重新分配之后会有门（和它后面的箱子）
+            // 挤到发车区里，连"逆行提示"都会失去参照（第一道门离起点太远）。
+            double startPad = 56.0;
+            forbidden.add(new double[]{0.0, Math.min(startPad, length)});
+            forbidden.add(new double[]{Math.max(0.0, length - startPad), length});
+            forbidden.sort((x, y) -> Double.compare(x[0], y[0]));
+            double cursor = 0;
+            for (double[] f : forbidden) {
+                if (f[0] > cursor) {
+                    allowed.add(new double[]{cursor, f[0]});
+                }
+                cursor = Math.max(cursor, f[1]);
+            }
+            if (cursor < length) {
+                allowed.add(new double[]{cursor, length});
+            }
+        }
+        double total = 0;
+        for (double[] a : allowed) {
+            total += a[1] - a[0];
+        }
+        List<Double> stages = new ArrayList<>(wanted);
+        if (total <= 1.0) {
+            return stages;
+        }
+        for (int k = 1; k <= wanted; k++) {
+            double target = total * k / (wanted + 1.0);
+            double walked = 0;
+            for (double[] a : allowed) {
+                double span = a[1] - a[0];
+                if (walked + span >= target) {
+                    stages.add(a[0] + (target - walked));
+                    break;
+                }
+                walked += span;
+            }
+        }
+        return stages;
     }
 
     /** 采样数组的只读视图 + 弧长插值。 */

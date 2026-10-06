@@ -226,7 +226,8 @@ public final class BoatRaceSession {
                 template.getCenter(regionIndex).getZ() + 0.5,
                 ArenaTemplate.PLATFORM_Y,
                 cfg.boatRaceTrackWidthRandom, cfg.boatRaceTrackWidthMin, cfg.boatRaceTrackWidthMax,
-                cfg.boatRaceMirrorRandom);
+                cfg.boatRaceMirrorRandom,
+                cfg.boatRaceForksEnabled, cfg.boatRaceForkLongTrackLength);
 
         long started = System.nanoTime();
         RaceTrackGenerator.Outcome outcome = RaceTrackGenerator.generate(seed, settings);
@@ -1253,19 +1254,20 @@ public final class BoatRaceSession {
         if (samples <= 0) {
             return false;
         }
-        int center = this.track.nearestSample(player.getX(), player.getZ());
+        // 用"并集路面"采样点：在分岔支路上铺胶要跟着支路走，不能投影回主线
+        int center = this.track.nearestSurface(player.getX(), player.getZ());
         int behind = (int) Math.round(behindBlocks);
-        int base = Math.floorMod(center - behind, samples);
+        int base = this.track.shiftSurface(center, -behind);
         int halfLength = Math.max(0, (Math.max(1, cfg.boatRaceItemTrapLength) - 1) / 2);
         double halfWidth = Math.max(1.0, cfg.boatRaceItemTrapWidth / 2.0);
 
         Set<Long> positions = new HashSet<>();
         for (int step = -halfLength; step <= halfLength; step++) {
-            int index = Math.floorMod(base + step, samples);
-            double cx = this.track.sampleX(index);
-            double cz = this.track.sampleZ(index);
-            double nx = this.track.sampleNormalX(index);
-            double nz = this.track.sampleNormalZ(index);
+            int index = this.track.shiftSurface(base, step);
+            double cx = this.track.surfaceX(index);
+            double cz = this.track.surfaceZ(index);
+            double nx = this.track.surfaceNormalX(index);
+            double nz = this.track.surfaceNormalZ(index);
             for (double lat = -halfWidth; lat <= halfWidth; lat += 1.0) {
                 positions.add(BlockPos.asLong(
                         (int) Math.floor(cx + nx * lat),
@@ -1284,7 +1286,7 @@ public final class BoatRaceSession {
                 + cfg.boatRaceItemTrapSeconds + " 秒）"), true);
         ArenaWorld arena = this.match.arenaWorld();
         if (arena != null) {
-            arena.playSound(null, this.track.sampleX(base), this.track.surfaceY(), this.track.sampleZ(base),
+            arena.playSound(null, this.track.surfaceX(base), this.track.surfaceY(), this.track.surfaceZ(base),
                     SoundEvents.BLOCK_SNOW_PLACE, SoundCategory.PLAYERS, 1.0F, 0.8F);
         }
         if (this.debugItems) {
@@ -1869,12 +1871,12 @@ public final class BoatRaceSession {
         if (!this.started || arena == null) {
             return false;
         }
-        int index = this.track.nearestSample(player.getX(), player.getZ());
+        int index = this.track.nearestSurface(player.getX(), player.getZ());
         double lat = this.track.halfWidth() + 2.0;
-        double x = this.track.sampleX(index) + this.track.sampleNormalX(index) * lat;
-        double z = this.track.sampleZ(index) + this.track.sampleNormalZ(index) * lat;
+        double x = this.track.surfaceX(index) + this.track.surfaceNormalX(index) * lat;
+        double z = this.track.surfaceZ(index) + this.track.surfaceNormalZ(index) * lat;
         double y = this.track.surfaceY() + 1.0;
-        float yaw = RaceTrackGenerator.yawOf(this.track.sampleDirX(index), this.track.sampleDirZ(index));
+        float yaw = RaceTrackGenerator.yawOf(this.track.surfaceDirX(index), this.track.surfaceDirZ(index));
         this.discardBoat(player);
         player.teleport(arena, x, y, z, yaw, 0.0F);
         player.setVelocity(Vec3d.ZERO);

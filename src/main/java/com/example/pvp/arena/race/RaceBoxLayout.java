@@ -30,6 +30,11 @@ final class RaceBoxLayout {
             if (gate.isFinishLine()) {
                 continue;
             }
+            // 分岔：箱子只摆一个位置，落在岔口里就会变成"只有走内线才吃得到"，
+            // 等于给两条路线加不平衡的补给 —— 所以门后 gateOffset 落在岔口区间内就整门跳过。
+            if (track.isInsideForkSpan(gate.progress() + gateOffset)) {
+                continue;
+            }
             int sample = track.nearestSample(
                     gate.x() + gate.dirX() * gateOffset,
                     gate.z() + gate.dirZ() * gateOffset);

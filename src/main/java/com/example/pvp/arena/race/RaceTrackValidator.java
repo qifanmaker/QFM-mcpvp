@@ -66,6 +66,84 @@ public final class RaceTrackValidator {
         return Math.min(ICE_TOP_SPEED, v);
     }
 
+    // ---------- 开放折线（分岔支路 / 内线段）的曲率与通行时间 ----------
+
+    /**
+     * 开放折线上最小的曲率半径（格）。
+     *
+     * <p>与主线的 {@code profile} 同一口径：逐点转角 = 相邻航向之差，±3 点滑动平均后
+     * {@code κ = |平均转角| / STEP}，半径 = 1/κ。分岔的两条路线都必须满足最小弯半径，
+     * 否则船在岔路上会直接被甩进护栏。
+     */
+    public static double routeMinRadius(double[] xs, double[] zs) {
+        double[] radius = openRadii(xs, zs);
+        double min = Double.MAX_VALUE;
+        for (double r : radius) {
+            min = Math.min(min, r);
+        }
+        return min == Double.MAX_VALUE ? 1.0e6 : min;
+    }
+
+    /**
+     * 开放折线的通行时间估计（tick）：逐段 {@code 段长 / 该段速度上限}。
+     *
+     * <p>这是"平衡两条岔路"的度量：模型忽略加减速（只看逐点速度上限），所以它是一个
+     * <b>相对</b>指标 —— 只要两条路线用同一把尺子量，谁占便宜就看得出来。分岔生成器用它
+     * 搜索内线 S 弯的振幅，让内外线的估计时间差控制在 {@code FORK_BALANCE_TOLERANCE} 以内。
+     */
+    public static double routeTime(double[] xs, double[] zs) {
+        double[] radius = openRadii(xs, zs);
+        double time = 0;
+        for (int i = 0; i + 1 < xs.length; i++) {
+            double d = Math.hypot(xs[i + 1] - xs[i], zs[i + 1] - zs[i]);
+            double r = Math.min(radius[i], radius[i + 1]);
+            double v = Math.max(0.2, cornerSpeedLimit(r));
+            time += d / v;
+        }
+        return time;
+    }
+
+    /** 开放折线逐点的曲率半径（1e6 = 直线）。 */
+    private static double[] openRadii(double[] xs, double[] zs) {
+        int n = xs.length;
+        double[] radius = new double[n];
+        if (n < 3) {
+            java.util.Arrays.fill(radius, 1.0e6);
+            return radius;
+        }
+        double[] heading = new double[n - 1];
+        for (int i = 0; i + 1 < n; i++) {
+            heading[i] = Math.atan2(zs[i + 1] - zs[i], xs[i + 1] - xs[i]);
+        }
+        double[] turn = new double[n - 1];
+        for (int j = 1; j < n - 1; j++) {
+            double d = heading[j] - heading[j - 1];
+            while (d > Math.PI) {
+                d -= 2 * Math.PI;
+            }
+            while (d < -Math.PI) {
+                d += 2 * Math.PI;
+            }
+            turn[j] = d;
+        }
+        int window = 3;
+        for (int i = 0; i < n; i++) {
+            double sum = 0;
+            int count = 0;
+            for (int o = -window; o <= window; o++) {
+                int j = i + o;
+                if (j < 1 || j >= n - 1) {
+                    continue;
+                }
+                sum += turn[j];
+                count++;
+            }
+            double kappa = count == 0 ? 0.0 : Math.abs(sum / count) / RaceTrack.STEP;
+            radius[i] = kappa < 1.0e-9 ? 1.0e6 : 1.0 / kappa;
+        }
+        return radius;
+    }
+
     private RaceTrackValidator() {
     }
 
@@ -225,6 +303,52 @@ public final class RaceTrackValidator {
         if (clearance < limits.minClearance()) {
             problems.add(String.format("非相邻赛道段最小净空 %.1f < %.1f（自贴/捷径）",
                     clearance, limits.minClearance()));
+        }
+
+        // ---- 6.5 分岔：支路本身也要合法，且不能被门/箱子"截断" ----
+        // 生成器在造支路时已经逐项筛过（半径、长度比、通行时间平衡、分隔带、净空、界内），
+        // 这里再独立复核一遍关键的几条 —— 生成器的判据以后被改动时，校验器仍然拦得住坏图。
+        for (RaceTrack.Branch branch : track.branches()) {
+            double[] bx = new double[branch.sampleCount()];
+            double[] bz = new double[branch.sampleCount()];
+            for (int k = 0; k < branch.sampleCount(); k++) {
+                bx[k] = branch.x(k);
+                bz[k] = branch.z(k);
+            }
+            double radius = routeMinRadius(bx, bz);
+            if (radius < limits.minCornerRadius()) {
+                problems.add(String.format("分岔支路最小曲率半径 %.1f < %.1f",
+                        radius, limits.minCornerRadius()));
+            }
+            double innerLength = branch.progressSpan();
+            if (branch.length() > innerLength * 1.4 || branch.length() < innerLength) {
+                problems.add(String.format("分岔支路长度 %.0f 与内线 %.0f 不成比例（外线应略长）",
+                        branch.length(), innerLength));
+            }
+            int innerStart = (int) Math.round(branch.startProgress() / RaceTrack.STEP);
+            int innerCount = Math.max(2, (int) Math.round((branch.endProgress() - branch.startProgress())
+                    / RaceTrack.STEP) + 1);
+            double[] ix = new double[innerCount];
+            double[] iz = new double[innerCount];
+            for (int k = 0; k < innerCount; k++) {
+                int index = Math.floorMod(innerStart + k, track.sampleCount());
+                ix[k] = track.sampleX(index);
+                iz[k] = track.sampleZ(index);
+            }
+            double innerTime = routeTime(ix, iz);
+            double outerTime = routeTime(bx, bz);
+            double imbalance = Math.abs(innerTime - outerTime) / Math.max(1.0, Math.min(innerTime, outerTime));
+            if (imbalance > 0.25) {
+                problems.add(String.format("分岔内外线通行时间偏差 %.0f%% 过大（内 %.0f / 外 %.0f tick）",
+                        imbalance * 100.0, innerTime, outerTime));
+            }
+        }
+        for (RaceTrack.Checkpoint gate : track.checkpoints()) {
+            if (track.isInsideForkSpan(gate.progress())) {
+                problems.add(String.format("Checkpoint %d 落在岔口内部（两条路线上只有一个门）",
+                        gate.index()));
+                break;
+            }
         }
 
         // ---- 7. Checkpoint ----

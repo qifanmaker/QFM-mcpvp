@@ -194,7 +194,11 @@ public final class PvPCommands {
                                                         .executes(ctx -> debugBoatRace(ctx, 1,
                                                                 parseLongSafe(ctx, "seed", 0L), true))))
                                         .then(CommandManager.literal("build")
-                                                .executes(ctx -> debugBoatRaceBuild(ctx, 0L)))
+                                                .executes(ctx -> debugBoatRaceBuild(ctx, 0L))
+                                                .then(CommandManager.argument("seed",
+                                                                StringArgumentType.word())
+                                                        .executes(ctx -> debugBoatRaceBuild(ctx,
+                                                                parseLongSafe(ctx, "seed", 0L)))))
                                         .then(CommandManager.literal("nitro")
                                                 .executes(ctx -> debugBoatRaceNitro(ctx)))
                                         .then(CommandManager.literal("items")
@@ -877,7 +881,8 @@ public final class PvPCommands {
                 cfg.boatRaceCheckpoints, cfg.boatRaceMaxGenerationAttempts, cfg.boatRaceEnableRandomTrack,
                 8, cfg.boatRaceMinStraightLength, 168.5, 168.5, ArenaTemplate.PLATFORM_Y,
                 cfg.boatRaceTrackWidthRandom, cfg.boatRaceTrackWidthMin, cfg.boatRaceTrackWidthMax,
-                cfg.boatRaceMirrorRandom);
+                cfg.boatRaceMirrorRandom,
+                cfg.boatRaceForksEnabled, cfg.boatRaceForkLongTrackLength);
 
         if (describe && fixedSeed != null) {
             // 单 Seed 详查：把这一张图的每一项指标和拒绝原因都打出来
@@ -1147,7 +1152,8 @@ public final class PvPCommands {
                 8, cfg.boatRaceMinStraightLength, center.getX() + 0.5, center.getZ() + 0.5,
                 ArenaTemplate.PLATFORM_Y,
                 cfg.boatRaceTrackWidthRandom, cfg.boatRaceTrackWidthMin, cfg.boatRaceTrackWidthMax,
-                cfg.boatRaceMirrorRandom);
+                cfg.boatRaceMirrorRandom,
+                cfg.boatRaceForksEnabled, cfg.boatRaceForkLongTrackLength);
         RaceTrackGenerator.Outcome outcome = RaceTrackGenerator.generate(useSeed, settings);
         RaceTrack track = outcome.track();
 
@@ -1171,12 +1177,30 @@ public final class PvPCommands {
 
         final long fSeed = track.seed();
         final String direction = RaceTrackGenerator.describeDirection(useSeed, settings);
+        // 分岔：把两条路线中点的坐标打出来，方便用 execute in pvp:arena if block 复核
+        // （内线/外线都该是冰面，中间那块是分隔岛；岔口处两线重合，不该有墙横在路中间）
+        StringBuilder forkReport = new StringBuilder();
+        for (RaceTrack.Branch branch : track.branches()) {
+            int mid = branch.sampleCount() / 2;
+            double bx = branch.x(mid);
+            double bz = branch.z(mid);
+            int inner = Math.floorMod((int) Math.round(branch.progressAt(mid) / RaceTrack.STEP),
+                    track.sampleCount());
+            double ax = track.sampleX(inner);
+            double az = track.sampleZ(inner);
+            forkReport.append(String.format(
+                    "｜分岔%d：内线(%d,%d,%d) 外线(%d,%d,%d) 中点(%d,%d,%d) 间距 %.0f",
+                    branch.index() + 1, (int) Math.floor(ax), track.surfaceY(), (int) Math.floor(az),
+                    (int) Math.floor(bx), track.surfaceY(), (int) Math.floor(bz),
+                    (int) Math.floor((ax + bx) / 2), track.surfaceY(), (int) Math.floor((az + bz) / 2),
+                    Math.hypot(bx - ax, bz - az)));
+        }
         ctx.getSource().sendFeedback(() -> Messages.info(String.format(
                 "亦可赛艇 铺图自检：seed=%d 长度 %.0f 宽 %.0f（%s）CP %d 最小弯半径 %.1f 外沿半径 %.1f｜"
-                        + "铺设 %d 方块（%d ms）｜发车挡板 %s｜精确清除 %d 方块（%d ms）",
+                        + "铺设 %d 方块（%d ms）｜发车挡板 %s｜精确清除 %d 方块（%d ms）%s",
                 fSeed, track.length(), track.width(), direction, track.checkpointCount(),
                 track.minCornerRadius(), track.boundingRadius(), placed, buildMs, barrierProbe,
-                removed, clearMs)), false);
+                removed, clearMs, forkReport)), false);
         if (ctx.getSource().getEntity() instanceof ServerPlayerEntity player) {
             // 先铺一张不清理的图供玩家查看
             RaceMapGenerator.build(arena, track);
