@@ -163,10 +163,17 @@ public final class BoatRaceSession {
     private final Map<UUID, Integer> shieldCharges = new HashMap<>();
     /** 玩家 → 速冻胶免疫的宽限结束 tick（压过一片雪带只扣 1 次）。 */
     private final Map<UUID, Long> shieldGraceUntil = new HashMap<>();
-    /** 玩家 → 缓冲区结冰窗口（脚下的雪块临时冻成冰面，落后的人更容易触发）。 */
+    /** 玩家 → 缓冲区结冰窗口（脚下的雪块临时冻成冰面，落后的人充能更快）。 */
     private final Map<UUID, Set<Long>> gripWindows = new HashMap<>();
-    /** 玩家 → 结冰失效 tick（离开缓冲带后还能维持这么久）。 */
+    /** 玩家 → 结冰失效 tick（固定时长，<b>不续期</b>：续期会让援助变成永久）。 */
     private final Map<UUID, Long> gripUntil = new HashMap<>();
+    /**
+     * 玩家 → 缓冲带结冰的充能进度（0~1）。
+     *
+     * <p>只在缓冲带里按名次充能（领头慢、最后一名快），充满立刻换 {@code Seconds} 秒冰并清零；
+     * 结冰生效期间不充能，所以冰化了要重新攒 —— 不会出现"化掉就立刻再冻上"的连锁。
+     */
+    private final Map<UUID, Double> gripCharge = new HashMap<>();
     /**
      * 玩家 → 他此刻"带护盾压着、要免疫减速带"的格子：交给 {@link SurfaceOverlay} 暂时还原成原方块。
      * 不做这一步，"免疫速冻胶"就只是一句空话（雪带照旧扣他的速度）。
@@ -779,25 +786,28 @@ public final class BoatRaceSession {
             boolean active = matchTicks < this.gripUntil.getOrDefault(uuid, 0L);
             if (!active && onRunoff) {
                 int place = tracker.place() <= 0 ? total : tracker.place();
-                double chance = RaceLoot.gripChance(cfg.boatRaceRunoffGripChanceLeader,
-                        cfg.boatRaceRunoffGripChanceLast, place, total);
-                if (this.random.nextDouble() < chance) {
+                double rate = RaceLoot.gripChargeRate(cfg.boatRaceRunoffGripChargeLeader,
+                        cfg.boatRaceRunoffGripChargeLast, place, total);
+                double charge = this.gripCharge.getOrDefault(uuid, 0.0) + rate / 20.0;
+                if (charge >= 1.0) {
+                    this.gripCharge.put(uuid, 0.0);
+                    this.gripUntil.put(uuid, matchTicks + gripTicks);
                     active = true;
                     player.sendMessage(Text.literal("§b缓冲区结冰！§7脚下雪块冻成了冰面（"
                             + cfg.boatRaceRunoffGripSeconds + " 秒）"), true);
                     if (this.debugItems) {
-                        LOGGER.info("[PvP] 缓冲区结冰：{}（第 {}/{} 名，每 tick 概率 {}）",
-                                player.getGameProfile().getName(), place, total, d2(chance));
+                        LOGGER.info("[PvP] 缓冲区结冰：{}（第 {}/{} 名，充能速率 {}/秒，累计 {} tick）",
+                                player.getGameProfile().getName(), place, total, d2(rate),
+                                (int) Math.round(1.0 / Math.max(1.0e-6, rate) * 20.0));
                     }
+                } else {
+                    this.gripCharge.put(uuid, charge);
                 }
             }
             if (!active) {
                 continue;
             }
-            if (onRunoff) {
-                // 人还在缓冲带里就一直续期：离开之后再过 N 秒才化回雪
-                this.gripUntil.put(uuid, matchTicks + gripTicks);
-            }
+            // 固定时长、不续期：过期就化回雪（想再要一次必须重新充能）
             this.gripWindows.put(uuid, this.boatSurfaceCells(boat));
         }
     }
@@ -1040,11 +1050,17 @@ public final class BoatRaceSession {
             text.append(Text.literal(" §7| §b§l加速 "
                     + String.format(java.util.Locale.ROOT, "%.1f", boostTicks / 20.0) + "s"));
         }
-        // 缓冲区结冰的剩余时间（这是"援助"，跟道具分开显示）
+        // 缓冲区结冰（援助）：生效时显示剩余时间，充能中显示进度 —— 确定性机制必须让人看得见
         long gripLeft = this.gripUntil.getOrDefault(player.getUuid(), 0L) - matchTicks;
         if (gripLeft > 0) {
             text.append(Text.literal(" §7| §b❄ 结冰 "
                     + String.format(java.util.Locale.ROOT, "%.1f", gripLeft / 20.0) + "s"));
+        } else {
+            double charge = this.gripCharge.getOrDefault(player.getUuid(), 0.0);
+            if (charge > 0.02) {
+                text.append(Text.literal(" §7| §b❄ "
+                        + String.format(java.util.Locale.ROOT, "%.0f%%", Math.min(1.0, charge) * 100.0)));
+            }
         }
         // 道具栏：只显示手上真有的；护盾显示剩余次数
         int shieldLeft = this.shieldChargeCount(player);
@@ -1883,20 +1899,23 @@ public final class BoatRaceSession {
         this.spawnBoatFor(player, x, y, z, yaw);
         this.itemBoxes.forget(player.getUuid());
 
+        // 不直接给冰：让"充能 → 出冰"这条真实路径自己走一遍（确定性机制才验得出来），
+        // 单人局里他就是第 1 名，按领头速率充能，攒满需要 1/ChargeLeader 秒。
         int seconds = Math.max(1, PvPConfig.INSTANCE.boatRaceRunoffGripSeconds);
-        this.gripUntil.put(player.getUuid(), this.match.matchTicks() + seconds * 20L);
-        BoatEntity boat = this.boatOf(player);
-        if (boat != null) {
-            this.gripWindows.put(player.getUuid(), this.boatSurfaceCells(boat));
-        }
+        this.gripCharge.put(player.getUuid(), 0.0);
         this.debugItems = true;
         this.overlayProbePos = new BlockPos((int) Math.floor(x), this.track.surfaceY(),
                 (int) Math.floor(z));
-        this.overlayProbeTicks = seconds * 20 + 20;
+        // 探针要覆盖"充能 → 出冰 → 冰化"整个周期，这样才能用日志证明"不再续期"
+        this.overlayProbeTicks = (int) Math.round(
+                20.0 / Math.max(1.0e-6, PvPConfig.INSTANCE.boatRaceRunoffGripChargeLeader))
+                + seconds * 20 + 40;
         this.refreshSurfaceOverlay();
-        LOGGER.info("[PvP] 结冰调试：{} 已挪到缓冲带（横向 {} 格 → 坐标 {}, {}），强制结冰 {} 秒；"
-                        + "采样格 {} = {}（原本是 {}）",
+        LOGGER.info("[PvP] 结冰调试：{} 已挪到缓冲带（横向 {} 格 → 坐标 {}, {}），"
+                        + "结冰时长 {} 秒；充能速率 {}/秒（攒满约 {} 秒。采样格 {} = {}（原本是 {}）",
                 player.getGameProfile().getName(), d1(lat), (int) x, (int) z, seconds,
+                d2(PvPConfig.INSTANCE.boatRaceRunoffGripChargeLeader),
+                d2(1.0 / Math.max(1.0e-6, PvPConfig.INSTANCE.boatRaceRunoffGripChargeLeader)),
                 this.overlayProbePos, this.blockName(arena, this.overlayProbePos),
                 PvPConfig.INSTANCE.boatRaceRunoffBlock);
         return true;

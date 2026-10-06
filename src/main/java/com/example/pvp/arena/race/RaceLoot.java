@@ -66,9 +66,18 @@ final class RaceLoot {
      * @param leaderChance 第一名的每 tick 触发概率
      * @param lastChance   最后一名的每 tick 触发概率（中间名次线性插值）
      */
-    static double gripChance(double leaderChance, double lastChance, int place, int total) {
-        double min = Math.max(0.0, Math.min(1.0, leaderChance));
-        double max = Math.max(0.0, Math.min(1.0, lastChance));
+    /**
+     * 缓冲区结冰的<b>充能速率</b>（每秒充满的比例），按名次在领头/最后一名之间线性插值。
+     *
+     * <p>为什么从"每 tick 掷概率"改成"确定性充能"：概率 + 续期等于"只要在缓冲带里待够
+     * 期望时间，冰就永久不化" —— 领头 1%/tick 的期望等待只有 100 tick（5 秒），
+     * 而缓冲带本身比冰面宽 5 格，于是援助变成了"领跑者第一圈之后白嫖一条外道"。
+     * 充能版把代价摊开：充能只在缓冲带里累加（那里只有 2 格/秒），
+     * 领头要待满 1/{@code leaderRate} 秒才换 5 秒冰，净收益为负，没人会故意去刷。
+     */
+    static double gripChargeRate(double leaderRate, double lastRate, int place, int total) {
+        double min = Math.max(0.0, leaderRate);
+        double max = Math.max(0.0, lastRate);
         if (total <= 1) {
             return min;
         }

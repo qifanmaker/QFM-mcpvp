@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 10;
+    public static final int CURRENT_CONFIG_VERSION = 11;
 
     /**
      * 生成这份文件时的配置版本。
@@ -527,24 +527,39 @@ public final class PvPConfig {
 
     // ---------- 亦可赛艇：缓冲区结冰（落后援助） ----------
     /**
-     * 是否开启"缓冲区结冰"：船冲进赛道两侧的雪地缓冲带时，脚下的雪块会冻成冰面，
-     * 于是不至于一下子掉到 2 格/秒。<b>落后的人触发概率更高</b>（见下面两个概率）。
+     * 是否开启"缓冲区结冰"：船冲进赛道两侧的雪地缓冲带（2 格/秒）时，
+     * 脚下的雪块会临时冻成冰面（40 格/秒），不至于一下子被雪地按住。
+     * <b>落后的人充能更快</b>（见下面两个速率）。
+     *
+     * <p><b>为什么是"确定性充能"而不是"每 tick 掷概率"</b>：概率 + 续期会让援助变成
+     * "只要在缓冲带里待够期望时间，冰就永久不化" —— 领头 1%/tick 的期望等待只有 100 tick
+     * （5 秒），而缓冲带比冰面宽 5 格，结果就是领跑者第一圈之后白嫖一条外道。
+     * 充能版把代价摊开：充能只在缓冲带里累加，领头要待满 {@code 1/ChargeLeader} 秒
+     * 才换 {@code Seconds} 秒冰 —— 净收益为负，没人会故意去刷；落后者则几乎一进去就出冰。
      */
     public boolean boatRaceRunoffGripEnabled = true;
-    /** 结冰持续时长（秒）：期间雪块保持冰面；人还在缓冲带里会一直续期。 */
+    /**
+     * 结冰持续时长（秒）：<b>固定时长，不续期</b>。
+     *
+     * <p>人还待在缓冲带里也不会延长；想要下一次必须重新充能（充能进度在出冰时清零，
+     * 结冰生效期间也不充能），所以不会出现"化掉立刻又冻上"的连锁。
+     */
     public int boatRaceRunoffGripSeconds = 5;
     /**
      * 雪块冻成什么方块（默认就是赛道地表方块 = 和正常路面一样滑）。
      *
      * <p><b>原版没有"比路面稍慢"的方块</b>：滑度只有 0.98（冰，40 格/秒）、0.989（蓝冰，72.7）、
-     * 0.8（黏液块，4）、0.6（雪，2）四档。想要"慢一点"只能靠触发概率（见下），
+     * 0.8（黏液块，4）、0.6（雪，2）四档。想要"慢一点"只能靠充能速率拉开名次差距（见下），
      * 或者把这里改成 {@code minecraft:water}（船在水里约 8 格/秒：更慢但不会停住）。
      */
     public String boatRaceRunoffGripBlock = "minecraft:packed_ice";
-    /** 结冰触发概率（每 tick，第一名）：默认 1% —— 领先者冲进缓冲带基本还是雪。 */
-    public double boatRaceRunoffGripChanceLeader = 0.01;
-    /** 结冰触发概率（每 tick，最后一名）：默认 20% —— 落后的人几乎一进去就冻成冰面。 */
-    public double boatRaceRunoffGripChanceLast = 0.20;
+    /**
+     * 充能速率（每秒充满的比例，第一名）：默认 0.1 —— 领先者要在缓冲带里<b>累计待满 10 秒</b>
+     * 才换 5 秒冰（缓冲带里 2 格/秒，10 秒只走出 20 格），净收益为负。
+     */
+    public double boatRaceRunoffGripChargeLeader = 0.1;
+    /** 充能速率（每秒充满的比例，最后一名）：默认 1.0 —— 落后的人待满 1 秒就出冰。 */
+    public double boatRaceRunoffGripChargeLast = 1.0;
     /**
      * 每张图必须有的"大直道"最小长度（格）。
      *
@@ -1287,12 +1302,12 @@ public final class PvPConfig {
             this.boatRaceRunoffGripSeconds = defaults.boatRaceRunoffGripSeconds;
             changed = true;
         }
-        if (this.boatRaceRunoffGripChanceLeader < 0.0 || this.boatRaceRunoffGripChanceLeader > 1.0) {
-            this.boatRaceRunoffGripChanceLeader = defaults.boatRaceRunoffGripChanceLeader;
+        if (this.boatRaceRunoffGripChargeLeader < 0.0 || this.boatRaceRunoffGripChargeLeader > 20.0) {
+            this.boatRaceRunoffGripChargeLeader = defaults.boatRaceRunoffGripChargeLeader;
             changed = true;
         }
-        if (this.boatRaceRunoffGripChanceLast < 0.0 || this.boatRaceRunoffGripChanceLast > 1.0) {
-            this.boatRaceRunoffGripChanceLast = defaults.boatRaceRunoffGripChanceLast;
+        if (this.boatRaceRunoffGripChargeLast < 0.0 || this.boatRaceRunoffGripChargeLast > 20.0) {
+            this.boatRaceRunoffGripChargeLast = defaults.boatRaceRunoffGripChargeLast;
             changed = true;
         }
         if (this.boatRaceRunoffGripBlock == null || this.boatRaceRunoffGripBlock.isBlank()) {
