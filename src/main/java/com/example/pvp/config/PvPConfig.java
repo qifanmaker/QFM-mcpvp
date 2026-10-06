@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 7;
+    public static final int CURRENT_CONFIG_VERSION = 8;
 
     /**
      * 生成这份文件时的配置版本。
@@ -311,10 +311,32 @@ public final class PvPConfig {
     /** 圈数（1~3 手感最好；每圈走同一条赛道）。 */
     public int boatRaceLaps = 3;
     /**
-     * 赛道宽度（格，建议 9~15）。
+     * 赛道宽度（格，建议 12~20）。
      * 船在冰上速度极快、转向半径大，过窄会变成"撞墙比赛"，过宽则失去走线意义。
+     *
+     * <p>当 {@link #boatRaceTrackWidthRandom} 为 true（默认）时本项被忽略，
+     * 宽度在 {@link #boatRaceTrackWidthMin} ~ {@link #boatRaceTrackWidthMax} 之间按 Seed 随机。
+     * 想让所有图都用同一个宽度就把它关掉，并把本项设成想要的宽度。
      */
     public int boatRaceTrackWidth = 16;
+    /**
+     * 赛道宽度是否每张图随机。
+     *
+     * <p>宽度是"走线自由度 vs 碰撞"最强的杠杆：12 格的窄图超车必须贴身挤，20 格的宽图能并排走线、
+     * 道具战更凶，同一副骨架在两种宽度下的手感完全不同 —— 固定 16 格是"地图都差不多"的主因之一。
+     */
+    public boolean boatRaceTrackWidthRandom = true;
+    /** 随机宽度下限（格，10~48）。 */
+    public int boatRaceTrackWidthMin = 12;
+    /** 随机宽度上限（格，10~48，且不小于下限）。 */
+    public int boatRaceTrackWidthMax = 20;
+    /**
+     * 行驶方向是否每张图随机（顺/逆时针镜像）。
+     *
+     * <p>镜像是等距变换：长度、曲率分布、评分全都不变，但整圈的左右弯翻面，
+     * 于是"哪一侧是内线"整体反转 —— 同一副骨架能出两种走线完全不同的图，成本为零。
+     */
+    public boolean boatRaceMirrorRandom = true;
     /**
      * 赛道两侧的减速缓冲带宽度（格）：缓冲带用高摩擦方块（默认雪块 0.6），冲出赛道会被吃掉速度。
      * 原版船的"地面摩擦"取船底 1mm 切片 ±1 格内所有方块 slipperiness 的<b>平均值</b>，
@@ -330,8 +352,14 @@ public final class PvPConfig {
     public int boatRaceTargetTrackLength = 700;
     /** Checkpoint 数量；0 = 按赛道长度自动（约每 60 格一个，限制在 6~18）。 */
     public int boatRaceCheckpoints = 0;
-    /** 最大生成尝试次数：每次失败后 seed+1 重来，直到出现合法赛道。 */
-    public int boatRaceMaxGenerationAttempts = 32;
+    /**
+     * 最大生成尝试次数：每次失败后 seed+1 重来，直到出现合法赛道。
+     *
+     * <p>48 是"多样化"之后实测出来的下限：风格表从 8 组扩到 18 组、宽度每场随机之后，
+     * 32 次的候选池在 2000 个 Seed 里有 ~0.25% 会全部被拒（退回正圆，玩家会抽到无聊的图），
+     * 48 次实测 0/2000，代价只是平均多试几次（生成仍远快于铺图）。
+     */
+    public int boatRaceMaxGenerationAttempts = 48;
     /** 是否随机生成赛道。关掉则使用确定性的"安全椭圆"（调试用，玩家体验会差很多）。 */
     public boolean boatRaceEnableRandomTrack = true;
     /**
@@ -1059,6 +1087,20 @@ public final class PvPConfig {
         }
         if (this.boatRaceTrackWidth <= 0) {
             this.boatRaceTrackWidth = defaults.boatRaceTrackWidth;
+            changed = true;
+        }
+        if (this.boatRaceTrackWidthMin < 10 || this.boatRaceTrackWidthMin > 48) {
+            this.boatRaceTrackWidthMin = defaults.boatRaceTrackWidthMin;
+            changed = true;
+        }
+        if (this.boatRaceTrackWidthMax < 10 || this.boatRaceTrackWidthMax > 48) {
+            this.boatRaceTrackWidthMax = defaults.boatRaceTrackWidthMax;
+            changed = true;
+        }
+        if (this.boatRaceTrackWidthMax < this.boatRaceTrackWidthMin) {
+            // 上下限写反了：整对回默认，而不是悄悄交换（写错的人应该看到默认值）
+            this.boatRaceTrackWidthMin = defaults.boatRaceTrackWidthMin;
+            this.boatRaceTrackWidthMax = defaults.boatRaceTrackWidthMax;
             changed = true;
         }
         if (this.boatRaceRunoffWidth <= 0) {

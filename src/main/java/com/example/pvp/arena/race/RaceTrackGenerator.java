@@ -77,11 +77,60 @@ public final class RaceTrackGenerator {
                            int runoffWidth, int barrierHeight,
                            int checkpointCount, int maxAttempts, boolean randomTrack,
                            int playerCount, double minStraightLength,
-                           double centerX, double centerZ, int surfaceY) {
+                           double centerX, double centerZ, int surfaceY,
+                           boolean randomWidth, double widthMin, double widthMax,
+                           boolean randomMirror) {
     }
 
     /** 生成结果：最终赛道 + 尝试次数 + 是否退回兜底 + 日志行。 */
     public record Outcome(RaceTrack track, int attempts, boolean usedFallback, List<String> notes) {
+    }
+
+    /**
+     * 一张图的"多样化参数"：宽度与行驶方向。
+     *
+     * <p>两者都只由 {@code baseSeed} 推导（<b>不是</b>每次尝试重摇）：宽度会进入起跑格位排布、
+     * Checkpoint 门宽与校验阈值，同一次生成必须自始至终用同一个宽度；方向则整体镜像骨架。
+     * 用独立的散列盐混出来，所以"随机宽度/镜像"关掉时骨架仍与开启时完全一致（同一 Seed 可比对）。
+     */
+    private record Variant(double width, boolean mirror) {
+    }
+
+    /** 随机宽度的合法区间（格）：下限 10 是校验器"宽度 ≥ 9 才走得线"的余量。 */
+    private static final double MIN_RANDOM_WIDTH = 10.0;
+    private static final double MAX_RANDOM_WIDTH = 48.0;
+
+    private static Variant variant(long seed, Settings s) {
+        double width = s.width();
+        if (s.randomWidth()) {
+            double lo = clamp(Math.min(s.widthMin(), s.widthMax()), MIN_RANDOM_WIDTH, MAX_RANDOM_WIDTH);
+            double hi = clamp(Math.max(s.widthMin(), s.widthMax()), MIN_RANDOM_WIDTH, MAX_RANDOM_WIDTH);
+            int steps = (int) Math.floor(hi - lo);
+            width = steps <= 0 ? lo : lo + Math.floorMod(mix(seed, 0x165667B19E3779F9L), steps + 1);
+        }
+        boolean mirror = s.randomMirror() && (mix(seed, 0x27D4EB2F165667C5L) & 1L) != 0L;
+        return new Variant(width, mirror);
+    }
+
+    /**
+     * 这张图的赛道宽度（格）。调试命令与日志用它复现"同一 Seed 的宽度"，
+     * 与 {@link #generate} 内部的推导完全一致。
+     */
+    public static double resolveWidth(long seed, Settings settings) {
+        return variant(seed, settings).width();
+    }
+
+    /** 这张图的行驶方向（中文，供日志/调试输出）。 */
+    public static String describeDirection(long seed, Settings settings) {
+        return variant(seed, settings).mirror() ? "逆时针" : "顺时针";
+    }
+
+    /** splitmix64 终混：把一个 Seed 与盐混成互不相关的散列值（宽度/方向/主题各用一把盐）。 */
+    private static long mix(long seed, long salt) {
+        long h = seed * 0x9E3779B97F4A7C15L + salt;
+        h = (h ^ (h >>> 30)) * 0xBF58476D1CE4E5B9L;
+        h = (h ^ (h >>> 27)) * 0x94D049BB133111EBL;
+        return h ^ (h >>> 31);
     }
 
     /**
@@ -95,8 +144,9 @@ public final class RaceTrackGenerator {
 
     /** 只生成一个候选（Seed 不偏移）并校验，不做多候选筛选、也不退回兜底。 */
     public static Candidate probe(long seed, Settings settings, boolean circular) {
-        RaceTrack track = build(seed, 0, settings, circular, false);
-        return new Candidate(track, RaceTrackValidator.validate(track, limits(settings)));
+        Variant variant = variant(seed, settings);
+        RaceTrack track = build(seed, 0, settings, variant.width(), variant.mirror(), circular, false);
+        return new Candidate(track, RaceTrackValidator.validate(track, limits(settings, variant.width())));
     }
 
     /** 中心线在某个弧长处的几何（门与格位复用同一份插值逻辑）。 */
@@ -115,10 +165,16 @@ public final class RaceTrackGenerator {
      */
     public static Outcome generate(long baseSeed, Settings settings) {
         List<String> notes = new ArrayList<>();
-        RaceTrackValidator.Limits limits = limits(settings);
+        // 宽度与行驶方向按 Seed 定一次，整轮尝试（含放宽与兜底）都用同一份 —— 否则同一张图的
+        // 各个候选宽度不同，既没法比较，也会让"同 Seed 同图"这条复现承诺失效。
+        Variant variant = variant(baseSeed, settings);
+        double width = variant.width();
+        boolean mirror = variant.mirror();
+        RaceTrackValidator.Limits limits = limits(settings, width);
+        notes.add(String.format("赛道多样化：宽度 %.0f 格，行驶方向 %s", width, mirror ? "逆时针" : "顺时针"));
 
         if (!settings.randomTrack()) {
-            RaceTrack fixed = build(baseSeed, 0, settings, true, false);
+            RaceTrack fixed = build(baseSeed, 0, settings, width, mirror, true, false);
             RaceTrackValidator.Result result = RaceTrackValidator.validate(fixed, limits);
             notes.add("boatRaceEnableRandomTrack=false：使用确定性正圆赛道（调试用）");
             if (!result.valid()) {
@@ -137,7 +193,7 @@ public final class RaceTrackGenerator {
         for (int attempt = 0; attempt < attempts; attempt++) {
             RaceTrack candidate;
             try {
-                candidate = build(baseSeed + attempt, attempt, settings, false, false);
+                candidate = build(baseSeed + attempt, attempt, settings, width, mirror, false, false);
             } catch (RuntimeException e) {
                 lastProblem = "生成异常 " + e;
                 continue;
@@ -170,11 +226,11 @@ public final class RaceTrackGenerator {
         for (int attempt = 0; attempt < Math.max(8, attempts / 2); attempt++) {
             RaceTrack candidate;
             try {
-                candidate = build(baseSeed + attempts + attempt, attempt, settings, false, true);
+                candidate = build(baseSeed + attempts + attempt, attempt, settings, width, mirror, false, true);
             } catch (RuntimeException e) {
                 continue;
             }
-            RaceTrackValidator.Result relaxed = RaceTrackValidator.validate(candidate, relaxedLimits(settings));
+            RaceTrackValidator.Result relaxed = RaceTrackValidator.validate(candidate, relaxedLimits(settings, width));
             if (relaxed.valid() && relaxed.score() > bestScore) {
                 bestScore = relaxed.score();
                 best = candidate;
@@ -189,7 +245,7 @@ public final class RaceTrackGenerator {
 
         // 还是不合法：先如实报告失败，再退回确定性正圆，保证对局仍然能开起来。
         notes.add("随机赛道生成失败：已尝试 " + attempts + " 次，最后一次原因：" + lastProblem);
-        RaceTrack fallback = build(baseSeed, attempts, settings, true, false);
+        RaceTrack fallback = build(baseSeed, attempts, settings, width, mirror, true, false);
         RaceTrackValidator.Result fallbackResult = RaceTrackValidator.validate(fallback, limits);
         notes.add("已退回确定性正圆赛道"
                 + (fallbackResult.valid() ? "（校验通过）" : "（仍未通过：" + fallbackResult.problemText() + "）"));
@@ -198,20 +254,20 @@ public final class RaceTrackGenerator {
 
     /** 校验器用的硬性约束；起跑区长度按实际格位排布算出。 */
     /** 放宽版判据：不卡"双侧真弯"（旧振幅区间用它做回退）。 */
-    private static RaceTrackValidator.Limits relaxedLimits(Settings s) {
-        int columns = Math.max(1, columnsFor(s.width()));
+    private static RaceTrackValidator.Limits relaxedLimits(Settings s, double width) {
+        int columns = Math.max(1, columnsFor(width));
         int rows = (int) Math.ceil(Math.max(1, s.playerCount()) / (double) columns);
         double gridDepth = GRID_FIRST_ROW_BACK + rows * GRID_ROW_SPACING + 8.0;
         return new RaceTrackValidator.Limits(s.minLength(), s.maxLength(), s.targetLength(),
-                s.minCornerRadius(), s.minClearance(), s.width(), gridDepth, s.minStraightLength(), 0.0);
+                s.minCornerRadius(), s.minClearance(), width, gridDepth, s.minStraightLength(), 0.0);
     }
 
-    private static RaceTrackValidator.Limits limits(Settings s) {
-        int columns = columnsFor(s.width());
+    private static RaceTrackValidator.Limits limits(Settings s, double width) {
+        int columns = columnsFor(width);
         int rows = (int) Math.ceil(Math.max(1, s.playerCount()) / (double) columns);
         double gridDepth = GRID_FIRST_ROW_BACK + rows * GRID_ROW_SPACING + 8.0;
         return new RaceTrackValidator.Limits(s.minLength(), s.maxLength(), s.targetLength(),
-                s.minCornerRadius(), s.minClearance(), s.width(), gridDepth, s.minStraightLength(),
+                s.minCornerRadius(), s.minClearance(), width, gridDepth, s.minStraightLength(),
                 s.minCornerRadius() * RaceTrackValidator.OPPOSITE_CORNER_FACTOR);
     }
 
@@ -233,9 +289,11 @@ public final class RaceTrackGenerator {
      * 生成一张候选赛道。
      *
      * @param circular true = 确定性正圆（兜底 / 调试），false = 按 Seed 随机
+     * @param width    本张图的赛道宽度（由 {@link #variant} 从 baseSeed 定出来，整轮不变）
+     * @param mirror   true = 把骨架整体镜像（顺/逆时针互换），其余推导全部跟着镜像
      */
-    private static RaceTrack build(long seed, int attempt, Settings settings, boolean circular,
-                                   boolean relaxedAmplitude) {
+    private static RaceTrack build(long seed, int attempt, Settings settings, double width,
+                                   boolean mirror, boolean circular, boolean relaxedAmplitude) {
         Random random = new Random(seed * 0x9E3779B97F4A7C15L + 0x632BE59BD9B4E019L);
 
         double targetLength = clamp(settings.targetLength(), settings.minLength(), settings.maxLength());
@@ -258,7 +316,8 @@ public final class RaceTrackGenerator {
             // 船能在这里把冰面高速跑满。振幅再大一点曲率就反号，变成 S 弯的拐点。
             // 系数 0.9~1.6：约等于 1 时谷底被压成真直道；明显大于 1 时谷底曲率反号，
             // 那一处就变成 S 弯的拐点（连续左右弯），这正是"连续弯 / S 弯"的来源。
-            int kStraight = 2 + random.nextInt(2);
+            // 造直道的谐波频率 2~4：k 越小直道越长越缓，k 越大直道越多越碎
+            int kStraight = 2 + random.nextInt(3);
             double aStraight = baseRadius / (kStraight * kStraight + 1.0)
                     * (0.9 + random.nextDouble() * 0.7);
             // ---- 再叠风格谐波，正负随机（负 = 压平，正 = 急弯）----
@@ -303,7 +362,9 @@ public final class RaceTrackGenerator {
             // 保底：r > 0 是"曲线简单"的前提
             r = Math.max(baseRadius * 0.35, r);
             px[i] = settings.centerX() + r * Math.cos(theta);
-            pz[i] = settings.centerZ() + r * Math.sin(theta);
+            // 镜像直接把 Z 分量取反：曲线仍是简单闭环，长度与曲率分布完全不变，
+            // 但整圈的左右弯翻面 —— 同一副骨架能出两种走线完全不同的图。
+            pz[i] = settings.centerZ() + (mirror ? -1.0 : 1.0) * r * Math.sin(theta);
         }
 
         // ---- 2. 按弧长等距重采样（顺带完成"平滑中心线"） ----
@@ -335,7 +396,7 @@ public final class RaceTrackGenerator {
         }
 
         // ---- 3. 起终点线放在最平直处（窗口要够长到容下整个起跑格位阵） ----
-        int pivot = straightestIndex(xs, zs, settings.width(), Math.max(1, settings.playerCount()),
+        int pivot = straightestIndex(xs, zs, width, Math.max(1, settings.playerCount()),
                 settings.minStraightLength());
         xs = rotate(xs, pivot);
         zs = rotate(zs, pivot);
@@ -371,17 +432,17 @@ public final class RaceTrackGenerator {
                 ? settings.checkpointCount()
                 : clampInt((int) Math.round(length / 60.0), 6, 18);
         List<RaceTrack.Checkpoint> checkpoints = new ArrayList<>(checkpointCount + 1);
-        checkpoints.add(gate(geo, 0, 0.0, settings.width()));
+        checkpoints.add(gate(geo, 0, 0.0, width));
         for (int k = 1; k <= checkpointCount; k++) {
-            checkpoints.add(gate(geo, k, length * k / (checkpointCount + 1.0), settings.width()));
+            checkpoints.add(gate(geo, k, length * k / (checkpointCount + 1.0), width));
         }
 
         // ---- 6. 起跑格位 ----
-        List<RaceTrack.GridSlot> grid = buildGrid(geo, settings.width(),
+        List<RaceTrack.GridSlot> grid = buildGrid(geo, width,
                 Math.max(1, settings.playerCount()));
 
         return new RaceTrack(seed, attempt, settings.centerX(), settings.centerZ(), settings.surfaceY(),
-                settings.width() / 2.0, settings.runoffWidth(), settings.barrierHeight(),
+                width / 2.0, settings.runoffWidth(), settings.barrierHeight(),
                 xs, zs, dirXs, dirZs, normalXs, normalZs,
                 checkpoints, grid, checkpointCount, minCornerRadius(xs, zs), -1);
     }
@@ -561,6 +622,17 @@ public final class RaceTrackGenerator {
             {3, 5, 7},
             {2, 4, 7},
             {4, 6},
+            // ---- 以下为"多样化"扩充：同一副极坐标骨架的不同风格 ----
+            {1, 3},        // 偏心蛋形：一侧超长缓弯 + 一侧连续急弯
+            {1, 2},        // 蛋形 + 双鼓包，直道与发卡同时出现
+            {2, 2},        // 两个同频不同相的双鼓包：椭圆变体
+            {2, 2, 2},     // 三相位叠加，形状最不规则的大弯图
+            {2, 3, 4},     // 三种频率混合：长弯 + 中弯 + 小弯
+            {3, 4, 5},     // 中频连续 S 弯
+            {2, 7},        // 两个大弯 + 七个碎弯（搓板，校验器会拦掉过碎的）
+            {4, 7},
+            {5, 7},
+            {3, 6},
     };
 
     private static double wrapAngle(double angle) {

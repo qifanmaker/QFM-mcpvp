@@ -120,13 +120,18 @@ public final class RaceMapGenerator {
         BlockState surface = cfg.getBoatRaceSurfaceBlock().getDefaultState();
         BlockState runoff = cfg.getBoatRaceRunoffBlock().getDefaultState();
         BlockState barrier = cfg.getBoatRaceBarrierBlock().getDefaultState();
+        // 装饰主题由 Seed 推导：铺场与清场拿到同一个主题，清场不会漏掉主题化的方块。
+        RaceDecorTheme theme = RaceDecorTheme.pick(track.seed());
+        if (!clearing) {
+            LOGGER.info("[PvP] 亦可赛艇 seed {} 装饰主题：{}", track.seed(), theme.displayName());
+        }
 
         int placed = 0;
         placed += rasterizeRibbon(arena, track, cleaning(clearing, surface), cleaning(clearing, runoff),
                 cleaning(clearing, barrier));
-        placed += buildGates(arena, track, clearing);
+        placed += buildGates(arena, track, clearing, theme);
         placed += buildStartBarrier(arena, track, clearing);
-        placed += buildEnvironment(arena, track, clearing);
+        placed += buildEnvironment(arena, track, clearing, theme);
         return placed;
     }
 
@@ -197,11 +202,12 @@ public final class RaceMapGenerator {
      * 每道门一个门架：轨道两侧各一根立柱 + 顶上一根横梁 + 悬空的门号文字。
      * 立柱正好压在护栏线上，不会伸进赛道；横梁在 {@link #GATE_HEIGHT} 高度，船从下面过。
      */
-    private static int buildGates(ArenaWorld arena, RaceTrack track, boolean clearing) {
-        Block pillar = Blocks.BLUE_ICE;
-        Block beam = Blocks.BLUE_ICE;
-        Block finishBeam = Blocks.BLACK_CONCRETE;
-        Block finishBeamAlt = Blocks.WHITE_CONCRETE;
+    private static int buildGates(ArenaWorld arena, RaceTrack track, boolean clearing,
+                                  RaceDecorTheme theme) {
+        Block pillar = theme.pillar();
+        Block beam = theme.beam();
+        Block finishBeam = theme.finishBeamA();
+        Block finishBeamAlt = theme.finishBeamB();
         int placed = 0;
         int y = track.surfaceY();
         double offset = track.halfWidth() + track.runoffWidth();
@@ -357,7 +363,8 @@ public final class RaceMapGenerator {
      * 围绕赛道的雪原 / 冰湖环境。所有装饰都先检查"离中心线的距离 &gt; 走廊半宽 + 净空"，
      * 保证永远不会长到赛道上；环境随机数由 {@code track.seed()} 派生，所以清场时能精确重放。
      */
-    private static int buildEnvironment(ArenaWorld arena, RaceTrack track, boolean clearing) {
+    private static int buildEnvironment(ArenaWorld arena, RaceTrack track, boolean clearing,
+                                        RaceDecorTheme theme) {
         Random random = new Random(track.seed() * 0x2545F4914F6CDD1DL + 0x9E3779B97F4A7C15L);
         int placed = 0;
         int y = track.surfaceY();
@@ -368,23 +375,24 @@ public final class RaceMapGenerator {
         double fieldRadius = Math.max(8.0, Math.min(innerRadius - 8.0, 42.0));
         if (fieldRadius > 6) {
             placed += groundField(arena, track, groundY, fieldRadius,
-                    track.centerX(), track.centerZ(), clearing);
+                    track.centerX(), track.centerZ(), clearing, theme);
         }
 
         // ---- 内场雪山（背景） ----
-        int mountains = 1 + random.nextInt(2);
+        // 数量/位置随机：1~3 座，配合主题的雪/岩方块，让每张图的远景也不同。
+        int mountains = 1 + random.nextInt(3);
         for (int m = 0; m < mountains; m++) {
             double angle = random.nextDouble() * 2.0 * Math.PI;
             double dist = random.nextDouble() * Math.max(1.0, fieldRadius * 0.55);
             int mx = (int) Math.round(track.centerX() + Math.cos(angle) * dist);
             int mz = (int) Math.round(track.centerZ() + Math.sin(angle) * dist);
-            int baseRadius = 8 + random.nextInt(4);
-            int height = 11 + random.nextInt(6);
-            placed += mountain(arena, track, mx, groundY, mz, baseRadius, height, clearing);
+            int baseRadius = 7 + random.nextInt(6);
+            int height = 9 + random.nextInt(9);
+            placed += mountain(arena, track, mx, groundY, mz, baseRadius, height, clearing, theme);
         }
 
         // ---- 内场冰柱 / 雪松 / 岩石 ----
-        int features = 16 + random.nextInt(10);
+        int features = 12 + random.nextInt(16);
         for (int f = 0; f < features; f++) {
             double angle = random.nextDouble() * 2.0 * Math.PI;
             double dist = random.nextDouble() * fieldRadius * 0.92;
@@ -393,12 +401,12 @@ public final class RaceMapGenerator {
             if (!clearOfTrack(track, fx, fz)) {
                 continue;
             }
-            placed += scatterFeature(arena, random, fx, groundY, fz, clearing);
+            placed += scatterFeature(arena, random, fx, groundY, fz, clearing, theme);
         }
 
         // ---- 外圈：赛道外侧到区域边缘之间（只有几格到二十几格宽），放冰柱/雪松/岩石 ----
         double outerRingMax = track.boundingRadius() + 24.0;
-        int outerFeatures = 16 + random.nextInt(12);
+        int outerFeatures = 12 + random.nextInt(18);
         for (int f = 0; f < outerFeatures; f++) {
             double angle = random.nextDouble() * 2.0 * Math.PI;
             double dist = track.boundingRadius() + 3.0 + random.nextDouble()
@@ -408,19 +416,20 @@ public final class RaceMapGenerator {
             if (!clearOfTrack(track, fx, fz) || !insideRegion(track, fx, fz, 6.0)) {
                 continue;
             }
-            placed += scatterFeature(arena, random, fx, groundY, fz, clearing);
+            placed += scatterFeature(arena, random, fx, groundY, fz, clearing, theme);
         }
 
         // ---- 起终点看台（观众区） ----
-        placed += grandstand(arena, track, clearing);
+        placed += grandstand(arena, track, clearing, theme);
         return placed;
     }
 
     /** 内场地面：雪原 / 冰湖混合的地块，随机留出一些空洞让边缘看起来是碎裂的浮冰。 */
     private static int groundField(ArenaWorld arena, RaceTrack track,
-                                   int groundY, double radius, double cx, double cz, boolean clearing) {
-        BlockState snow = Blocks.SNOW_BLOCK.getDefaultState();
-        BlockState ice = Blocks.PACKED_ICE.getDefaultState();
+                                   int groundY, double radius, double cx, double cz, boolean clearing,
+                                   RaceDecorTheme theme) {
+        BlockState snow = theme.groundSnow().getDefaultState();
+        BlockState ice = theme.groundIce().getDefaultState();
         int placed = 0;
         int ir = (int) Math.ceil(radius);
         for (int dx = -ir; dx <= ir; dx++) {
@@ -447,9 +456,9 @@ public final class RaceMapGenerator {
         return placed;
     }
 
-    /** 锥形雪山：雪块 + 石头，顶部收尖。 */
+    /** 锥形雪山：主题雪块 + 主题岩石，顶部收尖。 */
     private static int mountain(ArenaWorld arena, RaceTrack track, int cx, int baseY, int cz,
-                               int baseRadius, int height, boolean clearing) {
+                               int baseRadius, int height, boolean clearing, RaceDecorTheme theme) {
         int placed = 0;
         for (int yy = 0; yy < height; yy++) {
             double t = yy / (double) height;
@@ -473,8 +482,8 @@ public final class RaceMapGenerator {
                         continue;
                     }
                     BlockState state = (t > 0.62 && noise2(track.seed(), x, z) > 0.55)
-                            ? Blocks.STONE.getDefaultState()
-                            : Blocks.SNOW_BLOCK.getDefaultState();
+                            ? theme.rock().getDefaultState()
+                            : theme.groundSnow().getDefaultState();
                     arena.setBlockState(new BlockPos(x, baseY + yy, z), cleaning(clearing, state), PLACE_FLAGS);
                     placed++;
                 }
@@ -483,16 +492,16 @@ public final class RaceMapGenerator {
         return placed;
     }
 
-    /** 内/外圈的单体装饰：冰柱 / 雪松 / 岩石（随机挑一种）。 */
+    /** 内/外圈的单体装饰：冰柱 / 雪松 / 岩石（随机挑一种，方块随主题）。 */
     private static int scatterFeature(ArenaWorld arena, Random random, int x, int baseY, int z,
-                                     boolean clearing) {
+                                     boolean clearing, RaceDecorTheme theme) {
         int kind = random.nextInt(3);
         int placed = 0;
         if (kind == 0) {
-            // 冰柱：蓝冰/浮冰柱，顶部插一根浮冰尖
+            // 冰柱：主题"冰"或"岩"柱，顶部插一根浮冰尖
             int height = 4 + random.nextInt(9);
             BlockState body = random.nextBoolean()
-                    ? Blocks.PACKED_ICE.getDefaultState() : Blocks.BLUE_ICE.getDefaultState();
+                    ? theme.groundIce().getDefaultState() : theme.rock().getDefaultState();
             for (int h = 0; h < height; h++) {
                 arena.setBlockState(new BlockPos(x, baseY + h, z), cleaning(clearing, body), PLACE_FLAGS);
                 placed++;
@@ -533,7 +542,7 @@ public final class RaceMapGenerator {
                             continue;
                         }
                         arena.setBlockState(new BlockPos(x + dx, baseY + dy, z + dz),
-                                cleaning(clearing, Blocks.STONE.getDefaultState()), PLACE_FLAGS);
+                                cleaning(clearing, theme.rock().getDefaultState()), PLACE_FLAGS);
                         placed++;
                     }
                 }
@@ -542,8 +551,9 @@ public final class RaceMapGenerator {
         return placed;
     }
 
-    /** 起终点看台：赛道外侧一小片云杉木平台 + 台阶 + 栅栏。 */
-    private static int grandstand(ArenaWorld arena, RaceTrack track, boolean clearing) {
+    /** 起终点看台：赛道外侧一小片主题木料平台 + 台阶 + 栏杆。 */
+    private static int grandstand(ArenaWorld arena, RaceTrack track, boolean clearing,
+                                  RaceDecorTheme theme) {
         RaceTrack.Checkpoint line = track.checkpoint(0);
         // 起终点线的法向正侧、缓冲带之外
         double offset = track.halfWidth() + track.runoffWidth() + 8.0;
@@ -561,9 +571,9 @@ public final class RaceMapGenerator {
                 }
                 int step = out / 2;
                 arena.setBlockState(new BlockPos(x, y + step, z),
-                        cleaning(clearing, Blocks.SPRUCE_PLANKS.getDefaultState()), PLACE_FLAGS);
+                        cleaning(clearing, theme.standPlanks().getDefaultState()), PLACE_FLAGS);
                 arena.setBlockState(new BlockPos(x, y + step - 1, z),
-                        cleaning(clearing, Blocks.SPRUCE_PLANKS.getDefaultState()), PLACE_FLAGS);
+                        cleaning(clearing, theme.standPlanks().getDefaultState()), PLACE_FLAGS);
                 placed += 2;
             }
         }
@@ -577,7 +587,7 @@ public final class RaceMapGenerator {
                 }
                 int step = out / 2;
                 arena.setBlockState(new BlockPos(x, y + step + 1, z),
-                        cleaning(clearing, Blocks.SPRUCE_FENCE.getDefaultState()), PLACE_FLAGS);
+                        cleaning(clearing, theme.standFence().getDefaultState()), PLACE_FLAGS);
                 placed++;
             }
         }

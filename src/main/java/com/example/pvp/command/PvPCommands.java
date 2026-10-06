@@ -875,18 +875,21 @@ public final class PvPCommands {
                 cfg.boatRaceTrackWidth, cfg.boatRaceMinCornerRadius, cfg.boatRaceMinClearance,
                 cfg.boatRaceRunoffWidth, cfg.boatRaceBarrierHeight,
                 cfg.boatRaceCheckpoints, cfg.boatRaceMaxGenerationAttempts, cfg.boatRaceEnableRandomTrack,
-                8, cfg.boatRaceMinStraightLength, 168.5, 168.5, ArenaTemplate.PLATFORM_Y);
+                8, cfg.boatRaceMinStraightLength, 168.5, 168.5, ArenaTemplate.PLATFORM_Y,
+                cfg.boatRaceTrackWidthRandom, cfg.boatRaceTrackWidthMin, cfg.boatRaceTrackWidthMax,
+                cfg.boatRaceMirrorRandom);
 
         if (describe && fixedSeed != null) {
             // 单 Seed 详查：把这一张图的每一项指标和拒绝原因都打出来
             RaceTrackGenerator.Candidate candidate = RaceTrackGenerator.probe(fixedSeed, settings, false);
             RaceTrack track = candidate.track();
             RaceTrackValidator.Result result = candidate.result();
+            String direction = RaceTrackGenerator.describeDirection(fixedSeed, settings);
             ctx.getSource().sendFeedback(() -> Messages.info(String.format(
-                    "Seed %d：%s｜长度 %.0f 格｜宽度 %.0f｜Checkpoint %d｜最小弯半径 %.1f｜"
+                    "Seed %d：%s｜长度 %.0f 格｜宽度 %.0f（%s）｜Checkpoint %d｜最小弯半径 %.1f｜"
                             + "外沿半径 %.1f｜最低可行速度 %.2f 格/tick（%.0f 格/s）｜平均 %.2f 格/tick｜评分 %.1f",
                     fixedSeed, result.valid() ? "§a合法" : "§c非法", track.length(), track.width(),
-                    track.checkpointCount(), track.minCornerRadius(), track.boundingRadius(),
+                    direction, track.checkpointCount(), track.minCornerRadius(), track.boundingRadius(),
                     result.minSpeed(), result.minSpeed() * 20, result.avgSpeed(), result.score())), false);
             if (!result.valid()) {
                 ctx.getSource().sendFeedback(() -> Messages.warn("拒绝原因：" + result.problemText()), false);
@@ -914,7 +917,7 @@ public final class PvPCommands {
             RaceTrackValidator.Result result = RaceTrackValidator.validate(track,
                     new RaceTrackValidator.Limits(cfg.boatRaceMinTrackLength, cfg.boatRaceMaxTrackLength,
                             cfg.boatRaceTargetTrackLength, cfg.boatRaceMinCornerRadius,
-                            cfg.boatRaceMinClearance, cfg.boatRaceTrackWidth, 40,
+                            cfg.boatRaceMinClearance, track.width(), 40,
                             cfg.boatRaceMinStraightLength,
                             cfg.boatRaceMinCornerRadius * RaceTrackValidator.OPPOSITE_CORNER_FACTOR));
             if (result.valid()) {
@@ -1141,7 +1144,10 @@ public final class PvPCommands {
                 cfg.boatRaceTrackWidth, cfg.boatRaceMinCornerRadius, cfg.boatRaceMinClearance,
                 cfg.boatRaceRunoffWidth, cfg.boatRaceBarrierHeight,
                 cfg.boatRaceCheckpoints, cfg.boatRaceMaxGenerationAttempts, cfg.boatRaceEnableRandomTrack,
-                8, cfg.boatRaceMinStraightLength, center.getX() + 0.5, center.getZ() + 0.5, ArenaTemplate.PLATFORM_Y);
+                8, cfg.boatRaceMinStraightLength, center.getX() + 0.5, center.getZ() + 0.5,
+                ArenaTemplate.PLATFORM_Y,
+                cfg.boatRaceTrackWidthRandom, cfg.boatRaceTrackWidthMin, cfg.boatRaceTrackWidthMax,
+                cfg.boatRaceMirrorRandom);
         RaceTrackGenerator.Outcome outcome = RaceTrackGenerator.generate(useSeed, settings);
         RaceTrack track = outcome.track();
 
@@ -1164,11 +1170,13 @@ public final class PvPCommands {
         long clearMs = (System.nanoTime() - t1) / 1_000_000L;
 
         final long fSeed = track.seed();
+        final String direction = RaceTrackGenerator.describeDirection(useSeed, settings);
         ctx.getSource().sendFeedback(() -> Messages.info(String.format(
-                "亦可赛艇 铺图自检：seed=%d 长度 %.0f 宽 %.0f CP %d 最小弯半径 %.1f 外沿半径 %.1f｜"
+                "亦可赛艇 铺图自检：seed=%d 长度 %.0f 宽 %.0f（%s）CP %d 最小弯半径 %.1f 外沿半径 %.1f｜"
                         + "铺设 %d 方块（%d ms）｜发车挡板 %s｜精确清除 %d 方块（%d ms）",
-                fSeed, track.length(), track.width(), track.checkpointCount(), track.minCornerRadius(),
-                track.boundingRadius(), placed, buildMs, barrierProbe, removed, clearMs)), false);
+                fSeed, track.length(), track.width(), direction, track.checkpointCount(),
+                track.minCornerRadius(), track.boundingRadius(), placed, buildMs, barrierProbe,
+                removed, clearMs)), false);
         if (ctx.getSource().getEntity() instanceof ServerPlayerEntity player) {
             // 先铺一张不清理的图供玩家查看
             RaceMapGenerator.build(arena, track);

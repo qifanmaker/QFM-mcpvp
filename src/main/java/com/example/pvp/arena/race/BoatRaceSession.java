@@ -224,7 +224,9 @@ public final class BoatRaceSession {
                 this.playerCount, cfg.boatRaceMinStraightLength,
                 template.getCenter(regionIndex).getX() + 0.5,
                 template.getCenter(regionIndex).getZ() + 0.5,
-                ArenaTemplate.PLATFORM_Y);
+                ArenaTemplate.PLATFORM_Y,
+                cfg.boatRaceTrackWidthRandom, cfg.boatRaceTrackWidthMin, cfg.boatRaceTrackWidthMax,
+                cfg.boatRaceMirrorRandom);
 
         long started = System.nanoTime();
         RaceTrackGenerator.Outcome outcome = RaceTrackGenerator.generate(seed, settings);
