@@ -4,7 +4,8 @@ package com.example.pvp.arena.race;
  * 道具抽签策略（纯逻辑，不依赖任何 Minecraft 类型，便于离线做分布检验）。
  *
  * <p>权重数组的下标与 {@link RaceItem#values()} 一一对应：
- * {@code [0]=NITRO 氮气}、{@code [1]=TRAP 速冻胶}、{@code [2]=INK 墨水弹}。
+ * {@code [0]=NITRO 氮气}、{@code [1]=TRAP 速冻胶}、{@code [2]=INK 墨水弹}、
+ * {@code [3]=SHIELD 鱼鳞护盾}（权重由配置传入，默认极低 —— 它是稀有保命道具）。
  * 之所以不直接写 {@code RaceItem.values()}，是因为 {@code RaceItem} 依赖 Minecraft 的物品注册表，
  * 一旦引用它，这段纯策略就没法离线跑了。
  */
@@ -22,9 +23,10 @@ final class RaceLoot {
      *
      * @return 长度为 4 的权重数组，顺序见类注释；保证全为正且和大于 0
      */
-    static double[] weights(int place, int total) {
+    static double[] weights(int place, int total, double shieldWeight) {
+        double shield = Math.max(0.0, shieldWeight);
         if (total <= 1) {
-            return new double[]{1.0, 1.0, 1.0};
+            return new double[]{1.0, 1.0, 1.0, shield};
         }
         int clampedPlace = Math.max(1, Math.min(total, place));
         // r = 0（第一名）… 1（最后一名）
@@ -33,11 +35,34 @@ final class RaceLoot {
         double trap = 15.0 + 35.0 * r;
         double ink = 10.0 + 25.0 * r;
         if (clampedPlace <= 1) {
-            // 领先者只会拿到氮气：道具战是给后面的人追回来的手段，不是扩大差距的工具
+            // 领先者拿不到攻击类：道具战是给后面的人追回来的手段，不是扩大差距的工具
             trap = 0.0;
             ink = 0.0;
         }
-        return new double[]{nitro, trap, ink};
+        // 护盾对所有名次都是同一个（很低的）权重：它是保命道具，不该按名次倾斜
+        return new double[]{nitro, trap, ink, shield};
+    }
+
+    /**
+     * 「缓冲区结冰」援助的触发概率（每 tick）：名次越靠后越高。
+     *
+     * <p>为什么用"概率"而不是"换成更慢的方块"：原版方块只有 0.98（冰，40 格/秒）与
+     * 0.6（雪，2 格/秒）两档，没有中间值。所以"比正常路面慢一点"只能靠<b>触发概率</b>做 ——
+     * 没触发时船还压在雪上（2 格/秒），触发后雪冻成冰面（40 格/秒），
+     * 平均速度就落在两者之间，而且落后的人概率更高 → 平均更快。
+     *
+     * @param leaderChance 第一名的每 tick 触发概率
+     * @param lastChance   最后一名的每 tick 触发概率（中间名次线性插值）
+     */
+    static double gripChance(double leaderChance, double lastChance, int place, int total) {
+        double min = Math.max(0.0, Math.min(1.0, leaderChance));
+        double max = Math.max(0.0, Math.min(1.0, lastChance));
+        if (total <= 1) {
+            return min;
+        }
+        int clamped = Math.max(1, Math.min(total, place));
+        double r = (clamped - 1) / (double) (total - 1);
+        return min + (max - min) * r;
     }
 
     /** 按权重抽一个下标；{@code roll} 由调用方给出（0 ~ 总权重），保证可复现。 */

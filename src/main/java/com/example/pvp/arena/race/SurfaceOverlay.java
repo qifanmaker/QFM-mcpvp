@@ -40,6 +40,10 @@ final class SurfaceOverlay {
         BlockState applied;
         boolean boost;
         boolean trap;
+        /** 带护盾的玩家正压在这一格上：暂时还原成原方块（优先级最高）。 */
+        boolean guard;
+        /** 缓冲区雪块被"结冰"援助冻成冰面（落后的玩家更容易触发）。 */
+        boolean grip;
 
         Cell(BlockState original) {
             this.original = original;
@@ -48,6 +52,7 @@ final class SurfaceOverlay {
     }
 
     private final Block surfaceBlock;
+    private final Block runoffBlock;
     private final Block boostBlock;
     private final Block trapBlock;
 
@@ -55,11 +60,17 @@ final class SurfaceOverlay {
     private final Map<Long, Cell> cells = new LinkedHashMap<>();
     /** 格子 → 减速带失效的 tick。 */
     private final Map<Long, Long> trapUntil = new HashMap<>();
+    /** "缓冲区结冰"冻成什么方块（默认就是赛道冰面）。 */
+    private final Block gripBlock;
 
-    SurfaceOverlay(Block surfaceBlock, Block boostBlock, Block trapBlock) {
+    SurfaceOverlay(Block surfaceBlock, Block runoffBlock, Block boostBlock, Block trapBlock,
+                   Block gripBlock) {
         this.surfaceBlock = surfaceBlock;
+        this.runoffBlock = runoffBlock;
         this.boostBlock = boostBlock;
         this.trapBlock = trapBlock;
+        // 结冰只让雪块回到"和赛道一样滑"，所以默认就用赛道地表方块
+        this.gripBlock = gripBlock;
     }
 
     /** 记录一批减速带格子，{@code untilTick} 之前一直生效（同一格取最晚的失效时间）。 */
@@ -87,6 +98,34 @@ final class SurfaceOverlay {
         return count;
     }
 
+    /** 这一格此刻是否有生效中的减速带（外面判定"带护盾压上去"用）。 */
+    boolean isActiveTrap(long cell, long nowTick) {
+        Long until = this.trapUntil.get(cell);
+        return until != null && until > nowTick;
+    }
+
+    /** 当前被"缓冲区结冰"覆盖的格子数。 */
+    int gripCellCount() {
+        int count = 0;
+        for (Cell cell : this.cells.values()) {
+            if (cell.grip) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** 只因为"护盾窗口"被接管、当前状态仍是原方块的格子数（自检用）。 */
+    int guardCellCount() {
+        int count = 0;
+        for (Cell cell : this.cells.values()) {
+            if (cell.guard) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     boolean isEmpty() {
         return this.cells.isEmpty() && this.trapUntil.isEmpty();
     }
@@ -95,10 +134,16 @@ final class SurfaceOverlay {
      * 应用本 tick 的目标状态。
      *
      * @param boostUnion 本 tick 所有加速窗口的并集（外面按玩家 UUID 维护窗口，这里只认并集）
+     * @param gripUnion  本 tick 所有被"缓冲区结冰"援助覆盖的格子：雪块临时冻成冰面，
+     *                   让冲进缓冲带的船不至于一下子掉到 2 格/秒（落后的人更容易触发）。
+     * @param guardUnion 本 tick 所有"带护盾的船正压着、且要免疫减速带"的格子：
+     *                   这些格就算有减速带也要还原成原方块，否则鱼鳞护盾的"免疫速冻胶"就是假的。
+     *                   它只在玩家压着雪带的那几 tick 生效，不会在雪带上留下能被人利用的缺口。
      * @param nowTick    服务器 tick，用来判定减速带是否过期
      * @return 实际改动的方块数（用于日志/自检，判断"有没有真的生效"）
      */
-    int refresh(ArenaWorld arena, Set<Long> boostUnion, long nowTick) {
+    int refresh(ArenaWorld arena, Set<Long> boostUnion, Set<Long> gripUnion,
+                Set<Long> guardUnion, long nowTick) {
         if (arena == null) {
             return 0;
         }
@@ -106,6 +151,8 @@ final class SurfaceOverlay {
             this.trapUntil.entrySet().removeIf(entry -> entry.getValue() <= nowTick);
         }
         Set<Long> needed = new HashSet<>(boostUnion);
+        needed.addAll(gripUnion);
+        needed.addAll(guardUnion);
         needed.addAll(this.trapUntil.keySet());
 
         int changed = 0;
@@ -114,7 +161,9 @@ final class SurfaceOverlay {
             Cell cell = this.cells.get(key);
             if (cell == null) {
                 BlockState current = arena.getBlockState(BlockPos.fromLong(key));
-                if (!current.isOf(this.surfaceBlock)) {
+                // 只接管"赛道地表"这两类：冰面（赛道本体）与雪块（两侧缓冲带）。
+                // 护栏、门架、空气一律不碰 —— 所以结冰援助不会把护栏也变成冰。
+                if (!current.isOf(this.surfaceBlock) && !current.isOf(this.runoffBlock)) {
                     continue;
                 }
                 cell = new Cell(current);
@@ -122,9 +171,14 @@ final class SurfaceOverlay {
             }
             boolean boost = boostUnion.contains(key);
             boolean trap = this.trapUntil.containsKey(key);
-            // 优先级：减速带 > 加速带 > 原方块
-            BlockState desired = trap ? this.trapBlock.getDefaultState()
+            boolean guard = guardUnion.contains(key);
+            boolean grip = gripUnion.contains(key);
+            // 优先级：护盾 > 减速带 > 氮气加速 > 缓冲区结冰 > 原方块
+            // （攻击类压过援助类；氮气比结冰快，重叠时取氮气）
+            BlockState desired = guard ? cell.original
+                    : trap ? this.trapBlock.getDefaultState()
                     : boost ? this.boostBlock.getDefaultState()
+                    : grip ? this.gripBlock.getDefaultState()
                     : cell.original;
             if (cell.applied != desired) {
                 arena.setBlockState(BlockPos.fromLong(key), desired, SET_FLAGS);
@@ -133,6 +187,8 @@ final class SurfaceOverlay {
             }
             cell.boost = boost;
             cell.trap = trap;
+            cell.guard = guard;
+            cell.grip = grip;
         }
         // 2) 已经不需要覆写的格子：还原 + 从表里删掉
         if (!this.cells.isEmpty()) {

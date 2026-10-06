@@ -159,6 +159,19 @@ public final class BoatRaceSession {
     private final Map<UUID, Long> gridReplaceAt = new HashMap<>();
     /** 玩家 → 左键"用道具"的冷却结束 tick。 */
     private final Map<UUID, Long> attackUseCooldownUntil = new HashMap<>();
+    /** 玩家 → 鱼鳞护盾剩余免疫次数（按次数，不按时间：没被消耗就一直留着）。 */
+    private final Map<UUID, Integer> shieldCharges = new HashMap<>();
+    /** 玩家 → 速冻胶免疫的宽限结束 tick（压过一片雪带只扣 1 次）。 */
+    private final Map<UUID, Long> shieldGraceUntil = new HashMap<>();
+    /** 玩家 → 缓冲区结冰窗口（脚下的雪块临时冻成冰面，落后的人更容易触发）。 */
+    private final Map<UUID, Set<Long>> gripWindows = new HashMap<>();
+    /** 玩家 → 结冰失效 tick（离开缓冲带后还能维持这么久）。 */
+    private final Map<UUID, Long> gripUntil = new HashMap<>();
+    /**
+     * 玩家 → 他此刻"带护盾压着、要免疫减速带"的格子：交给 {@link SurfaceOverlay} 暂时还原成原方块。
+     * 不做这一步，"免疫速冻胶"就只是一句空话（雪带照旧扣他的速度）。
+     */
+    private final Map<UUID, Set<Long>> guardWindows = new HashMap<>();
     /** 玩家 → 上次"没有道具"提示的 tick（限流，别刷屏）。 */
     private final Map<UUID, Long> emptyItemMessageAt = new HashMap<>();
     /** 玩家 → 他这次加速当前覆盖的方块；真正的落方块由 {@link #overlay} 统一做。 */
@@ -199,7 +212,8 @@ public final class BoatRaceSession {
         PvPConfig cfg = PvPConfig.INSTANCE;
         this.laps = Math.max(1, cfg.boatRaceLaps);
         this.overlay = new SurfaceOverlay(
-                cfg.getBoatRaceSurfaceBlock(), cfg.getBoatRaceNitroBlock(), TRAP_BLOCK);
+                cfg.getBoatRaceSurfaceBlock(), cfg.getBoatRaceRunoffBlock(),
+                cfg.getBoatRaceNitroBlock(), TRAP_BLOCK, cfg.getBoatRaceRunoffGripBlock());
         this.random = new Random(seed * 0x9E3779B97F4A7C15L + 17L);
 
         RaceTrackGenerator.Settings settings = new RaceTrackGenerator.Settings(
@@ -474,6 +488,9 @@ public final class BoatRaceSession {
         if (this.tickCounter % RECOVERY_INTERVAL == 0) {
             this.checkAnomalies(matchTicks);
         }
+        // 结冰与护盾都必须先于 tickNitro —— 它们的窗口要在这一 tick 的覆写刷新里生效
+        this.tickRunoffGrip(matchTicks);
+        this.tickShieldCharges(matchTicks);
         this.tickNitro();
         this.tickItemBoxes(matchTicks);
         if (this.overlayProbeTicks > 0 && --this.overlayProbeTicks == 0) {
@@ -500,6 +517,10 @@ public final class BoatRaceSession {
         this.matchEnded = true;
         this.nitroTicks.clear();
         this.jumpHeld.clear();
+        this.shieldCharges.clear();
+        this.shieldGraceUntil.clear();
+        this.gripWindows.clear();
+        this.gripUntil.clear();
         this.releaseSurfaceOverlay();
         int boxes = this.itemBoxes.discardAll();
         if (boxes > 0) {
@@ -631,6 +652,10 @@ public final class BoatRaceSession {
         this.jumpHeld.remove(player.getUuid());
         this.releaseNitroWindow(player.getUuid());
         this.itemBoxes.forget(player.getUuid());
+        this.shieldCharges.remove(player.getUuid());
+        this.shieldGraceUntil.remove(player.getUuid());
+        this.gripWindows.remove(player.getUuid());
+        this.gripUntil.remove(player.getUuid());
         this.attackUseCooldownUntil.remove(player.getUuid());
         this.emptyItemMessageAt.remove(player.getUuid());
         this.discardBoat(player);
@@ -714,6 +739,138 @@ public final class BoatRaceSession {
                     player.getGameProfile().getName(), item.id(), slot.gate,
                     (int) slot.x, (int) slot.z, this.itemBoxes.liveCount(), this.itemBoxes.size());
         }
+    }
+
+    /**
+     * 每 tick：结算"缓冲区结冰"（落后援助）。
+     *
+     * <p>船压进赛道两侧的雪地缓冲带时，雪块滑度 0.6 → 极速只剩 2 格/秒，"冲出赛道一次就没了"。
+     * 这里按<b>名次加权的概率</b>把脚下的雪块冻成赛道冰面（0.98 → 40 格/秒），
+     * 于是同一个缓冲带对不同人有不同的"平均通过速度"：领先者基本还是雪，落后者几乎一进去就是冰。
+     *
+     * <p>概率而不是"换更慢的方块"，是因为原版滑度只有 0.98 / 0.989 / 0.8 / 0.6 四档，
+     * 没有"比路面稍慢"的中间值（见 {@link RaceLoot#gripChance}）。
+     */
+    private void tickRunoffGrip(int matchTicks) {
+        this.gripWindows.clear();
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        if (!cfg.boatRaceRunoffGripEnabled || !this.started || this.matchEnded) {
+            return;
+        }
+        long gripTicks = Math.max(1, cfg.boatRaceRunoffGripSeconds) * 20L;
+        int total = Math.max(1, this.racers.size());
+        for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+            RaceProgressTracker tracker = this.racers.get(player.getUuid());
+            if (tracker == null || tracker.finished()) {
+                continue;
+            }
+            BoatEntity boat = this.boatOf(player);
+            if (boat == null || player.getVehicle() != boat) {
+                continue;
+            }
+            UUID uuid = player.getUuid();
+            // 横向偏移超过冰面半宽 = 已经在缓冲带里（看偏移而不是看方块：
+            // 我们自己刚冻出来的冰也是"冰"，按方块判断会立刻认不出自己在缓冲带里）
+            boolean onRunoff = this.track.distanceToCenterline(player.getX(), player.getZ())
+                    > this.track.halfWidth() - 0.5;
+            boolean active = matchTicks < this.gripUntil.getOrDefault(uuid, 0L);
+            if (!active && onRunoff) {
+                int place = tracker.place() <= 0 ? total : tracker.place();
+                double chance = RaceLoot.gripChance(cfg.boatRaceRunoffGripChanceLeader,
+                        cfg.boatRaceRunoffGripChanceLast, place, total);
+                if (this.random.nextDouble() < chance) {
+                    active = true;
+                    player.sendMessage(Text.literal("§b缓冲区结冰！§7脚下雪块冻成了冰面（"
+                            + cfg.boatRaceRunoffGripSeconds + " 秒）"), true);
+                    if (this.debugItems) {
+                        LOGGER.info("[PvP] 缓冲区结冰：{}（第 {}/{} 名，每 tick 概率 {}）",
+                                player.getGameProfile().getName(), place, total, d2(chance));
+                    }
+                }
+            }
+            if (!active) {
+                continue;
+            }
+            if (onRunoff) {
+                // 人还在缓冲带里就一直续期：离开之后再过 N 秒才化回雪
+                this.gripUntil.put(uuid, matchTicks + gripTicks);
+            }
+            this.gripWindows.put(uuid, this.boatSurfaceCells(boat));
+        }
+    }
+
+    /**
+     * 每 tick：结算鱼鳞护盾（按次数免疫）。
+     *
+     * <p>两类攻击的结算点不同：
+     * <ul>
+     *   <li><b>墨水弹</b>是点名攻击，在 {@link #activateInk} 里直接扣 1 次；</li>
+     *   <li><b>速冻胶</b>是铺在地上的，只能在这里判定"带护盾的船正压在生效中的雪带上"：
+     *       扣 1 次，并把船底那几格交给 {@link SurfaceOverlay} 的 guard 层临时还原；
+     *       宽限一直续到"离开雪带后再过 N 秒"—— 否则慢慢爬过去会被连扣好几次。</li>
+     * </ul>
+     */
+    private void tickShieldCharges(int matchTicks) {
+        this.guardWindows.clear();
+        if (this.shieldCharges.isEmpty() || !this.started || this.matchEnded) {
+            return;
+        }
+        int graceTicks = Math.max(0, PvPConfig.INSTANCE.boatRaceItemShieldGraceSeconds) * 20;
+        for (ServerPlayerEntity player : this.match.onlineParticipants()) {
+            UUID uuid = player.getUuid();
+            Integer charges = this.shieldCharges.get(uuid);
+            if (charges == null) {
+                continue;
+            }
+            BoatEntity boat = this.boatOf(player);
+            if (boat == null || player.getVehicle() != boat) {
+                continue;
+            }
+            Set<Long> window = this.boatSurfaceCells(boat);
+            boolean onTrap = false;
+            for (Long cell : window) {
+                if (this.overlay.isActiveTrap(cell, matchTicks)) {
+                    onTrap = true;
+                    break;
+                }
+            }
+            if (!onTrap) {
+                continue;
+            }
+            boolean graced = matchTicks < this.shieldGraceUntil.getOrDefault(uuid, 0L);
+            if (!graced) {
+                if (charges <= 0) {
+                    continue;
+                }
+                int left = charges - 1;
+                if (left <= 0) {
+                    this.shieldCharges.remove(uuid);
+                } else {
+                    this.shieldCharges.put(uuid, left);
+                }
+                player.sendMessage(Text.literal("§6鱼鳞护盾§r 挡下速冻胶（剩余 §e"
+                        + Math.max(0, left) + "§r 次）"), true);
+                if (this.debugItems) {
+                    LOGGER.info("[PvP] 鱼鳞护盾：{} 压到速冻胶，消耗 1 次（剩余 {}）",
+                            player.getGameProfile().getName(), Math.max(0, left));
+                }
+            }
+            // 只要还压着就续期：离开雪带再过 N 秒才有可能重新扣次数
+            this.shieldGraceUntil.put(uuid, (long) matchTicks + graceTicks);
+            this.guardWindows.put(uuid, window);
+        }
+    }
+
+    /** 船身范围（±1 格）覆盖的赛道表层格子。 */
+    private Set<Long> boatSurfaceCells(BoatEntity boat) {
+        Set<Long> window = new HashSet<>();
+        Box box = boat.getBoundingBox().expand(1.0);
+        for (int x = (int) Math.floor(box.minX); x <= (int) Math.floor(box.maxX); x++) {
+            for (int z = (int) Math.floor(box.minZ); z <= (int) Math.floor(box.maxZ); z++) {
+                window.add(BlockPos.asLong(x, this.track.surfaceY(), z));
+            }
+        }
+        return window;
     }
 
     /** 每 tick：重生到点的箱子。 */
@@ -880,7 +1037,18 @@ public final class BoatRaceSession {
             text.append(Text.literal(" §7| §b§l加速 "
                     + String.format(java.util.Locale.ROOT, "%.1f", boostTicks / 20.0) + "s"));
         }
-        // 道具栏：只显示手上真有的
+        // 缓冲区结冰的剩余时间（这是"援助"，跟道具分开显示）
+        long gripLeft = this.gripUntil.getOrDefault(player.getUuid(), 0L) - matchTicks;
+        if (gripLeft > 0) {
+            text.append(Text.literal(" §7| §b❄ 结冰 "
+                    + String.format(java.util.Locale.ROOT, "%.1f", gripLeft / 20.0) + "s"));
+        }
+        // 道具栏：只显示手上真有的；护盾显示剩余次数
+        int shieldLeft = this.shieldChargeCount(player);
+        if (shieldLeft > 0) {
+            text.append(Text.literal(" §7| " + RaceItem.SHIELD.coloredShortName()
+                    + "§f x" + shieldLeft));
+        }
         StringBuilder items = new StringBuilder();
         RaceItem held = RaceItem.of(player.getMainHandStack());
         for (RaceItem kind : RaceItem.values()) {
@@ -920,6 +1088,8 @@ public final class BoatRaceSession {
                     + cfg.boatRaceItemTrapLength + "§7 的短雪带（§f"
                     + cfg.boatRaceItemTrapSeconds + " 秒§7）：压上去会顿一下掉速，但停不下来";
             case INK -> "让前一名玩家失明 §5" + d1(cfg.boatRaceItemInkSeconds) + " 秒";
+            case SHIELD -> "获得 §6" + cfg.boatRaceItemShieldCharges
+                    + " 次§7 免疫（速冻胶/墨水弹各扣 1 次，不按时间）";
         };
         String source = cfg.boatRaceNitroIntervalSeconds > 0
                 ? "§8坐在船上用；赛道上每 §7" + cfg.boatRaceNitroIntervalSeconds + "§8 秒补 1 个"
@@ -1029,6 +1199,7 @@ public final class BoatRaceSession {
             case NITRO -> this.activateNitro(player, stack);
             case TRAP -> this.activateTrap(player, stack);
             case INK -> this.activateInk(player, stack);
+            case SHIELD -> this.activateShield(player, stack);
         };
     }
 
@@ -1139,6 +1310,19 @@ public final class BoatRaceSession {
         }
         PvPConfig cfg = PvPConfig.INSTANCE;
         stack.decrement(1);
+        if (this.consumeShieldCharge(target)) {
+            if (this.debugItems) {
+                LOGGER.info("[PvP] 鱼鳞护盾：{} 挡下 {} 的墨水弹（剩余 {} 次）",
+                        target.getGameProfile().getName(), player.getGameProfile().getName(),
+                        this.shieldChargeCount(target));
+            }
+            player.sendMessage(Text.literal("§7墨水被 §6" + target.getGameProfile().getName()
+                    + "§7 的鱼鳞护盾挡下了（剩余 §e"
+                    + this.shieldChargeCount(target) + "§7 次）"), true);
+            target.sendMessage(Text.literal("§6鱼鳞护盾§r 挡下了一发墨水弹（剩余 §e"
+                    + this.shieldChargeCount(target) + "§r 次）"), true);
+            return true;
+        }
         int blindTicks = (int) Math.max(1.0, cfg.boatRaceItemInkSeconds * 20.0);
         target.addStatusEffect(new StatusEffectInstance(
                 StatusEffects.BLINDNESS, blindTicks, 0, false, false, true));
@@ -1158,6 +1342,50 @@ public final class BoatRaceSession {
                     player.getGameProfile().getName(), target.getGameProfile().getName(), blindTicks);
         }
         return true;
+    }
+
+    /**
+     * 鱼鳞护盾：发放若干次免疫（可叠加）。
+     *
+     * <p>刻意不做时间限制：拿到就是"几次保险"，没被攻击消耗就一直留着 ——
+     * 这样"稀有"才有意义（时间护盾经常是开了没用上就过期）。
+     */
+    private boolean activateShield(ServerPlayerEntity player, ItemStack stack) {
+        int charges = Math.max(1, PvPConfig.INSTANCE.boatRaceItemShieldCharges);
+        stack.decrement(1);
+        int total = this.shieldCharges.merge(player.getUuid(), charges, Integer::sum);
+        player.sendMessage(Text.literal("§6§l鱼鳞护盾！§r §7获得 §e" + charges
+                + "§7 次免疫（共 §e" + total + "§7 次）：速冻胶与墨水弹各消耗 1 次"), true);
+        ArenaWorld arena = this.match.arenaWorld();
+        if (arena != null) {
+            arena.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ITEM_SHIELD_BLOCK, SoundCategory.PLAYERS, 1.0F, 1.2F);
+        }
+        return true;
+    }
+
+    /** 玩家还剩几次免疫（0 = 没有护盾）。 */
+    public int shieldChargeCount(ServerPlayerEntity player) {
+        return this.shieldCharges.getOrDefault(player.getUuid(), 0);
+    }
+
+    /** 有护盾就扣 1 次并返回 true（墨水弹用）。 */
+    private boolean consumeShieldCharge(ServerPlayerEntity player) {
+        Integer charges = this.shieldCharges.get(player.getUuid());
+        if (charges == null || charges <= 0) {
+            return false;
+        }
+        if (charges <= 1) {
+            this.shieldCharges.remove(player.getUuid());
+        } else {
+            this.shieldCharges.put(player.getUuid(), charges - 1);
+        }
+        return true;
+    }
+
+    /** 该玩家此刻是否还带着护盾（有剩余次数）。 */
+    public boolean isShielded(ServerPlayerEntity player) {
+        return this.shieldChargeCount(player) > 0;
     }
 
     /** 墨水的目标：名次前一位的未完赛选手；自己第一时就打离自己最近的追赶者。 */
@@ -1213,8 +1441,8 @@ public final class BoatRaceSession {
         if (!cfg.boatRaceItemRanksWeighted || total <= 1) {
             return RaceItem.values()[this.random.nextInt(RaceItem.values().length)];
         }
-        // 权重下标 = RaceItem.values() 顺序（NITRO / TRAP / INK），策略见 RaceLoot
-        double[] weights = RaceLoot.weights(place, total);
+        // 权重下标 = RaceItem.values() 顺序（NITRO / TRAP / INK / SHIELD），策略见 RaceLoot
+        double[] weights = RaceLoot.weights(place, total, cfg.boatRaceItemShieldWeight);
         return RaceItem.values()[RaceLoot.pick(weights, this.random.nextDouble())];
     }
 
@@ -1479,10 +1707,19 @@ public final class BoatRaceSession {
         for (Set<Long> window : this.nitroWindows.values()) {
             union.addAll(window);
         }
-        int changed = this.overlay.refresh(arena, union, this.match.matchTicks());
+        Set<Long> guard = new HashSet<>();
+        for (Set<Long> window : this.guardWindows.values()) {
+            guard.addAll(window);
+        }
+        Set<Long> grip = new HashSet<>();
+        for (Set<Long> window : this.gripWindows.values()) {
+            grip.addAll(window);
+        }
+        int changed = this.overlay.refresh(arena, union, grip, guard, this.match.matchTicks());
         if (changed > 0 && this.debugItems) {
-            LOGGER.info("[PvP] 地表覆写刷新：改动 {} 格（加速窗口 {}，减速 {}），覆写层共 {} 格",
-                    changed, union.size(), this.overlay.trapCellCount(), this.overlay.cellCount());
+            LOGGER.info("[PvP] 地表覆写刷新：改动 {} 格（加速 {}，结冰 {}，护盾屏蔽 {}，减速 {}），覆写层共 {} 格",
+                    changed, union.size(), grip.size(), guard.size(), this.overlay.trapCellCount(),
+                    this.overlay.cellCount());
         }
     }
 
@@ -1499,6 +1736,8 @@ public final class BoatRaceSession {
      */
     private int releaseSurfaceOverlay() {
         this.nitroWindows.clear();
+        this.guardWindows.clear();
+        this.gripWindows.clear();
         ArenaWorld arena = this.match.arenaWorld();
         int restored = this.overlay.restoreAll(arena);
         if (restored > 0) {
@@ -1525,14 +1764,20 @@ public final class BoatRaceSession {
                 .append(PvPConfig.INSTANCE.boatRaceItemBoxLanes).append(" 车道）");
         sb.append("｜地表覆写 ").append(this.overlay.cellCount()).append(" 格（加速 ")
                 .append(this.overlay.boostCellCount()).append(" / 减速 ")
-                .append(this.overlay.trapCellCount()).append("）");
+                .append(this.overlay.trapCellCount()).append(" / 结冰 ")
+                .append(this.overlay.gripCellCount()).append(" / 护盾屏蔽 ")
+                .append(this.overlay.guardCellCount()).append("）");
         sb.append("｜").append(player.getGameProfile().getName()).append(" 持有");
         for (RaceItem kind : RaceItem.values()) {
             sb.append(" ").append(kind.id()).append("=").append(this.itemCount(player, kind));
         }
         if (!this.itemBoxes.slots().isEmpty()) {
             RaceItemBoxes.Slot first = this.itemBoxes.slots().get(0);
-            sb.append("｜首箱 (").append((int) first.x).append(",").append((int) first.z)
+            sb.append(" 护盾=").append(this.shieldChargeCount(player)).append("次")
+                .append(" 结冰=").append(Math.max(0L,
+                        this.gripUntil.getOrDefault(player.getUuid(), 0L)
+                                - this.match.matchTicks()) / 20.0).append("s");
+        sb.append("｜首箱 (").append((int) first.x).append(",").append((int) first.z)
                     .append(") 门").append(first.gate);
         }
         this.debugItems = true;
@@ -1569,11 +1814,12 @@ public final class BoatRaceSession {
                     player.getGameProfile().getName(), this.overlay.cellCount(),
                     PvPConfig.INSTANCE.boatRaceItemTrapSeconds, this.overlayProbeTicks,
                     this.overlayProbePos, this.blockName(arena, this.overlayProbePos));
-            LOGGER.info("[PvP] 速冻胶调试：{} 脚下 ({}, {}, {}) = {}",
+            LOGGER.info("[PvP] 速冻胶调试：{} 脚下 ({}, {}, {}) = {}（护盾剩余 {} 次）",
                     player.getGameProfile().getName(),
                     player.getBlockX(), this.track.surfaceY(), player.getBlockZ(),
                     this.blockName(arena, new BlockPos(player.getBlockX(), this.track.surfaceY(),
-                            player.getBlockZ())));
+                            player.getBlockZ())),
+                    this.shieldChargeCount(player));
         }
         return ok;
     }
@@ -1585,17 +1831,63 @@ public final class BoatRaceSession {
         }
         this.debugItems = true;
         boolean used = this.tryUseItem(player);
-        LOGGER.info("[PvP] 调试用道具：{} → {}", player.getGameProfile().getName(),
-                used ? "成功" : "失败（手上没有道具 / 没有目标）");
+        LOGGER.info("[PvP] 调试用道具：{} → {}（护盾剩余 {} 次）", player.getGameProfile().getName(),
+                used ? "成功" : "失败（手上没有道具 / 没有目标）", this.shieldChargeCount(player));
         return used;
     }
 
     /** 调试自检：打印采样格在覆写层清空后的方块（应与铺设前一致）。 */
     private void logOverlayProbe() {
         ArenaWorld arena = this.match.arenaWorld();
-        LOGGER.info("[PvP] 速冻胶自检：到期后覆写层 {} 格（加速 {} / 减速 {}），采样格 {} = {}",
+        LOGGER.info("[PvP] 覆写层自检：到期后覆写层 {} 格（加速 {} / 减速 {} / 结冰 {} / 护盾屏蔽 {}），"
+                        + "采样格 {} = {}",
                 this.overlay.cellCount(), this.overlay.boostCellCount(), this.overlay.trapCellCount(),
+                this.overlay.gripCellCount(), this.overlay.guardCellCount(),
                 this.overlayProbePos, this.blockName(arena, this.overlayProbePos));
+    }
+
+    /**
+     * 调试：把玩家挪到赛道旁的缓冲带上并强制开一次"缓冲区结冰"，
+     * 用来验证"脚下雪块 → 冰面 → N 秒后化回雪"这条链路。
+     *
+     * <p>为什么必须由服务端代劳：真机上没法注入按键把船开进缓冲带，
+     * 而船的位置又是客户端权威的（直接 teleport 骑着的船会被客户端上报坐标顶回去），
+     * 所以只能走"下船 → 传送 → 重新发船"这一套（和回位同一条路径）。
+     */
+    public boolean debugForceRunoffGrip(ServerPlayerEntity player) {
+        ArenaWorld arena = this.match.arenaWorld();
+        if (!this.started || arena == null) {
+            return false;
+        }
+        int index = this.track.nearestSample(player.getX(), player.getZ());
+        double lat = this.track.halfWidth() + 2.0;
+        double x = this.track.sampleX(index) + this.track.sampleNormalX(index) * lat;
+        double z = this.track.sampleZ(index) + this.track.sampleNormalZ(index) * lat;
+        double y = this.track.surfaceY() + 1.0;
+        float yaw = RaceTrackGenerator.yawOf(this.track.sampleDirX(index), this.track.sampleDirZ(index));
+        this.discardBoat(player);
+        player.teleport(arena, x, y, z, yaw, 0.0F);
+        player.setVelocity(Vec3d.ZERO);
+        this.spawnBoatFor(player, x, y, z, yaw);
+        this.itemBoxes.forget(player.getUuid());
+
+        int seconds = Math.max(1, PvPConfig.INSTANCE.boatRaceRunoffGripSeconds);
+        this.gripUntil.put(player.getUuid(), this.match.matchTicks() + seconds * 20L);
+        BoatEntity boat = this.boatOf(player);
+        if (boat != null) {
+            this.gripWindows.put(player.getUuid(), this.boatSurfaceCells(boat));
+        }
+        this.debugItems = true;
+        this.overlayProbePos = new BlockPos((int) Math.floor(x), this.track.surfaceY(),
+                (int) Math.floor(z));
+        this.overlayProbeTicks = seconds * 20 + 20;
+        this.refreshSurfaceOverlay();
+        LOGGER.info("[PvP] 结冰调试：{} 已挪到缓冲带（横向 {} 格 → 坐标 {}, {}），强制结冰 {} 秒；"
+                        + "采样格 {} = {}（原本是 {}）",
+                player.getGameProfile().getName(), d1(lat), (int) x, (int) z, seconds,
+                this.overlayProbePos, this.blockName(arena, this.overlayProbePos),
+                PvPConfig.INSTANCE.boatRaceRunoffBlock);
+        return true;
     }
 
     private String blockName(ArenaWorld arena, BlockPos pos) {

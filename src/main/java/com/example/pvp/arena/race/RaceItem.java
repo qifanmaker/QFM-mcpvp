@@ -37,7 +37,15 @@ public enum RaceItem {
             "在身后铺一条短雪带：压上去顿一下掉速，但停不下来"),
     /** 墨水弹：让前一名玩家短暂失明（纯观感效果，但对高速走线很致命）。 */
     INK("ink", "墨水弹", Items.INK_SAC, Formatting.DARK_PURPLE,
-            "让前一名玩家短暂失明");
+            "让前一名玩家短暂失明"),
+    /**
+     * 鱼鳞护盾：<b>按次数</b>免疫速冻胶与墨水弹（不按时间）。
+     *
+     * <p>它是全池子里最稀有的一件（权重见 {@link RaceLoot}），所以设计成"拿到就是几次保险"：
+     * 每挡下一次攻击扣 1 次，没被消耗就一直留着，不会像时间护盾那样"开了没用就白开"。
+     */
+    SHIELD("shield", "鱼鳞护盾", Items.NAUTILUS_SHELL, Formatting.GOLD,
+            "获得几次免疫：速冻胶与墨水弹各消耗 1 次");
 
     /** 道具标记的 NBT key；值是 {@link #id()}。 */
     public static final String ITEM_TAG = "pvp.boatrace_item";

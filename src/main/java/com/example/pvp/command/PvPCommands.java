@@ -207,6 +207,8 @@ public final class PvPCommands {
                                                                 .executes(ctx -> debugBoatRaceTrap(ctx, true))))
                                                 .then(CommandManager.literal("use")
                                                         .executes(ctx -> debugBoatRaceUse(ctx)))
+                                                .then(CommandManager.literal("grip")
+                                                        .executes(ctx -> debugBoatRaceGrip(ctx)))
                                                 .then(CommandManager.literal("give")
                                                         .then(CommandManager.argument("id",
                                                                         StringArgumentType.word())
@@ -1027,6 +1029,26 @@ public final class PvPCommands {
                 + "，" + cfg.boatRaceItemTrapWidth + "×" + cfg.boatRaceItemTrapLength
                 + " 格，Y=" + y + "，" + cfg.boatRaceItemTrapSeconds
                 + " 秒后自动还原）；方块与还原详情见控制台日志"), false);
+        return 1;
+    }
+
+    /**
+     * 调试：挪到缓冲带并强制"缓冲区结冰"，验证雪块 → 冰面 → N 秒后化回雪。
+     */
+    private static int debugBoatRaceGrip(CommandContext<ServerCommandSource> ctx)
+            throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        Match match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+        if (match == null || !match.getType().isBoatRace() || match.boatRaceSession() == null) {
+            player.sendMessage(Messages.error("你不在亦可赛艇对局中"), false);
+            return 0;
+        }
+        if (!match.boatRaceSession().debugForceRunoffGrip(player)) {
+            player.sendMessage(Messages.error("对局还没开始（或你还没被登记为本场选手）"), false);
+            return 0;
+        }
+        player.sendMessage(Messages.info("已把你挪到缓冲带并强制结冰；"
+                + "脚下与到期还原的方块见控制台日志"), false);
         return 1;
     }
 

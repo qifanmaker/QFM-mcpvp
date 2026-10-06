@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 4;
+    public static final int CURRENT_CONFIG_VERSION = 6;
 
     /**
      * 生成这份文件时的配置版本。
@@ -446,14 +446,50 @@ public final class PvPConfig {
      * 速冻胶：沿赛道方向的长度（格）——<b>这就是"减速力度"的旋钮</b>。
      *
      * <p>原版只有"滑（0.98 → 40 格/秒）/ 不滑（0.6 → 2 格/秒）"两档，做不出"稍慢"，
-     * 所以力度只能靠你在雪上待几 tick 控制：2 格 ≈ 顿一下（约 25 格/秒），
-     * 3 格 ≈ 明显掉速但不掉停（约 10 格/秒，1~2 tick 后回到冰面），
-     * 5 格以上会一路衰减到 2 格/秒，就是"卡住"。
-     * 默认 3：即使全速喷氮气（3.64 格/tick）也不可能把它整个跳过去。
+     * 所以力度只能靠你在雪上待几 tick 控制：2 格 ≈ 顿一下，5 格会一路衰减到 2 格/秒。
+     * 道具本来就该有惩罚，所以保持 5；嫌太狠就调小（例如 3）。
      */
-    public int boatRaceItemTrapLength = 3;
+    public int boatRaceItemTrapLength = 5;
     /** 墨水弹：失明时长（秒）。 */
     public double boatRaceItemInkSeconds = 2.0;
+    /**
+     * 鱼鳞护盾：一次使用获得几次免疫（<b>按次数，不按时间</b>）。
+     *
+     * <p>每挡下一次攻击（速冻胶/墨水弹）扣 1 次；没被消耗就一直留着。
+     */
+    public int boatRaceItemShieldCharges = 2;
+    /**
+     * 鱼鳞护盾的抽取权重。<b>刻意调得很低</b>：它是唯一的保命道具，
+     * 出太多会让道具战失去意义（大家都在互刷护盾）。
+     *
+     * <p>参照：氮气固定 40、速冻胶 15~50、墨水弹 10~35。
+     * 设 2 时，中游名次的抽取概率约 2%（领先者约 5%，最后一名约 1.6%）。
+     * 设 0 = 完全不出护盾。
+     */
+    public double boatRaceItemShieldWeight = 2.0;
+    /** 速冻胶免疫的宽限（秒）：压过一片雪带只扣 1 次，免得爬行时被连扣。 */
+    public int boatRaceItemShieldGraceSeconds = 2;
+
+    // ---------- 亦可赛艇：缓冲区结冰（落后援助） ----------
+    /**
+     * 是否开启"缓冲区结冰"：船冲进赛道两侧的雪地缓冲带时，脚下的雪块会冻成冰面，
+     * 于是不至于一下子掉到 2 格/秒。<b>落后的人触发概率更高</b>（见下面两个概率）。
+     */
+    public boolean boatRaceRunoffGripEnabled = true;
+    /** 结冰持续时长（秒）：期间雪块保持冰面；人还在缓冲带里会一直续期。 */
+    public int boatRaceRunoffGripSeconds = 5;
+    /**
+     * 雪块冻成什么方块（默认就是赛道地表方块 = 和正常路面一样滑）。
+     *
+     * <p><b>原版没有"比路面稍慢"的方块</b>：滑度只有 0.98（冰，40 格/秒）、0.989（蓝冰，72.7）、
+     * 0.8（黏液块，4）、0.6（雪，2）四档。想要"慢一点"只能靠触发概率（见下），
+     * 或者把这里改成 {@code minecraft:water}（船在水里约 8 格/秒：更慢但不会停住）。
+     */
+    public String boatRaceRunoffGripBlock = "minecraft:packed_ice";
+    /** 结冰触发概率（每 tick，第一名）：默认 1% —— 领先者冲进缓冲带基本还是雪。 */
+    public double boatRaceRunoffGripChanceLeader = 0.01;
+    /** 结冰触发概率（每 tick，最后一名）：默认 20% —— 落后的人几乎一进去就冻成冰面。 */
+    public double boatRaceRunoffGripChanceLast = 0.20;
     /**
      * 每张图必须有的"大直道"最小长度（格）。
      *
@@ -1158,6 +1194,34 @@ public final class PvPConfig {
             this.boatRaceItemInkSeconds = defaults.boatRaceItemInkSeconds;
             changed = true;
         }
+        if (this.boatRaceItemShieldCharges <= 0) {
+            this.boatRaceItemShieldCharges = defaults.boatRaceItemShieldCharges;
+            changed = true;
+        }
+        if (this.boatRaceItemShieldWeight < 0.0) {
+            this.boatRaceItemShieldWeight = defaults.boatRaceItemShieldWeight;
+            changed = true;
+        }
+        if (this.boatRaceItemShieldGraceSeconds < 0) {
+            this.boatRaceItemShieldGraceSeconds = defaults.boatRaceItemShieldGraceSeconds;
+            changed = true;
+        }
+        if (this.boatRaceRunoffGripSeconds <= 0) {
+            this.boatRaceRunoffGripSeconds = defaults.boatRaceRunoffGripSeconds;
+            changed = true;
+        }
+        if (this.boatRaceRunoffGripChanceLeader < 0.0 || this.boatRaceRunoffGripChanceLeader > 1.0) {
+            this.boatRaceRunoffGripChanceLeader = defaults.boatRaceRunoffGripChanceLeader;
+            changed = true;
+        }
+        if (this.boatRaceRunoffGripChanceLast < 0.0 || this.boatRaceRunoffGripChanceLast > 1.0) {
+            this.boatRaceRunoffGripChanceLast = defaults.boatRaceRunoffGripChanceLast;
+            changed = true;
+        }
+        if (this.boatRaceRunoffGripBlock == null || this.boatRaceRunoffGripBlock.isBlank()) {
+            this.boatRaceRunoffGripBlock = defaults.boatRaceRunoffGripBlock;
+            changed = true;
+        }
         return changed;
     }
 
@@ -1189,6 +1253,11 @@ public final class PvPConfig {
     /** 亦可赛艇：缓冲带方块（默认雪块，高摩擦）。 */
     public Block getBoatRaceRunoffBlock() {
         return parseBlock(this.boatRaceRunoffBlock, Blocks.SNOW_BLOCK);
+    }
+
+    /** 亦可赛艇：缓冲区结冰冻成的方块（默认赛道地表方块）。 */
+    public Block getBoatRaceRunoffGripBlock() {
+        return parseBlock(this.boatRaceRunoffGripBlock, Blocks.PACKED_ICE);
     }
 
     /** 亦可赛艇：护栏方块（默认冰）。 */
