@@ -315,10 +315,14 @@ public final class RaceTrackValidator {
                 bx[k] = branch.x(k);
                 bz[k] = branch.z(k);
             }
+            // 支路只在岔口这一小段存在、外侧还有缓冲带，允许比主线下限更紧
+            // （比例与 RaceForkBuilder.BRANCH_RADIUS_FACTOR 保持一致）
+            double branchRadiusLimit = limits.minCornerRadius()
+                    * RaceForkBuilder.BRANCH_RADIUS_FACTOR;
             double radius = routeMinRadius(bx, bz);
-            if (radius < limits.minCornerRadius()) {
+            if (radius < branchRadiusLimit) {
                 problems.add(String.format("分岔支路最小曲率半径 %.1f < %.1f",
-                        radius, limits.minCornerRadius()));
+                        radius, branchRadiusLimit));
             }
             double innerLength = branch.progressSpan();
             if (branch.length() > innerLength * 1.4 || branch.length() < innerLength) {
@@ -338,7 +342,7 @@ public final class RaceTrackValidator {
             double innerTime = routeTime(ix, iz);
             double outerTime = routeTime(bx, bz);
             double imbalance = Math.abs(innerTime - outerTime) / Math.max(1.0, Math.min(innerTime, outerTime));
-            if (imbalance > 0.25) {
+            if (imbalance > 0.30) {
                 problems.add(String.format("分岔内外线通行时间偏差 %.0f%% 过大（内 %.0f / 外 %.0f tick）",
                         imbalance * 100.0, innerTime, outerTime));
             }

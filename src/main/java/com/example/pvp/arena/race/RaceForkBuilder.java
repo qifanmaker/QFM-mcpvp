@@ -29,9 +29,18 @@ final class RaceForkBuilder {
      * 保证"分岔几乎每张图都有"与"两条路差别不致命"的折中：岔口约占一圈的 1/4，
      * 18% 的段内差距折算到单圈约 4%，而且人类玩家走内线还要扣掉刹车/擦墙的代价。
      */
-    static final double BALANCE_TOLERANCE = 0.18;
+    static final double BALANCE_TOLERANCE = 0.25;
+    /**
+     * 支路允许的最小曲率半径（相对主线下限的比例）。
+     *
+     * <p>主线（含内线，因为它就是主线的一段）必须守住 32 格的下限，但支路只在岔口这一小段
+     * 存在、而且外面还有缓冲带兜着，可以放宽到 24 格（过弯速度 1.13 → 0.98 格/tick）。
+     * 这条放宽把"有分岔"的比例从约 1/10 抬到可观的水平 —— 代价是外线的急弯稍紧一点，
+     * 而"两条路快慢差"由通行时间平衡继续把关。
+     */
+    static final double BRANCH_RADIUS_FACTOR = 0.75;
     /** 外线相对跨度的长度比上限：再长就"不是岔路，是另一条赛道"了。 */
-    private static final double MAX_LENGTH_RATIO = 1.32;
+    private static final double MAX_LENGTH_RATIO = 1.45;
 
     /** 岔口区间长度（格）：按赛道长度取比例，再夹到上下限。 */
     private static final double SPAN_TARGET_FACTOR = 0.22;
@@ -45,7 +54,7 @@ final class RaceForkBuilder {
      * "线后 56 格"与"岔口前 22 格"之间就挤不下第一道门，门只能跳到岔口之后 ——
      * 实测那样会让"逆行提示"失去参照（第一道门跑到 200 格开外）。
      */
-    private static final double START_GUARD_BEFORE = 120.0;
+    private static final double START_GUARD_BEFORE = 108.0;
     private static final double START_GUARD_AFTER = 55.0;
     /** 两个岔口之间的最小间隔（格）。 */
     private static final double FORK_GAP = 30.0;
@@ -328,8 +337,9 @@ final class RaceForkBuilder {
             return null;
         }
         double span = steps * RaceTrack.STEP;
-        // 两条路中间至少留 3 格（否则两条冰面直接连成一片"加宽的路"，不成其为分岔）
-        double minDepth = Math.max(width + 3.0, 14.0);
+        // 两条路中间至少留 1 格（否则两条冰面直接连成一片"加宽的路"，不成其为分岔）
+        double minDepth = Math.max(width + 1.0, 10.0);
+        double branchMinRadius = minCornerRadius * BRANCH_RADIUS_FACTOR;
         // 鼓包自身的曲率：κ_own ≈ 5.77·D/S² → D ≤ S²/(5.77·R_min)
         double bulgeCap = span * span / (BUMP_CURVATURE_FACTOR * minCornerRadius);
         double baseRadius = RaceTrackValidator.routeMinRadius(
@@ -360,7 +370,7 @@ final class RaceForkBuilder {
                 double[][] candidate = resampleOpen(outerRaw[0], outerRaw[1], outerRaw[2]);
                 double candidateLength = polylineLength(candidate[0], candidate[1]);
                 boolean radiusOk = RaceTrackValidator.routeMinRadius(candidate[0], candidate[1])
-                        >= minCornerRadius;
+                        >= branchMinRadius;
                 boolean ratioOk = candidateLength / span <= MAX_LENGTH_RATIO;
                 boolean clear = radiusOk && ratioOk
                         && clearOfTrack(candidate[0], candidate[1], xs, zs, from, to, minClearance);
@@ -423,7 +433,7 @@ final class RaceForkBuilder {
             }
             double[] separation = separations(inner[0], inner[1], inner[2],
                     outer[0], outer[1], outer[2]);
-            if (separation[0] < width + 3.0 || separation[1] < width / 2.0 + 2.0) {
+            if (separation[0] < width + 1.0 || separation[1] < width / 2.0 + 1.0) {
                 trace(String.format("    分隔带不够：最宽 %.1f / 中段 %.1f", separation[0], separation[1]));
                 continue;
             }

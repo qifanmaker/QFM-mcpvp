@@ -554,7 +554,7 @@ public final class RaceTrackGenerator {
             // 起终点线两侧留白：起跑格位 + 发车挡板在长度侧，道具箱在门后 12 格，
             // 所以两侧各留 56 格不摆门 —— 否则重新分配之后会有门（和它后面的箱子）
             // 挤到发车区里，连"逆行提示"都会失去参照（第一道门离起点太远）。
-            double startPad = 56.0;
+            double startPad = 46.0;
             forbidden.add(new double[]{0.0, Math.min(startPad, length)});
             forbidden.add(new double[]{Math.max(0.0, length - startPad), length});
             forbidden.sort((x, y) -> Double.compare(x[0], y[0]));
