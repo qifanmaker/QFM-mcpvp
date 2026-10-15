@@ -4056,7 +4056,7 @@ public final class Match {
         }
 
         this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.skywarsSeed,
-                this.players.size(), this.type, this.players);
+                this.players.size(), this.type, this.players, this.luckyPillarLayout);
 
         if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
             // 色盲派对的第 1 回合地板：必须在暂存阶段铺（构造器里只算出生点）

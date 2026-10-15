@@ -173,6 +173,17 @@ public final class ArenaWorldManager {
      */
     public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount, MatchType type,
                            List<ServerPlayerEntity> players) {
+        this.buildArena(regionIndex, template, seed, playerCount, type, players, null);
+    }
+
+    /**
+     * 搭建某场比赛的地形，并允许调用方复用已经计算好的幸运之柱布局。
+     *
+     * <p>幸运之柱的布局包含 OP 强制指定的平台风格。若这里再次只按 seed 计算，
+     * 生成器会丢掉强制风格，导致记分板显示的地图和实际地板不一致。
+     */
+    public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount, MatchType type,
+                           List<ServerPlayerEntity> players, LuckyPillarLayout luckyPillarLayout) {
         ArenaWorld arena = this.requireWorld();
 
         // 空岛战争：随机生成出生岛 + 中间主岛 + 箱子战利品
@@ -191,7 +202,9 @@ public final class ArenaWorldManager {
 
         // 幸运之柱：每位玩家一根高柱（柱身 + 柱顶平台）
         if (template.getLayout() == ArenaTemplate.Layout.LUCKY_PILLAR) {
-            LuckyPillarLayout layout = LuckyPillarLayout.compute(template.getCenter(regionIndex), seed, playerCount);
+            LuckyPillarLayout layout = luckyPillarLayout != null
+                    ? luckyPillarLayout
+                    : LuckyPillarLayout.compute(template.getCenter(regionIndex), seed, playerCount);
             LuckyPillarMapGenerator.generate(arena, layout);
             return;
         }

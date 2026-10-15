@@ -64,6 +64,9 @@ public final class SkyWarsLoot {
     private static final Item[] CHAINMAIL_PIECES = {
             Items.CHAINMAIL_HELMET, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_LEGGINGS, Items.CHAINMAIL_BOOTS
     };
+    private static final Item[] GOLD_PIECES = {
+            Items.GOLDEN_HELMET, Items.GOLDEN_CHESTPLATE, Items.GOLDEN_LEGGINGS, Items.GOLDEN_BOOTS
+    };
     private static final Item[] DIAMOND_PIECES = {
             Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS
     };
@@ -80,6 +83,7 @@ public final class SkyWarsLoot {
             new LootEntry(5, (r, c) -> diamondTool(r, c)), // 普通钻石工具：镐/铲/锄
             new LootEntry(32, (r, c) -> armor(r, c, false)),
             new LootEntry(10, (r, c) -> armor(r, c, true)),
+            new LootEntry(8, (r, c) -> goldenArmor(r)),
             new LootEntry(8, (r, c) -> food(r)),
             new LootEntry(12, (r, c) -> stack(Items.GOLDEN_APPLE, 1 + r.nextInt(2))),
             new LootEntry(5, (r, c) -> stack(Items.ENDER_PEARL, 1 + r.nextInt(2))),
@@ -113,6 +117,7 @@ public final class SkyWarsLoot {
             new LootEntry(12, (r, c) -> arrow(12 + r.nextInt(20))),
             new LootEntry(30, (r, c) -> armor(r, c, true)),
             new LootEntry(10, (r, c) -> armor(r, c, false)),
+            new LootEntry(8, (r, c) -> goldenArmor(r)),
             new LootEntry(15, (r, c) -> stack(Items.GOLDEN_APPLE, 2 + r.nextInt(3))),
             new LootEntry(8, (r, c) -> stack(Items.ENDER_PEARL, 2 + r.nextInt(3))),
             new LootEntry(6, (r, c) -> food(r)),
@@ -268,6 +273,13 @@ public final class SkyWarsLoot {
         if (level > 0) {
             applyEnchant(stack, Enchantments.SHARPNESS, level);
         }
+        return stack;
+    }
+
+    /** 金质护甲：固定保护 II/III，刻意不附耐久，作为轻量高附魔装备。 */
+    private static ItemStack goldenArmor(Random random) {
+        ItemStack stack = new ItemStack(GOLD_PIECES[random.nextInt(GOLD_PIECES.length)]);
+        applyEnchant(stack, Enchantments.PROTECTION, 2 + random.nextInt(2));
         return stack;
     }
 

@@ -1,6 +1,7 @@
 package com.example.pvp.mixin;
 
 import com.example.pvp.match.MatchManager;
+import com.example.pvp.match.MatchType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.projectile.thrown.SnowballEntity;
@@ -13,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 雪球命中实体：沿雪球飞行方向给目标击退（有攻击效果但不掉血），仅在对局中生效。
+ * 雪球命中实体：沿雪球飞行方向给目标击退（有攻击效果但不掉血），仅在空岛战争中生效。
  * 直接施加速度（takeKnockback 的方向约定相反），参照粘液球击退实现。
  */
 @Mixin(SnowballEntity.class)
@@ -29,7 +30,11 @@ public abstract class SnowballEntityMixin {
             return;
         }
         MatchManager matchManager = MatchManager.get();
-        if (matchManager == null || !matchManager.isInMatch(caster.getUuid())) {
+        if (matchManager == null) {
+            return;
+        }
+        var match = matchManager.getMatchFor(caster.getUuid());
+        if (match == null || match.getType() != MatchType.SKYWARS) {
             return;
         }
         // 沿雪球飞行方向击退（水平 1.2，竖直 0.3）

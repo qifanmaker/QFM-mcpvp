@@ -81,9 +81,9 @@ public final class SkyWarsMapGenerator {
             buildIsland(world, middleIslands.get(i), true, theme, 0, i == 0);
         }
 
-        LOGGER.info("[PvP] 空岛战争地图已生成: {} 个出生岛 + {} 个中途岛 + 中间主岛({} 箱)，主题：{}，中岛核心：{}",
+        LOGGER.info("[PvP] 空岛战争地图已生成: {} 个出生岛 + {} 个中途岛 + 中间主岛({} 箱)，主题：{}，中岛变体：{}，中岛核心：{}",
                 spawnIslands.size(), midIslands.size(), layout.middle().chests().size(),
-                theme.getDisplayName(), coreDesc(theme));
+                theme.getDisplayName(), layout.middleVariant(), coreDesc(theme));
         return layout;
     }
 

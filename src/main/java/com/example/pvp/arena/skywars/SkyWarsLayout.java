@@ -52,9 +52,12 @@ public final class SkyWarsLayout {
     private final List<Island> middleIslands;
     private final Island middle; // = middleIslands.get(0)，中央主岛（救回点/缩圈参照）
     private final List<BlockPos> spawns;
+    /** 中岛群的几何变体编号，由比赛 seed 确定。 */
+    private final int middleVariant;
 
     private SkyWarsLayout(BlockPos mapCenter, int maxRadius, List<Island> spawnIslands,
-                          List<Island> midIslands, List<Island> middleIslands, List<BlockPos> spawns) {
+                          List<Island> midIslands, List<Island> middleIslands, List<BlockPos> spawns,
+                          int middleVariant) {
         this.mapCenter = mapCenter;
         this.maxRadius = maxRadius;
         this.spawnIslands = List.copyOf(spawnIslands);
@@ -62,6 +65,7 @@ public final class SkyWarsLayout {
         this.middleIslands = List.copyOf(middleIslands);
         this.middle = middleIslands.isEmpty() ? null : middleIslands.get(0);
         this.spawns = List.copyOf(spawns);
+        this.middleVariant = middleVariant;
     }
 
     public BlockPos mapCenter() {
@@ -93,6 +97,10 @@ public final class SkyWarsLayout {
 
     public List<BlockPos> spawns() {
         return this.spawns;
+    }
+
+    public int middleVariant() {
+        return this.middleVariant;
     }
 
     /** 当前配置下的地图最大半径（生成与清场共用，保证能清到所有岛屿与箱子）。 */
@@ -157,11 +165,13 @@ public final class SkyWarsLayout {
 
         // 中岛群：中央主岛 + 内外两环卫星岛（"岛群"而非单一大圆盘），障碍物由生成器按岛添加
         int middleHeight = random.nextInt(7) - 3;
+        int middleVariant = Math.floorMod(seed, 3);
         List<Island> middleIslands = buildMiddleIslandGroup(random,
                 new BlockPos(mapCenter.getX(), mapCenter.getY() + middleHeight, mapCenter.getZ()),
-                Math.max(4, cfg.skywarsMiddleRadius), cfg.skywarsMiddleChests);
+                Math.max(4, cfg.skywarsMiddleRadius), cfg.skywarsMiddleChests, middleVariant);
 
-        return new SkyWarsLayout(mapCenter, computeMaxRadius(), spawnIslands, midIslands, middleIslands, spawns);
+        return new SkyWarsLayout(mapCenter, computeMaxRadius(), spawnIslands, midIslands, middleIslands, spawns,
+                middleVariant);
     }
 
     /**
@@ -189,35 +199,64 @@ public final class SkyWarsLayout {
     }
 
     /**
-     * 构建中岛群：中央主岛 + 内环 4 座小卫星岛 + 外环 8 座卫星岛。
-     * 中央岛半径最大、箱子最多；卫星岛半径较小、各 1 箱。总占地明显大于单一大圆盘。
+     * 构建中岛群：中央主岛 + 按变体排列的内外环卫星岛。
+     * 中央岛半径最大、箱子最多；卫星岛半径较小。总占地明显大于单一大圆盘。
      */
-    private static List<Island> buildMiddleIslandGroup(Random random, BlockPos center, int radius, int chestCount) {
+    private static List<Island> buildMiddleIslandGroup(Random random, BlockPos center, int radius, int chestCount,
+                                                       int variant) {
         List<Island> islands = new ArrayList<>();
         // 中央主岛
         int centralR = Math.max(6, (int) Math.round(radius * 0.38));
         int centralChests = Math.max(2, chestCount / 2);
         islands.add(buildIsland(random, center, centralR, centralChests));
+        // 三种确定性拓扑：标准 4+8、六边形 6+6、三角形 3+10。
+        // 岛群总范围不变，只改变卫星岛数量、角度和层次，让不同 seed 的中岛走位不同。
+        int innerCount = switch (variant) {
+            case 1 -> 6;
+            case 2 -> 3;
+            default -> 4;
+        };
+        int outerCount = switch (variant) {
+            case 1 -> 6;
+            case 2 -> 10;
+            default -> 8;
+        };
+        double innerRatio = switch (variant) {
+            case 1 -> 0.50;
+            case 2 -> 0.60;
+            default -> 0.55;
+        };
+        double outerRatio = switch (variant) {
+            case 1 -> 0.82;
+            case 2 -> 0.78;
+            default -> 0.80;
+        };
+
+        int remainingChests = Math.max(0, chestCount - centralChests);
         // 内环小卫星岛
         int innerR = Math.max(4, (int) Math.round(radius * 0.1));
-        int innerDist = (int) Math.round(radius * 0.55);
-        int innerCount = 4;
+        int innerDist = (int) Math.round(radius * innerRatio);
         for (int i = 0; i < innerCount; i++) {
-            double angle = i * 2.0 * Math.PI / innerCount + (random.nextDouble() - 0.5) * 0.5;
+            double angle = i * 2.0 * Math.PI / innerCount
+                    + (variant == 2 ? Math.PI / 6.0 : 0.0)
+                    + (random.nextDouble() - 0.5) * 0.35;
             int x = center.getX() + (int) Math.round(Math.cos(angle) * innerDist);
             int z = center.getZ() + (int) Math.round(Math.sin(angle) * innerDist);
-            islands.add(buildIsland(random, new BlockPos(x, center.getY(), z), innerR, 1));
+            int chests = remainingChests > 0 ? 1 : 0;
+            remainingChests -= chests;
+            islands.add(buildIsland(random, new BlockPos(x, center.getY(), z), innerR, chests));
         }
         // 外环卫星岛
         int outerR = Math.max(5, (int) Math.round(radius * 0.16));
-        int outerDist = (int) Math.round(radius * 0.8);
-        int outerCount = 8;
-        int restChests = Math.max(0, chestCount - centralChests - innerCount);
+        int outerDist = (int) Math.round(radius * outerRatio);
         for (int i = 0; i < outerCount; i++) {
-            double angle = i * 2.0 * Math.PI / outerCount + (random.nextDouble() - 0.5) * 0.4;
+            double angle = i * 2.0 * Math.PI / outerCount
+                    + (variant == 1 ? Math.PI / outerCount : 0.0)
+                    + (random.nextDouble() - 0.5) * 0.3;
             int x = center.getX() + (int) Math.round(Math.cos(angle) * outerDist);
             int z = center.getZ() + (int) Math.round(Math.sin(angle) * outerDist);
-            int chests = restChests > 0 ? 1 : 0;
+            int chests = remainingChests > 0 ? 1 : 0;
+            remainingChests -= chests;
             islands.add(buildIsland(random, new BlockPos(x, center.getY(), z), outerR, chests));
         }
         return islands;
