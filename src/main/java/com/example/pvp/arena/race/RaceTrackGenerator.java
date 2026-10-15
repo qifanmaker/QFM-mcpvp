@@ -249,11 +249,13 @@ public final class RaceTrackGenerator {
             return new Outcome(best, attempts, false, List.copyOf(notes));
         }
 
-        // 还是不合法：先如实报告失败，再退回确定性正圆，保证对局仍然能开起来。
+        // 还是不合法：保留一张确定性的弯道赛道作为兜底。
+        // 以前这里使用零振幅正圆，玩家会看到“弯道没有启用”；弯道是玩法的一部分，不能在
+        // 生成压力较高时静默退化成圆形。放宽振幅的候选仍保留曲率，实际对局可正常开赛。
         notes.add("随机赛道生成失败：已尝试 " + attempts + " 次，最后一次原因：" + lastProblem);
-        RaceTrack fallback = build(baseSeed, attempts, settings, width, mirror, true, false);
+        RaceTrack fallback = build(baseSeed + attempts, attempts, settings, width, mirror, false, true);
         RaceTrackValidator.Result fallbackResult = RaceTrackValidator.validate(fallback, limits);
-        notes.add("已退回确定性正圆赛道"
+        notes.add("已退回确定性弯道赛道"
                 + (fallbackResult.valid() ? "（校验通过）" : "（仍未通过：" + fallbackResult.problemText() + "）"));
         return new Outcome(fallback, attempts, true, List.copyOf(notes));
     }

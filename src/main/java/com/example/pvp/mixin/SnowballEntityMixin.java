@@ -1,7 +1,6 @@
 package com.example.pvp.mixin;
 
 import com.example.pvp.match.MatchManager;
-import com.example.pvp.match.MatchType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.projectile.thrown.SnowballEntity;
@@ -14,12 +13,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 雪球命中实体：沿雪球飞行方向给目标击退（有攻击效果但不掉血），仅在空岛战争中生效。
+ * 雪球命中实体：沿雪球飞行方向给目标击退（有攻击效果但不掉血），对局内生效。
  * 直接施加速度（takeKnockback 的方向约定相反），参照粘液球击退实现。
  */
 @Mixin(SnowballEntity.class)
 public abstract class SnowballEntityMixin {
-    @Inject(method = "onEntityHit", at = @At("HEAD"))
+    // 原版 onEntityHit 会先调用 damage(0)，在 HEAD 修改速度会被后续伤害流程覆盖，
+    // 所以必须在原版命中处理完成后再施加击退。
+    @Inject(method = "onEntityHit", at = @At("TAIL"))
     private void pvp$snowballKnockback(EntityHitResult entityHitResult, CallbackInfo ci) {
         SnowballEntity snowball = (SnowballEntity) (Object) this;
         Entity target = entityHitResult.getEntity();
@@ -34,7 +35,7 @@ public abstract class SnowballEntityMixin {
             return;
         }
         var match = matchManager.getMatchFor(caster.getUuid());
-        if (match == null || match.getType() != MatchType.SKYWARS) {
+        if (match == null) {
             return;
         }
         // 沿雪球飞行方向击退（水平 1.2，竖直 0.3）

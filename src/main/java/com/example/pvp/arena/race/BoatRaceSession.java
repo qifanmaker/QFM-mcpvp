@@ -163,7 +163,7 @@ public final class BoatRaceSession {
     private final Map<UUID, Integer> shieldCharges = new HashMap<>();
     /** 玩家 → 速冻胶免疫的宽限结束 tick（压过一片雪带只扣 1 次）。 */
     private final Map<UUID, Long> shieldGraceUntil = new HashMap<>();
-    /** 玩家 → 缓冲区结冰窗口（脚下的雪块临时冻成冰面，落后的人充能更快）。 */
+    /** 玩家 → 缓冲区结冰窗口；触发时固定一块雪带，直到本次效果到期。 */
     private final Map<UUID, Set<Long>> gripWindows = new HashMap<>();
     /** 玩家 → 结冰失效 tick（固定时长，<b>不续期</b>：续期会让援助变成永久）。 */
     private final Map<UUID, Long> gripUntil = new HashMap<>();
@@ -762,9 +762,9 @@ public final class BoatRaceSession {
      * 没有"比路面稍慢"的中间值（见 {@link RaceLoot#gripChance}）。
      */
     private void tickRunoffGrip(int matchTicks) {
-        this.gripWindows.clear();
         PvPConfig cfg = PvPConfig.INSTANCE;
         if (!cfg.boatRaceRunoffGripEnabled || !this.started || this.matchEnded) {
+            this.gripWindows.clear();
             return;
         }
         long gripTicks = Math.max(1, cfg.boatRaceRunoffGripSeconds) * 20L;
@@ -774,16 +774,23 @@ public final class BoatRaceSession {
             if (tracker == null || tracker.finished()) {
                 continue;
             }
+            UUID uuid = player.getUuid();
+            long until = this.gripUntil.getOrDefault(uuid, 0L);
+            if (until > 0L && matchTicks >= until) {
+                // 到期后一次性清掉固定窗口；下一次必须重新在雪地里充能。
+                this.gripUntil.remove(uuid);
+                this.gripWindows.remove(uuid);
+                until = 0L;
+            }
             BoatEntity boat = this.boatOf(player);
             if (boat == null || player.getVehicle() != boat) {
                 continue;
             }
-            UUID uuid = player.getUuid();
             // 横向偏移超过冰面半宽 = 已经在缓冲带里（看偏移而不是看方块：
             // 我们自己刚冻出来的冰也是"冰"，按方块判断会立刻认不出自己在缓冲带里）
             boolean onRunoff = this.track.distanceToCenterline(player.getX(), player.getZ())
                     > this.track.halfWidth() - 0.5;
-            boolean active = matchTicks < this.gripUntil.getOrDefault(uuid, 0L);
+            boolean active = until > matchTicks;
             if (!active && onRunoff) {
                 int place = tracker.place() <= 0 ? total : tracker.place();
                 double rate = RaceLoot.gripChargeRate(cfg.boatRaceRunoffGripChargeLeader,
@@ -792,6 +799,9 @@ public final class BoatRaceSession {
                 if (charge >= 1.0) {
                     this.gripCharge.put(uuid, 0.0);
                     this.gripUntil.put(uuid, matchTicks + gripTicks);
+                    // 冻结触发时固定当前雪地窗口。窗口不再跟着船移动，
+                    // 这样雪地里的充能和生效倒计时都由同一条明确的时间线推进。
+                    this.gripWindows.put(uuid, this.runoffGripCells(boat));
                     active = true;
                     player.sendMessage(Text.literal("§b缓冲区结冰！§7脚下雪块冻成了冰面（"
                             + cfg.boatRaceRunoffGripSeconds + " 秒）"), true);
@@ -807,9 +817,25 @@ public final class BoatRaceSession {
             if (!active) {
                 continue;
             }
-            // 固定时长、不续期：过期就化回雪（想再要一次必须重新充能）
-            this.gripWindows.put(uuid, this.boatSurfaceCells(boat));
+            // 固定时长、不续期：过期就化回雪（想再要一次必须重新充能）。
+            // gripWindows 保留触发时的雪带，不因船驶回冰面而被清掉。
         }
+    }
+
+    /** 只取触发瞬间船身覆盖的雪地格，避免把正常冰面当成结冰援助的目标。 */
+    private Set<Long> runoffGripCells(BoatEntity boat) {
+        Set<Long> cells = new HashSet<>();
+        ArenaWorld arena = this.match.arenaWorld();
+        if (arena == null) {
+            return cells;
+        }
+        Block runoff = PvPConfig.INSTANCE.getBoatRaceRunoffBlock();
+        for (Long key : this.boatSurfaceCells(boat)) {
+            if (arena.getBlockState(BlockPos.fromLong(key)).isOf(runoff)) {
+                cells.add(key);
+            }
+        }
+        return cells;
     }
 
     /**
@@ -900,6 +926,8 @@ public final class BoatRaceSession {
     }
 
     private void onRacerFinished(ServerPlayerEntity player, RaceProgressTracker tracker) {
+        this.gripWindows.remove(player.getUuid());
+        this.gripUntil.remove(player.getUuid());
         this.finishOrder.add(player.getUuid());
         this.discardBoat(player);
         this.updateRanking();
