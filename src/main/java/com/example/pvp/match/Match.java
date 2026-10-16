@@ -3996,20 +3996,21 @@ public final class Match {
         }
     }
 
-    /** 在出生岛上方搭建 3×3×3 玻璃笼子，并把玩家放在笼内。 */
+    /** 在出生岛上方只搭建贴近玩家的 10 个玻璃方块，并把玩家放在笼内。 */
     private void prepareSkywarsCage(ArenaWorld arena, ServerPlayerEntity player, BlockPos spawn) {
         BlockPos base = spawn.up(9);
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = 0; dy <= 3; dy++) {
-                for (int dz = -1; dz <= 1; dz++) {
-                    if (Math.abs(dx) != 1 && Math.abs(dz) != 1 && dy != 0 && dy != 3) {
-                        continue;
-                    }
-                    BlockPos cageBlock = base.add(dx, dy, dz);
-                    arena.setBlockState(cageBlock, Blocks.GLASS.getDefaultState(), 3);
-                    this.skywarsCageBlocks.add(cageBlock);
-                }
-            }
+        // 地面和顶面各 1 个，玩家身体两侧四个方向各 2 个；不放四角等不会贴到玩家的玻璃。
+        BlockPos[] cageBlocks = {
+                base,
+                base.up(3),
+                base.north().up(), base.north().up(2),
+                base.south().up(), base.south().up(2),
+                base.east().up(), base.east().up(2),
+                base.west().up(), base.west().up(2)
+        };
+        for (BlockPos cageBlock : cageBlocks) {
+            arena.setBlockState(cageBlock, Blocks.GLASS.getDefaultState(), 3);
+            this.skywarsCageBlocks.add(cageBlock);
         }
         player.teleport(arena, spawn.getX() + 0.5, base.getY() + 1.0, spawn.getZ() + 0.5,
                 this.faceCenter(spawn), 0);
@@ -4322,7 +4323,7 @@ public final class Match {
                     + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜！（1.8 低版本战斗）"));
         } else if (skywars) {
             String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
-            String variantName = this.skywarsVariant == SkyWarsMapVariant.BETA ? "§dBeta 立体地图" : "§7经典地图";
+            String variantName = "§d立体地图";
             this.broadcast(Messages.info("空岛战争开始！" + variantName + "，主题：§e" + themeName
                     + "§r。搜刮空岛，成为最后幸存者！（1.8 低版本战斗）"));
         } else if (luckyPillar) {

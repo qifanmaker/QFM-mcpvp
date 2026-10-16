@@ -62,13 +62,10 @@ public final class SkyWarsMapGenerator {
         return generate(world, regionIndex, seed, playerCount, players, SkyWarsMapVariant.CLASSIC);
     }
 
-    /** 生成指定变体的空岛地图；战斗规则仍由同一个 SKYWARS 模式处理。 */
+    /** 生成空岛地图；正式主空岛统一使用立体 Beta 地形，战斗规则仍由同一个 SKYWARS 模式处理。 */
     public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
                                          List<ServerPlayerEntity> players, SkyWarsMapVariant variant) {
-        if (variant == SkyWarsMapVariant.BETA) {
-            return SkyWarsBetaMapGenerator.generate(world, regionIndex, seed, playerCount, players);
-        }
-        return generateClassic(world, regionIndex, seed, playerCount, players);
+        return SkyWarsBetaMapGenerator.generate(world, regionIndex, seed, playerCount, players);
     }
 
     static SkyWarsLayout generateClassic(ArenaWorld world, int regionIndex, int seed, int playerCount,

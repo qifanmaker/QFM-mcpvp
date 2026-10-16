@@ -220,7 +220,7 @@ public final class PvpGuiManager {
 
     // ---------- 页面 ----------
 
-    /** 主菜单：PvP 对战、空岛战争、Beta 地图、战桥、趣味小游戏、起床战争与功能入口。 */
+    /** 主菜单：PvP 对战、立体空岛战争、战桥、趣味小游戏、起床战争与功能入口。 */
     public void openMainMenu(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.MAIN;
@@ -250,11 +250,6 @@ public final class PvpGuiManager {
                 "最后存活者获胜，点击直接加入");
         this.applyQueueIndicator(skywars, player, PvPMod.QUEUE.countQueued(MatchType.SKYWARS));
         inv.setStack(10, skywars);
-
-        // Beta 地图先作为独立入口展示，等玩法规则确定后再接入对应队列。
-        inv.setStack(11, makeButton(Items.MAP, "§6空岛 (Beta地图)",
-                "测试中的空岛地图入口",
-                "功能待定，暂不加入队列"));
 
         ItemStack bridge = makeButton(Items.BRICK, "§3§l战桥",
                 "1v1 / 1v1v1v1 / 2v2 / 混战",
@@ -862,8 +857,6 @@ public final class PvpGuiManager {
             case 9 -> this.openPvpCategory(player);
             // 空岛战争无套件，直接加入
             case 10 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
-            // Beta 地图仅展示入口，具体玩法由后续需求接入。
-            case 11 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit(), SkyWarsMapVariant.BETA);
             case 12 -> this.openBridgeCategory(player);
             case 13 -> this.openGamesCategory(player);
             case 14 -> this.openBedWarsCategory(player);
