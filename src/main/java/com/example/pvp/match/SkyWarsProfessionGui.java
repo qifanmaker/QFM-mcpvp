@@ -74,9 +74,13 @@ public final class SkyWarsProfessionGui {
                 ItemStack icon = new ItemStack(profession.icon());
                 icon.set(DataComponentTypes.CUSTOM_NAME,
                         Text.literal((profession == selected ? "§a✔ " : "§f") + profession.displayName()));
-                icon.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                        Text.literal("§7开局获得固定装备"),
-                        Text.literal(profession == selected ? "§a当前选择" : "§e点击选择"))));
+                List<Text> lore = new java.util.ArrayList<>();
+                lore.add(Text.literal("§7开局获得固定装备"));
+                if (profession.maxHealthMultiplier() > 1.0) {
+                    lore.add(Text.literal("§c最大生命值 ×1.5"));
+                }
+                lore.add(Text.literal(profession == selected ? "§a当前选择" : "§e点击选择"));
+                icon.set(DataComponentTypes.LORE, new LoreComponent(lore));
                 this.grid.setStack(i, icon);
             }
             this.sendContentUpdates();

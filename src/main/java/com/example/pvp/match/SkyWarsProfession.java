@@ -21,16 +21,25 @@ public enum SkyWarsProfession {
     ALCHEMIST("炼金师", Items.POTION, List.of(potion(Potions.STRONG_SWIFTNESS), potion(Potions.FIRE_RESISTANCE), potion(Potions.STRENGTH), potion(Potions.STRONG_HEALING, 2), stack(Items.WOODEN_SWORD), stack(Items.STONE, 8))),
     ASSASSIN("刺客", Items.IRON_SWORD, List.of(stack(Items.IRON_SWORD), stack(Items.ENDER_PEARL, 2), stack(Items.LEATHER_HELMET), stack(Items.STONE, 8))),
     MINER("矿工", Items.DIAMOND_PICKAXE, List.of(stack(Items.DIAMOND_PICKAXE), stack(Items.IRON_PICKAXE), stack(Items.IRON_INGOT, 4), stack(Items.STONE, 16), stack(Items.STONE_SWORD))),
-    FISHERMAN("渔夫", Items.FISHING_ROD, List.of(stack(Items.FISHING_ROD), stack(Items.IRON_SWORD), stack(Items.STONE, 16), stack(Items.COOKED_SALMON, 8)));
+    FISHERMAN("渔夫", Items.FISHING_ROD, List.of(stack(Items.FISHING_ROD), stack(Items.IRON_SWORD), stack(Items.STONE, 16), stack(Items.COOKED_SALMON, 8))),
+    TANK("坦克", Items.IRON_CHESTPLATE,
+            List.of(stack(Items.STONE_SWORD), stack(Items.IRON_CHESTPLATE), stack(Items.IRON_HELMET),
+                    stack(Items.STONE, 8), stack(Items.COOKED_BEEF, 8)), 1.5);
 
     private final String displayName;
     private final Item icon;
     private final List<ItemStack> items;
+    private final double maxHealthMultiplier;
 
     SkyWarsProfession(String displayName, Item icon, List<ItemStack> items) {
+        this(displayName, icon, items, 1.0);
+    }
+
+    SkyWarsProfession(String displayName, Item icon, List<ItemStack> items, double maxHealthMultiplier) {
         this.displayName = displayName;
         this.icon = icon;
         this.items = items;
+        this.maxHealthMultiplier = maxHealthMultiplier;
     }
 
     public String displayName() {
@@ -41,10 +50,14 @@ public enum SkyWarsProfession {
         return this.icon;
     }
 
+    public double maxHealthMultiplier() {
+        return this.maxHealthMultiplier;
+    }
+
     public void apply(ServerPlayerEntity player) {
         var maxHealth = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
         if (maxHealth != null) {
-            maxHealth.setBaseValue(30.0);
+            maxHealth.setBaseValue(20.0 * this.maxHealthMultiplier);
         }
         player.getInventory().clear();
         for (int i = 0; i < this.items.size() && i < 36; i++) {
