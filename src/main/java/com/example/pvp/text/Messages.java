@@ -1,6 +1,8 @@
 package com.example.pvp.text;
 
+import net.minecraft.text.ClickEvent;
 import net.minecraft.text.MutableText;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
@@ -35,5 +37,18 @@ public final class Messages {
 
     public static MutableText playerName(String name) {
         return Text.literal(name).formatted(Formatting.AQUA);
+    }
+
+    /** 每局结束后显示的反馈入口，链接可直接点击打开。 */
+    public static MutableText feedbackHint() {
+        String url = "https://qfmaker.com/blackboard/mcserverfb";
+        MutableText link = Text.literal(url).formatted(Formatting.AQUA, Formatting.UNDERLINE);
+        link.setStyle(link.getStyle().withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url)));
+        return Text.literal("")
+                .append(Text.literal("[Hint] ").formatted(Formatting.GOLD, Formatting.BOLD))
+                .append(Text.literal("Please submit your suggestions or bug feedback at ")
+                        .formatted(Formatting.GRAY))
+                .append(link)
+                .append(Text.literal(" , we'll fix them in soon.").formatted(Formatting.GRAY));
     }
 }

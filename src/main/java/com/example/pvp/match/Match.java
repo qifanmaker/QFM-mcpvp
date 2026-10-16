@@ -3358,6 +3358,7 @@ public final class Match {
     private void startCelebration(MatchTeam winnerTeam) {
         Set<UUID> winners = this.computeWinners();
         this.announceResult(winners);
+        this.broadcast(Messages.feedbackHint());
 
         // 获胜大字（动作栏）
         for (ServerPlayerEntity player : this.players) {
