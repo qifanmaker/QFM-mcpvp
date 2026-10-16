@@ -54,6 +54,9 @@ public abstract class PlayerEntityMixin {
     @Inject(method = "attack", at = @At("HEAD"))
     private void pvp$legacyClearBlocking(Entity target, CallbackInfo ci) {
         PlayerEntity self = (PlayerEntity) (Object) this;
+        if (self instanceof ServerPlayerEntity sp) {
+            com.example.pvp.PvPMod.onAttackAttempt(sp);
+        }
         MatchManager matchManager = MatchManager.get();
         if (matchManager != null && self instanceof ServerPlayerEntity sp
                 && matchManager.usesLegacyCombat(sp)) {

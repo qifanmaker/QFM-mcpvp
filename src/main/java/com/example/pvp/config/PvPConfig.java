@@ -55,6 +55,11 @@ public final class PvPConfig {
     /** 对局超时（秒）：超过后强制平局结束，防止卡死的对局占用场地。 */
     public int matchTimeoutSeconds = 600;
 
+    /** 对局内稳定高频操作检测：第一次警告，第二次移出本局，第三次封禁。 */
+    public boolean autoClickerDetection = true;
+    public int autoClickerAttackCps = 16;
+    public int autoClickerBlockPlaceCps = 14;
+
     public String floorBlock = "minecraft:polished_deepslate";
     public String wallBlock = "minecraft:glass";
 

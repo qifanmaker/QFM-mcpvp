@@ -13,6 +13,7 @@
     "PlayerEntityMixin",
     "LivingEntityMixin",
     "ServerPlayerEntityMixin",
+    "ServerPlayerInteractionManagerMixin",
     "ServerPlayNetworkHandlerMixin",
     "ServerCommonNetworkHandlerMixin",
     "FishingBobberEntityMixin",

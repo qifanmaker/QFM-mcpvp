@@ -7,6 +7,7 @@ import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.skywars.SkyWarsLoot;
 import com.example.pvp.arena.tntrun.TntRunLayout;
+import com.example.pvp.anticheat.AutoClickerDetector;
 import com.example.pvp.command.PvPCommands;
 import com.example.pvp.config.KitConfig;
 import com.example.pvp.config.PvPConfig;
@@ -103,6 +104,17 @@ public final class PvPMod implements ModInitializer {
     public static QueueManager QUEUE;
     public static DuelManager DUEL;
     public static PracticeManager PRACTICE;
+    public static final AutoClickerDetector AUTO_CLICKER_DETECTOR = new AutoClickerDetector();
+
+    public static void onAttackAttempt(ServerPlayerEntity player) {
+        AUTO_CLICKER_DETECTOR.recordAttack(player);
+    }
+
+    public static void onBlockInteraction(ServerPlayerEntity player, boolean accepted, ItemStack stack) {
+        if (accepted && stack != null && stack.getItem() instanceof net.minecraft.item.BlockItem) {
+            AUTO_CLICKER_DETECTOR.recordBlockPlace(player);
+        }
+    }
 
     /** 幸运之柱"一击必杀"全局标记：开启时对应对局内所有伤害致死（LivingEntityMixin 检查）。 */
     public static volatile boolean oneHitKillActive = false;
@@ -696,6 +708,7 @@ public final class PvPMod implements ModInitializer {
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            AUTO_CLICKER_DETECTOR.clear(handler.player.getUuid());
             if (PRACTICE != null) {
                 // 玩家正在断线，不能再用它做传送：只清场并回收区域
                 PRACTICE.exitPracticeByUuid(handler.player.getUuid());
