@@ -45,6 +45,23 @@ public abstract class LivingEntityMixin {
         return amount;
     }
 
+    /** 1.8 手感：剑格挡时同时降低近战受击击退。 */
+    @ModifyArg(
+            method = "damage",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/LivingEntity;takeKnockback(DDD)V"),
+            index = 0
+    )
+    private double pvp$blockKnockbackReduction(double strength) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self instanceof ServerPlayerEntity player) {
+            MatchManager matchManager = MatchManager.get();
+            if (matchManager != null && matchManager.isLegacyBlocking(player)) {
+                return strength * 0.5D;
+            }
+        }
+        return strength;
+    }
+
     /** 烈焰弹：投掷者被自己的火球弹飞后，第一次落地不摔伤（一次性标记，落地消耗）。 */
     @Inject(method = "handleFallDamage", at = @At("HEAD"), cancellable = true)
     private void pvp$fireballNoFall(float fallDistance, float damageMultiplier, DamageSource source,

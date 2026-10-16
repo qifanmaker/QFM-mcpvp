@@ -392,6 +392,19 @@ public final class PvPMod implements ModInitializer {
             }
             return ActionResult.PASS;
         });
+        // 1.8 手感：对着方块右键时也进入剑格挡；否则方块交互会绕过 UseItemCallback。
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (!(player instanceof ServerPlayerEntity sp) || MATCH == null
+                    || !(sp.getStackInHand(hand).getItem() instanceof SwordItem)) {
+                return ActionResult.PASS;
+            }
+            Match match = MATCH.getMatchFor(sp);
+            if (match == null || !MATCH.usesLegacyCombat(sp)) {
+                return ActionResult.PASS;
+            }
+            match.setBlocking(sp, true);
+            return ActionResult.SUCCESS;
+        });
         // 竞技场内 TNT：对着方块右键也抛出而不是放置（UseItemCallback 只覆盖"右键空气"路径）
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (!(player instanceof ServerPlayerEntity sp) || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY

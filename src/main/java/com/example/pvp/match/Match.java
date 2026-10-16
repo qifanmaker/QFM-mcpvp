@@ -3820,27 +3820,21 @@ public final class Match {
         return this.blocking.contains(player.getUuid());
     }
 
-    /**
-     * 1.8 模式：切换剑格挡状态（格挡时减速）。
-     * 右键按住时客户端每 ~4 tick 重触发一次（UseItemCallback），每次都刷新倒计时；
-     * 松开右键后倒计时走完即自动退出格挡，避免"中缓慢 II 效果"永久残留。
-     */
+    /** 1.8 模式：切换剑格挡状态，移动速度由 PlayerEntityMixin 直接处理。 */
     public void setBlocking(ServerPlayerEntity player, boolean block) {
         if (block) {
             this.blocking.add(player.getUuid());
             this.blockingRefresh.put(player.getUuid(), BLOCK_REFRESH_TICKS);
-            player.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 200, 1));
         } else {
             this.blocking.remove(player.getUuid());
             this.blockingRefresh.remove(player.getUuid());
-            player.removeStatusEffect(StatusEffects.SLOWNESS);
         }
     }
 
-    /** 剑格挡刷新窗口（tick）：右键按住约每 4 tick 重触发，松开后约 0.5s 内退出格挡。 */
-    private static final int BLOCK_REFRESH_TICKS = 10;
+    /** 剑格挡刷新窗口（tick）：右键松开后最多约 0.2 秒退出。 */
+    private static final int BLOCK_REFRESH_TICKS = 4;
 
-    /** 每帧维护 1.8 格挡：不拿剑则取消；格挡倒计时走完（松开右键）则退出；否则保持减速。 */
+    /** 每帧维护 1.8 格挡：不拿剑则取消；格挡倒计时走完（松开右键）则退出。 */
     private void tickLegacyBlocking() {
         for (ServerPlayerEntity player : this.players) {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
@@ -3862,7 +3856,6 @@ public final class Match {
                 continue;
             }
             this.blockingRefresh.put(player.getUuid(), remaining - 1);
-            online.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 200, 1));
         }
     }
 

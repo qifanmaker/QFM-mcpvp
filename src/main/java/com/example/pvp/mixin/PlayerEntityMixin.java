@@ -18,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 
 /**
  * 允许在竞技场内（冒险模式下）放置/舀取岩浆与水：
@@ -61,6 +62,18 @@ public abstract class PlayerEntityMixin {
                 match.setBlocking(sp, false);
             }
         }
+    }
+
+    /** 1.8 手感：剑格挡时只保留约 20% 的移动速度，松开后立即恢复。 */
+    @ModifyReturnValue(method = "getMovementSpeed", at = @At("RETURN"))
+    private float pvp$legacyBlockingMovement(float original) {
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        MatchManager matchManager = MatchManager.get();
+        if (matchManager != null && self instanceof ServerPlayerEntity sp
+                && matchManager.isLegacyBlocking(sp)) {
+            return original * 0.2F;
+        }
+        return original;
     }
 
     /** 粘液球（空岛战争/幸运之柱击退 III 武器）：左键攻击命中时把目标强力击退。 */
