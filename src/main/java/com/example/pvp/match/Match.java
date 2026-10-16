@@ -4314,6 +4314,7 @@ public final class Match {
             for (ServerPlayerEntity player : this.players) {
                 ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
                 if (online != null) {
+                    online.sendMessage(Text.literal("§e空岛战争：请选择职业！§7 倒计时结束前可点击职业，未选择将默认第一个职业。"), false);
                     SkyWarsProfessionGui.open(online, this);
                 }
             }
