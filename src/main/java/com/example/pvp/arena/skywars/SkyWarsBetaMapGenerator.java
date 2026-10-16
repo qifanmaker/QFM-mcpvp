@@ -2,6 +2,7 @@ package com.example.pvp.arena.skywars;
 
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
+import com.mojang.logging.LogUtils;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -9,23 +10,32 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
 import java.util.Random;
+import org.slf4j.Logger;
 
 /**
  * 空岛 Beta 地图生成器：复用经典地图的出生点、箱子和物资布局，叠加确定性的多层结构。
  * 这样 Beta 只改变地形，不改变空岛战争的战斗、缩圈、掉落和胜负规则。
  */
 public final class SkyWarsBetaMapGenerator {
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     private SkyWarsBetaMapGenerator() {
     }
 
     public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
                                          List<ServerPlayerEntity> players) {
         SkyWarsLayout layout = SkyWarsMapGenerator.generateClassic(world, regionIndex, seed, playerCount, players);
+        List<String> validationErrors = SkyWarsBetaLayoutValidator.validate(layout, playerCount);
+        if (!validationErrors.isEmpty()) {
+            LOGGER.warn("空岛 Beta 布局校验出现问题（seed={}）: {}", seed, String.join("；", validationErrors));
+        }
         SkyWarsTheme theme = SkyWarsTheme.pick(seed);
         Random random = new Random(seed * 1103515245L + 12345L);
         Block structure = structureBlock(theme);
         Block accent = accentBlock(theme);
         int style = Math.floorMod(seed, 6);
+        LOGGER.info("生成空岛 Beta 地图: seed={}, style={}, theme={}, spawnIslands={}, midIslands={}",
+                seed, style, theme.name(), layout.spawnIslands().size(), layout.midIslands().size());
 
         // 每个出生岛增加一个低矮侧台；出生点和原有箱子保持不动，避免开局被结构卡住。
         for (int i = 0; i < layout.spawnIslands().size(); i++) {

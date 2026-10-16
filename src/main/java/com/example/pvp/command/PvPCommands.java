@@ -20,6 +20,7 @@ import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.tntrun.TntRunLayout;
 import com.example.pvp.arena.tntrun.TntRunMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
+import com.example.pvp.arena.skywars.SkyWarsBetaMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
 import com.example.pvp.config.KitConfig;
 import com.example.pvp.config.PvPConfig;
@@ -168,6 +169,11 @@ public final class PvPCommands {
                                                                 StringArgumentType.getString(ctx, "theme")))))
                                         .then(CommandManager.literal("all")
                                                 .executes(ctx -> debugSkywarsAllThemes(ctx))))
+                                .then(CommandManager.literal("skywarsbeta")
+                                        .executes(ctx -> debugSkywarsBeta(ctx, 9000))
+                                        .then(CommandManager.argument("seed", StringArgumentType.word())
+                                                .executes(ctx -> debugSkywarsBeta(ctx,
+                                                        parseIntSafe(ctx, "seed", 9000)))))
                                 .then(CommandManager.literal("bridge")
                                         .executes(ctx -> debugBridge(ctx, 2))
                                         .then(CommandManager.argument("team", StringArgumentType.word())
@@ -1237,6 +1243,32 @@ public final class PvPCommands {
         player.teleport(arena, center.getX() + 0.5, center.getY() + 15, center.getZ() + 0.5, 0, 90);
         arenaManager.addVisitor(player, 180); // 3 分钟内不被兜底传回主城
         player.sendMessage(Messages.gold("已传送到战桥地图上空（约 3 分钟后自动回城），可下落查看基地/球门/桥"), false);
+        return 1;
+    }
+
+    /** 调试：按指定 seed 生成一张空岛 Beta 立体地图并传送查看，不影响正式对局。 */
+    private static int debugSkywarsBeta(CommandContext<ServerCommandSource> ctx, int seed)
+            throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
+        ArenaWorld arena = arenaManager == null ? null : arenaManager.getWorld();
+        if (arena == null) {
+            player.sendMessage(Messages.error("竞技场世界不可用"), false);
+            return 0;
+        }
+        int region = 992;
+        int size = PvPConfig.INSTANCE.skywarsSize;
+        BlockPos origin = new BlockPos(region * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
+        BlockPos center = new BlockPos(origin.getX() + size / 2, ArenaTemplate.PLATFORM_Y + 1,
+                origin.getZ() + size / 2);
+        SkyWarsLayout layout = SkyWarsBetaMapGenerator.generate(arena, region, seed, 8, List.of());
+        SkyWarsTheme theme = SkyWarsTheme.pick(seed);
+        int style = Math.floorMod(seed, 6);
+        player.sendMessage(Messages.info("测试空岛 Beta 地图已生成（seed " + seed + "，风格 " + style
+                + "，主题 " + theme.name() + "，出生岛 " + layout.spawnIslands().size() + " 座）"), false);
+        player.teleport(arena, center.getX() + 0.5, center.getY() + 28, center.getZ() + 0.5, 0, 90);
+        arenaManager.addVisitor(player, 300);
+        player.sendMessage(Messages.gold("已传送到空岛 Beta 地图上空（约 5 分钟后自动回城），可使用不同 seed 查看不同层次结构"), false);
         return 1;
     }
 
