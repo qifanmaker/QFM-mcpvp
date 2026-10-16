@@ -10,7 +10,6 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.explosion.Explosion;
-import net.minecraft.world.explosion.ExplosionBehavior;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -18,8 +17,8 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import java.util.Map;
 
 /**
- * 竞技场内玩家发射的恶魂火焰弹：只放大爆炸击退（ExplosionBehavior.getKnockbackModifier），
- * 爆炸威力/伤害/破坏范围保持原版不变。非竞技场或非玩家发射保持原版行为。
+ * 竞技场内玩家发射的恶魂火焰弹：爆炸威力直接使用 FireballEntity 自身的 power，
+ * 只对爆炸计算出的玩家击退向量分别调整水平和垂直分量。非竞技场或非玩家发射保持原版行为。
  */
 @Mixin(FireballEntity.class)
 public abstract class FireballEntityMixin {
@@ -34,14 +33,11 @@ public abstract class FireballEntityMixin {
                 || !(self.getOwner() instanceof ServerPlayerEntity)) {
             return world.createExplosion(entity, x, y, z, power, createFire, sourceType);
         }
-        // 威力为 0 时禁用爆炸破坏方块（NONE 不炸方块、不伤害实体）
-        World.ExplosionSourceType effectiveType = power <= 0.0f ? World.ExplosionSourceType.NONE : sourceType;
         float h = Math.max(0.0f, PvPConfig.INSTANCE.fireballKnockbackHorizontal);
         float v = Math.max(0.0f, PvPConfig.INSTANCE.fireballKnockbackVertical);
-        // 用原版 modifier=1 先让爆炸施加基础击退（不放大威力/伤害），再从 affectedPlayers
-        // 读到已施加的击退向量，把水平×h、竖直×v 的增量补加给玩家，实现横纵分开倍率
-        Explosion explosion = world.createExplosion(entity, world.getDamageSources().explosion(entity, self.getOwner()),
-                new ExplosionBehavior(), x, y, z, power, createFire, effectiveType);
+        // 让火焰弹自己的 power 直接决定原版爆炸威力、伤害和破坏范围；击退调节只处理
+        // 原版已经算出的玩家速度，避免用 TNT 式 ExplosionBehavior 改写爆炸本身。
+        Explosion explosion = world.createExplosion(entity, x, y, z, power, createFire, sourceType);
         if (h != 1.0f || v != 1.0f) {
             for (Map.Entry<PlayerEntity, Vec3d> entry : explosion.getAffectedPlayers().entrySet()) {
                 PlayerEntity player = entry.getKey();
