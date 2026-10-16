@@ -364,7 +364,10 @@ public final class HealthTagManager {
             player.getY() + player.getHeight(), player.getZ(), 0.0f, 0.0f);
         // 先登记再生成：ENTITY_LOAD 会在 spawnEntity 内部同步回调，不先登记会被自己清掉
         this.owned.add(display.getUuid());
+        // spawnEntity 会立即发送生成包；必须在调用前登记，才能拦截发给标签所属玩家自己的包。
+        this.tags.put(player.getUuid(), display);
         if (!world.spawnEntity(display)) {
+            this.tags.remove(player.getUuid(), display);
             this.owned.remove(display.getUuid());
             LOGGER.warn("[PvP] 生成血量标签实体失败: {}", player.getGameProfile().getName());
             return null;

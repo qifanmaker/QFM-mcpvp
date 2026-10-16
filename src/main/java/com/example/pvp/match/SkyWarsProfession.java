@@ -7,6 +7,7 @@ import net.minecraft.item.Items;
 import net.minecraft.potion.Potions;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.entity.attribute.EntityAttributes;
 
 import java.util.List;
 
@@ -41,10 +42,15 @@ public enum SkyWarsProfession {
     }
 
     public void apply(ServerPlayerEntity player) {
+        var maxHealth = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
+        if (maxHealth != null) {
+            maxHealth.setBaseValue(30.0);
+        }
         player.getInventory().clear();
         for (int i = 0; i < this.items.size() && i < 36; i++) {
             player.getInventory().setStack(i, this.items.get(i).copy());
         }
+        player.setHealth(player.getMaxHealth());
         player.sendMessage(Text.literal("§a职业：§e" + this.displayName), false);
         player.currentScreenHandler.sendContentUpdates();
     }

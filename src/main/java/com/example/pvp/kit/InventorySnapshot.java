@@ -1,6 +1,7 @@
 package com.example.pvp.kit;
 
 import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
@@ -29,6 +30,7 @@ public final class InventorySnapshot {
     private final int experienceLevel;
     private final float experienceProgress;
     private final float health;
+    private final double maxHealthBase;
     private final int food;
     private final float saturation;
     private final float absorption;
@@ -64,6 +66,8 @@ public final class InventorySnapshot {
         this.experienceLevel = player.experienceLevel;
         this.experienceProgress = player.experienceProgress;
         this.health = player.getHealth();
+        var maxHealth = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
+        this.maxHealthBase = maxHealth == null ? 20.0 : maxHealth.getBaseValue();
         this.food = player.getHungerManager().getFoodLevel();
         this.saturation = player.getHungerManager().getSaturationLevel();
         this.absorption = player.getAbsorptionAmount();
@@ -127,7 +131,11 @@ public final class InventorySnapshot {
             enderChestInv.setStack(i, this.enderChest[i]);
         }
 
-        player.setHealth(Math.max(1f, this.health));
+        var maxHealth = player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH);
+        if (maxHealth != null) {
+            maxHealth.setBaseValue(this.maxHealthBase);
+        }
+        player.setHealth(Math.min(player.getMaxHealth(), Math.max(1f, this.health)));
         player.getHungerManager().setFoodLevel(this.food);
         player.getHungerManager().setSaturationLevel(this.saturation);
         player.setAbsorptionAmount(this.absorption);
