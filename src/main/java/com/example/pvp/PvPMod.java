@@ -25,6 +25,7 @@ import com.example.pvp.match.MatchState;
 import com.example.pvp.arena.race.BoatRaceSession;
 import com.example.pvp.arena.race.RaceItem;
 import com.example.pvp.match.MatchType;
+import com.example.pvp.match.SkyWarsProfessionGui;
 import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.match.VillageDefenseKits;
 import com.example.pvp.practice.PracticeManager;
@@ -331,6 +332,15 @@ public final class PvPMod implements ModInitializer {
                 if (MATCH != null && MATCH.isEliminated(serverPlayer.getUuid())) {
                     return TypedActionResult.fail(stack);
                 }
+                Match skywarsMatch = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
+                if (skywarsMatch != null && skywarsMatch.getType() == MatchType.SKYWARS
+                        && skywarsMatch.getState() == MatchState.COUNTDOWN) {
+                    if (stack.isOf(Items.PAPER) && stack.getName().getString().contains("选择空岛职业")) {
+                        SkyWarsProfessionGui.open(serverPlayer, skywarsMatch);
+                        return TypedActionResult.success(stack);
+                    }
+                    return TypedActionResult.fail(stack);
+                }
                 // 烫手山芋：禁止使用（吃/右键）山芋物品，只能左键传递
                 if (Match.isHotPotatoItem(stack)) {
                     return TypedActionResult.fail(stack);
@@ -401,6 +411,13 @@ public final class PvPMod implements ModInitializer {
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (player instanceof ServerPlayerEntity sp && MATCH != null && MATCH.isEliminated(sp.getUuid())) {
                 return ActionResult.FAIL;
+            }
+            if (player instanceof ServerPlayerEntity sp && MATCH != null) {
+                Match match = MATCH.getMatchFor(sp);
+                if (match != null && match.getType() == MatchType.SKYWARS
+                        && match.getState() == MatchState.COUNTDOWN) {
+                    return ActionResult.FAIL;
+                }
             }
             return ActionResult.PASS;
         });
@@ -662,6 +679,10 @@ public final class PvPMod implements ModInitializer {
             }
             if (player instanceof ServerPlayerEntity sp && MATCH != null) {
                 Match match = MATCH.getMatchFor(sp);
+                if (match != null && match.getType() == MatchType.SKYWARS
+                        && match.getState() != MatchState.ACTIVE) {
+                    return false;
+                }
                 if (match != null && match.getType().isBridge()) {
                     if (match.getState() != MatchState.ACTIVE) {
                         return false; // 倒计时/庆祝中禁止破坏

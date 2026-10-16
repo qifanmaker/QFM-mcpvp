@@ -123,6 +123,12 @@ public final class Match {
     private final List<ServerPlayerEntity> players;
     private final Map<UUID, InventorySnapshot> snapshots = new HashMap<>();
     private final Map<UUID, BlockPos> spawns = new HashMap<>();
+    /** 空岛战争开局职业选择。未选择时使用枚举中的第一个职业。 */
+    private final Map<UUID, SkyWarsProfession> skywarsProfessions = new HashMap<>();
+    /** 空岛战争开局玻璃笼子方块，倒计时结束时精确移除。 */
+    private final Set<BlockPos> skywarsCageBlocks = new HashSet<>();
+    /** 每名玩家仅用于开局下落的一次摔落免疫。 */
+    private final Set<UUID> skywarsStartFallSafe = new HashSet<>();
     private final List<MatchTeam> teams;
     private final ArenaTemplate template;
     private final int regionIndex;
@@ -351,7 +357,9 @@ public final class Match {
         this.template = template;
         this.regionIndex = regionIndex;
         // 亦可赛艇固定 3-2-1-GO（地图在这一段倒计时的第一帧一次性铺完，见 BoatRaceSession.prepare）
-        this.initialCountdownTicks = this.type.isBoatRace()
+        this.initialCountdownTicks = this.type == MatchType.SKYWARS
+                ? 10 * 20
+                : this.type.isBoatRace()
                 ? PvPConfig.INSTANCE.boatRaceCountdownSeconds * 20
                 : this.type.isBedWars()
                 ? PvPConfig.INSTANCE.bedWarsCountdownSeconds * 20
@@ -3311,6 +3319,7 @@ public final class Match {
         }
         this.state = MatchState.ENDED;
         try {
+            this.removeSkywarsCage();
             this.broadcast(Messages.error("比赛取消：" + reason));
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
@@ -3336,6 +3345,7 @@ public final class Match {
         this.winnerTeam = winnerTeam;
         this.celebrationTicks = 100; // 5 秒庆祝
         this.state = MatchState.CELEBRATING;
+        this.removeSkywarsCage();
         if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
             // 色盲派对：撤掉灾难/加成残留，把地板重绘成 GAME OVER
             try {
@@ -3838,6 +3848,23 @@ public final class Match {
         return this.skywarsVariant;
     }
 
+    public SkyWarsProfession skywarsProfessionOf(UUID uuid) {
+        return this.skywarsProfessions.getOrDefault(uuid, SkyWarsProfession.values()[0]);
+    }
+
+    public void setSkywarsProfession(UUID uuid, SkyWarsProfession profession) {
+        if (this.type != MatchType.SKYWARS || this.state != MatchState.COUNTDOWN || profession == null) {
+            return;
+        }
+        this.skywarsProfessions.put(uuid, profession);
+    }
+
+    /** 由摔落伤害拦截器消费一次空岛开局免伤。 */
+    public boolean consumeSkywarsStartFallProtection(ServerPlayerEntity player) {
+        return this.type == MatchType.SKYWARS && this.state == MatchState.ACTIVE
+                && this.skywarsStartFallSafe.remove(player.getUuid());
+    }
+
     /** 1.8 模式：切换剑格挡状态，移动速度由 PlayerEntityMixin 直接处理。 */
     public void setBlocking(ServerPlayerEntity player, boolean block) {
         if (block) {
@@ -3964,6 +3991,17 @@ public final class Match {
                 this.broadcastTitleBig("§a§lGO!", "§e按顺序穿过所有 Checkpoint，跑满 "
                         + this.boatRaceSession.laps() + " 圈");
             } else {
+            if (this.type == MatchType.SKYWARS) {
+                this.removeSkywarsCage();
+                for (ServerPlayerEntity player : this.players) {
+                    ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                    if (online == null) {
+                        continue;
+                    }
+                    this.skywarsStartFallSafe.add(player.getUuid());
+                    this.skywarsProfessionOf(player.getUuid()).apply(online);
+                }
+            }
                 this.broadcast(Messages.gold("战斗开始！"));
                 this.broadcastTitle("开始！");
             }
@@ -4006,6 +4044,42 @@ public final class Match {
                 online.velocityDirty = true;
             }
         }
+    }
+
+    /** 在出生岛上方搭建 3×3×3 玻璃笼子，并把玩家放在笼内。 */
+    private void prepareSkywarsCage(ArenaWorld arena, ServerPlayerEntity player, BlockPos spawn) {
+        BlockPos base = spawn.up(9);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = 0; dy <= 3; dy++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (Math.abs(dx) != 1 && Math.abs(dz) != 1 && dy != 0 && dy != 3) {
+                        continue;
+                    }
+                    BlockPos cageBlock = base.add(dx, dy, dz);
+                    arena.setBlockState(cageBlock, Blocks.GLASS.getDefaultState(), 3);
+                    this.skywarsCageBlocks.add(cageBlock);
+                }
+            }
+        }
+        player.teleport(arena, spawn.getX() + 0.5, base.getY() + 1.0, spawn.getZ() + 0.5,
+                this.faceCenter(spawn), 0);
+        player.setVelocity(Vec3d.ZERO);
+        player.velocityDirty = true;
+    }
+
+    private void removeSkywarsCage() {
+        if (this.skywarsCageBlocks.isEmpty()) {
+            return;
+        }
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena != null) {
+            for (BlockPos pos : this.skywarsCageBlocks) {
+                if (arena.getBlockState(pos).isOf(Blocks.GLASS)) {
+                    arena.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                }
+            }
+        }
+        this.skywarsCageBlocks.clear();
     }
 
     /**
@@ -4235,8 +4309,12 @@ public final class Match {
                 // 战桥：队伍色装备 + 生存模式（可放/拆方块）
                 this.applyBridgeGear(online);
             } else if (skywars) {
-                // 空岛战争：无套件，生存模式空手开局，开箱搜刮装备
+                // 空岛战争：先清空背包并放入职业选择纸，玩家站在出生岛上方玻璃笼子内
                 this.clearForBareStart(online, GameMode.SURVIVAL, 5f, false);
+                ItemStack selector = new ItemStack(Items.PAPER);
+                selector.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§e选择空岛职业（右键）"));
+                online.getInventory().setStack(8, selector);
+                this.prepareSkywarsCage(arena, online, spawn);
             } else if (luckyPillar) {
                 // 幸运之柱：无套件，生存模式空手开局，等随机物品发放
                 this.clearForBareStart(online, GameMode.SURVIVAL, 5f, false);
@@ -4281,6 +4359,14 @@ public final class Match {
         }
 
         this.createScoreboardTeams();
+        if (skywars) {
+            for (ServerPlayerEntity player : this.players) {
+                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+                if (online != null) {
+                    SkyWarsProfessionGui.open(online, this);
+                }
+            }
+        }
         if (bridge) {
             this.broadcast(Messages.info("战桥开始！冲进对方球门得分，先得 "
                     + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜！（1.8 低版本战斗）"));

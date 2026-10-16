@@ -70,6 +70,14 @@ public abstract class LivingEntityMixin {
         if (self instanceof ServerPlayerEntity player && fallDistance > 2.0f
                 && PvPMod.consumeFireballNoFall(player)) {
             cir.setReturnValue(false); // 免掉第一次摔落伤害
+            return;
+        }
+        if (self instanceof ServerPlayerEntity player && fallDistance > 2.0f
+                && PvPMod.MATCH != null) {
+            com.example.pvp.match.Match match = PvPMod.MATCH.getMatchFor(player);
+            if (match != null && match.consumeSkywarsStartFallProtection(player)) {
+                cir.setReturnValue(false); // 空岛开局从玻璃笼子落下时免疫一次摔落伤害
+            }
         }
     }
 }
