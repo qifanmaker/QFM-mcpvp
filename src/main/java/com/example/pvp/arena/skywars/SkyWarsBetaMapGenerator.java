@@ -126,13 +126,16 @@ public final class SkyWarsBetaMapGenerator {
         if (steps == 0) {
             return;
         }
+        boolean widenAlongZ = Math.abs(to.getX() - from.getX()) >= Math.abs(to.getZ() - from.getZ());
         for (int i = 1; i < steps; i++) {
             double t = i / (double) steps;
             int x = (int) Math.round(from.getX() + (to.getX() - from.getX()) * t);
             int y = (int) Math.round(from.getY() + (to.getY() - from.getY()) * t);
             int z = (int) Math.round(from.getZ() + (to.getZ() - from.getZ()) * t);
-            for (int dx = -width; dx <= width; dx++) {
-                world.setBlockState(new BlockPos(x + dx, y, z), block.getDefaultState(), 3);
+            for (int offset = -width; offset <= width; offset++) {
+                int blockX = widenAlongZ ? x : x + offset;
+                int blockZ = widenAlongZ ? z + offset : z;
+                world.setBlockState(new BlockPos(blockX, y, blockZ), block.getDefaultState(), 3);
             }
         }
     }

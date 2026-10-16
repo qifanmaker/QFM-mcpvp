@@ -4285,7 +4285,9 @@ public final class Match {
                     + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜！（1.8 低版本战斗）"));
         } else if (skywars) {
             String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
-            this.broadcast(Messages.info("空岛战争开始！主题：§e" + themeName + "§r。搜刮空岛，成为最后幸存者！（1.8 低版本战斗）"));
+            String variantName = this.skywarsVariant == SkyWarsMapVariant.BETA ? "§dBeta 立体地图" : "§7经典地图";
+            this.broadcast(Messages.info("空岛战争开始！" + variantName + "，主题：§e" + themeName
+                    + "§r。搜刮空岛，成为最后幸存者！（1.8 低版本战斗）"));
         } else if (luckyPillar) {
             this.broadcast(Messages.info("幸运之柱开始！空手站在柱顶，每 §e"
                     + PvPConfig.INSTANCE.luckyPillarItemIntervalSeconds + "§r 秒获得随机物品，还会触发随机事件！最后的幸存者获胜！（1.8 低版本战斗）"));
