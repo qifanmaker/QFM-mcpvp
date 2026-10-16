@@ -4,6 +4,7 @@ import com.example.pvp.PvPMod;
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
+import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.text.Messages;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
@@ -274,6 +275,9 @@ public final class PracticeSession {
             return;
         }
 
+        // 每轮重新从出发点开始时，清除上一轮搭出的方块，保留出发点和目标台。
+        this.clearRunBlocks();
+
         running = false;
         finished = false;
         runTicks = 0;
@@ -310,6 +314,36 @@ public final class PracticeSession {
         return type == PracticeType.BRIDGE
                 ? new ItemStack(Items.WHITE_WOOL, type.getSupply())
                 : new ItemStack(Items.ENDER_PEARL, type.getSupply());
+    }
+
+    /** 清理本轮搭出的方块，保留两个平台，避免每轮都重建整块练习区域。 */
+    private void clearRunBlocks() {
+        ArenaWorld arena = arena();
+        if (arena == null) {
+            return;
+        }
+
+        int minX = startPad.getX() - PAD_HALF - 6;
+        int maxX = targetPad.getX() + PAD_HALF + 6;
+        int minZ = Math.min(startPad.getZ(), targetPad.getZ()) - PAD_HALF - 16;
+        int maxZ = Math.max(startPad.getZ(), targetPad.getZ()) + PAD_HALF + 16;
+        int minY = FALL_Y - 4;
+        int maxY = GROUND_Y + 96;
+
+        BlockPos.Mutable pos = new BlockPos.Mutable();
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                for (int y = minY; y <= maxY; y++) {
+                    pos.set(x, y, z);
+                    if (this.protectedBlocks.contains(pos)) {
+                        continue;
+                    }
+                    if (!arena.getBlockState(pos).isAir()) {
+                        arena.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                    }
+                }
+            }
+        }
     }
 
     // ---------- 珍珠 ----------
@@ -375,6 +409,7 @@ public final class PracticeSession {
             player.clearStatusEffects();
             player.getHungerManager().setFoodLevel(20);
             player.getInventory().clear();
+            PvpGuiManager.get().giveMenuItem(player);
             player.currentScreenHandler.sendContentUpdates();
             player.sendMessage(Messages.info("§6已退出练习模式"), false);
         }
