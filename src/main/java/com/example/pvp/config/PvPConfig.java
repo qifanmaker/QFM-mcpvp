@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 11;
+    public static final int CURRENT_CONFIG_VERSION = 12;
 
     /**
      * 生成这份文件时的配置版本。
@@ -650,6 +650,12 @@ public final class PvPConfig {
                             + "原先的自定义调参需要重新设置",
                     INSTANCE.configVersion, CURRENT_CONFIG_VERSION, path);
             INSTANCE = new PvPConfig();
+            // 赛道多样化是当前 Boat Race 的基础玩法。这里显式写入，避免发布时默认字段
+            // 或旧配置迁移把开关重置成 false，导致服务器生成圆形或无分岔赛道。
+            INSTANCE.boatRaceEnableRandomTrack = true;
+            INSTANCE.boatRaceTrackWidthRandom = true;
+            INSTANCE.boatRaceMirrorRandom = true;
+            INSTANCE.boatRaceForksEnabled = true;
             save();
             return;
         }
