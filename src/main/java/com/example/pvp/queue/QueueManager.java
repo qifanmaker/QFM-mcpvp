@@ -6,6 +6,7 @@ import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitManager;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchType;
+import com.example.pvp.arena.skywars.SkyWarsMapVariant;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.MinecraftServer;
@@ -101,10 +102,14 @@ public final class QueueManager {
     }
 
     public boolean join(ServerPlayerEntity player, MatchType type, Kit kit) {
+        return this.join(player, type, kit, SkyWarsMapVariant.CLASSIC);
+    }
+
+    public boolean join(ServerPlayerEntity player, MatchType type, Kit kit, SkyWarsMapVariant skyWarsVariant) {
         if (this.contains(player.getUuid())) {
             return false;
         }
-        this.entries.add(new QueueEntry(player, type, kit, this.server.getTicks()));
+        this.entries.add(new QueueEntry(player, type, kit, this.server.getTicks(), skyWarsVariant));
         PvpGuiManager.giveQueueItem(player); // 快捷栏第一格放「离开排队」红石
         return true;
     }
@@ -317,8 +322,16 @@ public final class QueueManager {
             return;
         }
 
+        SkyWarsMapVariant variant = this.entries.stream()
+                .filter(entry -> entry.getType() == MatchType.SKYWARS)
+                .map(QueueEntry::getSkyWarsVariant)
+                .findFirst()
+                .orElse(SkyWarsMapVariant.CLASSIC);
         for (QueueEntry entry : List.copyOf(this.entries)) {
             if (entry.getType() != MatchType.SKYWARS) {
+                continue;
+            }
+            if (entry.getSkyWarsVariant() != variant) {
                 continue;
             }
             if (players.size() >= config.skywarsMaxPlayers) {
@@ -339,7 +352,7 @@ public final class QueueManager {
         for (ServerPlayerEntity player : players) {
             kits.put(player.getUuid(), sentinel);
         }
-        if (matchManager.startMatch(players, MatchType.SKYWARS, kits)) {
+        if (matchManager.startMatch(players, MatchType.SKYWARS, kits, variant)) {
             this.entries.removeAll(toRemove);
         }
         // 开赛失败（场地已满）则保留排队，等待下一轮

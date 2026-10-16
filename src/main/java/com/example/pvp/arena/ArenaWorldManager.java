@@ -12,6 +12,7 @@ import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.race.RaceMapGenerator;
 import com.example.pvp.arena.luckypillar.LuckyPillarMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
+import com.example.pvp.arena.skywars.SkyWarsMapVariant;
 import com.example.pvp.arena.tntrun.TntRunLayout;
 import com.example.pvp.arena.tntrun.TntRunMapGenerator;
 import com.example.pvp.config.PvPConfig;
@@ -173,7 +174,7 @@ public final class ArenaWorldManager {
      */
     public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount, MatchType type,
                            List<ServerPlayerEntity> players) {
-        this.buildArena(regionIndex, template, seed, playerCount, type, players, null);
+        this.buildArena(regionIndex, template, seed, playerCount, type, players, null, SkyWarsMapVariant.CLASSIC);
     }
 
     /**
@@ -184,11 +185,18 @@ public final class ArenaWorldManager {
      */
     public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount, MatchType type,
                            List<ServerPlayerEntity> players, LuckyPillarLayout luckyPillarLayout) {
+        this.buildArena(regionIndex, template, seed, playerCount, type, players, luckyPillarLayout,
+                SkyWarsMapVariant.CLASSIC);
+    }
+
+    public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount, MatchType type,
+                           List<ServerPlayerEntity> players, LuckyPillarLayout luckyPillarLayout,
+                           SkyWarsMapVariant skyWarsVariant) {
         ArenaWorld arena = this.requireWorld();
 
         // 空岛战争：随机生成出生岛 + 中间主岛 + 箱子战利品
         if (template.getLayout() == ArenaTemplate.Layout.SKYWARS) {
-            SkyWarsMapGenerator.generate(arena, regionIndex, seed, playerCount, players);
+            SkyWarsMapGenerator.generate(arena, regionIndex, seed, playerCount, players, skyWarsVariant);
             return;
         }
 

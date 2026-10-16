@@ -2,6 +2,7 @@ package com.example.pvp.gui;
 
 import com.example.pvp.PvPMod;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
+import com.example.pvp.arena.skywars.SkyWarsMapVariant;
 import com.example.pvp.config.PlayerStats;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
@@ -862,7 +863,7 @@ public final class PvpGuiManager {
             // 空岛战争无套件，直接加入
             case 10 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
             // Beta 地图仅展示入口，具体玩法由后续需求接入。
-            case 11 -> player.sendMessage(Messages.info("空岛 Beta 地图入口已预留，玩法待定"), false);
+            case 11 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit(), SkyWarsMapVariant.BETA);
             case 12 -> this.openBridgeCategory(player);
             case 13 -> this.openGamesCategory(player);
             case 14 -> this.openBedWarsCategory(player);
@@ -1094,18 +1095,23 @@ public final class PvpGuiManager {
     }
 
     private void joinQueue(ServerPlayerEntity player, MatchType type, Kit kit) {
+        this.joinQueue(player, type, kit, SkyWarsMapVariant.CLASSIC);
+    }
+
+    private void joinQueue(ServerPlayerEntity player, MatchType type, Kit kit, SkyWarsMapVariant skyWarsVariant) {
         if (isBusy(player)) {
             player.sendMessage(Messages.error("你正在比赛或队列中"), false);
             player.closeHandledScreen();
             return;
         }
-        if (PvPMod.QUEUE.join(player, type, kit)) {
+        if (PvPMod.QUEUE.join(player, type, kit, skyWarsVariant)) {
             if (type == MatchType.FFA) {
                 player.sendMessage(Messages.info("已加入自由乱斗：凑齐 " + PvPConfig.INSTANCE.ffaMinPlayers
                         + " 人后倒计时 " + PvPConfig.INSTANCE.ffaCountdownSeconds + " 秒开赛"), false);
             } else if (type == MatchType.SKYWARS) {
-                player.sendMessage(Messages.info("已加入空岛战争：凑齐 " + PvPConfig.INSTANCE.skywarsStartPlayers
-                        + " 人开赛，开箱获得装备"), false);
+                String mapLabel = skyWarsVariant == SkyWarsMapVariant.BETA ? "空岛 Beta 地图" : "空岛战争";
+                player.sendMessage(Messages.info("已加入" + mapLabel + "：凑齐 "
+                        + PvPConfig.INSTANCE.skywarsStartPlayers + " 人开赛，开箱获得装备"), false);
             } else if (type == MatchType.LUCKY_PILLAR) {
                 player.sendMessage(Messages.info("已加入幸运之柱：凑齐 " + PvPConfig.INSTANCE.luckyPillarStartPlayers
                         + " 人开赛，空手开局，随机物品与事件"), false);

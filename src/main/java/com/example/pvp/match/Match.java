@@ -21,6 +21,7 @@ import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.tntrun.TntRunLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
+import com.example.pvp.arena.skywars.SkyWarsMapVariant;
 import com.example.pvp.arena.villagedefense.VillageDefenseFixes;
 import com.example.pvp.arena.villagedefense.VillageWorldImporter;
 import com.example.pvp.config.PvPConfig;
@@ -139,6 +140,7 @@ public final class Match {
     private final SkyWarsTheme skywarsTheme;
     /** 空岛战争地图种子：比赛 ID，OP 强制指定主题时会对齐低位使 pick 结果等于指定主题。 */
     private final int skywarsSeed;
+    private final SkyWarsMapVariant skywarsVariant;
     private int skywarsShrinkStage; // 已执行的缩圈档数
     private int skywarsLastKeepRadius = Integer.MAX_VALUE; // 上一档安全半径
     private boolean skywarsChestRefilled; // "物资刷新"事件是否已触发（每场一次）
@@ -315,13 +317,14 @@ public final class Match {
 
     private Match(MatchManager manager, int id, MatchType type,
                   List<ServerPlayerEntity> players, int regionIndex, ArenaTemplate template,
-                  Map<UUID, Kit> kits) {
+                  Map<UUID, Kit> kits, SkyWarsMapVariant skyWarsVariant) {
         this.manager = manager;
         this.id = id;
         this.type = type;
         this.playerKits = new HashMap<>(kits);
         this.kit = kits.get(players.get(0).getUuid());
         this.players = List.copyOf(players);
+        this.skywarsVariant = skyWarsVariant == null ? SkyWarsMapVariant.CLASSIC : skyWarsVariant;
         // 床战：先加载地图并探测布局，再按布局分队（保证队伍颜色与岛屿一致）
         if (type.isBedWars()) {
             java.nio.file.Path mapDir = null;
@@ -560,7 +563,13 @@ public final class Match {
     public static Match create(MatchManager manager, int id, MatchType type,
                                List<ServerPlayerEntity> players, int regionIndex, ArenaTemplate template,
                                Map<UUID, Kit> kits) {
-        return new Match(manager, id, type, players, regionIndex, template, kits);
+        return create(manager, id, type, players, regionIndex, template, kits, SkyWarsMapVariant.CLASSIC);
+    }
+
+    public static Match create(MatchManager manager, int id, MatchType type,
+                               List<ServerPlayerEntity> players, int regionIndex, ArenaTemplate template,
+                               Map<UUID, Kit> kits, SkyWarsMapVariant skyWarsVariant) {
+        return new Match(manager, id, type, players, regionIndex, template, kits, skyWarsVariant);
     }
 
     private static List<MatchTeam> buildTeams(MatchType type, List<ServerPlayerEntity> players,
@@ -3809,7 +3818,11 @@ public final class Match {
         if (requeue) {
             Kit kit = this.playerKits.get(player.getUuid());
             if (kit != null && PvPMod.QUEUE != null) {
-                PvPMod.QUEUE.join(player, this.type, kit);
+                if (this.type == MatchType.SKYWARS) {
+                    PvPMod.QUEUE.join(player, this.type, kit, this.skywarsVariant);
+                } else {
+                    PvPMod.QUEUE.join(player, this.type, kit);
+                }
                 player.sendMessage(Messages.info("已重新进入匹配队列：模式 " + this.type.getDisplayName()), false);
             }
         }
@@ -3818,6 +3831,10 @@ public final class Match {
     /** 1.8 模式：玩家是否正在剑格挡。 */
     public boolean isBlocking(ServerPlayerEntity player) {
         return this.blocking.contains(player.getUuid());
+    }
+
+    public SkyWarsMapVariant skywarsVariant() {
+        return this.skywarsVariant;
     }
 
     /** 1.8 模式：切换剑格挡状态，移动速度由 PlayerEntityMixin 直接处理。 */
@@ -4049,7 +4066,7 @@ public final class Match {
         }
 
         this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.skywarsSeed,
-                this.players.size(), this.type, this.players, this.luckyPillarLayout);
+                this.players.size(), this.type, this.players, this.luckyPillarLayout, this.skywarsVariant);
 
         if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
             // 色盲派对的第 1 回合地板：必须在暂存阶段铺（构造器里只算出生点）

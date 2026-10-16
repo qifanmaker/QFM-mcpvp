@@ -59,6 +59,20 @@ public final class SkyWarsMapGenerator {
     /** 生成一整张空岛地图（含战利品），并返回布局（出生点已在 Match 构造时算好）。主题由 seed 抽取。 */
     public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
                                          List<ServerPlayerEntity> players) {
+        return generate(world, regionIndex, seed, playerCount, players, SkyWarsMapVariant.CLASSIC);
+    }
+
+    /** 生成指定变体的空岛地图；战斗规则仍由同一个 SKYWARS 模式处理。 */
+    public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
+                                         List<ServerPlayerEntity> players, SkyWarsMapVariant variant) {
+        if (variant == SkyWarsMapVariant.BETA) {
+            return SkyWarsBetaMapGenerator.generate(world, regionIndex, seed, playerCount, players);
+        }
+        return generateClassic(world, regionIndex, seed, playerCount, players);
+    }
+
+    static SkyWarsLayout generateClassic(ArenaWorld world, int regionIndex, int seed, int playerCount,
+                                         List<ServerPlayerEntity> players) {
         BlockPos mapCenter = center(regionIndex);
         SkyWarsLayout layout = SkyWarsLayout.compute(mapCenter, seed, playerCount);
         SkyWarsTheme theme = SkyWarsTheme.pick(seed);

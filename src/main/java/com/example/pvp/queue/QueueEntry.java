@@ -2,6 +2,7 @@ package com.example.pvp.queue;
 
 import com.example.pvp.kit.Kit;
 import com.example.pvp.match.MatchType;
+import com.example.pvp.arena.skywars.SkyWarsMapVariant;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 /**
@@ -12,12 +13,19 @@ public final class QueueEntry {
     private final MatchType type;
     private final Kit kit;
     private final long queuedAtTick;
+    private final SkyWarsMapVariant skyWarsVariant;
 
     public QueueEntry(ServerPlayerEntity player, MatchType type, Kit kit, long queuedAtTick) {
+        this(player, type, kit, queuedAtTick, SkyWarsMapVariant.CLASSIC);
+    }
+
+    public QueueEntry(ServerPlayerEntity player, MatchType type, Kit kit, long queuedAtTick,
+                      SkyWarsMapVariant skyWarsVariant) {
         this.player = player;
         this.type = type;
         this.kit = kit;
         this.queuedAtTick = queuedAtTick;
+        this.skyWarsVariant = skyWarsVariant == null ? SkyWarsMapVariant.CLASSIC : skyWarsVariant;
     }
 
     public ServerPlayerEntity getPlayer() {
@@ -34,5 +42,9 @@ public final class QueueEntry {
 
     public long getQueuedAtTick() {
         return this.queuedAtTick;
+    }
+
+    public SkyWarsMapVariant getSkyWarsVariant() {
+        return this.skyWarsVariant;
     }
 }

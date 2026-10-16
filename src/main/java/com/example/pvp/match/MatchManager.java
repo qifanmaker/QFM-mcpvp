@@ -5,6 +5,7 @@ import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
+import com.example.pvp.arena.skywars.SkyWarsMapVariant;
 import com.example.pvp.config.PlayerStats;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.config.StatsStore;
@@ -424,11 +425,17 @@ public final class MatchManager {
         for (ServerPlayerEntity player : players) {
             kits.put(player.getUuid(), kit);
         }
-        return this.startMatch(players, type, kits);
+        return this.startMatch(players, type, kits, SkyWarsMapVariant.CLASSIC);
     }
 
     /** 尝试开一场比赛（支持每名玩家各自套件，FFA 混套件用），成功返回 true。 */
     public boolean startMatch(List<ServerPlayerEntity> players, MatchType type, Map<UUID, Kit> kits) {
+        return this.startMatch(players, type, kits, SkyWarsMapVariant.CLASSIC);
+    }
+
+    /** 尝试开赛并指定空岛地图变体；其他模式忽略该参数。 */
+    public boolean startMatch(List<ServerPlayerEntity> players, MatchType type, Map<UUID, Kit> kits,
+                              SkyWarsMapVariant skyWarsVariant) {
         if (this.server == null) {
             return false;
         }
@@ -538,7 +545,7 @@ public final class MatchManager {
         }
         Match match;
         try {
-            match = Match.create(this, id, type, players, regionIndex, template, kits);
+            match = Match.create(this, id, type, players, regionIndex, template, kits, skyWarsVariant);
             // 亦可赛艇：按参赛玩家的多数意见决定本场圈数（必须在开赛铺图之前设好）
             if (type.isBoatRace() && match.boatRaceSession() != null && com.example.pvp.PvPMod.QUEUE != null) {
                 match.boatRaceSession().setLaps(com.example.pvp.PvPMod.QUEUE.resolveBoatRaceLaps(players));
