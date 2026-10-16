@@ -67,7 +67,7 @@ public final class KitManager {
 
     /**
      * 1.8 经典套件的 id。这套装备自带 1.8.7 手感 —— 用它的人无论在哪个模式
-     * （自由乱斗 / 死斗 / 1v1 …）都按无攻击冷却 + 剑格挡打，见
+     * （自由乱斗 / 死斗 / 1v1 …）都按无攻击冷却打，见
      * {@code MatchManager.usesLegacyCombat}。
      */
     public static final String LEGACY_18_KIT_ID = "legacy_1_8";
@@ -371,7 +371,7 @@ public final class KitManager {
     /**
      * 1.8 经典：钻石剑 + 全套铁甲 + 8 金苹果 + 速度 II。
      * 这是唯一一套自带 1.8.7 战斗手感的套件 —— 选它的玩家在任何模式里都按
-     * 无攻击冷却 + 剑格挡打（见 {@code MatchManager.usesLegacyCombat}）。
+     * 无攻击冷却打（见 {@code MatchManager.usesLegacyCombat}）。
      */
     private static Kit buildLegacy18Kit() {
         return new Kit.Builder(LEGACY_18_KIT_ID, KitType.CUSTOM)

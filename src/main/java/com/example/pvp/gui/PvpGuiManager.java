@@ -404,7 +404,7 @@ public final class PvpGuiManager {
         }
         int win = PvPConfig.INSTANCE.bridgeWinScore;
         inv.setStack(9, queueButton(Items.BRICK, "§3战桥 1v1", player, MatchType.BRIDGE_1V1,
-                "2 人，先得 " + win + " 分获胜", "跳进对方球门洞得分", "1.8 低版本战斗：无冷却、剑格挡", "点击直接加入"));
+                "2 人，先得 " + win + " 分获胜", "跳进对方球门洞得分", "1.8 低版本战斗：无攻击冷却", "点击直接加入"));
         inv.setStack(10, queueButton(Items.IRON_BARS, "§5战桥 1v1v1v1", player, MatchType.BRIDGE_1V1V1V1,
                 "4 人四方混战，各自一个球门", "先得 " + win + " 分获胜", "点击直接加入"));
         inv.setStack(11, queueButton(Items.RED_TERRACOTTA, "§b战桥 2v2", player, MatchType.BRIDGE_2V2,

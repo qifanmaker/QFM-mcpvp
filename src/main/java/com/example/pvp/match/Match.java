@@ -64,7 +64,6 @@ import net.minecraft.entity.projectile.FireworkRocketEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.item.SwordItem;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKeys;
@@ -133,8 +132,6 @@ public final class Match {
     private final ArenaTemplate template;
     private final int regionIndex;
     private final Set<UUID> eliminated = new HashSet<>();
-    private final Set<UUID> blocking = new HashSet<>(); // 1.8 模式剑格挡
-    private final Map<UUID, Integer> blockingRefresh = new HashMap<>(); // 格挡刷新倒计时
     private final Set<UUID> leftEarly = new HashSet<>(); // 旁观者提前离场
     private final Set<String> infoLines = new HashSet<>(); // 计分板信息栏行
     private final Set<UUID> scoreboardCleaned = new HashSet<>(); // 已清空计分板的玩家（提前离场后不再接收本场计分板包）
@@ -640,7 +637,7 @@ public final class Match {
 
     /**
      * 该玩家本场用的是不是「1.8 经典」套件。
-     * 用它的人在**任何模式**里都按 1.8.7 手感打（无攻击冷却 + 剑格挡），
+     * 用它的人在**任何模式**里都按 1.8.7 手感打（无攻击冷却），
      * 而不是只有进 1.8 模式才有 —— 见 {@code MatchManager.usesLegacyCombat}。
      */
     public boolean isLegacy18KitPlayer(ServerPlayerEntity player) {
@@ -795,9 +792,6 @@ public final class Match {
                 if (this.type.isBridge()) {
                     this.tickBridge();
                 }
-                // 1.8 格挡维护：对所有模式都跑 —— 用「1.8 经典」套件的人在自由乱斗/死斗里
-                // 也会进入格挡，只给 1.8 模式跑的话那边的格挡状态（含缓慢效果）永远不解除
-                this.tickLegacyBlocking();
                 if (this.type == MatchType.SKYWARS) {
                     this.tickSkywarsShrink();
                     this.tickSkywarsTotem();
@@ -3839,11 +3833,6 @@ public final class Match {
         }
     }
 
-    /** 1.8 模式：玩家是否正在剑格挡。 */
-    public boolean isBlocking(ServerPlayerEntity player) {
-        return this.blocking.contains(player.getUuid());
-    }
-
     public SkyWarsMapVariant skywarsVariant() {
         return this.skywarsVariant;
     }
@@ -3863,45 +3852,6 @@ public final class Match {
     public boolean consumeSkywarsStartFallProtection(ServerPlayerEntity player) {
         return this.type == MatchType.SKYWARS && this.state == MatchState.ACTIVE
                 && this.skywarsStartFallSafe.remove(player.getUuid());
-    }
-
-    /** 1.8 模式：切换剑格挡状态，移动速度由 PlayerEntityMixin 直接处理。 */
-    public void setBlocking(ServerPlayerEntity player, boolean block) {
-        if (block) {
-            this.blocking.add(player.getUuid());
-            this.blockingRefresh.put(player.getUuid(), BLOCK_REFRESH_TICKS);
-        } else {
-            this.blocking.remove(player.getUuid());
-            this.blockingRefresh.remove(player.getUuid());
-        }
-    }
-
-    /** 剑格挡刷新窗口（tick）：右键松开后最多约 0.2 秒退出。 */
-    private static final int BLOCK_REFRESH_TICKS = 4;
-
-    /** 每帧维护 1.8 格挡：不拿剑则取消；格挡倒计时走完（松开右键）则退出。 */
-    private void tickLegacyBlocking() {
-        for (ServerPlayerEntity player : this.players) {
-            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-            if (online == null) {
-                continue;
-            }
-            boolean isBlocking = this.blocking.contains(player.getUuid());
-            if (!isBlocking) {
-                continue;
-            }
-            boolean holdingSword = online.getMainHandStack().getItem() instanceof SwordItem;
-            if (!holdingSword) {
-                this.setBlocking(online, false);
-                continue;
-            }
-            Integer remaining = this.blockingRefresh.get(player.getUuid());
-            if (remaining == null || remaining <= 0) {
-                this.setBlocking(online, false); // 松开右键：刷新倒计时耗尽
-                continue;
-            }
-            this.blockingRefresh.put(player.getUuid(), remaining - 1);
-        }
     }
 
     /** 把仍在倒计时的玩家传送回自己的出生点（掉入虚空时使用）。 */

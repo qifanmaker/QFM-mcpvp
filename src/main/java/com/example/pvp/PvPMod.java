@@ -56,7 +56,6 @@ import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.projectile.FireballEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.item.SwordItem;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -369,14 +368,6 @@ public final class PvPMod implements ModInitializer {
                     }
                     return TypedActionResult.success(stack);
                 }
-                // 1.8 手感（1.8 模式，或用「1.8 经典」套件的玩家）：右键剑进入格挡
-                if (stack.getItem() instanceof SwordItem) {
-                    Match match = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
-                    if (match != null && MATCH.usesLegacyCombat(serverPlayer)) {
-                        match.setBlocking(serverPlayer, true);
-                        return TypedActionResult.success(stack);
-                    }
-                }
                 // 竞技场内 TNT：右键即抛出（对准方块时由 UseBlockCallback 拦截抛出，不再放置）
                 if (stack.isOf(Items.TNT) && world.getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
                     throwTnt(serverPlayer, world, stack);
@@ -420,19 +411,6 @@ public final class PvPMod implements ModInitializer {
                 }
             }
             return ActionResult.PASS;
-        });
-        // 1.8 手感：对着方块右键时也进入剑格挡；否则方块交互会绕过 UseItemCallback。
-        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (!(player instanceof ServerPlayerEntity sp) || MATCH == null
-                    || !(sp.getStackInHand(hand).getItem() instanceof SwordItem)) {
-                return ActionResult.PASS;
-            }
-            Match match = MATCH.getMatchFor(sp);
-            if (match == null || !MATCH.usesLegacyCombat(sp)) {
-                return ActionResult.PASS;
-            }
-            match.setBlocking(sp, true);
-            return ActionResult.SUCCESS;
         });
         // 竞技场内 TNT：对着方块右键也抛出而不是放置（UseItemCallback 只覆盖"右键空气"路径）
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
