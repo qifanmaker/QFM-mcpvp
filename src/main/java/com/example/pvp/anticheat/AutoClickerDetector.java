@@ -71,7 +71,8 @@ public final class AutoClickerDetector {
         int threshold = type == ActionType.ATTACK
                 ? PvPConfig.INSTANCE.autoClickerAttackCps
                 : PvPConfig.INSTANCE.autoClickerBlockPlaceCps;
-        if (threshold <= 0 || samples.size() < threshold * 3) {
+        int minimumSamples = threshold > 0 ? threshold * 3 : 0;
+        if (threshold <= 0 || samples.size() < minimumSamples) {
             return false;
         }
         long duration = samples.peekLast() - samples.peekFirst();
@@ -83,25 +84,27 @@ public final class AutoClickerDetector {
             return false;
         }
 
-        // 稳定性只看最近一段完整样本，允许网络抖动，但排除一次性爆发。
-        ArrayDeque<Long> intervals = new ArrayDeque<>();
-        Long previous = null;
+        // 单次遍历计算间隔方差，避免每次判定都创建临时队列和 Stream。
+        int intervalCount = 0;
+        long previous = 0L;
+        double intervalSum = 0.0;
+        double intervalSquareSum = 0.0;
         for (Long sample : samples) {
-            if (previous != null) {
-                intervals.addLast(sample - previous);
+            long timestamp = sample;
+            if (intervalCount > 0) {
+                double interval = timestamp - previous;
+                intervalSum += interval;
+                intervalSquareSum += interval * interval;
             }
-            previous = sample;
+            previous = timestamp;
+            intervalCount++;
         }
-        if (intervals.size() < threshold * 2) {
+        if (intervalCount - 1 < threshold * 2) {
             return false;
         }
-        double mean = intervals.stream().mapToLong(Long::longValue).average().orElse(Double.MAX_VALUE);
-        double variance = intervals.stream()
-                .mapToDouble(interval -> {
-                    double delta = interval - mean;
-                    return delta * delta;
-                }).average().orElse(Double.MAX_VALUE);
-        return mean > 0.0 && Math.sqrt(variance) / mean <= 0.28;
+        double mean = intervalSum / (intervalCount - 1);
+        double variance = intervalSquareSum / (intervalCount - 1) - mean * mean;
+        return mean > 0.0 && Math.sqrt(Math.max(0.0, variance)) / mean <= 0.28;
     }
 
     private double rate(Deque<Long> samples) {
