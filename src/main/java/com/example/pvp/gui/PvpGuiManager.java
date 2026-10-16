@@ -219,7 +219,7 @@ public final class PvpGuiManager {
 
     // ---------- 页面 ----------
 
-    /** 主菜单：4 大类（PvP 对战 / 空岛战争 / 战桥 / 趣味小游戏）+ 功能入口。 */
+    /** 主菜单：PvP 对战、空岛战争、Beta 地图、战桥、趣味小游戏、起床战争与功能入口。 */
     public void openMainMenu(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.MAIN;
@@ -242,7 +242,7 @@ public final class PvpGuiManager {
                 MatchType.DUEL_1V1, MatchType.DUEL_2V2, MatchType.FFA, MatchType.SUMO));
         inv.setStack(9, pvp);
 
-        ItemStack skywars = makeButton(Items.END_CRYSTAL, "§6空岛战争 (Beta)", "2~8 人，凑齐 "
+        ItemStack skywars = makeButton(Items.END_CRYSTAL, "§6空岛战争", "2~8 人，凑齐 "
                 + PvPConfig.INSTANCE.skywarsStartPlayers + " 人开赛",
                 "随机空岛 + 中间主岛，开箱获得装备",
                 "1.8 低版本战斗，3 分钟后缩圈",
@@ -250,20 +250,25 @@ public final class PvpGuiManager {
         this.applyQueueIndicator(skywars, player, PvPMod.QUEUE.countQueued(MatchType.SKYWARS));
         inv.setStack(10, skywars);
 
+        // Beta 地图先作为独立入口展示，等玩法规则确定后再接入对应队列。
+        inv.setStack(11, makeButton(Items.MAP, "§6空岛 (Beta地图)",
+                "测试中的空岛地图入口",
+                "功能待定，暂不加入队列"));
+
         ItemStack bridge = makeButton(Items.BRICK, "§3§l战桥",
                 "1v1 / 1v1v1v1 / 2v2 / 混战",
                 "跳进对方球门洞得分，先得 " + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜",
                 "点击选择战桥模式");
         this.applyQueueIndicator(bridge, player, PvPMod.QUEUE.countQueued(
                 MatchType.BRIDGE_1V1, MatchType.BRIDGE_1V1V1V1, MatchType.BRIDGE_2V2, MatchType.BRIDGE_TEAM));
-        inv.setStack(11, bridge);
+        inv.setStack(12, bridge);
 
         ItemStack games = makeButton(Items.FIREWORK_ROCKET, "§d§l趣味小游戏",
                 "幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋",
                 "点击选择小游戏");
         this.applyQueueIndicator(games, player, PvPMod.QUEUE.countQueued(
                 MatchType.LUCKY_PILLAR, MatchType.TNT_RUN, MatchType.HEARTBEAT, MatchType.HOT_POTATO));
-        inv.setStack(12, games);
+        inv.setStack(13, games);
 
         ItemStack bedwars = makeButton(Items.RED_BED, "§c§l起床战争",
                 "摧毁敌方床 + 淘汰所有人获胜",
@@ -272,13 +277,13 @@ public final class PvpGuiManager {
                 "点击选择模式");
         this.applyQueueIndicator(bedwars, player, PvPMod.QUEUE.countQueued(
                 MatchType.BED_WARS, MatchType.BED_WARS_DOUBLES));
-        inv.setStack(13, bedwars);
+        inv.setStack(14, bedwars);
 
         // 第 2 行：功能入口
-        inv.setStack(14, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
-        inv.setStack(15, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
-        inv.setStack(16, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
-        inv.setStack(17, makeButton(Items.ENDER_EYE, "§9§l练习模式",
+        inv.setStack(15, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
+        inv.setStack(16, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
+        inv.setStack(17, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
+        inv.setStack(18, makeButton(Items.ENDER_EYE, "§9§l练习模式",
                 "搭路练习 / 末影珍珠",
                 "单人场地，不计战绩",
                 "点击选择练习类型"));
@@ -296,7 +301,7 @@ public final class PvpGuiManager {
                 "按顺序穿过 Checkpoint，掉出赛道自动回位",
                 "点击加入比赛");
         this.applyQueueIndicator(boatRace, player, PvPMod.QUEUE.countQueued(MatchType.BOAT_RACE));
-        inv.setStack(18, boatRace);
+        inv.setStack(19, boatRace);
 
         if (PvPMod.QUEUE.contains(player.getUuid())) {
             String status = "排队中";
@@ -856,15 +861,17 @@ public final class PvpGuiManager {
             case 9 -> this.openPvpCategory(player);
             // 空岛战争无套件，直接加入
             case 10 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
-            case 11 -> this.openBridgeCategory(player);
-            case 12 -> this.openGamesCategory(player);
-            case 13 -> this.openBedWarsCategory(player);
-            case 14 -> this.openDuelTargetPage(player);
-            case 15 -> this.openStatsPage(player);
-            case 16 -> this.openKitInfoPage(player);
-            case 17 -> this.openPracticeCategory(player);
+            // Beta 地图仅展示入口，具体玩法由后续需求接入。
+            case 11 -> player.sendMessage(Messages.info("空岛 Beta 地图入口已预留，玩法待定"), false);
+            case 12 -> this.openBridgeCategory(player);
+            case 13 -> this.openGamesCategory(player);
+            case 14 -> this.openBedWarsCategory(player);
+            case 15 -> this.openDuelTargetPage(player);
+            case 16 -> this.openStatsPage(player);
+            case 17 -> this.openKitInfoPage(player);
+            case 18 -> this.openPracticeCategory(player);
             // 亦可赛艇：无套件，直接加入
-            case 18 -> {
+            case 19 -> {
                 this.joinQueue(player, MatchType.BOAT_RACE, KitManager.boatRaceKit());
                 this.sendRaceLapsChooser(player);
             }
