@@ -44,10 +44,9 @@ public abstract class SnowballEntityMixin {
         if (len < 0.001) {
             return;
         }
-        victim.setVelocity(
-                victim.getVelocity().x + vel.x / len * 1.2,
-                victim.getVelocity().y + 0.3,
-                victim.getVelocity().z + vel.z / len * 1.2);
-        victim.velocityDirty = true;
+        // 使用原版击退入口，确保 velocityModified 被设置并向客户端同步；
+        // takeKnockback 的方向参数是“推力来源”，所以传入飞行方向的反向。
+        victim.takeKnockback(1.2, -vel.x / len, -vel.z / len);
+        victim.addVelocity(0.0, 0.3, 0.0);
     }
 }

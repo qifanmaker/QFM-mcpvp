@@ -41,18 +41,15 @@ public abstract class FishingBobberEntityMixin {
         if (match == null || match.getType() == MatchType.LUCKY_PILLAR) {
             return; // 幸运之柱：保留原版钓鱼拉回，不做命中击退
         }
-        // 朝远离施法者的方向击退（takeKnockback 方向约定相反会把人往身后拉，
-        // 这里直接施加速度，参照粘液球击退）
+        // 朝远离施法者的方向击退。takeKnockback 的方向参数是“推力来源”，
+        // 所以传入远离施法者方向的反向，并由原版负责速度同步和抗击退。
         double dx = victim.getX() - caster.getX();
         double dz = victim.getZ() - caster.getZ();
         double d = Math.sqrt(dx * dx + dz * dz);
         if (d < 0.01) {
             return;
         }
-        victim.setVelocity(
-                victim.getVelocity().x + dx / d * 1.2,
-                victim.getVelocity().y + 0.3,
-                victim.getVelocity().z + dz / d * 1.2);
-        victim.velocityDirty = true;
+        victim.takeKnockback(1.2, -dx / d, -dz / d);
+        victim.addVelocity(0.0, 0.3, 0.0);
     }
 }
