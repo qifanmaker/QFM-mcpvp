@@ -2,9 +2,14 @@ package com.example.pvp.text;
 
 import com.example.pvp.config.EloRating;
 import com.example.pvp.config.StatsStore;
+import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 
+import java.util.Collection;
+import java.util.EnumSet;
 import java.util.UUID;
 
 /**
@@ -117,4 +122,22 @@ public final class RankTitles {
         }
         return Text.empty().append(Text.literal(rank.prefix())).append(plainName);
     }
+
+    /**
+     * 刷新 tab 列表（以及头顶名牌）。
+     *
+     * <p><b>为什么必须手动发</b>：原版只在玩家加入时用 {@code ADD_PLAYER} 把显示名发一次，
+     * 之后整份服务端代码里<b>没有任何地方</b>发送 {@code UPDATE_DISPLAY_NAME}
+     * （该 action 只有客户端在收）。所以 Elo 结算改了段位后，不补这一包，
+     * tab 上就会一直挂着结算前的旧段位，直到该玩家重连。
+     */
+    public static void refreshTabList(MinecraftServer server, Collection<ServerPlayerEntity> players) {
+        if (server == null || players == null || players.isEmpty()) {
+            return;
+        }
+        // 只带 UPDATE_DISPLAY_NAME：其他字段（延迟/游戏模式/是否列出）保持不变
+        server.getPlayerManager().sendToAll(new PlayerListS2CPacket(
+                EnumSet.of(PlayerListS2CPacket.Action.UPDATE_DISPLAY_NAME), players));
+    }
+
 }

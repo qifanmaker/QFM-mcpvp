@@ -3515,6 +3515,7 @@ public final class Match {
      * 玩家在聊天框能看到"这局值多少分"，否则 Elo 会显得很玄学。
      */
     private void announceRatingChanges(Map<UUID, Double> changes) {
+        List<ServerPlayerEntity> updated = new ArrayList<>();
         for (Map.Entry<UUID, Double> entry : changes.entrySet()) {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(entry.getKey());
             if (online == null) {
@@ -3528,9 +3529,13 @@ public final class Match {
             } else {
                 String amount = String.format(java.util.Locale.ROOT, "%.1f", Math.abs(delta));
                 text += delta > 0 ? " §7(§a+" + amount + "§7)" : " §7(§c-" + amount + "§7)";
+                updated.add(online);
             }
             online.sendMessage(Messages.info(text), false);
         }
+        // 段位前缀已经写进了 tab/头顶名牌的显示名，但原版只在加入时发一次，
+        // 不补这一包就会一直显示结算前的旧段位（见 RankTitles.refreshTabList）
+        RankTitles.refreshTabList(this.manager.getServer(), updated);
     }
 
     /**

@@ -784,6 +784,10 @@ public final class PvPCommands {
         KitConfig.load();
         KitManager.reload();
         StatsStore.INSTANCE.load();
+        // 重载可能改写了 rating（手改文件/迁移），tab 里的段位前缀要跟着刷新，
+        // 否则在线玩家会一直看到重载前的段位（原版不会主动发显示名更新）
+        com.example.pvp.text.RankTitles.refreshTabList(PvPMod.SERVER,
+                PvPMod.SERVER.getPlayerManager().getPlayerList());
         source.sendFeedback(() -> Messages.info("配置已重载"), false);
         return 1;
     }
