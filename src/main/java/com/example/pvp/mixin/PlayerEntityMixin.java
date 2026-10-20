@@ -10,6 +10,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.spongepowered.asm.mixin.Mixin;
@@ -56,6 +57,27 @@ public abstract class PlayerEntityMixin {
         if (self instanceof ServerPlayerEntity sp) {
             com.example.pvp.PvPMod.onAttackAttempt(sp);
         }
+    }
+
+    /**
+     * 玩家显示名统一加 Elo 段位前缀（见 {@link com.example.pvp.text.RankTitles}）。
+     *
+     * <p>改在 {@code getDisplayName} 这一层，是为了让<b>所有原版生成的名字文本</b>
+     * 自动带上前缀：加入/退出服务器提示、死亡信息、血量标签，以及 tab 列表/头顶名字
+     * （后两者走 {@code getPlayerListName}，见 {@link ServerPlayerEntityMixin}）。
+     * 否则要逐个替换原版消息，永远会漏。
+     */
+    @Inject(method = "getDisplayName", at = @At("RETURN"), cancellable = true)
+    private void pvp$rankPrefixOnDisplayName(CallbackInfoReturnable<Text> cir) {
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        if (!(self instanceof ServerPlayerEntity sp)) {
+            return; // 只有服务端玩家有战绩，客户端/其他实体保持原样
+        }
+        Text original = cir.getReturnValue();
+        if (original == null) {
+            return;
+        }
+        cir.setReturnValue(com.example.pvp.text.RankTitles.styled(original, sp.getUuid()));
     }
 
     /** 粘液球（空岛战争/幸运之柱击退 III 武器）：左键攻击命中时把目标强力击退。 */

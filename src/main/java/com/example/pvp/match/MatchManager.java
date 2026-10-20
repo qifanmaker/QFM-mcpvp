@@ -772,7 +772,7 @@ public final class MatchManager {
         Match match = this.getMatchFor(player);
         if (match != null) {
             if (match.getState() == MatchState.COUNTDOWN) {
-                match.cancelMatch(player.getGameProfile().getName() + " 中途退出");
+                match.cancelMatch(com.example.pvp.text.RankTitles.name(player.getUuid(), player.getGameProfile().getName()) + " 中途退出");
             } else if (match.getType() == MatchType.DEATHMATCH) {
                 // 死斗没有"淘汰"这回事：掉线只清掉待复活/助攻记录，重进照常参战
                 match.onDeathmatchDisconnect(player);

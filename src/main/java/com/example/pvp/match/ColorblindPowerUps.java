@@ -155,7 +155,8 @@ public final class ColorblindPowerUps {
             case GLASS_BOXES -> this.placeGlassBox(arena);
             case RANDOM_TELEPORT -> this.teleportRandom(arena, player);
         }
-        this.session.match().broadcastToMatch(Messages.info("§e" + player.getGameProfile().getName()
+        this.session.match().broadcastToMatch(Messages.info(
+                com.example.pvp.text.RankTitles.name(player.getUuid(), player.getGameProfile().getName())
                 + "§r 打碎了信标 —— " + (kind.positive() ? "§a" : "§c") + kind.displayName() + "§r！"));
     }
 

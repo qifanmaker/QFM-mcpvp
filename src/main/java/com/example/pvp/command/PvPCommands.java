@@ -693,7 +693,8 @@ public final class PvPCommands {
         if (!entries.isEmpty()) {
             player.sendMessage(Messages.gold("§6队列: " + entries.size() + " 人§r"), false);
             for (QueueEntry entry : entries) {
-                player.sendMessage(Messages.info(entry.getPlayer().getGameProfile().getName()
+                player.sendMessage(Messages.info(com.example.pvp.text.RankTitles.name(
+                        entry.getPlayer().getUuid(), entry.getPlayer().getGameProfile().getName())
                         + " 排队中：模式 " + entry.getType().getDisplayName()
                         + "，套件 " + entry.getKit().getDisplayName()), false);
             }
@@ -713,7 +714,7 @@ public final class PvPCommands {
 
     private static int showStats(ServerCommandSource source, ServerPlayerEntity target) {
         PlayerStats stats = StatsStore.INSTANCE.getStats(target.getUuid());
-        source.sendFeedback(() -> Messages.info("§e" + target.getGameProfile().getName() + "§r Elo §b"
+        source.sendFeedback(() -> Messages.info(com.example.pvp.text.RankTitles.name(target.getUuid(), target.getGameProfile().getName()) + "§r Elo §b"
                 + stats.getRatingDisplay() + "§r，战绩：胜 " + stats.getWins()
                 + " 负 " + stats.getLosses() + "，共 " + stats.getMatches() + " 场"), false);
         return 1;
@@ -732,8 +733,9 @@ public final class PvPCommands {
         }
         int rank = 1;
         for (Map.Entry<String, PlayerStats> entry : sorted) {
-            String name = resolveName(UUID.fromString(entry.getKey()));
-            player.sendMessage(Messages.info("#" + rank + " §e" + name + "§r Elo §b"
+            UUID uuid = UUID.fromString(entry.getKey());
+            String name = resolveName(uuid);
+            player.sendMessage(Messages.info("#" + rank + " " + com.example.pvp.text.RankTitles.name(uuid, name) + "§r Elo §b"
                     + entry.getValue().getRatingDisplay()
                     + " §7(胜 " + entry.getValue().wins + " / 负 " + entry.getValue().losses
                     + " / 总 " + entry.getValue().matches + ")"), false);
@@ -1564,8 +1566,11 @@ public final class PvPCommands {
         }
 
         DuelChallenge challenge = PvPMod.DUEL.challenge(challenger, target, MatchType.DUEL_1V1, kit);
-        challenger.sendMessage(Messages.info("已向 §e" + target.getGameProfile().getName() + "§r 发起决斗（套件 " + kit.getDisplayName() + "），等待接受..."), false);
-        target.sendMessage(Messages.gold("§e" + challenger.getGameProfile().getName() + "§r 向你发起 1v1 决斗（套件 " + kit.getDisplayName() + "）！输入 §e/duel accept " + challenger.getGameProfile().getName() + "§r 接受"), false);
+        challenger.sendMessage(Messages.info("已向 " + com.example.pvp.text.RankTitles.name(target.getUuid(), target.getGameProfile().getName())
+                + "§r 发起决斗（套件 " + kit.getDisplayName() + "），等待接受..."), false);
+        target.sendMessage(Messages.gold(com.example.pvp.text.RankTitles.name(challenger.getUuid(), challenger.getGameProfile().getName())
+                + "§r 向你发起 1v1 决斗（套件 " + kit.getDisplayName() + "）！输入 §e/duel accept "
+                + challenger.getGameProfile().getName() + "§r 接受"), false);
         return 1;
     }
 
@@ -1587,7 +1592,7 @@ public final class PvPCommands {
         }
 
         if (PvPMod.DUEL.accept(accepter, challenger)) {
-            accepter.sendMessage(Messages.info("已接受 §e" + challenger.getGameProfile().getName() + "§r 的决斗，即将开始！"), false);
+            accepter.sendMessage(Messages.info("已接受 " + com.example.pvp.text.RankTitles.name(challenger.getUuid(), challenger.getGameProfile().getName()) + "§r 的决斗，即将开始！"), false);
         } else {
             accepter.sendMessage(Messages.error("无法接受决斗（挑战不存在或对方忙碌）"), false);
         }
@@ -1607,9 +1612,9 @@ public final class PvPCommands {
         }
 
         PvPMod.DUEL.deny(challenger.getUuid(), accepter.getUuid());
-        accepter.sendMessage(Messages.info("已拒绝 §e" + challenger.getGameProfile().getName() + "§r 的决斗"), false);
+        accepter.sendMessage(Messages.info("已拒绝 " + com.example.pvp.text.RankTitles.name(challenger.getUuid(), challenger.getGameProfile().getName()) + "§r 的决斗"), false);
         if (PvPMod.SERVER.getPlayerManager().getPlayer(challenger.getUuid()) != null) {
-            challenger.sendMessage(Messages.warn("§e" + accepter.getGameProfile().getName() + "§r 拒绝了你的决斗"), false);
+            challenger.sendMessage(Messages.warn(com.example.pvp.text.RankTitles.name(accepter.getUuid(), accepter.getGameProfile().getName()) + "§r 拒绝了你的决斗"), false);
         }
         return 1;
     }

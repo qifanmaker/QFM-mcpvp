@@ -697,7 +697,8 @@ public final class BoatRaceSession {
                 // 单个 Checkpoint 不刷屏，只在 HUD 里体现进度
             }
             case LAP -> {
-                this.match.broadcastToMatch(Messages.info("§e" + player.getGameProfile().getName()
+                this.match.broadcastToMatch(Messages.info(
+                        com.example.pvp.text.RankTitles.name(player.getUuid(), player.getGameProfile().getName())
                         + "§r 完成第 §e" + tracker.lapsCompleted() + "§r/§e" + this.laps
                         + "§r 圈（本圈 §e" + RaceProgressTracker.formatTicks(tracker.lastLapTicks()) + "§r）"));
             }
@@ -932,7 +933,8 @@ public final class BoatRaceSession {
         this.discardBoat(player);
         this.updateRanking();
         int place = tracker.place();
-        this.match.broadcastToMatch(Messages.gold("🏁 §e" + player.getGameProfile().getName()
+        this.match.broadcastToMatch(Messages.gold("🏁 "
+                + com.example.pvp.text.RankTitles.name(player.getUuid(), player.getGameProfile().getName())
                 + "§r 冲线！第 §e" + place + "§r 名，用时 §e"
                 + RaceProgressTracker.formatTicks(tracker.finishTicks())
                 + (tracker.bestLapTicks() >= 0
@@ -1364,7 +1366,8 @@ public final class BoatRaceSession {
                         target.getGameProfile().getName(), player.getGameProfile().getName(),
                         this.shieldChargeCount(target));
             }
-            player.sendMessage(Text.literal("§7墨水被 §6" + target.getGameProfile().getName()
+            player.sendMessage(Text.literal("§7墨水被 "
+                    + com.example.pvp.text.RankTitles.name(target.getUuid(), target.getGameProfile().getName())
                     + "§7 的鱼鳞护盾挡下了（剩余 §e"
                     + this.shieldChargeCount(target) + "§7 次）"), true);
             target.sendMessage(Text.literal("§6鱼鳞护盾§r 挡下了一发墨水弹（剩余 §e"
@@ -1376,8 +1379,8 @@ public final class BoatRaceSession {
                 StatusEffects.BLINDNESS, blindTicks, 0, false, false, true));
         target.addStatusEffect(new StatusEffectInstance(
                 StatusEffects.NAUSEA, Math.max(1, blindTicks / 2), 0, false, false, true));
-        player.sendMessage(Text.literal("§5§l墨水弹！§r §7正中 §f"
-                + target.getGameProfile().getName()), true);
+        player.sendMessage(Text.literal("§5§l墨水弹！§r §7正中 "
+                + com.example.pvp.text.RankTitles.name(target.getUuid(), target.getGameProfile().getName())), true);
         target.sendMessage(Text.literal("§5§l被墨水糊住了！§r §7看不清路（"
                 + d1(cfg.boatRaceItemInkSeconds) + " 秒）"), true);
         ArenaWorld arena = this.match.arenaWorld();
