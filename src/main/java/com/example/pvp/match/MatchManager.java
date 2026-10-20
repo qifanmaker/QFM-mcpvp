@@ -222,7 +222,7 @@ public final class MatchManager {
         HealthTagManager.get().tick();
     }
 
-    /** 大厅计分板：显示大厅人数/在线人数/个人战绩胜率；排队中额外显示排队内容与人数。 */
+    /** 大厅计分板：显示大厅人数/在线人数/个人 Elo 与战绩；排队中额外显示排队内容与人数。 */
     private void updateLobbyScoreboard() {
         MinecraftServer server = this.server;
         if (server == null) {
@@ -262,9 +262,10 @@ public final class MatchManager {
             lines.add("§e在线人数: §f" + total);
             lines.add("§8----------------");
             PlayerStats stats = StatsStore.INSTANCE.getStats(uuid);
+            lines.add("§bElo: §f" + stats.getRatingDisplay());
             lines.add("§b战绩: §f胜 " + stats.getWins() + " §7/§c 负 " + stats.getLosses());
-            lines.add("§b胜率: §f" + String.format(java.util.Locale.ROOT, "%.1f%%", stats.winRate() * 100));
-            lines.add("§b总场次: §f" + stats.getMatches());
+            lines.add("§b场次: §f" + stats.getMatches() + " §7(胜率 "
+                    + String.format(java.util.Locale.ROOT, "%.1f%%", stats.winRate() * 100) + "§7)");
             if (com.example.pvp.PvPMod.QUEUE != null) {
                 QueueEntry entry = com.example.pvp.PvPMod.QUEUE.getEntry(player);
                 if (entry != null) {

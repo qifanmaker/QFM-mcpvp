@@ -3455,17 +3455,16 @@ public final class Match {
         return winners;
     }
 
-    /** 庆祝结束后的实际结算：恢复、战绩、清场、释放。 */
+    /** 庆祝结束后的实际结算：恢复、战绩（Elo）、清场、释放。 */
     private void finalizeMatch() {
         Set<UUID> winners = this.computeWinners();
         try {
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
             this.removeHeartbeatBossBar();
-            for (ServerPlayerEntity player : this.players) {
-                boolean won = winners.contains(player.getUuid());
-                StatsStore.INSTANCE.recordResult(player.getUuid(), won);
-            }
+            // 一次性结算整场：Elo 需要"对手/队友是谁"，逐个玩家单独调用算不出来
+            Map<UUID, Double> ratingChanges = StatsStore.INSTANCE.recordMatch(this.ratingGroups(), winners);
+            this.announceRatingChanges(ratingChanges);
         } catch (Exception e) {
             LOGGER.error("[PvP] 比赛结束处理出错", e);
         } finally {
@@ -3481,6 +3480,56 @@ public final class Match {
         // 清场 + 战绩落盘延后执行。这一帧刚刚把所有人跨维度传送回主城，
         // 客户端此刻正在显示"加载地形中"等服务端发地形——重活必须让路（见 MatchManager#pendingFinishes）。
         this.manager.scheduleFinish(this, FINISH_DELAY_TICKS);
+    }
+
+    /**
+     * Elo 结算用的分组：多队模式按队伍分组（队友之间不结算），
+     * 单人模式（FFA/空岛/幸运之柱/竞速……）每人自成一组。
+     *
+     * <p>注意 {@link #teams} 在 FFA 等模式里是"全员一队"（见 {@code buildTeams}），
+     * 队伍数只有 1 时必须拆成单人组，否则胜者找不到对手、rating 永远不会动。
+     */
+    private List<List<UUID>> ratingGroups() {
+        List<List<UUID>> groups = new ArrayList<>();
+        if (this.teams.size() > 1) {
+            for (MatchTeam team : this.teams) {
+                List<UUID> ids = new ArrayList<>();
+                for (ServerPlayerEntity player : team.getPlayers()) {
+                    ids.add(player.getUuid());
+                }
+                if (!ids.isEmpty()) {
+                    groups.add(ids);
+                }
+            }
+            return groups;
+        }
+        for (ServerPlayerEntity player : this.players) {
+            groups.add(List.of(player.getUuid()));
+        }
+        return groups;
+    }
+
+    /**
+     * 把本场的 Elo 变化告诉玩家。离开赛末动作栏大字之后马上结算，
+     * 玩家在聊天框能看到"这局值多少分"，否则 Elo 会显得很玄学。
+     */
+    private void announceRatingChanges(Map<UUID, Double> changes) {
+        for (Map.Entry<UUID, Double> entry : changes.entrySet()) {
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(entry.getKey());
+            if (online == null) {
+                continue;
+            }
+            double delta = entry.getValue();
+            int rating = StatsStore.INSTANCE.getStats(entry.getKey()).getRatingDisplay();
+            String text = "§bElo §f" + rating;
+            if (Math.abs(delta) < 0.05) {
+                text += " §7(无变化)";
+            } else {
+                String amount = String.format(java.util.Locale.ROOT, "%.1f", Math.abs(delta));
+                text += delta > 0 ? " §7(§a+" + amount + "§7)" : " §7(§c-" + amount + "§7)";
+            }
+            online.sendMessage(Messages.info(text), false);
+        }
     }
 
     /**

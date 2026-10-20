@@ -352,8 +352,8 @@ public final class PvPCommands {
                         + "§e/pvp start [主题]§r OP 专用：立即用当前队列人数开赛（排空岛指定主题 / 幸运之柱指定地图）\n"
                         + "§e/pvp queue§r 查看排队状态\n"
                         + "§e/pvp list§r 查看进行中的比赛\n"
-                        + "§e/pvp stats [玩家]§r 查看战绩\n"
-                        + "§e/pvp top§r 查看排行榜\n"
+                        + "§e/pvp stats [玩家]§r 查看 Elo 与战绩\n"
+                        + "§e/pvp top§r 查看 Elo 排行榜\n"
                         + "§e/pvp kit list§r 查看可用套件\n"
                         + "§e/duel <玩家> [套件]§r 发起 1v1 决斗\n"
                         + "§e/duel accept|deny [挑战者]§r 接受/拒绝决斗"
@@ -713,7 +713,8 @@ public final class PvPCommands {
 
     private static int showStats(ServerCommandSource source, ServerPlayerEntity target) {
         PlayerStats stats = StatsStore.INSTANCE.getStats(target.getUuid());
-        source.sendFeedback(() -> Messages.info("§e" + target.getGameProfile().getName() + "§r 战绩：胜 " + stats.getWins()
+        source.sendFeedback(() -> Messages.info("§e" + target.getGameProfile().getName() + "§r Elo §b"
+                + stats.getRatingDisplay() + "§r，战绩：胜 " + stats.getWins()
                 + " 负 " + stats.getLosses() + "，共 " + stats.getMatches() + " 场"), false);
         return 1;
     }
@@ -724,7 +725,7 @@ public final class PvPCommands {
                 .limit(10)
                 .toList();
 
-        player.sendMessage(Messages.gold("§6PvP 胜率排行榜 (前 10)§r"), false);
+        player.sendMessage(Messages.gold("§6PvP Elo 排行榜 (前 10)§r"), false);
         if (sorted.isEmpty()) {
             player.sendMessage(Messages.warn("暂无数据"), false);
             return 0;
@@ -732,9 +733,10 @@ public final class PvPCommands {
         int rank = 1;
         for (Map.Entry<String, PlayerStats> entry : sorted) {
             String name = resolveName(UUID.fromString(entry.getKey()));
-            player.sendMessage(Messages.info("#" + rank + " §e" + name + "§r 胜率 "
-                    + String.format(java.util.Locale.ROOT, "%.1f%%", entry.getValue().winRate() * 100)
-                    + " §7(胜 " + entry.getValue().wins + " / 总 " + entry.getValue().matches + ")"), false);
+            player.sendMessage(Messages.info("#" + rank + " §e" + name + "§r Elo §b"
+                    + entry.getValue().getRatingDisplay()
+                    + " §7(胜 " + entry.getValue().wins + " / 负 " + entry.getValue().losses
+                    + " / 总 " + entry.getValue().matches + ")"), false);
             rank++;
         }
         return 1;

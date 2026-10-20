@@ -277,7 +277,7 @@ public final class PvpGuiManager {
 
         // 第 2 行：功能入口
         inv.setStack(15, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
-        inv.setStack(16, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
+        inv.setStack(16, makeButton(Items.BOOK, "§d我的战绩", "查看 Elo 与胜/负场次"));
         inv.setStack(17, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
         inv.setStack(18, makeButton(Items.ENDER_EYE, "§9§l练习模式",
                 "搭路练习 / 末影珍珠",
@@ -630,11 +630,11 @@ public final class PvpGuiManager {
         });
     }
 
-    /** 战绩排行榜页：顶部显示我的战绩，中间按胜率排名（玩家头颅），底部翻页。 */
+    /** 战绩排行榜页：顶部显示我的 Elo 与战绩，中间按 Elo 排名（玩家头颅），底部翻页。 */
     private void openStatsPage(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.STATS;
-        this.openPage(player, ctx, "§6战绩排行榜（按胜率）", inv -> this.fillStatsPage(inv, player, ctx));
+        this.openPage(player, ctx, "§6Elo 排行榜", inv -> this.fillStatsPage(inv, player, ctx));
     }
 
     /** 战绩排行榜页填充（每页 18 名，底部上一页/页码/下一页/返回）。 */
@@ -642,9 +642,9 @@ public final class PvpGuiManager {
         for (int slot = 0; slot < 36; slot++) {
             inv.setStack(slot, makeButton(Items.GRAY_STAINED_GLASS_PANE, " "));
         }
-        // 顶部中央：我的战绩
+        // 顶部中央：我的 Elo 与战绩
         PlayerStats mine = StatsStore.INSTANCE.getStats(player.getUuid());
-        inv.setStack(4, makeButton(Items.BOOK, "§a我的战绩",
+        inv.setStack(4, makeButton(Items.BOOK, "§a我的 Elo：" + mine.getRatingDisplay(),
                 "胜 " + mine.getWins() + " / 负 " + mine.getLosses() + " / 总 " + mine.getMatches(),
                 "胜率 " + formatRate(mine.winRate())));
 
@@ -671,8 +671,9 @@ public final class PvpGuiManager {
                 boolean self = entry.getKey().equals(player.getUuid().toString());
                 ItemStack head = makeButton(Items.PLAYER_HEAD,
                         (self ? "§a" : "§e") + "#" + (i + 1) + " " + name,
-                        "胜率 " + formatRate(s.winRate()),
-                        "胜 " + s.wins + " / 负 " + s.losses + " / 总 " + s.matches);
+                        "Elo " + s.getRatingDisplay(),
+                        "胜 " + s.wins + " / 负 " + s.losses + " / 总 " + s.matches,
+                        "胜率 " + formatRate(s.winRate()));
                 if (self) {
                     head.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
                 }

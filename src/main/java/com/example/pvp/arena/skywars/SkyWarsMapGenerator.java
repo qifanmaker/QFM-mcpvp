@@ -74,7 +74,7 @@ public final class SkyWarsMapGenerator {
         SkyWarsLayout layout = SkyWarsLayout.compute(mapCenter, seed, playerCount);
         SkyWarsTheme theme = SkyWarsTheme.pick(seed);
 
-        // 出生岛/中途岛按玩家索引归属：本局胜率最低的 1~2 名获得轻微的装备/神器提升
+        // 出生岛/中途岛按玩家索引归属：本局 Elo 最低的 1~2 名获得轻微的装备/神器提升
         int[] handicaps = players == null
                 ? new int[Math.max(0, playerCount)]
                 : SkyWarsLoot.handicapForMatch(players);

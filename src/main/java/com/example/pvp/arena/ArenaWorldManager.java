@@ -170,7 +170,7 @@ public final class ArenaWorldManager {
      * @param seed        空岛战争的地图种子（比赛 ID），其他模式忽略
      * @param playerCount 空岛战争/战桥的玩家人数（决定出生岛数量/四方布局），其他模式忽略
      * @param type        对局模式：战桥用它决定双队/四方布局
-     * @param players     空岛战争的参赛玩家（决定每座出生岛/中途岛的弱势补偿），其他模式忽略
+     * @param players     空岛战争的参赛玩家（决定每座出生岛/中途岛按 Elo 的弱势补偿），其他模式忽略
      */
     public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount, MatchType type,
                            List<ServerPlayerEntity> players) {

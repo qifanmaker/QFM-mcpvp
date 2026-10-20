@@ -1,5 +1,6 @@
 package com.example.pvp.arena.skywars;
 
+import com.example.pvp.config.EloRating;
 import com.example.pvp.config.PlayerStats;
 import com.example.pvp.config.StatsStore;
 import com.mojang.logging.LogUtils;
@@ -141,7 +142,7 @@ public final class SkyWarsLoot {
     /**
      * 往一个箱子填充随机战利品。
      *
-     * @param handicap 战绩弱势补偿（0=无，1/2=略微提升装备与神器概率，不明显）
+     * @param handicap 战绩弱势补偿（按本局 Elo 排名得出；0=无，1/2=略微提升装备与神器概率，不明显）
      */
     public static void populate(ChestBlockEntity chest, boolean middle, int handicap) {
         Random random = new Random();
@@ -186,7 +187,7 @@ public final class SkyWarsLoot {
             } else if (ultra < 2) {
                 drops.add(new ItemStack(Items.TOTEM_OF_UNDYING)); // 玩家岛不死图腾（约 1%）
             }
-            // 弱势补偿：额外一次神器掉落，爆率为正常爆率的 1/4（各约 0.25%），补偿给胜率最低的玩家
+            // 弱势补偿：额外一次神器掉落，爆率为正常爆率的 1/4（各约 0.25%），补偿给本局 Elo 最低的玩家
             if (handicap > 0) {
                 int comp = random.nextInt(400);
                 if (comp < 1) {
@@ -484,8 +485,9 @@ public final class SkyWarsLoot {
     }
 
     /**
-     * 本局相对弱势补偿：把本局所有玩家按胜率从低到高排名，胜率最低的 1~2 名获得补偿
-     * （最低=2，次低=1，其余=0）。按相对胜率而非绝对胜率，避免与整体水平挂钩的固定阈值。
+     * 本局相对弱势补偿：把本局所有玩家按 Elo 从低到高排名，分最低的 1~2 名获得补偿
+     * （最低=2，次低=1，其余=0）。按相对 Elo 而非绝对分数，避免与整体水平挂钩的固定阈值；
+     * 新玩家从 1600 起步，不会被当成"胜率 0"的绝对弱者。
      * 返回与 players 等长的数组（同索引即同玩家）。
      */
     public static int[] handicapForMatch(List<ServerPlayerEntity> players) {
@@ -494,31 +496,30 @@ public final class SkyWarsLoot {
         if (n == 0) {
             return result;
         }
-        double[] rates = new double[n];
+        double[] ratings = new double[n];
         for (int i = 0; i < n; i++) {
-            rates[i] = winRateOf(players.get(i));
+            ratings[i] = ratingOf(players.get(i));
         }
         Integer[] order = new Integer[n];
         for (int i = 0; i < n; i++) {
             order[i] = i;
         }
-        Arrays.sort(order, Comparator.comparingDouble(a -> rates[a]));
+        Arrays.sort(order, Comparator.comparingDouble(a -> ratings[a]));
         int compensateCount = n <= 2 ? 1 : 2; // 双人局只补偿最低者，其余补偿前两名
-        result[order[0]] = 2; // 本局胜率最低
+        result[order[0]] = 2; // 本局 Elo 最低
         if (compensateCount >= 2 && n >= 2) {
             result[order[1]] = 1; // 次低
         }
         return result;
     }
 
-    /** 玩家胜率（没打过按 0，视为本局相对最低）。 */
-    private static double winRateOf(ServerPlayerEntity player) {
+    /** 玩家 Elo（无档案/空指针按初始分，视为同一起跑线）。 */
+    private static double ratingOf(ServerPlayerEntity player) {
         if (player == null) {
-            return 0.0;
+            return EloRating.INITIAL;
         }
         PlayerStats stats = StatsStore.INSTANCE.getStats(player.getUuid());
-        int matches = stats.getMatches();
-        return matches > 0 ? (double) stats.getWins() / matches : 0.0;
+        return stats.getRating();
     }
 
     /** 妙人斧：去掉特殊命名/特殊处理，直接是耐久仅剩 1 的锋利 255 金斧头（一击必杀）。 */
