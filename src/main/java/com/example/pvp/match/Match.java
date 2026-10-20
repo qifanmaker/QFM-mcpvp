@@ -355,7 +355,7 @@ public final class Match {
         this.regionIndex = regionIndex;
         // 亦可赛艇固定 3-2-1-GO（地图在这一段倒计时的第一帧一次性铺完，见 BoatRaceSession.prepare）
         this.initialCountdownTicks = this.type == MatchType.SKYWARS
-                ? 10 * 20
+                ? 5 * 20
                 : this.type.isBoatRace()
                 ? PvPConfig.INSTANCE.boatRaceCountdownSeconds * 20
                 : this.type.isBedWars()
