@@ -267,7 +267,12 @@ public final class KitManager {
                 .build();
     }
 
-    /** 内置「铁套PVP」：铁套 + 剑/斧/盾/弓 + 金胡萝卜 + 岩浆/水 + 耐久III钓鱼竿。 */
+    /**
+     * 内置「铁套PVP」：铁套 + 斧/剑/盾/弓 + 金胡萝卜 + 岩浆/水 + 耐久III钓鱼竿。
+     *
+     * <p>快捷栏顺序按实战习惯排：第 1 格铁斧、第 2 格铁剑（斧破盾/剑连击，先手拿斧），
+     * 第 7/9 格岩浆桶、**第 8 格水桶**（被点燃/坠落时随手一桶水）。
+     */
     private static Kit buildIronPvpKit() {
         ItemStack rod = new ItemStack(Items.FISHING_ROD);
         if (enchantmentRegistry != null) {
@@ -279,17 +284,18 @@ public final class KitManager {
 
         return new Kit.Builder("iron_pvp", KitType.CUSTOM)
                 .displayName("铁套PVP")
-                .addItem(stack(Items.IRON_SWORD))
                 .addItem(stack(Items.IRON_AXE))
+                .addItem(stack(Items.IRON_SWORD))
                 .addItem(stack(Items.BOW))
                 .addItem(stack(Items.ARROW, 64))
                 .addItem(stack(Items.GOLDEN_CARROT, 64))
                 .addItem(rod)
-                // 桶不能堆叠，岩浆/水各 3 个分开放入背包
-                .addBackpackItem(stack(Items.LAVA_BUCKET))
-                .addBackpackItem(stack(Items.LAVA_BUCKET))
+                // 桶不能堆叠，岩浆/水各 3 个分开放。前三个接在快捷栏第 7~9 格：
+                // 7=岩浆、8=水、9=岩浆；剩下三个进主背包
                 .addBackpackItem(stack(Items.LAVA_BUCKET))
                 .addBackpackItem(stack(Items.WATER_BUCKET))
+                .addBackpackItem(stack(Items.LAVA_BUCKET))
+                .addBackpackItem(stack(Items.LAVA_BUCKET))
                 .addBackpackItem(stack(Items.WATER_BUCKET))
                 .addBackpackItem(stack(Items.WATER_BUCKET))
                 .offhand(stack(Items.SHIELD))
