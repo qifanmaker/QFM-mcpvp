@@ -44,6 +44,14 @@ public final class SkyWarsMapGenerator {
     /** 树与树之间的最小距离：挨太近树冠会糊成一大片，既挡视线也看不出是几棵树。 */
     private static final int TREE_SPACING = 7;
     /**
+     * 主世界主题中央主岛的「第二层」：比第一层高出 10 格、半径是第一层的 70%（略小一圈）。
+     * 只给主世界主题，其他主题的中岛保持单层。
+     */
+    public static final int SECOND_LAYER_HEIGHT = 10;
+    private static final double SECOND_LAYER_RADIUS_RATIO = 0.7;
+    /** 第二层中心给不死图腾救回点留的空地半径（箱子要让开）。 */
+    private static final int SECOND_LAYER_RESCUE_CLEAR = 3;
+    /**
      * 主世界中岛可选的原版树种（都是高个子）：
      * {@code FANCY_OAK} 大型橡树（带侧枝，7~11 格）、{@code PINE} 高大云杉（10 格上下）。
      */
@@ -162,6 +170,12 @@ public final class SkyWarsMapGenerator {
             }
         }
 
+        // 主世界主题：中央主岛先铺好第二层，箱子落位才能知道自己在第一层还是第二层
+        int tierRadius = secondLayerRadius(island, middle, ring, theme);
+        if (tierRadius > 0) {
+            buildSecondLayer(world, island, tierRadius, theme);
+        }
+
         // 箱子的实际落位先算出来：树要避开箱子，下面的箱子循环也用这同一份坐标
         List<BlockPos> placedChests = new ArrayList<>(island.chests().size());
         for (int i = 0; i < island.chests().size(); i++) {
@@ -212,6 +226,69 @@ public final class SkyWarsMapGenerator {
     }
 
     /**
+     * 主世界主题中央主岛的第二层半径；返回 0 表示这座岛没有第二层。
+     *
+     * <p>只有"中央主岛"（{@code middle && ring}）且主题为主世界时才加：地狱/冰原/末地的中岛保持单层，
+     * 避免缩小地图主题之间的差异（第二层是主世界这条大平岛的立体化补偿）。
+     */
+    static int secondLayerRadius(SkyWarsLayout.Island island, boolean middle, boolean ring, SkyWarsTheme theme) {
+        if (!middle || !ring || theme != SkyWarsTheme.OVERWORLD) {
+            return 0;
+        }
+        // 半径取第一层的 70%：看起来是"小一圈的第二层"，又不至于缩成一个塔尖
+        return Math.max(6, (int) Math.round(island.radius * SECOND_LAYER_RADIUS_RATIO));
+    }
+
+    /**
+     * 铺主岛第二层：一座实心圆台（比第一层高 {@link #SECOND_LAYER_HEIGHT} 格）。
+     *
+     * <p>用实心而不是悬空平台，是因为它是"岛的第二层"而不是屋顶；顶面仍用主题草方块，
+     * 下面两层是泥土、再往下是石头，和第一层的材质层次保持一致。
+     * 第二层把第一层岛面盖住了，所以落在它范围内的箱子会被 {@link #islandChestPos} 抬到第二层顶面，
+     * 不会被埋进石头里（补货时用同一个函数，刷出来的位置也一致）。
+     */
+    private static void buildSecondLayer(ArenaWorld world, SkyWarsLayout.Island island, int tierRadius,
+                                         SkyWarsTheme theme) {
+        BlockPos c = island.center;
+        Block top = theme.topBlock();
+        Block sub = theme.subBlock();
+        Block deep = theme.deepBlock();
+        for (int dx = -tierRadius; dx <= tierRadius; dx++) {
+            for (int dz = -tierRadius; dz <= tierRadius; dz++) {
+                if (dx * dx + dz * dz > tierRadius * tierRadius) {
+                    continue;
+                }
+                for (int dy = 1; dy <= SECOND_LAYER_HEIGHT; dy++) {
+                    Block block = dy == SECOND_LAYER_HEIGHT
+                            ? top
+                            : dy >= SECOND_LAYER_HEIGHT - 1 ? sub : deep;
+                    world.setBlockState(c.add(dx, dy, dz), block.getDefaultState(), 3);
+                }
+            }
+        }
+    }
+
+    /**
+     * 不死图腾的救回点。
+     *
+     * <p>主世界主题的中央主岛有第二层，岛心已经被实心填满，直接沿用
+     * {@link SkyWarsTheme#rescuePoint} 会把玩家传进石头里 —— 这里改落到第二层顶面的空地中心
+     * （箱子生成时会避开这块空地）。
+     */
+    public static BlockPos rescuePoint(SkyWarsLayout layout, SkyWarsTheme theme) {
+        SkyWarsLayout.Island middle = layout == null ? null : layout.middle();
+        if (middle == null) {
+            return layout == null ? BlockPos.ORIGIN : layout.mapCenter();
+        }
+        if (secondLayerRadius(middle, true, true, theme) > 0) {
+            return new BlockPos(middle.center().getX(),
+                    middle.center().getY() + SECOND_LAYER_HEIGHT + 1,
+                    middle.center().getZ());
+        }
+        return theme.rescuePoint(middle);
+    }
+
+    /**
      * 一座岛上一个箱子的实际落位（与 {@link #buildIsland} 完全一致）：
      * 末地中央主岛(空心环)会把落在环内的箱子沿角度外推至环内缘；中岛群前两个箱子上 3 格立柱。
      * 生成与"物资刷新"共用，保证重刷时能找到生成时真正落位的箱子。
@@ -236,7 +313,23 @@ public final class SkyWarsMapGenerator {
                 cz = cZ + (int) Math.round(Math.sin(ang) * (innerR + 1));
             }
         }
-        int y = (middle && chestIndex < 2) ? island.center.getY() + 3 : chestPos.getY();
+        int tierRadius = secondLayerRadius(island, middle, ring, theme);
+        boolean onSecondLayer = tierRadius > 0 && Math.hypot(cx - cX, cz - cZ) <= tierRadius;
+        if (onSecondLayer) {
+            // 第二层中心是图腾救回点：落在里面的箱子沿原角度推到空地外缘
+            double d = Math.hypot(cx - cX, cz - cZ);
+            if (d < SECOND_LAYER_RESCUE_CLEAR) {
+                double ang = Math.atan2(cz - cZ, cx - cX);
+                cx = cX + (int) Math.round(Math.cos(ang) * SECOND_LAYER_RESCUE_CLEAR);
+                cz = cZ + (int) Math.round(Math.sin(ang) * SECOND_LAYER_RESCUE_CLEAR);
+            }
+        }
+        int y;
+        if (onSecondLayer) {
+            y = island.center.getY() + SECOND_LAYER_HEIGHT + 1; // 站在第二层地面上
+        } else {
+            y = (middle && chestIndex < 2) ? island.center.getY() + 3 : chestPos.getY();
+        }
         return new BlockPos(cx, y, cz);
     }
 
@@ -338,6 +431,11 @@ public final class SkyWarsMapGenerator {
             double angle = random.nextDouble() * 2.0 * Math.PI;
             int x = island.center.getX() + (int) Math.round(Math.cos(angle) * dist);
             int z = island.center.getZ() + (int) Math.round(Math.sin(angle) * dist);
+            // 主世界中央主岛有第二层：圆台范围内的障碍会被实心填埋，直接跳过
+            int tierRadius = secondLayerRadius(island, true, central, theme);
+            if (tierRadius > 0 && Math.hypot(x - island.center.getX(), z - island.center.getZ()) <= tierRadius + 1) {
+                continue;
+            }
             // 用实际落位的坐标比：末地/冰原/地狱的箱子会被外推到核心边缘，不再是 island.chests() 里的原坐标
             if (isNear(new BlockPos(x, island.center.getY(), z), reserved, 1)) {
                 continue;
@@ -506,7 +604,10 @@ public final class SkyWarsMapGenerator {
                 }
                 int x = center.getX() + dx;
                 int z = center.getZ() + dz;
-                for (int dy = -ISLAND_DEPTH - 3; dy <= 9; dy++) {
+                // 上限要盖住主世界第二层和它顶面的箱子。岛心高度在 PLATFORM_Y 上下浮动 ±3，
+                // 第二层顶面最高 PLATFORM_Y+14、顶面箱子 +15，所以这里留到 +16；
+                // 原来只清到 +9，缩圈经过第二层时会留下悬空的圆台边和箱子。
+                for (int dy = -ISLAND_DEPTH - 3; dy <= SECOND_LAYER_HEIGHT + 6; dy++) {
                     BlockPos p = new BlockPos(x, ArenaTemplate.PLATFORM_Y + dy, z);
                     if (!world.getBlockState(p).isAir()) {
                         world.setBlockState(p, Blocks.AIR.getDefaultState(), 3);

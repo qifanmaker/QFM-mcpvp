@@ -1030,7 +1030,7 @@ public final class Match {
     /** 不死图腾救回点：空岛=中岛（末地主题为中岛环上的安全点，避免掉进空心中央），幸运之柱=自己的柱顶。 */
     private BlockPos totemRescuePoint(ServerPlayerEntity player) {
         if (this.type == MatchType.SKYWARS && this.skywarsLayout != null && this.skywarsTheme != null) {
-            return this.skywarsTheme.rescuePoint(this.skywarsLayout.middle());
+            return SkyWarsMapGenerator.rescuePoint(this.skywarsLayout, this.skywarsTheme);
         }
         if (this.type == MatchType.LUCKY_PILLAR) {
             BlockPos spawn = this.spawns.get(player.getUuid());

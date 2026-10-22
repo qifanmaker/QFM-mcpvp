@@ -79,7 +79,8 @@ public final class SkyWarsBetaMapGenerator {
         // 中央核心：保留原有中心岛和卫星岛，再叠加上下两层平台与中心高塔。
         SkyWarsLayout.Island middle = layout.middle();
         if (middle != null) {
-            buildCentralCore(world, layout, middle.center(), middle.radius(), style, structure, accent, handicaps);
+            buildCentralCore(world, layout, middle.center(), middle.radius(), style, structure, accent, theme,
+                    handicaps);
         }
 
         LOGGER.info("生成空岛 Beta 地图: seed={}, style={}, theme={}, spawnIslands={}, midIslands={}, 附加箱子={}",
@@ -109,16 +110,25 @@ public final class SkyWarsBetaMapGenerator {
     }
 
     private static void buildCentralCore(ArenaWorld world, SkyWarsLayout layout, BlockPos center, int radius,
-                                         int style, Block structure, Block accent, int[] handicaps) {
+                                         int style, Block structure, Block accent, SkyWarsTheme theme,
+                                         int[] handicaps) {
         int lowerY = -5;
-        int upperY = 6 + (style % 3);
         int ringRadius = Math.max(5, radius / 3);
         buildRingPlatform(world, center, ringRadius, lowerY, accent);
+        placeExtraChest(world, layout, center.add(ringRadius, lowerY + 1, 0), true, -1, handicaps);
+
+        if (theme == SkyWarsTheme.OVERWORLD) {
+            // 主世界主岛已经有第二层了（见 SkyWarsMapGenerator#buildSecondLayer）：
+            // 原来的小上层平台/立柱/拱梁都会被实心圆台埋掉，不再生成；
+            // 只在第二层顶面补一个中岛级箱子（中心 3 格是图腾救回点，所以偏开 4 格）。
+            placeExtraChest(world, layout,
+                    center.add(4, SkyWarsMapGenerator.SECOND_LAYER_HEIGHT + 1, 0), true, -1, handicaps);
+            return;
+        }
+
+        int upperY = 6 + (style % 3);
         BlockPos upperPlatform = center.add(style % 2 == 0 ? 0 : 4, upperY, style % 2 == 0 ? 4 : 0);
         buildPlatform(world, upperPlatform, 3 + style % 2, structure, 1);
-
-        // 中央核心的两块新地形各放一个中岛级箱子：下层环（绕后路线）与上层平台（制高点）
-        placeExtraChest(world, layout, center.add(ringRadius, lowerY + 1, 0), true, -1, handicaps);
         placeExtraChest(world, layout, upperPlatform.add(1, 1, 1), true, -1, handicaps);
 
         int pillarCount = 4 + style % 3;
@@ -186,7 +196,13 @@ public final class SkyWarsBetaMapGenerator {
             for (int offset = -width; offset <= width; offset++) {
                 int blockX = widenAlongZ ? x : x + offset;
                 int blockZ = widenAlongZ ? z + offset : z;
-                world.setBlockState(new BlockPos(blockX, y, blockZ), block.getDefaultState(), 3);
+                BlockPos pos = new BlockPos(blockX, y, blockZ);
+                // 别把已经放好的箱子顶掉：岛心→侧台/观察台的桥是贴着岛面建的，
+                // 可能正好穿过岛上的箱子，覆盖掉会让箱子凭空少一个（箱子本身可以踩，留空不影响通行）
+                if (world.getBlockState(pos).isOf(Blocks.CHEST)) {
+                    continue;
+                }
+                world.setBlockState(pos, block.getDefaultState(), 3);
             }
         }
     }
