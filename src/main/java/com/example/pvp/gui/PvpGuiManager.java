@@ -277,7 +277,7 @@ public final class PvpGuiManager {
 
         // 第 2 行：功能入口
         inv.setStack(15, makeButton(Items.PAPER, "§e向玩家发起决斗", "选择一名在线玩家", "1v1 单挑"));
-        inv.setStack(16, makeButton(Items.BOOK, "§d我的战绩", "查看 Elo 与胜/负场次"));
+        inv.setStack(16, makeButton(Items.BOOK, "§d我的战绩", "查看胜/负/场次"));
         inv.setStack(17, makeButton(Items.CHEST, "§d查看套件列表", "浏览所有装备方案"));
         inv.setStack(18, makeButton(Items.ENDER_EYE, "§9§l练习模式",
                 "搭路练习 / 末影珍珠",
@@ -616,7 +616,7 @@ public final class PvpGuiManager {
             int index = 0;
             for (int i = start; i < online.size() && index < perPage; i++) {
                 ServerPlayerEntity target = online.get(i);
-                inv.setStack(index, makeButton(Items.PAPER, com.example.pvp.text.RankTitles.name(target.getUuid(), target.getGameProfile().getName()), "点击发起 1v1 决斗"));
+                inv.setStack(index, makeButton(Items.PAPER, "§e" + target.getGameProfile().getName(), "点击发起 1v1 决斗"));
                 index++;
             }
 
@@ -630,11 +630,11 @@ public final class PvpGuiManager {
         });
     }
 
-    /** 战绩排行榜页：顶部显示我的 Elo 与战绩，中间按 Elo 排名（玩家头颅），底部翻页。 */
+    /** 战绩排行榜页：顶部显示我的战绩，中间按胜率排名（玩家头颅），底部翻页。 */
     private void openStatsPage(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.STATS;
-        this.openPage(player, ctx, "§6Elo 排行榜", inv -> this.fillStatsPage(inv, player, ctx));
+        this.openPage(player, ctx, "§6战绩排行榜（按胜率）", inv -> this.fillStatsPage(inv, player, ctx));
     }
 
     /** 战绩排行榜页填充（每页 18 名，底部上一页/页码/下一页/返回）。 */
@@ -642,9 +642,9 @@ public final class PvpGuiManager {
         for (int slot = 0; slot < 36; slot++) {
             inv.setStack(slot, makeButton(Items.GRAY_STAINED_GLASS_PANE, " "));
         }
-        // 顶部中央：我的 Elo 与战绩
+        // 顶部中央：我的战绩（隐藏分不展示给玩家）
         PlayerStats mine = StatsStore.INSTANCE.getStats(player.getUuid());
-        inv.setStack(4, makeButton(Items.BOOK, "§a我的 Elo：" + mine.getRatingDisplay(),
+        inv.setStack(4, makeButton(Items.BOOK, "§a我的战绩",
                 "胜 " + mine.getWins() + " / 负 " + mine.getLosses() + " / 总 " + mine.getMatches(),
                 "胜率 " + formatRate(mine.winRate())));
 
@@ -661,21 +661,18 @@ public final class PvpGuiManager {
             int slot = 9;
             for (int i = start; i < Math.min(board.size(), start + perPage); i++, slot++) {
                 Map.Entry<String, PlayerStats> entry = board.get(i);
-                UUID uuid;
+                String name;
                 try {
-                    uuid = UUID.fromString(entry.getKey());
+                    name = resolveName(UUID.fromString(entry.getKey()));
                 } catch (IllegalArgumentException e) {
                     continue;
                 }
-                String name = resolveName(uuid);
                 PlayerStats s = entry.getValue();
                 boolean self = entry.getKey().equals(player.getUuid().toString());
                 ItemStack head = makeButton(Items.PLAYER_HEAD,
-                        (self ? "§a" : "§e") + "#" + (i + 1) + " "
-                                + com.example.pvp.text.RankTitles.name(uuid, name, self ? "§a" : "§e"),
-                        "Elo " + s.getRatingDisplay(),
-                        "胜 " + s.wins + " / 负 " + s.losses + " / 总 " + s.matches,
-                        "胜率 " + formatRate(s.winRate()));
+                        (self ? "§a" : "§e") + "#" + (i + 1) + " " + name,
+                        "胜率 " + formatRate(s.winRate()),
+                        "胜 " + s.wins + " / 负 " + s.losses + " / 总 " + s.matches);
                 if (self) {
                     head.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
                 }
@@ -1152,9 +1149,9 @@ public final class PvpGuiManager {
             return;
         }
         PvPMod.DUEL.challenge(player, target, MatchType.DUEL_1V1, kit);
-        player.sendMessage(Messages.info("已向 " + com.example.pvp.text.RankTitles.name(target.getUuid(), target.getGameProfile().getName())
+        player.sendMessage(Messages.info("已向 §e" + target.getGameProfile().getName()
                 + "§r 发起决斗（套件 " + kit.getDisplayName() + "），等待接受..."), false);
-        target.sendMessage(Messages.gold(com.example.pvp.text.RankTitles.name(player.getUuid(), player.getGameProfile().getName())
+        target.sendMessage(Messages.gold("§e" + player.getGameProfile().getName()
                 + "§r 向你发起 1v1 决斗（套件 " + kit.getDisplayName() + "）！输入 §e/duel accept§r 接受"), false);
         player.closeHandledScreen();
     }

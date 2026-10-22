@@ -33,7 +33,6 @@ import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitApplicator;
 import com.example.pvp.kit.KitManager;
 import com.example.pvp.text.Messages;
-import com.example.pvp.text.RankTitles;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.ints.IntList;
 import java.nio.file.Path;
@@ -1024,7 +1023,7 @@ public final class Match {
             this.totemFallSafeTicks.put(player.getUuid(), 100);
             player.sendMessage(Messages.gold("不死图腾救了你一命！"), false);
         }
-        this.broadcast(Messages.warn(RankTitles.name(player.getUuid(), player.getGameProfile().getName()) + "§r 依靠不死图腾死里逃生！"));
+        this.broadcast(Messages.warn("§e" + player.getGameProfile().getName() + "§r 依靠不死图腾死里逃生！"));
         return true;
     }
 
@@ -1327,7 +1326,7 @@ public final class Match {
         this.luckyPillarSwapTicks = 60; // 3 秒倒计时
         // 交换前提示：明确告知谁和谁在 3 秒后互换
         this.broadcastTitleBig("§d§l位置交换！！",
-                "§f3 秒后 " + RankTitles.name(a.getUuid(), a.getGameProfile().getName()) + " 与 " + RankTitles.name(b.getUuid(), b.getGameProfile().getName()) + " 互换位置！");
+                "§f3 秒后 " + a.getGameProfile().getName() + " 与 " + b.getGameProfile().getName() + " 互换位置！");
     }
 
     /** 位置交换倒计时结束：执行互换；目标下线/被淘汰则重新挑两人。 */
@@ -1467,7 +1466,7 @@ public final class Match {
         HeartbeatLayout layout = this.heartbeatLayout;
         int level = this.heartbeatProgress.getOrDefault(uuid, 0); // 0 起当前关
         int next = level + 1;
-        String name = RankTitles.name(uuid, online.getGameProfile().getName());
+        String name = online.getGameProfile().getName();
 
         if (next >= layout.levelCount) {
             // 通关全部关卡
@@ -1613,7 +1612,7 @@ public final class Match {
             UUID uuid = order.get(i);
             int progress = this.heartbeatProgress.getOrDefault(uuid, 0);
             ServerPlayerEntity online = this.manager.getOnlinePlayer(uuid);
-            String name = online != null ? RankTitles.name(uuid, online.getGameProfile().getName()) : RankTitles.name(uuid, "(离线)", "§7");
+            String name = online != null ? online.getGameProfile().getName() : "§7(离线)";
             String medal = switch (i) {
                 case 0 -> "§6§l#1";
                 case 1 -> "§e§l#2";
@@ -1627,7 +1626,7 @@ public final class Match {
         }
         ServerPlayerEntity winner = this.bestHeartbeatPlayer();
         if (winner != null) {
-            this.broadcast(Messages.gold(RankTitles.name(winner.getUuid(), winner.getGameProfile().getName()) + "§r 以最高关卡进度获胜！"));
+            this.broadcast(Messages.gold("§6" + winner.getGameProfile().getName() + "§r 以最高关卡进度获胜！"));
         } else {
             this.broadcast(Messages.warn("本局平局"));
         }
@@ -1741,8 +1740,8 @@ public final class Match {
         // 注意：不重置 hotPotatoTicks——山芋总寿命从发放起算，传递只是换持有者
         this.hotPotatoPassCooldown = HOT_POTATO_PASS_COOLDOWN_TICKS;
         this.giveHotPotatoItem(targetPlayer);
-        this.broadcast(Messages.warn(RankTitles.name(attacker.getUuid(), attacker.getGameProfile().getName())
-                + "§r 把烫手山芋传给了 " + RankTitles.name(targetPlayer.getUuid(), targetPlayer.getGameProfile().getName()) + "§r！"));
+        this.broadcast(Messages.warn("§e" + attacker.getGameProfile().getName()
+                + "§r 把烫手山芋传给了 §e" + targetPlayer.getGameProfile().getName() + "§r！"));
         attacker.playSoundToPlayer(SoundEvents.ENTITY_ENDER_PEARL_THROW, SoundCategory.PLAYERS, 1.0F, 1.0F);
         targetPlayer.playSoundToPlayer(SoundEvents.ENTITY_ENDER_PEARL_THROW, SoundCategory.PLAYERS, 1.0F, 1.4F);
     }
@@ -1769,7 +1768,7 @@ public final class Match {
         this.hotPotatoHolder = player.getUuid();
         this.hotPotatoTicks = 0;
         this.giveHotPotatoItem(player);
-        this.broadcast(Messages.gold("§6烫手山芋出现了！" + RankTitles.name(player.getUuid(), player.getGameProfile().getName())
+        this.broadcast(Messages.gold("§6烫手山芋出现了！§e" + player.getGameProfile().getName()
                 + "§r 持有它！§c左键点击其他玩家传递，时间到会爆炸！"));
         player.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 1.0F, 1.5F);
     }
@@ -2321,7 +2320,7 @@ public final class Match {
                 String teamLabel = victimTeam != null
                         ? victimTeam.getColor() + victimTeam.getName() : BedWarsLayout.name(teamIdx);
                 this.broadcast(Messages.error(teamLabel + "§r 的床被 "
-                        + RankTitles.name(player.getUuid(), player.getGameProfile().getName()) + " 摧毁了！该队无法再复活！"));
+                        + player.getGameProfile().getName() + " 摧毁了！该队无法再复活！"));
                 player.playSoundToPlayer(SoundEvents.ENTITY_WITHER_BREAK_BLOCK, SoundCategory.PLAYERS, 1.0F, 1.0F);
                 // 被摧毁队伍全员标题警告 + 音效
                 if (teamIdx < this.teams.size()) {
@@ -2744,7 +2743,7 @@ public final class Match {
     /** 一次进球：得分 → 广播比分 → 达到目标则获胜，否则开启回合间歇。 */
     private void onBridgeGoal(MatchTeam scorerTeam, MatchTeam goalTeam, ServerPlayerEntity player) {
         scorerTeam.addScore();
-        this.broadcast(Messages.gold(RankTitles.name(player.getUuid(), player.getGameProfile().getName()) + "§r 进球！ " + this.scoreLine()));
+        this.broadcast(Messages.gold("§e" + player.getGameProfile().getName() + "§r 进球！ " + this.scoreLine()));
         if (scorerTeam.getScore() >= PvPConfig.INSTANCE.bridgeWinScore) {
             this.finishMatch(scorerTeam);
             return;
@@ -2950,18 +2949,18 @@ public final class Match {
         if (killer != null) {
             int kills = this.deathmatchKills.merge(killer.getUuid(), 1, Integer::sum);
             int streak = this.deathmatchKillstreak.merge(killer.getUuid(), 1, Integer::sum);
-            this.broadcastDeathmatchServer(Messages.info("§8[死斗] " + RankTitles.name(killer.getUuid(), killer.getGameProfile().getName())
-                    + " §7击杀了 " + RankTitles.name(victim.getUuid(), victim.getGameProfile().getName()) + " §8(§a" + kills + "§8)"));
+            this.broadcastDeathmatchServer(Messages.info("§8[死斗] §c" + killer.getGameProfile().getName()
+                    + " §7击杀了 §f" + victim.getGameProfile().getName() + " §8(§a" + kills + "§8)"));
             String streakText = deathmatchStreakText(streak);
             if (streakText != null) {
-                this.broadcastDeathmatchServer(Messages.info("§8[死斗] §8>> " + streakText + " §8<< "
-                        + RankTitles.name(killer.getUuid(), killer.getGameProfile().getName()) + " §7已连续击杀 §e" + streak + " §7人！"));
+                this.broadcastDeathmatchServer(Messages.info("§8[死斗] §8>> " + streakText + " §8<< §f"
+                        + killer.getGameProfile().getName() + " §7已连续击杀 §e" + streak + " §7人！"));
                 killer.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 0.8F, 1.2F);
             }
             killer.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, SoundCategory.PLAYERS, 0.7F, 1.0F);
-            victim.sendMessage(Text.literal("§c你被 " + RankTitles.name(killer.getUuid(), killer.getGameProfile().getName()) + " §c击杀了"), true);
+            victim.sendMessage(Text.literal("§c你被 §f" + killer.getGameProfile().getName() + " §c击杀了"), true);
         } else {
-            this.broadcastDeathmatchServer(Messages.info("§8[死斗] " + RankTitles.name(victim.getUuid(), victim.getGameProfile().getName()) + " §7阵亡了"));
+            this.broadcastDeathmatchServer(Messages.info("§8[死斗] §f" + victim.getGameProfile().getName() + " §7阵亡了"));
             victim.sendMessage(Text.literal("§c你阵亡了"), true);
         }
         victim.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_DEATH, SoundCategory.PLAYERS, 0.6F, 1.0F);
@@ -3150,7 +3149,7 @@ public final class Match {
         for (ServerPlayerEntity player : ranking) {
             if (winners.contains(player.getUuid())) {
                 winnerPlayers.add(player);
-                names.add(RankTitles.name(player.getUuid(), player.getGameProfile().getName()));
+                names.add(player.getGameProfile().getName());
             }
         }
         if (names.isEmpty()) {
@@ -3167,7 +3166,7 @@ public final class Match {
         this.broadcast(Messages.info("§6最终排名："));
         for (int i = 0; i < Math.min(3, ranking.size()); i++) {
             ServerPlayerEntity player = ranking.get(i);
-            this.broadcast(Messages.info("  §e" + (i + 1) + ". " + RankTitles.name(player.getUuid(), player.getGameProfile().getName())
+            this.broadcast(Messages.info("  §e" + (i + 1) + ". §f" + player.getGameProfile().getName()
                     + " §a" + this.deathmatchKills.getOrDefault(player.getUuid(), 0) + " 杀 §c"
                     + this.deathmatchDeaths.getOrDefault(player.getUuid(), 0) + " 死"));
         }
@@ -3301,7 +3300,7 @@ public final class Match {
         if (deathMessage != null) {
             this.broadcast(deathMessage);
         } else {
-            this.broadcast(Messages.warn(RankTitles.name(player.getUuid(), player.getGameProfile().getName()) + "§r 被淘汰（" + cause.getDisplayName() + "）"));
+            this.broadcast(Messages.warn("§e" + player.getGameProfile().getName() + "§r 被淘汰（" + cause.getDisplayName() + "）"));
         }
 
         this.checkWinCondition();
@@ -3456,16 +3455,16 @@ public final class Match {
         return winners;
     }
 
-    /** 庆祝结束后的实际结算：恢复、战绩（Elo）、清场、释放。 */
+    /** 庆祝结束后的实际结算：恢复、战绩（内部隐藏分）、清场、释放。 */
     private void finalizeMatch() {
         Set<UUID> winners = this.computeWinners();
         try {
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
             this.removeHeartbeatBossBar();
-            // 一次性结算整场：Elo 需要"对手/队友是谁"，逐个玩家单独调用算不出来
-            Map<UUID, Double> ratingChanges = StatsStore.INSTANCE.recordMatch(this.ratingGroups(), winners);
-            this.announceRatingChanges(ratingChanges);
+            // 一次性结算整场：内部 Elo（隐藏分）需要"对手/队友是谁"，逐个玩家单独调用算不出来。
+            // 分数本身不展示给玩家，只用于空岛弱势补偿等系统计算，所以这里不返回任何提示文案。
+            StatsStore.INSTANCE.recordMatch(this.ratingGroups(), winners);
         } catch (Exception e) {
             LOGGER.error("[PvP] 比赛结束处理出错", e);
         } finally {
@@ -3484,7 +3483,7 @@ public final class Match {
     }
 
     /**
-     * Elo 结算用的分组：多队模式按队伍分组（队友之间不结算），
+     * 隐藏分结算用的分组：多队模式按队伍分组（队友之间不结算），
      * 单人模式（FFA/空岛/幸运之柱/竞速……）每人自成一组。
      *
      * <p>注意 {@link #teams} 在 FFA 等模式里是"全员一队"（见 {@code buildTeams}），
@@ -3508,34 +3507,6 @@ public final class Match {
             groups.add(List.of(player.getUuid()));
         }
         return groups;
-    }
-
-    /**
-     * 把本场的 Elo 变化告诉玩家。离开赛末动作栏大字之后马上结算，
-     * 玩家在聊天框能看到"这局值多少分"，否则 Elo 会显得很玄学。
-     */
-    private void announceRatingChanges(Map<UUID, Double> changes) {
-        List<ServerPlayerEntity> updated = new ArrayList<>();
-        for (Map.Entry<UUID, Double> entry : changes.entrySet()) {
-            ServerPlayerEntity online = this.manager.getOnlinePlayer(entry.getKey());
-            if (online == null) {
-                continue;
-            }
-            double delta = entry.getValue();
-            int rating = StatsStore.INSTANCE.getStats(entry.getKey()).getRatingDisplay();
-            String text = "§bElo §f" + rating;
-            if (Math.abs(delta) < 0.05) {
-                text += " §7(无变化)";
-            } else {
-                String amount = String.format(java.util.Locale.ROOT, "%.1f", Math.abs(delta));
-                text += delta > 0 ? " §7(§a+" + amount + "§7)" : " §7(§c-" + amount + "§7)";
-                updated.add(online);
-            }
-            online.sendMessage(Messages.info(text), false);
-        }
-        // 段位前缀已经写进了 tab/头顶名牌的显示名，但原版只在加入时发一次，
-        // 不补这一包就会一直显示结算前的旧段位（见 RankTitles.refreshTabList）
-        RankTitles.refreshTabList(this.manager.getServer(), updated);
     }
 
     /**
@@ -3840,7 +3811,7 @@ public final class Match {
         }
         ServerPlayerEntity next = targets.get((idx + 1) % targets.size());
         player.setCameraEntity(next);
-        player.sendMessage(Messages.info("正在观战 " + RankTitles.name(next.getUuid(), next.getGameProfile().getName())), false);
+        player.sendMessage(Messages.info("正在观战 §e" + next.getGameProfile().getName()), false);
     }
 
     /** 玩家主动离开竞技场回主城：幽灵走旁观离开流程；活跃玩家视为弃权淘汰并恢复赛前状态。 */
@@ -4546,7 +4517,7 @@ public final class Match {
             List<String> names = new ArrayList<>();
             for (ServerPlayerEntity player : this.players) {
                 if (winners.contains(player.getUuid())) {
-                    names.add(RankTitles.name(player.getUuid(), player.getGameProfile().getName()));
+                    names.add(player.getGameProfile().getName());
                 }
             }
             if (names.isEmpty()) {
@@ -4563,7 +4534,7 @@ public final class Match {
         if (this.type.isLastManStanding()) {
             ServerPlayerEntity winner = this.getWinnerPlayer(winners);
             if (winner != null) {
-                this.broadcast(Messages.gold(RankTitles.name(winner.getUuid(), winner.getGameProfile().getName()) + "§r 在"
+                this.broadcast(Messages.gold("§6" + winner.getGameProfile().getName() + "§r 在"
                         + this.type.getDisplayName() + "中获胜！"));
             } else {
                 this.broadcast(Messages.warn("本局平局"));
@@ -4723,7 +4694,7 @@ public final class Match {
             this.setInfoLine(scoreboard, objective, "§b已通关 §f" + finished + "§7/§f" + this.players.size(), score--);
             ServerPlayerEntity leader = this.bestHeartbeatPlayer();
             if (leader != null && layout != null) {
-                String ln = RankTitles.name(leader.getUuid(), leader.getGameProfile().getName());
+                String ln = leader.getGameProfile().getName();
                 int lp = this.heartbeatProgress.getOrDefault(leader.getUuid(), 0);
                 this.setInfoLine(scoreboard, objective, "§e领先 §f" + ln + " §7("
                         + Math.min(lp + 1, layout.levelCount) + "/" + layout.levelCount + " 关)", score--);
@@ -4734,7 +4705,7 @@ public final class Match {
                     break;
                 }
                 ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-                String name = RankTitles.name(player.getUuid(), online != null ? online.getGameProfile().getName() : player.getGameProfile().getName());
+                String name = online != null ? online.getGameProfile().getName() : player.getGameProfile().getName();
                 if (this.heartbeatFinished.contains(player.getUuid())) {
                     this.setInfoLine(scoreboard, objective, " §a★ §f" + name + " §7(通关)", score--);
                 } else if (layout != null) {
@@ -4758,7 +4729,7 @@ public final class Match {
                     break;
                 }
                 ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-                String name = RankTitles.name(player.getUuid(), online != null ? online.getGameProfile().getName() : player.getGameProfile().getName());
+                String name = online != null ? online.getGameProfile().getName() : player.getGameProfile().getName();
                 int orbs = this.vdOrbs.getOrDefault(player.getUuid(), 0);
                 if (this.vdWaitingPlayers.contains(player.getUuid())) {
                     this.setInfoLine(scoreboard, objective, " §7✝ §f" + name + " §7(§e" + orbs + "§7)", score--);
@@ -4785,7 +4756,7 @@ public final class Match {
                 if (online == null) {
                     continue;
                 }
-                this.setInfoLine(scoreboard, objective, " §a● " + RankTitles.name(online.getUuid(), online.getGameProfile().getName()), score--);
+                this.setInfoLine(scoreboard, objective, " §a● §f" + online.getGameProfile().getName(), score--);
             }
         } else if (this.type == MatchType.DEATHMATCH) {
             // 死斗：实时击杀榜（人头降序）。正文只剩 ~10 行，16 人局必然放不下，
@@ -4796,8 +4767,8 @@ public final class Match {
             int capacity = ranking.size() <= available ? ranking.size() : Math.max(0, available - 1);
             for (int i = 0; i < capacity; i++) {
                 ServerPlayerEntity player = ranking.get(i);
-                this.setInfoLine(scoreboard, objective, "§e" + (i + 1) + ". "
-                        + RankTitles.name(player.getUuid(), player.getGameProfile().getName())
+                this.setInfoLine(scoreboard, objective, "§e" + (i + 1) + ". §f"
+                        + player.getGameProfile().getName()
                         + " §a" + this.deathmatchKills.getOrDefault(player.getUuid(), 0)
                         + "§7/§c" + this.deathmatchDeaths.getOrDefault(player.getUuid(), 0), score--);
             }
@@ -4829,7 +4800,7 @@ public final class Match {
                 if (online == null || tracker == null) {
                     continue;
                 }
-                String name = RankTitles.name(online.getUuid(), online.getGameProfile().getName());
+                String name = online.getGameProfile().getName();
                 if (tracker.finished()) {
                     this.setInfoLine(scoreboard, objective, " §a★ §f" + name + " §7"
                             + RaceProgressTracker.formatTicks(tracker.finishTicks()), score--);
@@ -4858,7 +4829,7 @@ public final class Match {
             }
             if (this.type == MatchType.HOT_POTATO) {
                 ServerPlayerEntity holder = this.onlineHotPotatoHolder();
-                String holderName = holder != null ? RankTitles.name(holder.getUuid(), holder.getGameProfile().getName()) : "§7无";
+                String holderName = holder != null ? holder.getGameProfile().getName() : "无";
                 this.setInfoLine(scoreboard, objective, "§6山芋持有者 §f" + holderName, score--);
                 int left = Math.max(0, (PvPConfig.INSTANCE.hotPotatoExplodeSeconds * 20
                         - this.hotPotatoTicks + 19) / 20);
@@ -4876,7 +4847,7 @@ public final class Match {
                 if (online == null) {
                     continue;
                 }
-                this.setInfoLine(scoreboard, objective, " §a● " + RankTitles.name(online.getUuid(), online.getGameProfile().getName()), score--);
+                this.setInfoLine(scoreboard, objective, " §a● §f" + online.getGameProfile().getName(), score--);
             }
         } else {
             // 组队模式：逐队显示队伍与成员（队友/对手，颜色区分）
@@ -4912,7 +4883,7 @@ public final class Match {
                         break;
                     }
                     ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-                    String name = RankTitles.name(player.getUuid(), online != null ? online.getGameProfile().getName() : player.getGameProfile().getName());
+                    String name = online != null ? online.getGameProfile().getName() : player.getGameProfile().getName();
                     if (team.isAlive(player)) {
                         this.setInfoLine(scoreboard, objective, " " + team.getColor() + "● §f" + name, score--);
                     } else {
@@ -5265,7 +5236,7 @@ public final class Match {
                 continue;
             }
             int place = i + 1;
-            String line = BoatRaceSession.medal(place) + " §f" + RankTitles.name(uuid, this.nameOf(uuid));
+            String line = BoatRaceSession.medal(place) + " §f" + this.nameOf(uuid);
             if (tracker.finished()) {
                 line += " §7用时 §a" + RaceProgressTracker.formatTicks(tracker.finishTicks());
                 if (tracker.bestLapTicks() >= 0) {
@@ -6106,11 +6077,11 @@ public final class Match {
             wolf.setOwnerUuid(sp.getUuid());
             wolf.setTamed(true, true);
             wolf.setSitting(false);
-            wolf.setCustomName(Text.literal(RankTitles.name(sp.getUuid(), sp.getGameProfile().getName()) + "§r 的狼"));
+            wolf.setCustomName(Text.literal("§b" + sp.getGameProfile().getName() + " 的狼"));
             wolf.setCustomNameVisible(true);
         } else {
             net.minecraft.entity.passive.IronGolemEntity g = (net.minecraft.entity.passive.IronGolemEntity) pet;
-            g.setCustomName(Text.literal(RankTitles.name(sp.getUuid(), sp.getGameProfile().getName()) + "§r 的铁傀儡"));
+            g.setCustomName(Text.literal("§7" + sp.getGameProfile().getName() + " 的铁傀儡"));
             g.setCustomNameVisible(true);
         }
         arena.spawnEntity(pet);
@@ -6386,7 +6357,7 @@ public final class Match {
             }
         }
         this.vdCollectFlesh(16);
-        this.broadcast(Messages.gold(RankTitles.name(sp.getUuid(), sp.getGameProfile().getName()) + " 向秘密之井投了 16 个腐肉！"));
+        this.broadcast(Messages.gold(sp.getGameProfile().getName() + " 向秘密之井投了 16 个腐肉！"));
     }
 
     // ==================== Kit 技能引擎（主动/被动） ====================

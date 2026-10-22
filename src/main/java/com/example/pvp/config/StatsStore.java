@@ -19,10 +19,10 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 战绩持久化 config/pvp/stats.json：UUID → Elo 积分 + 胜/负/场次。
+ * 战绩持久化 config/pvp/stats.json：UUID → 隐藏分 + 胜/负/场次。
  *
- * <p>排序/补偿一律看 {@link PlayerStats#rating}（详见 {@link EloRating}），
- * 胜率只是展示用的参考值。
+ * <p><b>隐藏分（rating）不展示给玩家</b>：它只作为系统计算工具（目前用于空岛弱势补偿），
+ * 玩家能看到、能排序的仍然只有胜/负/场次与胜率。
  */
 public final class StatsStore {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -48,9 +48,9 @@ public final class StatsStore {
                 LOGGER.warn("[PvP] 战绩读取失败: {}", e.toString());
             }
         }
-        // 迁移：Elo 之前的 stats.json 没有 rating 字段。Gson 会用字段初始值（1600）兜底，
+        // 迁移：早期 stats.json 没有 rating 字段。Gson 会用字段初始值（1600）兜底，
         // 正常读档不需要改写；但历史数据/手工编辑里可能出现 0、NaN 这类脏值，
-        // 那样玩家会带着 0 分进入 Elo（赢一百场都爬不出来），这里统一拉回初始分并落盘。
+        // 否则玩家会带着 0 分进入隐藏分体系（补偿永远给同一个人），这里统一拉回初始分并落盘。
         int migrated = 0;
         for (PlayerStats s : this.stats.values()) {
             if (!(s.rating > 0.0) || Double.isNaN(s.rating) || Double.isInfinite(s.rating)) {
@@ -59,7 +59,7 @@ public final class StatsStore {
             }
         }
         if (migrated > 0) {
-            LOGGER.info("[PvP] Elo 迁移：{} 名玩家的 rating 置为初始分 {}", migrated, EloRating.INITIAL);
+            LOGGER.info("[PvP] 隐藏分迁移：{} 名玩家的 rating 置为初始分 {}", migrated, EloRating.INITIAL);
             this.save();
         }
     }
@@ -88,23 +88,23 @@ public final class StatsStore {
         return Map.copyOf(this.stats);
     }
 
-    /** 排行榜：按 Elo 降序，同分依次按总场次、胜场降序（打得多的排前面）。 */
+    /** 排行榜：按胜率降序，同胜率依次按胜场、总场次降序（隐藏分不参与展示与排序）。 */
     public java.util.List<Map.Entry<String, PlayerStats>> getLeaderboard() {
         return this.stats.entrySet().stream()
                 .sorted(java.util.Comparator
-                        .comparingDouble((Map.Entry<String, PlayerStats> e) -> e.getValue().rating).reversed()
-                        .thenComparing(e -> e.getValue().matches, java.util.Comparator.reverseOrder())
-                        .thenComparing(e -> e.getValue().wins, java.util.Comparator.reverseOrder()))
+                        .comparingDouble((Map.Entry<String, PlayerStats> e) -> e.getValue().winRate()).reversed()
+                        .thenComparing(e -> e.getValue().wins, java.util.Comparator.reverseOrder())
+                        .thenComparing(e -> e.getValue().matches, java.util.Comparator.reverseOrder()))
                 .toList();
     }
 
     /**
-     * 记录一整场比赛：先累加胜/负/场次，再按 Elo 结算 rating。
+     * 记录一整场比赛：先累加胜/负/场次，再按 Elo 结算隐藏分。
      *
      * @param groups  参赛分组：多队模式每队一组，FFA 等"单人"模式每人一组。
      *                同组玩家视为队友，彼此不结算。
      * @param winners 本场胜者（可能多人，例如竞速全员完赛/合作模式全员胜）
-     * @return UUID → 本场 rating 变化量（未结算/无变化时为 0），供对局结束时提示玩家
+     * @return UUID → 本场隐藏分变化量（未结算/无变化时为 0）。不展示给玩家。
      */
     public Map<UUID, Double> recordMatch(List<List<UUID>> groups, Set<UUID> winners) {
         Map<UUID, Double> changes = new LinkedHashMap<>();
@@ -130,7 +130,7 @@ public final class StatsStore {
             }
         }
 
-        // 2) Elo：用队内平均分代表整队，队伍的变化量全队各拿一份
+        // 2) 隐藏分：用队内平均分代表整队，队伍的变化量全队各拿一份
         int n = valid.size();
         if (n < 2) {
             return changes;
