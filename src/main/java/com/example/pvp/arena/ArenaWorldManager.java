@@ -11,6 +11,7 @@ import com.example.pvp.arena.hotpotato.HotPotatoMapGenerator;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.race.RaceMapGenerator;
 import com.example.pvp.arena.luckypillar.LuckyPillarMapGenerator;
+import com.example.pvp.arena.skywars.SkyWarsLayout;
 import com.example.pvp.arena.skywars.SkyWarsMapGenerator;
 import com.example.pvp.arena.skywars.SkyWarsMapVariant;
 import com.example.pvp.arena.tntrun.TntRunLayout;
@@ -174,7 +175,8 @@ public final class ArenaWorldManager {
      */
     public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount, MatchType type,
                            List<ServerPlayerEntity> players) {
-        this.buildArena(regionIndex, template, seed, playerCount, type, players, null, SkyWarsMapVariant.CLASSIC);
+        this.buildArena(regionIndex, template, seed, playerCount, type, players, null, SkyWarsMapVariant.CLASSIC,
+                null);
     }
 
     /**
@@ -186,17 +188,22 @@ public final class ArenaWorldManager {
     public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount, MatchType type,
                            List<ServerPlayerEntity> players, LuckyPillarLayout luckyPillarLayout) {
         this.buildArena(regionIndex, template, seed, playerCount, type, players, luckyPillarLayout,
-                SkyWarsMapVariant.CLASSIC);
+                SkyWarsMapVariant.CLASSIC, null);
     }
 
+    /**
+     * @param skyWarsLayout 调用方算好的空岛布局（可空）：正式对局由 Match 传入，
+     *                      这样立体地形上附加的箱子会登记在"物资刷新"使用的那份布局上
+     */
     public void buildArena(int regionIndex, ArenaTemplate template, int seed, int playerCount, MatchType type,
                            List<ServerPlayerEntity> players, LuckyPillarLayout luckyPillarLayout,
-                           SkyWarsMapVariant skyWarsVariant) {
+                           SkyWarsMapVariant skyWarsVariant, SkyWarsLayout skyWarsLayout) {
         ArenaWorld arena = this.requireWorld();
 
         // 空岛战争：随机生成出生岛 + 中间主岛 + 箱子战利品
         if (template.getLayout() == ArenaTemplate.Layout.SKYWARS) {
-            SkyWarsMapGenerator.generate(arena, regionIndex, seed, playerCount, players, skyWarsVariant);
+            SkyWarsMapGenerator.generate(arena, regionIndex, seed, playerCount, players, skyWarsVariant,
+                    skyWarsLayout);
             return;
         }
 

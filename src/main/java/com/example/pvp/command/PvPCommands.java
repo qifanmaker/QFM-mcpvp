@@ -1261,7 +1261,7 @@ public final class PvPCommands {
         BlockPos origin = new BlockPos(region * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
         BlockPos center = new BlockPos(origin.getX() + size / 2, ArenaTemplate.PLATFORM_Y + 1,
                 origin.getZ() + size / 2);
-        SkyWarsLayout layout = SkyWarsBetaMapGenerator.generate(arena, region, seed, 8, List.of());
+        SkyWarsLayout layout = SkyWarsBetaMapGenerator.generate(arena, region, seed, 8, List.of(), null);
         SkyWarsTheme theme = SkyWarsTheme.pick(seed);
         int style = Math.floorMod(seed, 6);
         player.sendMessage(Messages.info("测试空岛 Beta 地图已生成（seed " + seed + "，风格 " + style

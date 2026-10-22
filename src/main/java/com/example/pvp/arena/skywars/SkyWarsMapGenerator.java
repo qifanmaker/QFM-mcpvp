@@ -65,13 +65,29 @@ public final class SkyWarsMapGenerator {
     /** 生成空岛地图；正式主空岛统一使用立体 Beta 地形，战斗规则仍由同一个 SKYWARS 模式处理。 */
     public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
                                          List<ServerPlayerEntity> players, SkyWarsMapVariant variant) {
-        return SkyWarsBetaMapGenerator.generate(world, regionIndex, seed, playerCount, players);
+        return generate(world, regionIndex, seed, playerCount, players, variant, null);
+    }
+
+    /**
+     * 生成空岛地图，允许调用方传入已经算好的布局。
+     *
+     * <p><b>为什么要传布局</b>：立体地形上额外放的箱子会登记在 {@link SkyWarsLayout} 上，
+     * 而"物资刷新"用的是 {@code Match.skywarsLayout}。如果这里再自己 {@code compute} 一份，
+     * Beta 生成器登记的箱子会写在另一份布局上，刷新时永远找不到 —— 表现为
+     * "新地形上的箱子刷新后还是空的"。所以正式对局直接把 Match 那份布局传进来，全局只留一份。
+     */
+    public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
+                                         List<ServerPlayerEntity> players, SkyWarsMapVariant variant,
+                                         SkyWarsLayout precomputedLayout) {
+        return SkyWarsBetaMapGenerator.generate(world, regionIndex, seed, playerCount, players, precomputedLayout);
     }
 
     static SkyWarsLayout generateClassic(ArenaWorld world, int regionIndex, int seed, int playerCount,
-                                         List<ServerPlayerEntity> players) {
+                                         List<ServerPlayerEntity> players, SkyWarsLayout precomputedLayout) {
         BlockPos mapCenter = center(regionIndex);
-        SkyWarsLayout layout = SkyWarsLayout.compute(mapCenter, seed, playerCount);
+        SkyWarsLayout layout = precomputedLayout != null
+                ? precomputedLayout
+                : SkyWarsLayout.compute(mapCenter, seed, playerCount);
         SkyWarsTheme theme = SkyWarsTheme.pick(seed);
 
         // 出生岛/中途岛按玩家索引归属：本局 Elo 最低的 1~2 名获得轻微的装备/神器提升
@@ -258,7 +274,29 @@ public final class SkyWarsMapGenerator {
         for (int i = 0; i < middleIslands.size(); i++) {
             refillIslandChests(world, middleIslands.get(i), true, i == 0, theme, 0, stats);
         }
+        refillExtraChests(world, layout, handicaps, stats);
         return stats;
+    }
+
+    /**
+     * 补货 Beta 立体地形上的附加箱子（出生岛侧台 / 中途岛观察台 / 中央核心上下两层）。
+     *
+     * <p>这些位置不是布局算出来的，生成时登记在 {@link SkyWarsLayout#extraChests()}，
+     * 这里直接按登记补货——不补的话，"物资刷新"之后新地形上的箱子会一直是空的。
+     */
+    private static void refillExtraChests(ArenaWorld world, SkyWarsLayout layout, int[] handicaps, int[] stats) {
+        for (SkyWarsLayout.ExtraChest extra : layout.extraChests()) {
+            BlockEntity be = world.getBlockEntity(extra.pos());
+            if (!(be instanceof ChestBlockEntity chest)) {
+                continue; // 被玩家/缩圈拆掉的箱子不复活，与岛上箱子一致
+            }
+            stats[0]++;
+            if (!chest.isEmpty()) {
+                stats[1]++;
+            }
+            chest.clear();
+            SkyWarsLoot.populate(chest, extra.middle(), handicapAt(handicaps, extra.handicapIndex()));
+        }
     }
 
     private static int handicapAt(int[] handicaps, int i) {

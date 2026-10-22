@@ -44,6 +44,18 @@ public final class SkyWarsLayout {
         }
     }
 
+    /**
+     * Beta 立体地形上额外放的箱子。它们不在 {@link Island#chests} 里——那些位置是纯布局计算出来的，
+     * 而立体结构是生成器后加的。生成器放箱子时在这里登记，"物资刷新"按这份登记补货，
+     * 保证"新地形上的箱子"和原有箱子一样会被重置。
+     *
+     * @param middle        是否用中岛（好）战利品表
+     * @param handicapIndex 归属玩家索引（用该玩家的弱势补偿）；-1 = 中岛，不补偿
+     */
+    public record ExtraChest(BlockPos pos, boolean middle, int handicapIndex) {
+    }
+
+    private final List<ExtraChest> extraChests = new ArrayList<>();
     private final BlockPos mapCenter;
     private final int maxRadius;
     private final List<Island> spawnIslands;
@@ -66,6 +78,16 @@ public final class SkyWarsLayout {
         this.middle = middleIslands.isEmpty() ? null : middleIslands.get(0);
         this.spawns = List.copyOf(spawns);
         this.middleVariant = middleVariant;
+    }
+
+    /** Beta 立体地形上的附加箱子（由生成器登记，补货时使用）。 */
+    public List<ExtraChest> extraChests() {
+        return this.extraChests;
+    }
+
+    /** 登记一个附加箱子。只在生成阶段调用一次。 */
+    public void addExtraChest(ExtraChest chest) {
+        this.extraChests.add(chest);
     }
 
     public BlockPos mapCenter() {

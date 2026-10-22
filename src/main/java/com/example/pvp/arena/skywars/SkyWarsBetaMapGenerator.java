@@ -4,6 +4,7 @@ import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.mojang.logging.LogUtils;
 import net.minecraft.block.Block;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
@@ -22,9 +23,15 @@ public final class SkyWarsBetaMapGenerator {
     private SkyWarsBetaMapGenerator() {
     }
 
+    /**
+     * 生成 Beta 立体地形。
+     *
+     * @param layout 调用方已经算好的布局（正式对局传 {@code Match.skywarsLayout}）：
+     *               附加箱子会登记在这份对象上，物资刷新才能找到它们；为 null 时自己算一份（调试用）
+     */
     public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
-                                         List<ServerPlayerEntity> players) {
-        SkyWarsLayout layout = SkyWarsMapGenerator.generateClassic(world, regionIndex, seed, playerCount, players);
+                                         List<ServerPlayerEntity> players, SkyWarsLayout layout) {
+        layout = SkyWarsMapGenerator.generateClassic(world, regionIndex, seed, playerCount, players, layout);
         List<String> validationErrors = SkyWarsBetaLayoutValidator.validate(layout, playerCount);
         if (!validationErrors.isEmpty()) {
             LOGGER.warn("空岛 Beta 布局校验出现问题（seed={}）: {}", seed, String.join("；", validationErrors));
@@ -34,8 +41,9 @@ public final class SkyWarsBetaMapGenerator {
         Block structure = structureBlock(theme);
         Block accent = accentBlock(theme);
         int style = Math.floorMod(seed, 6);
-        LOGGER.info("生成空岛 Beta 地图: seed={}, style={}, theme={}, spawnIslands={}, midIslands={}",
-                seed, style, theme.name(), layout.spawnIslands().size(), layout.midIslands().size());
+
+        int[] handicaps = players == null || players.isEmpty()
+                ? new int[0] : SkyWarsLoot.handicapForMatch(players);
 
         // 每个出生岛增加一个低矮侧台；出生点和原有箱子保持不动，避免开局被结构卡住。
         for (int i = 0; i < layout.spawnIslands().size(); i++) {
@@ -45,6 +53,8 @@ public final class SkyWarsBetaMapGenerator {
             BlockPos side = offset(island.center(), angle + Math.PI / 2.0, island.radius() + 3, 2);
             buildPlatform(world, side, 2, structure, 0);
             buildBridge(world, island.center(), side, structure, 0);
+            // 侧台上也放一个箱子（用的是玩家岛的普通战利品表，补偿归属也跟玩家岛一致）
+            placeExtraChest(world, layout, side.up(), false, i, handicaps);
         }
 
         // 中途岛：随机生成上层观察台或下层绕行台，形成不同高度的进攻路线。
@@ -55,30 +65,61 @@ public final class SkyWarsBetaMapGenerator {
                     island.center().getX() - layout.mapCenter().getX());
             BlockPos ledge = offset(island.center(), angle + (i % 2 == 0 ? 1 : -1) * Math.PI / 2.0,
                     island.radius() + 3, delta);
-            buildPlatform(world, ledge, 2 + (style % 2), accent, 1);
+            int ledgeRadius = 2 + (style % 2);
+            buildPlatform(world, ledge, ledgeRadius, accent, 1);
             buildBridge(world, island.center(), ledge, structure, delta > 0 ? 1 : 0);
             if ((i + style) % 2 == 0) {
                 buildColumn(world, ledge, 3 + Math.abs(delta), structure);
             }
+            // 观察台/绕行台也给一个箱子：高风险路线要有收益，玩家才会真的走
+            // 偏开平台中心，避免和桥/柱子抢同一格
+            placeExtraChest(world, layout, ledge.add(1, 1, 1), false, i, handicaps);
         }
 
         // 中央核心：保留原有中心岛和卫星岛，再叠加上下两层平台与中心高塔。
         SkyWarsLayout.Island middle = layout.middle();
         if (middle != null) {
-            buildCentralCore(world, middle.center(), middle.radius(), style, structure, accent);
+            buildCentralCore(world, layout, middle.center(), middle.radius(), style, structure, accent, handicaps);
         }
 
+        LOGGER.info("生成空岛 Beta 地图: seed={}, style={}, theme={}, spawnIslands={}, midIslands={}, 附加箱子={}",
+                seed, style, theme.name(), layout.spawnIslands().size(), layout.midIslands().size(),
+                layout.extraChests().size());
         return layout;
     }
 
-    private static void buildCentralCore(ArenaWorld world, BlockPos center, int radius, int style,
-                                         Block structure, Block accent) {
+    /**
+     * 在立体地形上放一个箱子并登记，供 {@code 物资刷新} 复用同一份坐标。
+     *
+     * <p>先写箱子再取方块实体：新平台的这一格按构造应该是空的，但桥/柱/拱梁在极端 style 下
+     * 有可能正好穿过它，直接覆盖成箱子可以保证不会被结构吃掉。
+     */
+    private static void placeExtraChest(ArenaWorld world, SkyWarsLayout layout, BlockPos pos,
+                                        boolean middle, int handicapIndex, int[] handicaps) {
+        world.setBlockState(pos, Blocks.CHEST.getDefaultState(), 3);
+        BlockEntity be = world.getBlockEntity(pos);
+        if (be instanceof net.minecraft.block.entity.ChestBlockEntity chest) {
+            SkyWarsLoot.populate(chest, middle, handicapAt(handicaps, handicapIndex));
+        }
+        layout.addExtraChest(new SkyWarsLayout.ExtraChest(pos, middle, handicapIndex));
+    }
+
+    private static int handicapAt(int[] handicaps, int index) {
+        return index >= 0 && index < handicaps.length ? handicaps[index] : 0;
+    }
+
+    private static void buildCentralCore(ArenaWorld world, SkyWarsLayout layout, BlockPos center, int radius,
+                                         int style, Block structure, Block accent, int[] handicaps) {
         int lowerY = -5;
         int upperY = 6 + (style % 3);
         int ringRadius = Math.max(5, radius / 3);
         buildRingPlatform(world, center, ringRadius, lowerY, accent);
-        buildPlatform(world, center.add(style % 2 == 0 ? 0 : 4, upperY, style % 2 == 0 ? 4 : 0),
-                3 + style % 2, structure, 1);
+        BlockPos upperPlatform = center.add(style % 2 == 0 ? 0 : 4, upperY, style % 2 == 0 ? 4 : 0);
+        buildPlatform(world, upperPlatform, 3 + style % 2, structure, 1);
+
+        // 中央核心的两块新地形各放一个中岛级箱子：下层环（绕后路线）与上层平台（制高点）
+        placeExtraChest(world, layout, center.add(ringRadius, lowerY + 1, 0), true, -1, handicaps);
+        placeExtraChest(world, layout, upperPlatform.add(1, 1, 1), true, -1, handicaps);
 
         int pillarCount = 4 + style % 3;
         for (int i = 0; i < pillarCount; i++) {

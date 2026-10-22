@@ -4117,8 +4117,11 @@ public final class Match {
             return true;
         }
 
+        // 把构造期算好的空岛布局传下去：Beta 立体地形上新增的箱子会登记在这份对象上，
+        // 物资刷新用的也是它（否则新地形上的箱子刷新不到）
         this.manager.getArenaManager().buildArena(this.regionIndex, this.template, this.skywarsSeed,
-                this.players.size(), this.type, this.players, this.luckyPillarLayout, this.skywarsVariant);
+                this.players.size(), this.type, this.players, this.luckyPillarLayout, this.skywarsVariant,
+                this.skywarsLayout);
 
         if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
             // 色盲派对的第 1 回合地板：必须在暂存阶段铺（构造器里只算出生点）
