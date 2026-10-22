@@ -15,7 +15,12 @@ public enum SkyWarsTheme {
     /** 冰原：第一层冰、下面雪，云杉树，中间主岛正中是水池。 */
     ICE("冰原"),
     /** 末地：末地石构成，中间主岛为空心环（中间是虚空）。 */
-    END("末地");
+    END("末地"),
+    /**
+     * 村庄：玩家岛/中途岛是普通主世界材质；中间主岛放大成一整座村庄
+     * （原版村庄房屋模板 + 道路，箱子用原版村庄战利品表，见 {@link SkyWarsVillageGenerator}）。
+     */
+    VILLAGE("村庄");
 
     private final String displayName;
 
@@ -55,7 +60,7 @@ public enum SkyWarsTheme {
     /** 岛面表层方块（冰原第一层为冰）。 */
     public Block topBlock() {
         return switch (this) {
-            case OVERWORLD -> Blocks.GRASS_BLOCK;
+            case OVERWORLD, VILLAGE -> Blocks.GRASS_BLOCK;
             case NETHER -> Blocks.NETHERRACK;
             case ICE -> Blocks.PACKED_ICE;
             case END -> Blocks.END_STONE;
@@ -65,7 +70,7 @@ public enum SkyWarsTheme {
     /** 表层下方第 1 层（冰原为雪）。 */
     public Block subBlock() {
         return switch (this) {
-            case OVERWORLD -> Blocks.DIRT;
+            case OVERWORLD, VILLAGE -> Blocks.DIRT;
             case NETHER -> Blocks.NETHERRACK;
             case ICE -> Blocks.SNOW_BLOCK;
             case END -> Blocks.END_STONE;
@@ -75,7 +80,7 @@ public enum SkyWarsTheme {
     /** 更深的 2 层（冰原为雪）。 */
     public Block deepBlock() {
         return switch (this) {
-            case OVERWORLD -> Blocks.STONE;
+            case OVERWORLD, VILLAGE -> Blocks.STONE;
             case NETHER -> Blocks.NETHERRACK;
             case ICE -> Blocks.SNOW_BLOCK;
             case END -> Blocks.END_STONE;

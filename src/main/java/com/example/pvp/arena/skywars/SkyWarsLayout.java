@@ -1,7 +1,10 @@
 package com.example.pvp.arena.skywars;
 
 import com.example.pvp.config.PvPConfig;
+import net.minecraft.loot.LootTable;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -51,8 +54,15 @@ public final class SkyWarsLayout {
      *
      * @param middle        是否用中岛（好）战利品表
      * @param handicapIndex 归属玩家索引（用该玩家的弱势补偿）；-1 = 中岛，不补偿
+     * @param lootTable     非空时用这份原版战利品表（村庄箱子）：刷新时清空并重掷它，
+     *                      不走 {@link SkyWarsLoot}；为空则按 {@code middle} 用本 mod 的战利品表
      */
-    public record ExtraChest(BlockPos pos, boolean middle, int handicapIndex) {
+    public record ExtraChest(BlockPos pos, boolean middle, int handicapIndex,
+                             @Nullable RegistryKey<LootTable> lootTable) {
+        /** 本 mod 战利品表的附加箱子。 */
+        public ExtraChest(BlockPos pos, boolean middle, int handicapIndex) {
+            this(pos, middle, handicapIndex, null);
+        }
     }
 
     private final List<ExtraChest> extraChests = new ArrayList<>();
@@ -188,9 +198,19 @@ public final class SkyWarsLayout {
         // 中岛群：中央主岛 + 内外两环卫星岛（"岛群"而非单一大圆盘），障碍物由生成器按岛添加
         int middleHeight = random.nextInt(7) - 3;
         int middleVariant = Math.floorMod(seed, 3);
-        List<Island> middleIslands = buildMiddleIslandGroup(random,
-                new BlockPos(mapCenter.getX(), mapCenter.getY() + middleHeight, mapCenter.getZ()),
-                Math.max(4, cfg.skywarsMiddleRadius), cfg.skywarsMiddleChests, middleVariant);
+        List<Island> middleIslands;
+        if (SkyWarsTheme.pick(seed) == SkyWarsTheme.VILLAGE) {
+            // 村庄地图：中岛放大成一整座岛，占满原来中岛群的范围，好摆一整座村庄。
+            // 这座岛上不放本 mod 的箱子 —— 箱子由村庄房屋自带（原版村庄战利品表）
+            int villageRadius = Math.max(20, cfg.skywarsMiddleRadius - 8);
+            middleIslands = List.of(buildIsland(random,
+                    new BlockPos(mapCenter.getX(), mapCenter.getY() + middleHeight, mapCenter.getZ()),
+                    villageRadius, 0));
+        } else {
+            middleIslands = buildMiddleIslandGroup(random,
+                    new BlockPos(mapCenter.getX(), mapCenter.getY() + middleHeight, mapCenter.getZ()),
+                    Math.max(4, cfg.skywarsMiddleRadius), cfg.skywarsMiddleChests, middleVariant);
+        }
 
         return new SkyWarsLayout(mapCenter, computeMaxRadius(), spawnIslands, midIslands, middleIslands, spawns,
                 middleVariant);

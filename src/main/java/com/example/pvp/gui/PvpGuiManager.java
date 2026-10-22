@@ -704,6 +704,7 @@ public final class PvpGuiManager {
             inv.setStack(11, makeButton(Items.NETHERRACK, "§4地狱", "地狱岩，岛面随机刷灵魂沙/岩浆"));
             inv.setStack(12, makeButton(Items.PACKED_ICE, "§b冰原", "全部由雪块/浮冰构成"));
             inv.setStack(13, makeButton(Items.END_STONE, "§d末地", "末地石，中岛为空心环"));
+            inv.setStack(15, makeButton(Items.BELL, "§6村庄", "中岛放大成一整座村庄（原版房屋 + 原版箱子）"));
             inv.setStack(14, makeButton(Items.ENDER_PEARL, "§e随机主题", "不指定，交给运气"));
             inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
         });
@@ -1036,6 +1037,7 @@ public final class PvpGuiManager {
             case 11 -> SkyWarsTheme.NETHER;
             case 12 -> SkyWarsTheme.ICE;
             case 13 -> SkyWarsTheme.END;
+            case 15 -> SkyWarsTheme.VILLAGE;
             default -> null; // 14=随机，不指定
         };
         if (PvPMod.MATCH != null) {

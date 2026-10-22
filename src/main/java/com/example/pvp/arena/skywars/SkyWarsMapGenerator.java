@@ -116,6 +116,11 @@ public final class SkyWarsMapGenerator {
             buildIsland(world, middleIslands.get(i), true, theme, 0, i == 0);
         }
 
+        // 村庄地图：中岛整座岛铺成村庄（原版房屋模板 + 道路 + 原版箱子）
+        if (theme == SkyWarsTheme.VILLAGE) {
+            SkyWarsVillageGenerator.build(world, layout, theme, seed);
+        }
+
         LOGGER.info("[PvP] 空岛战争地图已生成: {} 个出生岛 + {} 个中途岛 + 中间主岛({} 箱)，主题：{}，中岛变体：{}，中岛核心：{}",
                 spawnIslands.size(), midIslands.size(), layout.middle().chests().size(),
                 theme.getDisplayName(), layout.middleVariant(), coreDesc(theme));
@@ -219,7 +224,8 @@ public final class SkyWarsMapGenerator {
         }
 
         // 中岛群障碍物：石柱/蜘蛛网/水(岩浆)池/矮墙掩体，提供遮蔽与战术点（避开箱子与树）
-        if (middle) {
+        // 村庄地图的中岛由村庄生成器接管（房屋本身就是掩体），不再撒随机障碍
+        if (middle && theme != SkyWarsTheme.VILLAGE) {
             placedChests.addAll(trees);
             addMiddleObstacles(world, random, island, theme, ring, placedChests);
         }
@@ -279,6 +285,10 @@ public final class SkyWarsMapGenerator {
         SkyWarsLayout.Island middle = layout == null ? null : layout.middle();
         if (middle == null) {
             return layout == null ? BlockPos.ORIGIN : layout.mapCenter();
+        }
+        if (theme == SkyWarsTheme.VILLAGE) {
+            // 村庄中岛正中是喷泉，救回点落在旁边的广场空地（村庄生成器保证广场是净空的路面）
+            return new BlockPos(middle.center().getX() + 7, middle.center().getY() + 1, middle.center().getZ());
         }
         if (secondLayerRadius(middle, true, true, theme) > 0) {
             return new BlockPos(middle.center().getX(),
@@ -388,7 +398,12 @@ public final class SkyWarsMapGenerator {
                 stats[1]++;
             }
             chest.clear();
-            SkyWarsLoot.populate(chest, extra.middle(), handicapAt(handicaps, extra.handicapIndex()));
+            if (extra.lootTable() != null) {
+                // 村庄箱子：仍然是"原版村庄刷的箱子"，刷新只是清空并换一个新的战利品种子
+                chest.setLootTable(extra.lootTable(), world.getRandom().nextLong());
+            } else {
+                SkyWarsLoot.populate(chest, extra.middle(), handicapAt(handicaps, extra.handicapIndex()));
+            }
         }
     }
 

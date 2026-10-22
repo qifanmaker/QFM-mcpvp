@@ -80,7 +80,8 @@ public final class PvPCommands {
 
     private static final SuggestionProvider<ServerCommandSource> THEME_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(
-                    new String[]{"主世界", "地狱", "冰原", "末地", "overworld", "nether", "ice", "end"}, builder);
+                    new String[]{"主世界", "地狱", "冰原", "末地", "村庄",
+                            "overworld", "nether", "ice", "end", "village"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> BEDWARS_MAP_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(
@@ -625,7 +626,7 @@ public final class PvPCommands {
             if (entry.getType() == MatchType.SKYWARS) {
                 SkyWarsTheme theme = SkyWarsTheme.byName(themeName);
                 if (theme == null) {
-                    player.sendMessage(Messages.error("未知主题: " + themeName + "（可用: 主世界, 地狱, 冰原, 末地）"), false);
+                    player.sendMessage(Messages.error("未知主题: " + themeName + "（可用: 主世界, 地狱, 冰原, 末地, 村庄）"), false);
                     return 0;
                 }
                 PvPMod.MATCH.setNextSkywarsTheme(theme);
@@ -792,7 +793,7 @@ public final class PvPCommands {
         if (themeName != null) {
             forcedTheme = SkyWarsTheme.byName(themeName);
             if (forcedTheme == null) {
-                player.sendMessage(Messages.error("未知主题: " + themeName + "（可用: 主世界, 地狱, 冰原, 末地）"), false);
+                player.sendMessage(Messages.error("未知主题: " + themeName + "（可用: 主世界, 地狱, 冰原, 末地, 村庄）"), false);
                 return 0;
             }
         }

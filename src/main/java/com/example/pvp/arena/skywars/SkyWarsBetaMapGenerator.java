@@ -77,8 +77,9 @@ public final class SkyWarsBetaMapGenerator {
         }
 
         // 中央核心：保留原有中心岛和卫星岛，再叠加上下两层平台与中心高塔。
+        // 村庄地图的中岛整座都是村庄，再叠平台/立柱会把房子埋掉，所以跳过。
         SkyWarsLayout.Island middle = layout.middle();
-        if (middle != null) {
+        if (middle != null && theme != SkyWarsTheme.VILLAGE) {
             buildCentralCore(world, layout, middle.center(), middle.radius(), style, structure, accent, theme,
                     handicaps);
         }
@@ -219,7 +220,7 @@ public final class SkyWarsBetaMapGenerator {
             case ICE -> Blocks.PACKED_ICE;
             case NETHER -> Blocks.POLISHED_BLACKSTONE;
             case END -> Blocks.PURPUR_BLOCK;
-            case OVERWORLD -> Blocks.STONE_BRICKS;
+            case OVERWORLD, VILLAGE -> Blocks.STONE_BRICKS;
         };
     }
 
@@ -228,7 +229,7 @@ public final class SkyWarsBetaMapGenerator {
             case ICE -> Blocks.BLUE_ICE;
             case NETHER -> Blocks.NETHER_BRICKS;
             case END -> Blocks.END_STONE_BRICKS;
-            case OVERWORLD -> Blocks.MOSSY_STONE_BRICKS;
+            case OVERWORLD, VILLAGE -> Blocks.MOSSY_STONE_BRICKS;
         };
     }
 }
