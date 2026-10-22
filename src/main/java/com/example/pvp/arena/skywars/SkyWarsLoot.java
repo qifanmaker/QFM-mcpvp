@@ -127,6 +127,7 @@ public final class SkyWarsLoot {
             new LootEntry(10, (r, c) -> bridgeBlocks(r)), // 搭桥方块：刷新率上调
             new LootEntry(6, (r, c) -> stack(Items.TNT, 2 + r.nextInt(2))),
             new LootEntry(8, (r, c) -> weapon(Items.MACE, r, c)),
+            new LootEntry(8, (r, c) -> spear()), // 长矛：与重锤同刷新率（同刷中间岛）
             new LootEntry(6, (r, c) -> stack(Items.WIND_CHARGE, 2 + r.nextInt(3))),
             new LootEntry(6, (r, c) -> stack(Items.FIRE_CHARGE, 3 + r.nextInt(3))),
             new LootEntry(7, (r, c) -> stack(Items.COBWEB, 3 + r.nextInt(4))),
@@ -520,6 +521,24 @@ public final class SkyWarsLoot {
         }
         PlayerStats stats = StatsStore.INSTANCE.getStats(player.getUuid());
         return stats.getRating();
+    }
+
+    /**
+     * 长矛：1.21.1 原版没有独立的长矛物品（{@code Items} 里只有三叉戟和重锤），
+     * 用<b>三叉戟</b>代替——模型/手感最接近长矛，而且可以投掷。
+     *
+     * <p>附<b>忠诚 III</b>：长矛本来就该"扔出去再收回来"，不附忠诚的话投一次就丢，
+     * 箱子里的武器会变成一次性消耗品。另附耐久 III，避免几下就坏。
+     *
+     * <p>刷新权重与重锤相同（都在中间岛：重锤 8 / 长矛 8），出生岛不刷，
+     * 与重锤保持一致。
+     */
+    private static ItemStack spear() {
+        ItemStack stack = new ItemStack(Items.TRIDENT);
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§b长矛"));
+        applyEnchant(stack, Enchantments.LOYALTY, 3);
+        applyEnchant(stack, Enchantments.UNBREAKING, 3);
+        return stack;
     }
 
     /** 妙人斧：去掉特殊命名/特殊处理，直接是耐久仅剩 1 的锋利 255 金斧头（一击必杀）。 */
