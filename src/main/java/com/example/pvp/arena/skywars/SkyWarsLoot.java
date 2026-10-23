@@ -436,8 +436,8 @@ public final class SkyWarsLoot {
                 applyEnchant(stack, Enchantments.KNOCKBACK, 1); // 击退最高 1 级
             }
         } else if (stack.getItem() instanceof BowItem) {
-            // 空岛刷新弓的力量等级固定在 III～IV，避免远程装备过弱。
-            applyEnchant(stack, Enchantments.POWER, 3 + random.nextInt(2));
+            // 空岛刷新弓的力量等级在 I～IV 间随机。
+            applyEnchant(stack, Enchantments.POWER, 1 + random.nextInt(4));
         } else if (stack.getItem() instanceof ArmorItem) {
             applyEnchant(stack, Enchantments.PROTECTION, level);
             if (random.nextInt(100) < 20) {
