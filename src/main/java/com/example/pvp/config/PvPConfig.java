@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 14;
+    public static final int CURRENT_CONFIG_VERSION = 15;
 
     /**
      * 生成这份文件时的配置版本。
@@ -69,8 +69,8 @@ public final class PvPConfig {
     public int sumoSize = 11;
     /** 竞技场内恶魂火焰弹爆炸击退横向倍率（1.0=原版；默认增强到 7.5 倍）。 */
     public float fireballKnockbackHorizontal = 7.5f;
-    /** 竞技场内恶魂火焰弹爆炸击退纵向倍率（1.0=原版；默认增强到 1.5 倍）。 */
-    public float fireballKnockbackVertical = 1.5f;
+    /** 竞技场内恶魂火焰弹爆炸击退纵向倍率（1.0=原版；默认增强到 2.0 倍）。 */
+    public float fireballKnockbackVertical = 2.0f;
     /** 恶魂火焰弹爆炸威力（默认 1=原版恶魂；0=禁用爆炸破坏方块）。 */
     public int fireballExplosionPower = 1;
 
