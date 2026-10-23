@@ -32,8 +32,8 @@ import java.util.Random;
 public final class SkyWarsMapGenerator {
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    /** 岛面下方挖深的层数（草方块 1 层 + 下方土石 2 层）。 */
-    private static final int ISLAND_DEPTH = 2;
+    /** 岛面下方挖深的层数（表层下增加 3 层主体，整体比原地图更厚）。 */
+    private static final int ISLAND_DEPTH = 4;
     /**
      * 出生点（岛心）周围保留的干净半径的平方。
      * 玩家出生在岛心正上方，地狱主题的随机岩浆若刷在岛心会把玩家直接泡进岩浆里。
