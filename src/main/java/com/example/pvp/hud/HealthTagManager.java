@@ -260,6 +260,8 @@ public final class HealthTagManager {
                 scoreboard.removeTeam(hiddenTeam);
             }
             for (ServerPlayerEntity player : this.server.getPlayerManager().getPlayerList()) {
+                var match = com.example.pvp.PvPMod.MATCH == null ? null : com.example.pvp.PvPMod.MATCH.getMatchFor(player);
+                if (match != null && match.getType() == com.example.pvp.match.MatchType.MYGO) continue;
                 var team = scoreboard.getScoreHolderTeam(player.getGameProfile().getName());
                 if (team != null && team.getName().startsWith("pvp_")
                         && !team.getName().equals(HIDDEN_NAME_TEAM)
@@ -275,6 +277,13 @@ public final class HealthTagManager {
         UUID uuid = player.getUuid();
 
         this.hideVanillaName(player);
+
+        // 枪战的信息博弈不能被通用头顶血量标签泄露；赛后自然恢复原有显示。
+        var match = com.example.pvp.PvPMod.MATCH == null ? null : com.example.pvp.PvPMod.MATCH.getMatchFor(player);
+        if (match != null && match.getType() == com.example.pvp.match.MatchType.MYGO) {
+            this.remove(uuid);
+            return;
+        }
 
         // 旁观者（幽灵）/ 隐身玩家不显示：一个浮空血条会直接把幽灵的位置暴露给活着的玩家
         if (player.isSpectator() || player.isInvisible()) {

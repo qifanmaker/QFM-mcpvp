@@ -560,10 +560,12 @@ public final class Match {
             this.tntRunLayout = null;
             this.heartbeatLayout = null;
             this.hotPotatoLayout = null;
-            if (type.isPortedGame()) {
-                this.portedSession = type == MatchType.ISLAND_SIEGE
-                        ? new IslandSiegeSession(this, template, regionIndex, id)
-                        : new MinecraftPartySession(this, template, regionIndex, id);
+            if (type.usesGameSession()) {
+                this.portedSession = switch (type) {
+                    case MYGO -> new com.example.pvp.mygo.MyGoSession(this, template, regionIndex, id);
+                    case ISLAND_SIEGE -> new IslandSiegeSession(this, template, regionIndex, id);
+                    default -> new MinecraftPartySession(this, template, regionIndex, id);
+                };
                 spawnPositions = this.portedSession.spawnPositions();
             } else {
                 spawnPositions = template.computeSpawns(regionIndex, this.players.size());
@@ -601,7 +603,7 @@ public final class Match {
             teams.add(new MatchTeam("红队", Formatting.RED, List.of(players.get(0))));
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));
         } else if (type == MatchType.DUEL_2V2 || type == MatchType.BRIDGE_2V2 || type == MatchType.BRIDGE_TEAM
-                || type == MatchType.ISLAND_SIEGE) {
+                || type == MatchType.ISLAND_SIEGE || type == MatchType.MYGO) {
             // 战桥 2v2 / 混战：总人数/2 平均分两队（队列已随机洗牌）
             teams.add(new MatchTeam("红队", Formatting.RED, players.subList(0, players.size() / 2)));
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, players.subList(players.size() / 2, players.size())));
@@ -731,9 +733,9 @@ public final class Match {
             this.finishSetup();
         }
         int activeTimeout;
-        if (this.type.isPortedGame()) {
+        if (this.type.usesGameSession()) {
             // 会话自行计时；兜底只处理运行时卡死，不擅自把第一队判为胜者。
-            activeTimeout = 20 * 60 * 30;
+            activeTimeout = 20 * 60 * (this.type == MatchType.MYGO ? 60 : 30);
         } else if (this.type == MatchType.SKYWARS) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20);
         } else if (this.type.isBridge()) {
@@ -3487,7 +3489,9 @@ public final class Match {
             if (this.portedSession != null && this.leftEarly.contains(player.getUuid())) continue;
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online != null) {
-                if (winners.contains(player.getUuid())) {
+                if (this.type == MatchType.MYGO && winners.isEmpty()) {
+                    online.sendMessage(Text.literal("§e§l本场平局"), true);
+                } else if (winners.contains(player.getUuid())) {
                     online.sendMessage(Text.literal("§6§l你赢了！"), true);
                 } else {
                     online.sendMessage(Text.literal("§c§l你输了！"), true);
@@ -3589,7 +3593,11 @@ public final class Match {
             this.removeHeartbeatBossBar();
             // 一次性结算整场：内部 Elo（隐藏分）需要"对手/队友是谁"，逐个玩家单独调用算不出来。
             // 分数本身不展示给玩家，只用于空岛弱势补偿等系统计算，所以这里不返回任何提示文案。
-            StatsStore.INSTANCE.recordMatch(this.ratingGroups(), winners);
+            if (this.type == MatchType.MYGO) {
+                com.example.pvp.mygo.MyGoStats.record(this.players, winners);
+            } else {
+                StatsStore.INSTANCE.recordMatch(this.ratingGroups(), winners);
+            }
         } catch (Exception e) {
             LOGGER.error("[PvP] 比赛结束处理出错", e);
         } finally {
@@ -3943,6 +3951,7 @@ public final class Match {
 
     /** 玩家主动离开竞技场回主城：幽灵走旁观离开流程；活跃玩家视为弃权淘汰并恢复赛前状态。 */
     public void leaveMatch(ServerPlayerEntity player) {
+        if (this.type == MatchType.MYGO) com.example.pvp.mygo.MyGoResourcePack.remove(player);
         if (this.portedSession != null && this.contains(player.getUuid())) {
             // 铺图/倒计时尚未开始会话，退赛要取消整场，避免按旧名单发装备和传送。
             if (this.state == MatchState.COUNTDOWN) {
@@ -3975,6 +3984,7 @@ public final class Match {
 
     /** 旁观者提前离场：requeue=true 立即重排当前模式，false 回主城。 */
     public void spectatorLeave(ServerPlayerEntity player, boolean requeue) {
+        if (this.type == MatchType.MYGO) com.example.pvp.mygo.MyGoResourcePack.remove(player);
         if (!this.leftEarly.add(player.getUuid())) {
             return;
         }
@@ -4781,7 +4791,7 @@ public final class Match {
             }
             sbTeam.setColor(team.getColor());
             sbTeam.setCollisionRule(AbstractTeam.CollisionRule.NEVER);
-            sbTeam.setNameTagVisibilityRule(PvPConfig.INSTANCE.healthTagEnabled
+            sbTeam.setNameTagVisibilityRule((this.type == MatchType.MYGO || PvPConfig.INSTANCE.healthTagEnabled)
                     ? AbstractTeam.VisibilityRule.NEVER : AbstractTeam.VisibilityRule.ALWAYS);
             // 组队模式（2v2 等）关闭友伤；FFA/空岛战争/幸运之柱全员同一队，必须保留互伤。
             // 色盲派对是纯色觉+走位竞速，玩家之间打不掉血也不击退，故也不开友伤。
@@ -5112,6 +5122,7 @@ public final class Match {
             case BOAT_RACE -> "§b";
             case MINECRAFT_PARTY -> "§d";
             case ISLAND_SIEGE -> "§c";
+            case MYGO -> "§6";
         };
         return "模式: " + color + this.type.getDisplayName();
     }
@@ -5143,6 +5154,7 @@ public final class Match {
             case DEATHMATCH -> "§7地图: §e平地竞技场"; // 复用 Layout.FFA 的场地
             case MINECRAFT_PARTY -> "§7地图: §dParty 2 · 分阶段移植";
             case ISLAND_SIEGE -> "§7地图: §c海岛攻防 · 重建地图";
+            case MYGO -> "§7地图: §6MyGO 战术训练场";
             case BOAT_RACE -> "§7地图: §b随机冰面赛道 §7(" + (this.boatRaceSession != null
                     ? this.boatRaceSession.trackSummary() : "生成中") + ")";
         };
@@ -5377,6 +5389,12 @@ public final class Match {
             this.portedSession.onEnd();
         } catch (Exception e) {
             LOGGER.warn("[PvP] 比赛 #{} 移植玩法收尾出错", this.id, e);
+        } finally {
+            if (this.type == MatchType.MYGO) {
+                for (ServerPlayerEntity player : this.onlineParticipants()) {
+                    com.example.pvp.mygo.MyGoResourcePack.remove(player);
+                }
+            }
         }
     }
 
@@ -5392,7 +5410,8 @@ public final class Match {
     }
 
     public void onPortedDisconnect(ServerPlayerEntity player) {
-        if (this.portedSession == null) return;
+        // 停服恢复中的传送可能触发断线；已结束的会话不能再清空刚归还的背包。
+        if (this.portedSession == null || this.state == MatchState.ENDED) return;
         if (this.state != MatchState.COUNTDOWN) this.portedSession.onLeave(player);
         this.eliminated.add(player.getUuid());
         for (MatchTeam team : this.teams) team.eliminate(player);

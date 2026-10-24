@@ -22,7 +22,9 @@ public abstract class HungerManagerMixin {
             return;
         }
         Match match = PvPMod.MATCH.getMatchFor(sp);
-        if (match != null && match.getType().isBedWars()) {
+        // 枪战的虚拟 HP 不受饥饿回血影响，避免客户端心数与会话状态分叉。
+        if (match != null && (match.getType().isBedWars()
+                || match.getType() == com.example.pvp.match.MatchType.MYGO)) {
             ci.cancel();
         }
     }

@@ -62,6 +62,10 @@ public final class QueueManager {
     private Integer boatRaceCountdownTicks;
     private Integer boatRaceFillTicks;
 
+    /** 枪战必须等员开局，独立等待避免复用移植模式时以奇数人数开赛。 */
+    private int myGoFillTicks = 60 * 20;
+    private int myGoRetryTicks;
+
     /** 两个移植玩法分别等待填人；独立记录，防止一个模式开赛重置另一个模式的等待。 */
     private final Map<MatchType, Integer> portedGameFillTicks = new EnumMap<>(MatchType.class);
     private final Map<MatchType, Integer> portedGameRetryTicks = new EnumMap<>(MatchType.class);
@@ -115,7 +119,14 @@ public final class QueueManager {
             return false;
         }
         // 两个移植玩法自行控制物品，所有入口统一占位套件，避免命令或重排带入自选装备。
-        if (type.isPortedGame()) {
+        if (type == MatchType.MYGO && !com.example.pvp.mygo.MyGoResourcePack.request(player)) {
+            return false;
+        }
+        if (type != MatchType.MYGO) {
+            // 已下载镜框但改玩其他模式时，避免全局南瓜贴图影响色盲派对等玩法。
+            com.example.pvp.mygo.MyGoResourcePack.remove(player);
+        }
+        if (type.usesGameSession()) {
             kit = KitManager.portedGameKit();
             if (kit == null) {
                 return false;
@@ -127,9 +138,13 @@ public final class QueueManager {
     }
 
     public boolean leave(ServerPlayerEntity player) {
+        QueueEntry entry = this.getEntry(player);
         boolean removed = this.leave(player.getUuid());
         if (removed) {
             PvpGuiManager.removeQueueItem(player);
+            if (entry != null && entry.getType() == MatchType.MYGO) {
+                com.example.pvp.mygo.MyGoResourcePack.remove(player);
+            }
         }
         return removed;
     }
@@ -215,6 +230,7 @@ public final class QueueManager {
         this.tickBoatRace(matchManager);
         this.tickPortedGame(matchManager, MatchType.MINECRAFT_PARTY);
         this.tickPortedGame(matchManager, MatchType.ISLAND_SIEGE);
+        this.tickMyGo(matchManager);
         this.tickBedWars(matchManager);
         this.tickInstantMatches(matchManager);
     }
@@ -1231,6 +1247,55 @@ public final class QueueManager {
         }
     }
 
+    /** 达到十人立即开局；四至八人等待一分钟，奇数队列保留最后一位。 */
+    private void tickMyGo(MatchManager manager) {
+        int count = this.countQueued(MatchType.MYGO);
+        if (count < 4) {
+            this.myGoFillTicks = 60 * 20;
+            return;
+        }
+        if (this.myGoRetryTicks > 0) {
+            this.myGoRetryTicks--;
+            return;
+        }
+        if (count < 10 && --this.myGoFillTicks > 0) {
+            if (this.myGoFillTicks % 200 == 0) {
+                this.broadcastPortedGame(manager, MatchType.MYGO, Messages.info(
+                        "MyGO 当前 " + count + " 人，" + this.myGoFillTicks / 20 + " 秒后等员开赛；满十人立即开始"));
+            }
+            return;
+        }
+        if (!this.startMyGoMatch(manager, 4)) this.myGoRetryTicks = 20;
+    }
+
+    private boolean startMyGoMatch(MatchManager manager, int minimum) {
+        List<QueueEntry> selected = new ArrayList<>();
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != MatchType.MYGO) continue;
+            ServerPlayerEntity online = manager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online == null || manager.isInMatch(online.getUuid())
+                    || !com.example.pvp.mygo.MyGoResourcePack.isReady(online)) continue;
+            selected.add(entry);
+            players.add(online);
+            if (players.size() == 10) break;
+        }
+        if (players.size() % 2 != 0) {
+            selected.removeLast();
+            players.removeLast();
+        }
+        if (players.size() < minimum) return false;
+        Collections.shuffle(players);
+        if (!manager.startMatch(players, MatchType.MYGO, KitManager.portedGameKit())) {
+            for (ServerPlayerEntity player : players) PvpGuiManager.giveQueueItem(player);
+            return false;
+        }
+        this.entries.removeAll(selected);
+        this.myGoFillTicks = 60 * 20;
+        this.myGoRetryTicks = 0;
+        return true;
+    }
+
     /** 起床战争队列：凑 2 人即开始倒计时，倒计时结束按当前人数开赛（按人数动态分队）。 */
     private void tickBedWars(MatchManager matchManager) {
         long count = this.countBedWars();
@@ -1326,7 +1391,7 @@ public final class QueueManager {
                     || entry.getType() == MatchType.COLORBLIND_PARTY
                     || entry.getType() == MatchType.DEATHMATCH
                     || entry.getType().isBoatRace()
-                    || entry.getType().isPortedGame()
+                    || entry.getType().usesGameSession()
                     || entry.getType().isBedWars()) {
                 continue;
             }
@@ -1401,6 +1466,12 @@ public final class QueueManager {
             return false;
         }
         MatchType type = entry.getType();
+
+        if (type == MatchType.MYGO) {
+            if (this.startMyGoMatch(matchManager, 2)) return true;
+            player.sendMessage(Messages.warn("MyGO 至少需要两名已加载资源包的玩家，并保持双方等员"), false);
+            return false;
+        }
 
         // 独立处理移植玩法：只跳过本模式等待，且只在真正建场成功时回报成功。
         if (type.isPortedGame()) {

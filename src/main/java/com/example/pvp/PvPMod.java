@@ -207,10 +207,27 @@ public final class PvPMod implements ModInitializer {
             DUEL = new DuelManager(server);
             PRACTICE = PracticeManager.get();
             HealthTagManager.init(server);
+            com.example.pvp.mygo.MyGoResourcePack.start(server);
+            com.example.pvp.mygo.MyGoResourcePack.setFailureHandler(player -> {
+                Match match = MATCH == null ? null : MATCH.getMatchFor(player);
+                if (match != null && match.getType() == MatchType.MYGO) {
+                    match.leaveMatch(player);
+                } else if (QUEUE != null) {
+                    var entry = QUEUE.getEntry(player);
+                    if (entry != null && entry.getType() == MatchType.MYGO) QUEUE.leave(player);
+                }
+            });
             LOGGER.info("[PvP] 服务器已就绪，PvP 竞技场可用");
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            // 在玩家存盘和删除临时竞技场之前归还枪战快照，正常停服不能留下南瓜和玩法背包。
+            if (MATCH != null && MATCH.getServer() == server) {
+                for (Match match : List.copyOf(MATCH.getMatches())) {
+                    if (match.getType() == MatchType.MYGO) match.cancelMatch("服务器关闭");
+                }
+            }
+            com.example.pvp.mygo.MyGoResourcePack.stop();
             ArenaWorldManager.get(server).onServerStopping();
             // 在存档之前拆掉血量标签实体，避免它们被写进存档
             HealthTagManager.get().onServerStopping();
@@ -226,6 +243,7 @@ public final class PvPMod implements ModInitializer {
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
+            com.example.pvp.mygo.MyGoResourcePack.tick(server);
             if (MATCH != null && MATCH.getServer() == server) {
                 MATCH.tick();
                 QUEUE.tick(MATCH);
@@ -729,20 +747,26 @@ public final class PvPMod implements ModInitializer {
         });
 
         // Fabric 的断线事件也可从 Netty channelInactive 触发；实体和比赛状态必须由服务器线程清理。
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> server.execute(() -> {
-            AUTO_CLICKER_DETECTOR.clear(handler.player.getUuid());
-            if (PRACTICE != null) {
-                // 玩家正在断线，不能再用它做传送：只清场并回收区域
-                PRACTICE.exitPracticeByUuid(handler.player.getUuid());
-            }
-            if (MATCH != null) {
-                MATCH.onPlayerDisconnect(handler.player);
-                DUEL.removeChallengesInvolving(handler.player.getUuid());
-            }
-            if (QUEUE != null) {
-                QUEUE.leave(handler.player.getUuid());
-            }
-        }));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            // MinecraftServer 停止后 execute 会在调用线程直接运行；不能让 Netty 再清理已恢复的对局。
+            if (server.isStopped()) return;
+            server.execute(() -> {
+                if (server.isStopped()) return;
+                com.example.pvp.mygo.MyGoResourcePack.remove(handler.player);
+                AUTO_CLICKER_DETECTOR.clear(handler.player.getUuid());
+                if (PRACTICE != null) {
+                    // 玩家正在断线，不能再用它做传送：只清场并回收区域
+                    PRACTICE.exitPracticeByUuid(handler.player.getUuid());
+                }
+                if (MATCH != null) {
+                    MATCH.onPlayerDisconnect(handler.player);
+                    DUEL.removeChallengesInvolving(handler.player.getUuid());
+                }
+                if (QUEUE != null) {
+                    QUEUE.leave(handler.player.getUuid());
+                }
+            });
+        });
 
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayerEntity player && MATCH != null) {

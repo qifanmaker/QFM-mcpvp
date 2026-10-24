@@ -69,7 +69,7 @@ public final class PvPCommands {
                     "1v1", "2v2", "ffa", "sumo", "skywars",
                     "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar", "tntrun",
                     "heartbeat", "hotpotato", "bedwars", "bedwars2", "villagedefense", "colorblindparty",
-                    "deathmatch", "racing", "boatrace", "minecraftparty", "islandsiege"}, builder);
+                    "deathmatch", "racing", "boatrace", "minecraftparty", "islandsiege", "mygo"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -99,6 +99,7 @@ public final class PvPCommands {
     }
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+        com.example.pvp.mygo.MyGoCommands.register(dispatcher);
         dispatcher.register(
                 CommandManager.literal("pvp")
                         .executes(PvPCommands::openMenu)
@@ -365,6 +366,8 @@ public final class PvPCommands {
                         + "§e/pvp join colorblindparty§r 加入色盲派对（站到「文字的颜色」上）\n"
                         + "§e/pvp join deathmatch -k <套件>§r 加入死斗（5 分钟，人头最多者胜）\n"
                         + "§e/pvp join racing§r 加入亦可赛艇（无需套件，原版船 + 随机冰面赛道竞速）\n"
+                        + "§e/pvp join mygo§r 加入 MyGO 枪战爆破（先加载资源包，再次加入）\n"
+                        + "§e/pvp mygo [shop|buy <商品>|reload|stats]§r 枪战商店、换弹与独立战绩\n"
                         + "§e/pvp join minecraftparty§r 加入 Minecraft Party 2（移植中：首批 3 个小游戏 Quick Play）\n"
                         + "§e/pvp join islandsiege§r 加入海岛攻防（无需套件，红队进攻、蓝队防守）\n"
                         + "§e/pvp leave§r 离开队列\n"
@@ -410,7 +413,7 @@ public final class PvPCommands {
             kit = KitManager.colorblindPartyKit(); // 色盲派对空手开局，无套件
         } else if (type.isBoatRace()) {
             kit = KitManager.boatRaceKit(); // 亦可赛艇空手开局，船由玩法统一发放
-        } else if (type.isPortedGame()) {
+        } else if (type.usesGameSession()) {
             kit = KitManager.portedGameKit(); // 由移植玩法会话发放物品，无需玩家选择套件
         } else if (type.isBedWars()) {
             kit = KitManager.bedWarsKit(); // 起床战争装备由玩法发放
@@ -464,6 +467,9 @@ public final class PvPCommands {
                 player.sendMessage(Messages.info("已加入亦可赛艇：凑齐 "
                         + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛；原版船 + 每场随机生成的冰面赛道（"
                         + PvPConfig.INSTANCE.boatRaceLaps + " 圈）"), false);
+            } else if (type == MatchType.MYGO) {
+                player.sendMessage(Messages.info("已加入 MyGO：十人立即开局，至少四人等待 60 秒等员开局；"
+                        + "右键点射、Shift 瞄准、F 换弹、/pvp mygo 打开购买菜单"), false);
             } else if (type.isPortedGame()) {
                 player.sendMessage(Messages.info("已加入" + type.getDisplayName() + "：凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛；至少 " + MatchType.PORTED_MIN_PLAYERS

@@ -3,6 +3,8 @@ build/
 run/
 dist/
 *.zip
+# MyGO 客户端资源随 Mod 分发，必须保留源码资源中的这一份 ZIP。
+!src/main/resources/pvp/mygo/mygo-pack.zip
 .idea/
 *.iml
 .vscode/

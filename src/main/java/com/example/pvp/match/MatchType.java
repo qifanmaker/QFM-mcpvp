@@ -33,7 +33,9 @@ public enum MatchType {
     BOAT_RACE("racing", "亦可赛艇"),
     /** 两个外部地图玩法在 1.21.1 内逐步移植，由独立会话管理装备、回合与胜负。 */
     MINECRAFT_PARTY("minecraftparty", "Minecraft Party 2（移植中）"),
-    ISLAND_SIEGE("islandsiege", "海岛攻防");
+    ISLAND_SIEGE("islandsiege", "海岛攻防"),
+    /** 工具枪械爆破：独立回合与经济，不能套用通用死亡淘汰和套件规则。 */
+    MYGO("mygo", "MyGO 枪战爆破");
 
     /** 移植玩法先统一匹配规则，避免为新入口改写服务器已有配置。 */
     public static final int PORTED_MIN_PLAYERS = 2;
@@ -74,6 +76,7 @@ public enum MatchType {
             case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchMinPlayers;
             case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceMinPlayers;
             case MINECRAFT_PARTY, ISLAND_SIEGE -> PORTED_MIN_PLAYERS;
+            case MYGO -> 4;
         };
     }
 
@@ -105,6 +108,11 @@ public enum MatchType {
     /** 移植玩法直接排队，装备和胜负由玩法会话控制，不使用自选套件或通用淘汰规则。 */
     public boolean isPortedGame() {
         return this == MINECRAFT_PARTY || this == ISLAND_SIEGE;
+    }
+
+    /** 原生枪战复用独立会话生命周期，但保留自己的排队人数和计时规则。 */
+    public boolean usesGameSession() {
+        return isPortedGame() || this == MYGO;
     }
 
     /** 是否"最后存活者获胜"的 FFA 淘汰类玩法（自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 烫手山芋 / 色盲派对）。 */

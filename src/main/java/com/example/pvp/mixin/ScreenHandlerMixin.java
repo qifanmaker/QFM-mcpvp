@@ -25,6 +25,14 @@ public class ScreenHandlerMixin {
         }
         ScreenHandler self = (ScreenHandler) (Object) this;
 
+        // 枪械槽位由服务器授权状态管理，禁止背包搬运绕过枪种/弹药/装备限制。
+        // MyGO 商店覆写 onSlotClick，不经过此原版内部移动路径。
+        if (com.example.pvp.mygo.MyGoCommands.session((ServerPlayerEntity) player) != null) {
+            ci.cancel();
+            self.syncState();
+            return;
+        }
+
         // 1) 点击的源槽位是 UI 工具：禁止拿起/Shift/拖动/交换
         if (slotIndex >= 0 && slotIndex < self.slots.size()) {
             ItemStack slotStack = self.getSlot(slotIndex).getStack();

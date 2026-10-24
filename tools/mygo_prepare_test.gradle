@@ -1,0 +1,14 @@
+// Fresh checkouts do not have Loom's runServer argument file. Resolve its
+// runtime classpath without executing runServer or touching the normal run/.
+gradle.projectsEvaluated {
+    def project = gradle.rootProject
+    project.tasks.register('mygoPrepareTestRuntime') {
+        dependsOn project.tasks.named('classes'), project.tasks.named('configureLaunch')
+        doLast {
+            def serverTask = project.tasks.named('runServer').get()
+            def output = project.layout.buildDirectory.file('mygo-server-test/runtime-classpath.txt').get().asFile
+            output.parentFile.mkdirs()
+            output.setText(serverTask.getInternalClasspath().asPath + '\n', 'UTF-8')
+        }
+    }
+}

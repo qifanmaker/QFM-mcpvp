@@ -81,11 +81,25 @@ public final class PortedGameEvents {
             ActionResult item = match.portedSession().useItem(sp, hand);
             return item != ActionResult.PASS ? item : match.portedSession().useBlock(sp, hand, hit);
         });
-        UseEntityCallback.EVENT.register((player, world, hand, entity, hit) ->
-                isPorted(matchOf(player)) || isPorted(matchOf(entity)) ? ActionResult.FAIL : ActionResult.PASS);
+        UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            Match match = matchOf(player);
+            // 准星指向玩家时原版走实体交互；仍须开枪，且不能落回原版工具行为。
+            if (player instanceof ServerPlayerEntity sp && match != null
+                    && match.portedSession() instanceof com.example.pvp.mygo.MyGoSession session) {
+                if (match.getState() != MatchState.ACTIVE) return ActionResult.FAIL;
+                session.useItem(sp, hand);
+                return ActionResult.FAIL;
+            }
+            return isPorted(match) || isPorted(matchOf(entity)) ? ActionResult.FAIL : ActionResult.PASS;
+        });
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             Match attackerMatch = matchOf(player);
             Match victimMatch = matchOf(entity);
+            if (player instanceof ServerPlayerEntity sp && attackerMatch != null
+                    && attackerMatch.portedSession() instanceof com.example.pvp.mygo.MyGoSession session) {
+                session.attack(sp, entity);
+                return ActionResult.FAIL;
+            }
             if (!isPorted(attackerMatch) && !isPorted(victimMatch)) return ActionResult.PASS;
             if (!(player instanceof ServerPlayerEntity sp) || !(entity instanceof LivingEntity victim)) {
                 return ActionResult.FAIL;

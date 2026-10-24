@@ -492,6 +492,12 @@ public final class MatchManager {
                     || players.size() > PvPConfig.INSTANCE.deathmatchMaxPlayers) {
                 return false;
             }
+        } else if (type == MatchType.MYGO) {
+            // OP 可用两人练习；正式队列至少四人，同场双方始终等员。
+            if (players.size() < 2 || players.size() > 10 || players.size() % 2 != 0
+                    || players.stream().anyMatch(p -> !com.example.pvp.mygo.MyGoResourcePack.isReady(p))) {
+                return false;
+            }
         } else if (type.isPortedGame()) {
             if (players.size() < MatchType.PORTED_MIN_PLAYERS || players.size() > MatchType.PORTED_MAX_PLAYERS) {
                 return false;
@@ -572,7 +578,7 @@ public final class MatchManager {
         this.matches.add(match);
         match.tick(); // 立即进入倒计时第一帧
         // 新玩法首帧铺图可能自行取消对局；这时让队列保留玩家并恢复离队物品，不能报告开赛成功。
-        return !type.isPortedGame() || match.getState() != MatchState.ENDED;
+        return !type.usesGameSession() || match.getState() != MatchState.ENDED;
     }
 
     public Match getMatchFor(ServerPlayerEntity player) {
@@ -912,6 +918,7 @@ public final class MatchManager {
             case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceSize;
             case ISLAND_SIEGE -> 160;
             case MINECRAFT_PARTY -> 176;
+            case MYGO -> 112;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO -> ArenaTemplate.Layout.DUEL_1V1;
@@ -932,14 +939,14 @@ public final class MatchManager {
             case DEATHMATCH -> ArenaTemplate.Layout.FFA;
             case BOAT_RACE -> ArenaTemplate.Layout.BOAT_RACE;
             // 地形全部由移植会话生成；FFA 仅提供模板中心，无通用铺图/清场。
-            case MINECRAFT_PARTY, ISLAND_SIEGE -> ArenaTemplate.Layout.FFA;
+            case MINECRAFT_PARTY, ISLAND_SIEGE, MYGO -> ArenaTemplate.Layout.FFA;
         };
         // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战/村庄保卫战/色盲派对无围墙；其地图本身由各自生成器铺
         boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
                 && type != MatchType.LUCKY_PILLAR && type != MatchType.TNT_RUN
                 && type != MatchType.HEARTBEAT && type != MatchType.HOT_POTATO
                 && !type.isBedWars() && type != MatchType.VILLAGE_DEFENSE
-                && type != MatchType.COLORBLIND_PARTY && !type.isBoatRace() && !type.isPortedGame();
+                && type != MatchType.COLORBLIND_PARTY && !type.isBoatRace() && !type.usesGameSession();
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 
