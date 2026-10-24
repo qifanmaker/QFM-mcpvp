@@ -8,8 +8,9 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.decoration.DisplayEntity;
+import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.s2c.play.EntitiesDestroyS2CPacket;
+import net.minecraft.network.packet.s2c.play.BundleS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityPositionS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
@@ -24,8 +25,10 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -51,8 +54,8 @@ import java.util.UUID;
  * 所以位置改回服务端驱动。（同样的原因：这条路上"没收到同步包"没有任何自愈手段。）
  *
  * <p><b>「自己看不见自己的名字」改用不发包解决</b>：既然没法靠骑乘让文字对自己呈边缘朝向，
- * 就干脆<b>不把标签实体发给本人</b> —— {@link #shouldHideOwnTag} 在
- * {@code ServerPlayNetworkHandler.sendPacket} 上拦掉属于该玩家自己的标签实体包。代价是 F5 也看不到
+ * 就干脆<b>不把标签实体发给本人</b> —— {@link #filterOwnTagPacket} 在
+ * {@code ServerCommonNetworkHandler.send} 上过滤属于该玩家自己的标签实体包，包括生成用的打包包。代价是 F5 也看不到
  * 自己的标签（原版 F5 能看见），换来的是"第一人称绝不挡视线"，而且完全不依赖客户端行为。
  *
  * <p>用哪一点定位：{@code EntityAttachmentType.PASSENGER} 对玩家是 {@code (0, 身高, 0)}（碰撞箱顶端，
@@ -166,33 +169,46 @@ public final class HealthTagManager {
     }
 
     /**
-     * 这个包要不要对该玩家拦掉（因为它是该玩家自己的血量标签实体的包）。
+     * 过滤发给标签所属玩家自己的实体包；返回 null 表示整个包无需发送。
      *
      * <p>用途：方案 A —— 标签实体照常发给其他所有人，唯独不发给它服务的那位玩家自己，
      * 这样第一人称就不会有一块贴脸的名字/血量挡住视野。
      *
-     * <p>必须拦掉 {@code EntitySpawnS2CPacket}（客户端一旦不知道这个实体，后面所有针对它的包都会被
-     * 当成未知 id 丢掉）；其余几类是顺手省带宽：位置/相对移动是每 tick 都在发的，
-     * 文本更新与销毁包也一并不发，免得给一个客户端根本不知道的实体白白发包。
+     * <p>原版把生成和初始元数据放在 BundleS2CPacket 中。只判断外层会漏掉生成包，
+     * 后续移动却被过滤，导致自己的框冻结在生成点。打包包需逐项过滤，保留其他实体的包。
+     * 销毁包始终放行：既要清掉已经泄露的旧框，也不能误吞同时销毁其他实体的批量包。
      *
      * <p>这个方法在每个出站包上都会被调用一次，所以前面只做"该玩家有没有标签"这一次哈希查找，
      * 类型判断全部放在后面。
      */
-    public static boolean shouldHideOwnTag(Packet<?> packet, ServerPlayerEntity viewer) {
+    public static Packet<?> filterOwnTagPacket(Packet<?> packet, ServerPlayerEntity viewer) {
         HealthTagManager manager = instance;
         if (manager == null || viewer == null) {
-            return false;
+            return packet;
         }
         DisplayEntity.TextDisplayEntity own = manager.tags.get(viewer.getUuid());
         if (own == null) {
-            return false;
+            return packet;
         }
-        int id = own.getId();
-        // 销毁包一次带多个 id，单独判
-        if (packet instanceof EntitiesDestroyS2CPacket destroy) {
-            return destroy.getEntityIds().contains(id);
+        return filterTagPacket(packet, own.getId());
+    }
+
+    /** 原版不允许嵌套 Bundle；这里只需过滤当前打包包内的实体包。 */
+    static Packet<?> filterTagPacket(Packet<?> packet, int ownTagId) {
+        if (packet instanceof BundleS2CPacket bundle) {
+            List<Packet<? super ClientPlayPacketListener>> kept = new ArrayList<>();
+            boolean changed = false;
+            for (var child : bundle.getPackets()) {
+                if (tagEntityIdOf(child) == ownTagId) {
+                    changed = true;
+                } else {
+                    kept.add(child);
+                }
+            }
+            if (!changed) return packet;
+            return kept.isEmpty() ? null : new BundleS2CPacket(kept);
         }
-        return tagEntityIdOf(packet) == id;
+        return tagEntityIdOf(packet) == ownTagId ? null : packet;
     }
 
     /** 这个包携带的实体 id（与血量标签无关的包一律返回 -1；实体 id 不会是负数）。 */
