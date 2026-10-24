@@ -3,9 +3,12 @@ package com.example.pvp.match;
 import com.example.pvp.PvPMod;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
+import net.minecraft.component.type.PotionContentsComponent;
+import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.SimpleInventory;
+import net.minecraft.item.ArmorItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.NamedScreenHandlerFactory;
 import net.minecraft.screen.ScreenHandler;
@@ -17,7 +20,7 @@ import net.minecraft.text.Text;
 
 import java.util.List;
 
-/** 空岛战争倒计时职业选择界面。 */
+/** 空岛战争职业预览与倒计时选择界面。 */
 public final class SkyWarsProfessionGui {
     private SkyWarsProfessionGui() {
     }
@@ -27,7 +30,7 @@ public final class SkyWarsProfessionGui {
         player.openHandledScreen(new NamedScreenHandlerFactory() {
             @Override
             public Text getDisplayName() {
-                return Text.literal("§6§l选择空岛战争职业");
+                return Text.literal(match == null ? "§6§l空岛战争职业预览" : "§6§l选择空岛战争职业");
             }
 
             @Override
@@ -37,6 +40,11 @@ public final class SkyWarsProfessionGui {
                 return handler;
             }
         });
+    }
+
+    /** 提前了解开局物资，避免只能在五秒倒计时内阅读全部职业。 */
+    public static void openPreview(ServerPlayerEntity player) {
+        open(player, null);
     }
 
     private static final class Handler extends ScreenHandler {
@@ -64,7 +72,7 @@ public final class SkyWarsProfessionGui {
         }
 
         private void render(ServerPlayerEntity player) {
-            SkyWarsProfession selected = this.match.skywarsProfessionOf(player.getUuid());
+            SkyWarsProfession selected = this.match == null ? null : this.match.skywarsProfessionOf(player.getUuid());
             for (int i = 0; i < this.grid.size(); i++) {
                 if (i >= this.professions.size()) {
                     this.grid.setStack(i, ItemStack.EMPTY);
@@ -75,11 +83,32 @@ public final class SkyWarsProfessionGui {
                 icon.set(DataComponentTypes.CUSTOM_NAME,
                         Text.literal((profession == selected ? "§a✔ " : "§f") + profession.displayName()));
                 List<Text> lore = new java.util.ArrayList<>();
-                lore.add(Text.literal("§7开局获得固定装备"));
-                if (profession.maxHealthMultiplier() > 1.0) {
-                    lore.add(Text.literal("§c最大生命值 ×1.5"));
+                lore.add(Text.literal("§7" + profession.description()));
+                lore.add(Text.literal("§c生命值：" + (int) (20 * profession.maxHealthMultiplier()) + " 点"));
+                lore.add(Text.literal("§6开局物资："));
+                for (ItemStack item : profession.createLoadout(player)) {
+                    lore.add(Text.literal("§f• ").append(item.getName()).append(" §f×" + item.getCount())
+                            .append(item.getItem() instanceof ArmorItem ? " §7（自动穿戴）" : ""));
+                    for (var enchantment : item.getEnchantments().getEnchantmentEntries()) {
+                        lore.add(Text.literal("  §7").append(Enchantment.getName(enchantment.getKey(), enchantment.getIntValue())));
+                    }
+                    PotionContentsComponent potion = item.get(DataComponentTypes.POTION_CONTENTS);
+                    if (potion != null) {
+                        for (var effect : potion.getEffects()) {
+                            String level = switch (effect.getAmplifier()) {
+                                case 0 -> "Ⅰ";
+                                case 1 -> "Ⅱ";
+                                default -> Integer.toString(effect.getAmplifier() + 1);
+                            };
+                            int seconds = effect.getDuration() / 20;
+                            String duration = seconds > 0 ? "（" + seconds / 60 + ":" + String.format("%02d", seconds % 60) + "）" : "";
+                            lore.add(Text.literal("  §b").append(Text.translatable(effect.getTranslationKey()))
+                                    .append(" " + level + duration));
+                        }
+                    }
                 }
-                lore.add(Text.literal(profession == selected ? "§a当前选择" : "§e点击选择"));
+                lore.add(Text.literal(this.match == null ? "§7预览物资，开局时可选择职业"
+                        : profession == selected ? "§a当前选择" : "§e点击选择"));
                 icon.set(DataComponentTypes.LORE, new LoreComponent(lore));
                 this.grid.setStack(i, icon);
             }
@@ -91,6 +120,9 @@ public final class SkyWarsProfessionGui {
             if (!(player instanceof ServerPlayerEntity sp)
                     || slotIndex < 0 || slotIndex >= this.professions.size()
                     || (actionType != SlotActionType.PICKUP && actionType != SlotActionType.QUICK_MOVE)) {
+                return;
+            }
+            if (this.match == null) {
                 return;
             }
             if (this.match.getState() != MatchState.COUNTDOWN) {
@@ -108,7 +140,7 @@ public final class SkyWarsProfessionGui {
             return player instanceof ServerPlayerEntity sp
                     && PvPMod.MATCH != null
                     && PvPMod.MATCH.getMatchFor(sp) == this.match
-                    && this.match.getState() == MatchState.COUNTDOWN;
+                    && (this.match == null || this.match.getState() == MatchState.COUNTDOWN);
         }
 
         @Override

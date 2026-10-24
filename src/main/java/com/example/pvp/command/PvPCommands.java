@@ -106,6 +106,20 @@ public final class PvPCommands {
                                 .executes(PvPCommands::openMenu))
                         .then(CommandManager.literal("help")
                                 .executes(ctx -> showHelp(ctx.getSource())))
+                        // 五秒开局前即可了解职业物资；倒计时内则打开实际选择界面。
+                        .then(CommandManager.literal("professions").executes(ctx -> {
+                            ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                            var match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+                            if (match != null && match.getType() == MatchType.SKYWARS
+                                    && match.getState() == com.example.pvp.match.MatchState.COUNTDOWN) {
+                                com.example.pvp.match.SkyWarsProfessionGui.open(player, match);
+                            } else if (match == null) {
+                                com.example.pvp.match.SkyWarsProfessionGui.openPreview(player);
+                            } else {
+                                player.sendMessage(Messages.warn("请在大厅预览职业，空岛倒计时内可选择职业"), false);
+                            }
+                            return 1;
+                        }))
                         .then(CommandManager.literal("join")
                                 .then(CommandManager.argument("mode", StringArgumentType.word())
                                         .suggests(MODE_SUGGESTIONS)
@@ -805,6 +819,8 @@ public final class PvPCommands {
         }
         rounds = Math.max(1, Math.min(8, rounds));
         int baseRegion = 900; // 远离正式对局分配的区域，避免冲突
+        int cleanupRadius = Math.min(ArenaTemplate.REGION_SPACING / 2 - 1,
+                Math.max(SkyWarsLayout.computeMaxRadius(), PvPConfig.INSTANCE.skywarsSize));
         int lastRegion = baseRegion;
         for (int i = 0; i < rounds; i++) {
             int region = baseRegion + i;
@@ -812,7 +828,10 @@ public final class PvPCommands {
             if (forcedTheme != null) {
                 seed = SkyWarsTheme.alignSeed(seed, forcedTheme); // 指定主题，地图布局仍随 seed 变化
             }
-            SkyWarsLayout layout = SkyWarsMapGenerator.generate(arena, region, seed, 4, null);
+            // 重用预览区域前清除上一张图，避免不同种子的树、岛和箱子叠加后误导验图。
+            SkyWarsMapGenerator.clearIslands(arena, region, cleanupRadius);
+            // 调试与正式对局使用同一立体生成入口，空玩家列表表示不应用玩家补偿。
+            SkyWarsLayout layout = SkyWarsBetaMapGenerator.generate(arena, region, seed, 4, List.of(), null);
             lastRegion = region;
             player.sendMessage(Messages.info("测试空岛 #" + (i + 1) + "（主题 "
                     + SkyWarsTheme.pick(seed).getDisplayName() + "）已生成："
@@ -828,7 +847,7 @@ public final class PvPCommands {
         return 1;
     }
 
-    /** 调试：4 种主题各生成一张空岛地图（区域 900~903），方便对比查看。 */
+    /** 调试：5 种主题各生成一张正式空岛地图（区域 900~904），方便对比查看。 */
     private static int debugSkywarsAllThemes(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
@@ -838,17 +857,24 @@ public final class PvPCommands {
             return 0;
         }
         int baseRegion = 900;
+        int cleanupRadius = Math.min(ArenaTemplate.REGION_SPACING / 2 - 1,
+                Math.max(SkyWarsLayout.computeMaxRadius(), PvPConfig.INSTANCE.skywarsSize));
         SkyWarsTheme[] themes = SkyWarsTheme.values();
         for (int i = 0; i < themes.length; i++) {
             int seed = SkyWarsTheme.alignSeed(9000 + i, themes[i]);
-            SkyWarsMapGenerator.generate(arena, baseRegion + i, seed, 4, null);
+            SkyWarsMapGenerator.clearIslands(arena, baseRegion + i, cleanupRadius);
+            SkyWarsBetaMapGenerator.generate(arena, baseRegion + i, seed, 4, List.of(), null);
             player.sendMessage(Messages.info("测试空岛 #" + (i + 1) + "（主题 " + themes[i].getDisplayName()
                     + "）已生成，区域 " + (baseRegion + i)), false);
         }
         BlockPos c = SkyWarsMapGenerator.center(baseRegion + themes.length - 1);
         player.teleport(arena, c.getX() + 0.5, c.getY() + 12, c.getZ() + 0.5, 0, 90);
         arenaManager.addVisitor(player, 180);
-        player.sendMessage(Messages.gold("已传送到最后一张（末地）测试空岛上空；区域 900~903 依次为 主世界/地狱/冰原/末地，可飞行查看"), false);
+        String themeNames = java.util.Arrays.stream(themes).map(SkyWarsTheme::getDisplayName)
+                .collect(java.util.stream.Collectors.joining("/"));
+        player.sendMessage(Messages.gold("已传送到最后一张（" + themes[themes.length - 1].getDisplayName()
+                + "）测试空岛上空；区域 " + baseRegion + "~" + (baseRegion + themes.length - 1)
+                + " 依次为 " + themeNames + "，可飞行查看"), false);
         return 1;
     }
 
@@ -1247,7 +1273,7 @@ public final class PvPCommands {
         return 1;
     }
 
-    /** 调试：按指定 seed 生成一张空岛 Beta 立体地图并传送查看，不影响正式对局。 */
+    /** 调试：保留旧 Beta 命令入口，按指定 seed 查看已正式启用的立体空岛地图。 */
     private static int debugSkywarsBeta(CommandContext<ServerCommandSource> ctx, int seed)
             throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
@@ -1262,14 +1288,17 @@ public final class PvPCommands {
         BlockPos origin = new BlockPos(region * ArenaTemplate.REGION_SPACING, ArenaTemplate.PLATFORM_Y, 0);
         BlockPos center = new BlockPos(origin.getX() + size / 2, ArenaTemplate.PLATFORM_Y + 1,
                 origin.getZ() + size / 2);
+        int cleanupRadius = Math.min(ArenaTemplate.REGION_SPACING / 2 - 1,
+                Math.max(SkyWarsLayout.computeMaxRadius(), size));
+        SkyWarsMapGenerator.clearIslands(arena, region, cleanupRadius);
         SkyWarsLayout layout = SkyWarsBetaMapGenerator.generate(arena, region, seed, 8, List.of(), null);
         SkyWarsTheme theme = SkyWarsTheme.pick(seed);
-        int style = Math.floorMod(seed, 6);
-        player.sendMessage(Messages.info("测试空岛 Beta 地图已生成（seed " + seed + "，风格 " + style
+        int style = new java.util.Random(layout.styleSeed()).nextInt(6);
+        player.sendMessage(Messages.info("测试空岛正式地图已生成（seed " + seed + "，风格 " + style
                 + "，主题 " + theme.name() + "，出生岛 " + layout.spawnIslands().size() + " 座）"), false);
         player.teleport(arena, center.getX() + 0.5, center.getY() + 28, center.getZ() + 0.5, 0, 90);
         arenaManager.addVisitor(player, 300);
-        player.sendMessage(Messages.gold("已传送到空岛 Beta 地图上空（约 5 分钟后自动回城），可使用不同 seed 查看不同层次结构"), false);
+        player.sendMessage(Messages.gold("已传送到空岛正式地图上空（约 5 分钟后自动回城），可使用不同 seed 查看不同层次结构"), false);
         return 1;
     }
 

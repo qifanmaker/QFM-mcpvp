@@ -49,6 +49,21 @@ public abstract class PlayerEntityMixin {
         }
     }
 
+    /** 空岛无冷却必须配套旧版斧基础伤害，否则现代斧的慢攻速代价被完全抹掉。 */
+    @ModifyExpressionValue(method = "attack", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/entity/player/PlayerEntity;getAttributeValue(Lnet/minecraft/registry/entry/RegistryEntry;)D", ordinal = 0))
+    private double pvp$skywarsWeaponDamage(double original) {
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        MatchManager manager = MatchManager.get();
+        if (self instanceof ServerPlayerEntity player && manager != null) {
+            Match match = manager.getMatchFor(player);
+            if (match != null && match.getType() == MatchType.SKYWARS) {
+                return com.example.pvp.match.SkyWarsCombat.attackDamage(player, original);
+            }
+        }
+        return original;
+    }
+
     /** 记录攻击尝试，供连点器检测使用。 */
     @Inject(method = "attack", at = @At("HEAD"))
     private void pvp$recordAttack(Entity target, CallbackInfo ci) {
@@ -76,6 +91,7 @@ public abstract class PlayerEntityMixin {
         if (match == null) {
             return;
         }
+        if (match.getType() == MatchType.SKYWARS) return; // 空岛在有效伤害之后处理，拒绝的高频攻击不额外击退。
         if (target instanceof LivingEntity victim && victim != self) {
             double dx = victim.getX() - self.getX(); // 指向目标（远离自己）
             double dz = victim.getZ() - self.getZ();
@@ -96,6 +112,31 @@ public abstract class PlayerEntityMixin {
                     victim.getVelocity().z + dz / d * strength);
             victim.velocityDirty = true;
         }
+    }
+
+    /** 空岛特殊球只在本次伤害被接受后施力，避免无敌帧内连点无限叠加额外击退。 */
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "attack",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/Entity;damage(Lnet/minecraft/entity/damage/DamageSource;F)Z"))
+    private boolean pvp$skywarsBallHit(Entity target, net.minecraft.entity.damage.DamageSource source, float damage,
+                                      com.llamalad7.mixinextras.injector.wrapoperation.Operation<Boolean> original) {
+        boolean accepted = original.call(target, source, damage);
+        if (!accepted || !((Object) this instanceof ServerPlayerEntity player)
+                || !(target instanceof ServerPlayerEntity victim)
+                || !com.example.pvp.match.SkyWarsItems.isKnockbackBall(player.getMainHandStack())) return accepted;
+        MatchManager manager = MatchManager.get();
+        Match match = manager == null ? null : manager.getMatchFor(player);
+        if (match == null || match.getType() != MatchType.SKYWARS
+                || match.getState() != com.example.pvp.match.MatchState.ACTIVE
+                || match.isEliminated(player.getUuid()) || match.isEliminated(victim.getUuid())
+                || manager.getMatchFor(victim) != match) return accepted;
+        double dx = victim.getX() - player.getX();
+        double dz = victim.getZ() - player.getZ();
+        double length = Math.hypot(dx, dz);
+        if (length > 0.001) {
+            victim.addVelocity(dx / length * 0.6, 0.12, dz / length * 0.6);
+            victim.velocityModified = true;
+        }
+        return accepted;
     }
 
     /**

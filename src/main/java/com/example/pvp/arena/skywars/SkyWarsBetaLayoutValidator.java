@@ -1,5 +1,8 @@
 package com.example.pvp.arena.skywars;
 
+import com.example.pvp.arena.ArenaWorld;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -31,10 +34,72 @@ public final class SkyWarsBetaLayoutValidator {
         checkIslands(errors, "中途岛", layout.midIslands());
         checkPairwiseSpacing(errors, "出生岛", layout.spawnIslands(), 1);
         checkPairwiseSpacing(errors, "中途岛", layout.midIslands(), 1);
+        checkFairRoutes(errors, layout);
         if (layout.middle() != null && layout.middle().radius() < 6) {
             errors.add("中央主岛半径过小: " + layout.middle().radius());
         }
         return List.copyOf(errors);
+    }
+
+    /** 几何铺完后检查实际方块，兼容 ArenaWorld 的暂存叠加层。 */
+    public static List<String> validateGenerated(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme) {
+        List<String> errors = new ArrayList<>();
+        for (BlockPos spawn : layout.spawns()) {
+            if (world.getBlockState(spawn.down()).isAir() || !world.getBlockState(spawn).isAir()
+                    || !world.getBlockState(spawn.up()).isAir()) errors.add("出生点未留净空: " + spawn);
+        }
+        for (SkyWarsLayout.Island island : layout.spawnIslands()) checkChests(errors, world, island, false, false, theme);
+        for (SkyWarsLayout.Island island : layout.midIslands()) checkChests(errors, world, island, false, false, theme);
+        for (int i = 0; i < layout.middleIslands().size(); i++) {
+            checkChests(errors, world, layout.middleIslands().get(i), true, i == 0, theme);
+        }
+        for (SkyWarsLayout.ExtraChest extra : layout.extraChests()) {
+            if (extra.lootTable() == null) checkChest(errors, world, extra.pos());
+        }
+        if (theme != SkyWarsTheme.VILLAGE && layout.middle() != null) {
+            BlockPos lower = layout.middle().center().down(SkyWarsBetaMapGenerator.LOWER_LAYER_DROP);
+            if (world.getBlockState(lower).isAir()) errors.add("下层缺少中央安全地板");
+            for (int dy = 1; dy <= 3; dy++) {
+                if (!world.getBlockState(lower.up(dy)).isAir()) errors.add("下层中央净空不足");
+            }
+        }
+        return List.copyOf(errors);
+    }
+
+    private static void checkChests(List<String> errors, ArenaWorld world, SkyWarsLayout.Island island,
+                                    boolean middle, boolean central, SkyWarsTheme theme) {
+        for (int i = 0; i < island.chests().size(); i++) {
+            checkChest(errors, world, SkyWarsMapGenerator.islandChestPos(island, i, middle, central, theme));
+        }
+    }
+
+    private static void checkChest(List<String> errors, ArenaWorld world, BlockPos pos) {
+        if (!world.getBlockState(pos).isOf(Blocks.CHEST)
+                || !(world.getBlockEntity(pos) instanceof ChestBlockEntity)) errors.add("战斗箱丢失: " + pos);
+        else if (!world.getBlockState(pos.up()).isAir()) errors.add("战斗箱顶部被遮挡: " + pos);
+    }
+
+    private static void checkFairRoutes(List<String> errors, SkyWarsLayout layout) {
+        if (layout.spawnIslands().size() != layout.midIslands().size()) {
+            errors.add("出生岛和中途岛未一一对应");
+            return;
+        }
+        if (layout.spawnIslands().isEmpty()) return;
+        SkyWarsLayout.Island firstSpawn = layout.spawnIslands().get(0);
+        SkyWarsLayout.Island firstTransit = layout.midIslands().get(0);
+        double minGap = layout.compact() ? 10 : 14;
+        double maxGap = layout.compact() ? 14 : 20;
+        for (int i = 0; i < layout.spawnIslands().size(); i++) {
+            SkyWarsLayout.Island spawn = layout.spawnIslands().get(i);
+            SkyWarsLayout.Island transit = layout.midIslands().get(i);
+            double gap = horizontalDistance(spawn.center(), transit.center()) - spawn.radius() - transit.radius();
+            if (gap < minGap - 0.5 || gap > maxGap + 0.5) errors.add("出生主路桥距超出范围: " + i + "=" + gap);
+            if (spawn.radius() != firstSpawn.radius() || transit.radius() != firstTransit.radius()
+                    || spawn.center().getY() != firstSpawn.center().getY()
+                    || transit.center().getY() != firstTransit.center().getY()
+                    || spawn.chests().size() != firstSpawn.chests().size()
+                    || transit.chests().size() != firstTransit.chests().size()) errors.add("出生主路预算不一致: " + i);
+        }
     }
 
     private static void checkIslands(List<String> errors, String label, List<SkyWarsLayout.Island> islands) {

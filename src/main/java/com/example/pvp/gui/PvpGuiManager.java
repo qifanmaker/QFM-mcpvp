@@ -247,7 +247,8 @@ public final class PvpGuiManager {
                 + PvPConfig.INSTANCE.skywarsStartPlayers + " 人开赛",
                 "随机空岛 + 中间主岛，开箱获得装备",
                 "1.8 低版本战斗，3 分钟后缩圈",
-                "最后存活者获胜，点击直接加入");
+                "最后存活者获胜，点击直接加入",
+                "大厅输入 /pvp professions 预览职业物资");
         this.applyQueueIndicator(skywars, player, PvPMod.QUEUE.countQueued(MatchType.SKYWARS));
         inv.setStack(10, skywars);
 

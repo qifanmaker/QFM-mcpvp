@@ -46,6 +46,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 比赛管理器：管理所有并发比赛、区域分配、虚空/闯入者兜底、玩家状态恢复。
  */
 public final class MatchManager {
+    /** 虚空淘汰与图腾救援共享同一高度基准，避免各处硬编码产生提前触发。 */
+    public static final int VOID_ELIMINATION_OFFSET = -32;
     private static final Logger LOGGER = LogUtils.getLogger();
 
     private static MatchManager instance;
@@ -902,7 +904,7 @@ public final class MatchManager {
 
         for (ServerPlayerEntity player : List.copyOf(arena.getPlayers())) {
             Match match = this.getMatchFor(player.getUuid());
-            boolean inVoid = player.getY() < arena.getBottomY() - 32;
+            boolean inVoid = player.getY() < arena.getBottomY() + VOID_ELIMINATION_OFFSET;
 
             if (match == null) {
                 // 调试/观览访客、以及竞技场内阵亡后被强制旁观的玩家都不受兜底影响
@@ -914,6 +916,9 @@ public final class MatchManager {
                 if (match.getState() == MatchState.ACTIVE) {
                     if (match.isEliminated(player.getUuid())) {
                         match.rescueGhost(player); // 幽灵掉出虚空送回观战台
+                    } else if (match.getType() == MatchType.SKYWARS) {
+                        // 高下落速度跳过救援带时，淘汰前再尝试一次；失败不会消耗图腾。
+                        if (!match.tryTotemSave(player, true)) match.eliminate(player, EliminationCause.VOID);
                     } else if (match.getType().isBridge()) {
                         match.bridgeRespawn(player); // 战桥：掉出虚空直接原地重生（兜底）
                     } else if (match.getType() == MatchType.HEARTBEAT) {

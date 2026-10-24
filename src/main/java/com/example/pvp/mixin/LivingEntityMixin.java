@@ -19,6 +19,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {
 
+    /** 手持和背包图腾遵守同一空岛规则，避免原版手持优先触发绕过固定回血量。 */
+    @Inject(method = "tryUseTotem", at = @At("HEAD"), cancellable = true)
+    private void pvp$skywarsTotem(DamageSource source, CallbackInfoReturnable<Boolean> cir) {
+        if ((Object) this instanceof ServerPlayerEntity player && PvPMod.MATCH != null) {
+            Match match = PvPMod.MATCH.getMatchFor(player);
+            if (match != null && match.getType() == MatchType.SKYWARS && match.getState() == MatchState.ACTIVE) {
+                boolean voidFall = source.isOf(net.minecraft.entity.damage.DamageTypes.OUT_OF_WORLD);
+                cir.setReturnValue((voidFall || !source.isIn(net.minecraft.registry.tag.DamageTypeTags.BYPASSES_INVULNERABILITY))
+                        && match.tryTotemSave(player, voidFall));
+            }
+        }
+    }
+
     @org.spongepowered.asm.mixin.injection.ModifyArg(
             method = "damage",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/LivingEntity;applyDamage(Lnet/minecraft/entity/damage/DamageSource;F)V"),

@@ -128,6 +128,9 @@ public final class Match {
     private final Set<BlockPos> skywarsCageBlocks = new HashSet<>();
     /** 每名玩家仅用于开局下落的一次摔落免疫。 */
     private final Set<UUID> skywarsStartFallSafe = new HashSet<>();
+    /** 记录实际站稳的落脚点，图腾救援不再奖励玩家免费传送进中岛。 */
+    private final Map<UUID, BlockPos> skywarsSafePositions = new HashMap<>();
+    private final SkyWarsMetrics skywarsMetrics = new SkyWarsMetrics();
     private final List<MatchTeam> teams;
     private final ArenaTemplate template;
     private final int regionIndex;
@@ -145,6 +148,8 @@ public final class Match {
     private final int skywarsSeed;
     private final SkyWarsMapVariant skywarsVariant;
     private int skywarsShrinkStage; // 已执行的缩圈档数
+    private int skywarsWarnedShrinkStage;
+    private final Map<UUID, Integer> skywarsOutsideSince = new HashMap<>();
     private int skywarsLastKeepRadius = Integer.MAX_VALUE; // 上一档安全半径
     private boolean skywarsChestRefilled; // "物资刷新"事件是否已触发（每场一次）
 
@@ -881,53 +886,65 @@ public final class Match {
         if (this.skywarsLayout == null) {
             return;
         }
-        PvPConfig cfg = PvPConfig.INSTANCE;
-        int elapsed = this.activeElapsedTicks();
-        int startTick = cfg.skywarsShrinkStartSeconds * 20;
-        if (elapsed < startTick) {
-            return;
+        SkyWarsShrinkSchedule schedule = this.skywarsShrinkSchedule();
+        int elapsed = this.activeElapsedTicks() / 20;
+        int stage = schedule.stageAt(elapsed);
+        int nextStage = stage + 1;
+        int untilNext = schedule.secondsForStage(nextStage) - elapsed;
+        if (nextStage <= schedule.stages() && nextStage > this.skywarsWarnedShrinkStage
+                && untilNext > 0 && untilNext <= schedule.warningSeconds()) {
+            this.skywarsWarnedShrinkStage = nextStage;
+            this.broadcastTitleBig("§e即将缩圈", "§f" + untilNext + " 秒后安全半径 "
+                    + schedule.radiusForStage(nextStage) + " 格，请向中岛移动");
         }
-        int stage = (elapsed - startTick) / (cfg.skywarsShrinkIntervalSeconds * 20) + 1;
-        if (stage == this.skywarsShrinkStage) {
+        if (stage == 0 || stage == this.skywarsShrinkStage) {
+            this.checkSkywarsBoundary();
             return;
         }
         this.skywarsShrinkStage = stage;
-        int keepRadius = this.skywarsLayout.maxRadius() - stage * cfg.skywarsShrinkBlocksPerStage;
-        if (keepRadius < this.skywarsMinShrinkRadius()) {
-            keepRadius = this.skywarsMinShrinkRadius();
-        }
+        int keepRadius = schedule.radiusForStage(stage);
         if (keepRadius >= this.skywarsLastKeepRadius) {
             return; // 已缩到最小安全半径，不再重复
         }
+        int previousRadius = Math.min(this.skywarsLastKeepRadius, this.skywarsLayout.maxRadius());
         this.skywarsLastKeepRadius = keepRadius;
 
         ArenaWorld arena = this.manager.getArenaManager().getWorld();
         if (arena != null) {
             SkyWarsMapGenerator.removeRing(arena, this.skywarsLayout.mapCenter(),
-                    this.skywarsLayout.maxRadius(), keepRadius);
+                    previousRadius, keepRadius);
         }
         this.broadcastTitleBig("§c§l缩圈！", "§f安全区缩小到半径 " + keepRadius + " 格");
 
-        if (arena != null) {
-            for (ServerPlayerEntity player : this.players) {
-                if (this.eliminated.contains(player.getUuid())) {
-                    continue;
-                }
-                ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-                if (online == null || online.getWorld() != arena) {
-                    continue;
-                }
-                double dist = Math.hypot(online.getX() - this.skywarsLayout.mapCenter().getX(),
-                        online.getZ() - this.skywarsLayout.mapCenter().getZ());
-                if (dist > keepRadius) {
-                    this.eliminate(online, EliminationCause.SHRINK);
-                    online.sendMessage(Messages.error("你被缩圈淘汰了！"), false);
-                }
+        this.checkSkywarsBoundary();
+    }
+
+    /** 决战圈停止收缩后仍约束外圈；给三秒返回时间，不能重搭圈外平台无限拖延。 */
+    private void checkSkywarsBoundary() {
+        if (this.skywarsLastKeepRadius == Integer.MAX_VALUE || this.ticks % 20 != 0) return;
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        for (ServerPlayerEntity player : this.players) {
+            if (this.state != MatchState.ACTIVE) break;
+            if (this.eliminated.contains(player.getUuid())) continue;
+            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
+            if (online == null || online.getWorld() != arena) continue;
+            double distance = Math.hypot(online.getX() - this.skywarsLayout.mapCenter().getX(),
+                    online.getZ() - this.skywarsLayout.mapCenter().getZ());
+            if (distance <= this.skywarsLastKeepRadius) {
+                this.skywarsOutsideSince.remove(player.getUuid());
+                continue;
+            }
+            int since = this.skywarsOutsideSince.computeIfAbsent(player.getUuid(), ignored -> this.ticks);
+            if (this.ticks - since >= 60) {
+                this.eliminate(online, EliminationCause.SHRINK);
+                online.sendMessage(Messages.error("你被缩圈淘汰了！"), false);
+            } else {
+                online.sendMessage(Messages.warn("已离开安全区！请在 " + (3 - (this.ticks - since) / 20) + " 秒内返回"), true);
             }
         }
     }
 
-    /** 空岛战争事件：开赛满 4 分钟（skywarsRefillSeconds）触发一次——清空并重新塞满全图箱子物资。 */
+    /** 空岛补货：外圈补消耗物资，中岛补装备升级；整局神器配额不重新抽取。 */
     private void tickSkywarsChestRefill() {
         if (this.skywarsChestRefilled) {
             return;
@@ -952,7 +969,7 @@ public final class Match {
         this.broadcast(Text.literal("§e[空岛战争] §f" + (cfg.skywarsRefillSeconds / 60) + " 分钟已到，所有箱子物资已刷新！"));
     }
 
-    /** 空岛战争：掉入虚空且持有不死图腾 → 消耗一个，把玩家传送到中岛中心救回。 */
+    /** 记录安全落脚点，掉入虚空时在原区域附近救回。 */
     private void tickSkywarsTotem() {
         if (this.skywarsLayout == null) {
             return;
@@ -961,8 +978,8 @@ public final class Match {
         if (arena == null) {
             return;
         }
-        // 以竞技场世界底部为准，提前 10 格触发给服务端 tick/网络延迟留出冗余，避免临界高度漏救
-        double rescueY = arena.getBottomY() + 10.0;
+        // 以实际淘汰线为准提前十格，不能把世界构建底部误当作死亡线。
+        double rescueY = arena.getBottomY() + MatchManager.VOID_ELIMINATION_OFFSET + 10.0;
         for (ServerPlayerEntity player : this.players) {
             if (this.eliminated.contains(player.getUuid())) {
                 continue;
@@ -970,6 +987,11 @@ public final class Match {
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online == null || online.getWorld() != arena) {
                 continue;
+            }
+            if (online.isOnGround() && this.ticks % 5 == 0
+                    && this.skywarsInsideSafeArea(online.getBlockPos())
+                    && SkyWarsRescue.safeLanding(arena, online.getBlockPos())) {
+                this.skywarsSafePositions.put(online.getUuid(), online.getBlockPos().toImmutable());
             }
             if (online.getY() >= rescueY || online.isOnGround()) {
                 continue;
@@ -979,9 +1001,9 @@ public final class Match {
     }
 
     /**
-     * 不死图腾救场：消耗背包中任意位置的一个图腾，清状态回满血、给吸收/再生。
-     * 空岛/幸运之柱通用——掉入虚空由各模式 tick 调用（voidFall=true：传送到救回点），
-     * 受到致死伤害由 PvPMod 的 ALLOW_DEATH 调用（voidFall=false：按原版逻辑原地复活）。
+     * 消耗背包任意位置的一个图腾：空岛固定恢复四颗心，幸运之柱保留满血救援。
+     * 掉入虚空由各模式 tick 调用；致死伤害由图腾钩子或 ALLOW_DEATH 调用。
+     * voidFall=true 时寻找安全地形并传送，false 时原地救援。
      * 返回 true 表示成功消耗并救回（调用方据此取消死亡/淘汰）。
      */
     public boolean tryTotemSave(ServerPlayerEntity player, boolean voidFall) {
@@ -998,6 +1020,32 @@ public final class Match {
         int slot = this.findTotemSlot(player);
         if (slot < 0) {
             return false;
+        }
+        if (this.type == MatchType.SKYWARS) {
+            BlockPos rescue = voidFall ? this.skywarsRescuePoint(player) : null;
+            if (voidFall && rescue == null) return false;
+            player.getInventory().getStack(slot).decrement(1);
+            this.skywarsMetrics.used(player.getUuid(), "totemUses");
+            player.getWorld().sendEntityStatus(player, (byte) 35);
+            // 固定四颗心，坦克与普通职业获得同样救援量，避免满血反复换命。
+            player.setHealth(Math.min(8.0f, player.getMaxHealth()));
+            player.setFireTicks(0);
+            player.clearStatusEffects();
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 100, 0));
+            // 再生在剩余时长为50的倍数时回血；99避开首tick立即+1，先明确恢复到8点。
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 99, 0));
+            player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 40, 3));
+            player.fallDistance = 0;
+            this.totemFallSafeTicks.put(player.getUuid(), 60);
+            if (rescue != null) {
+                player.teleport(arena, rescue.getX() + 0.5, rescue.getY(), rescue.getZ() + 0.5,
+                        player.getYaw(), player.getPitch());
+                player.setVelocity(Vec3d.ZERO);
+                player.velocityModified = true;
+            }
+            player.currentScreenHandler.sendContentUpdates();
+            this.broadcast(Messages.warn("§e" + player.getGameProfile().getName() + "§r 依靠不死图腾死里逃生！"));
+            return true;
         }
         player.getInventory().getStack(slot).decrement(1); // 消耗一个图腾（背包里任意位置都算）
         player.getWorld().sendEntityStatus(player, (byte) 35); // 播放不死图腾激活动画
@@ -1026,11 +1074,47 @@ public final class Match {
         return true;
     }
 
-    /** 不死图腾救回点：空岛=中岛（末地主题为中岛环上的安全点，避免掉进空心中央），幸运之柱=自己的柱顶。 */
-    private BlockPos totemRescuePoint(ServerPlayerEntity player) {
-        if (this.type == MatchType.SKYWARS && this.skywarsLayout != null && this.skywarsTheme != null) {
-            return SkyWarsMapGenerator.rescuePoint(this.skywarsLayout, this.skywarsTheme);
+    private boolean skywarsInsideSafeArea(BlockPos pos) {
+        return this.skywarsLayout != null && Math.hypot(pos.getX() - this.skywarsLayout.mapCenter().getX(),
+                pos.getZ() - this.skywarsLayout.mapCenter().getZ())
+                <= Math.min(this.skywarsLastKeepRadius, this.skywarsLayout.maxRadius()) - 1;
+    }
+
+    private BlockPos skywarsRescuePoint(ServerPlayerEntity player) {
+        ArenaWorld arena = this.manager.getArenaManager().getWorld();
+        if (arena == null || this.skywarsLayout == null) return null;
+        BlockPos remembered = this.skywarsSafePositions.get(player.getUuid());
+        if (remembered != null && this.skywarsInsideSafeArea(remembered)
+                && SkyWarsRescue.safeLanding(arena, remembered)) return remembered;
+
+        // 原落脚点已被炸毁/缩圈时，从附近地形寻找仍有效的位置；不制造新方块。
+        List<BlockPos> candidates = new ArrayList<>();
+        if (remembered != null) candidates.add(remembered);
+        BlockPos spawn = this.spawns.get(player.getUuid());
+        if (spawn != null) candidates.add(spawn);
+        this.skywarsLayout.spawnIslands().forEach(island -> candidates.add(island.center().up()));
+        this.skywarsLayout.midIslands().forEach(island -> candidates.add(island.center().up()));
+        this.skywarsLayout.middleIslands().forEach(island -> candidates.add(island.center().up()));
+        candidates.sort(java.util.Comparator.comparingDouble(pos ->
+                Math.pow(pos.getX() + 0.5 - player.getX(), 2) + Math.pow(pos.getZ() + 0.5 - player.getZ(), 2)));
+        for (BlockPos origin : candidates) {
+            for (int radius = 0; radius <= 6; radius++) {
+                for (int dx = -radius; dx <= radius; dx++) {
+                    for (int dz = -radius; dz <= radius; dz++) {
+                        if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) continue;
+                        for (int dy = 14; dy >= -12; dy--) {
+                            BlockPos feet = origin.add(dx, dy, dz);
+                            if (this.skywarsInsideSafeArea(feet) && SkyWarsRescue.safeLanding(arena, feet)) return feet;
+                        }
+                    }
+                }
+            }
         }
+        return null;
+    }
+
+    /** 幸运之柱的图腾救回点：自己的柱顶。空岛已在独立分支选择最近安全点。 */
+    private BlockPos totemRescuePoint(ServerPlayerEntity player) {
         if (this.type == MatchType.LUCKY_PILLAR) {
             BlockPos spawn = this.spawns.get(player.getUuid());
             if (spawn != null) {
@@ -3285,6 +3369,9 @@ public final class Match {
         if (!this.eliminated.add(player.getUuid())) {
             return; // 已淘汰
         }
+        if (this.type == MatchType.SKYWARS) {
+            this.skywarsMetrics.eliminated(player.getUuid(), cause.name(), this.activeElapsedTicks());
+        }
         this.bedWarsRespawnTicks.remove(player.getUuid()); // 清除待复活记录，防止幽灵被复活
         for (MatchTeam team : this.teams) {
             team.eliminate(player);
@@ -3360,6 +3447,10 @@ public final class Match {
 
     private void startCelebration(MatchTeam winnerTeam) {
         Set<UUID> winners = this.computeWinners();
+        if (this.type == MatchType.SKYWARS) {
+            this.skywarsMetrics.finish(this.id, this.skywarsSeed, this.skywarsTheme.name(), this.activeElapsedTicks(),
+                    this.activeElapsedTicks() >= PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20, winners);
+        }
         this.announceResult(winners);
         this.broadcast(Messages.feedbackHint());
 
@@ -3876,32 +3967,22 @@ public final class Match {
     /** 足力健老人鞋：在无脚下方块时消耗一根自救平台烈焰棒，生成 5x5 圆形粘液平台。 */
     public boolean skywarsProfessionUse(ServerPlayerEntity player, ItemStack hand) {
         if (this.type != MatchType.SKYWARS || this.state != MatchState.ACTIVE
+                || this.eliminated.contains(player.getUuid()) || !this.owns(player.getUuid())
+                || player.getWorld() != this.manager.getArenaManager().getWorld()
                 || this.skywarsProfessionOf(player.getUuid()) != SkyWarsProfession.SHOE_SENIOR
-                || !hand.isOf(net.minecraft.item.Items.BLAZE_ROD)) {
+                || !SkyWarsItems.isRescuePlatform(hand) || !this.skywarsInsideSafeArea(player.getBlockPos())) {
             return false;
         }
-        BlockPos feet = player.getBlockPos();
-        if (!player.getWorld().getBlockState(feet.down()).isAir()) {
-            player.sendMessage(Messages.warn("脚下有方块，无法展开自救平台"), true);
-            return false;
+        boolean deployed = SkyWarsRescue.deployPlatform(player, hand);
+        if (deployed) this.skywarsMetrics.used(player.getUuid(), "platformUses");
+        return deployed;
+    }
+
+    public void recordSkywarsCombat(ServerPlayerEntity attacker, ServerPlayerEntity victim) {
+        if (this.type == MatchType.SKYWARS && this.state == MatchState.ACTIVE && attacker != victim
+                && this.owns(attacker.getUuid()) && this.owns(victim.getUuid())) {
+            this.skywarsMetrics.combat(this.activeElapsedTicks());
         }
-        // 留出四格缓冲：平台放在脚下五格，避免右键触发与下落同步存在延迟时卡进平台
-        BlockPos platform = feet.down(5);
-        int placed = 0;
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                if (dx * dx + dz * dz > 4) continue;
-                BlockPos pos = platform.add(dx, 0, dz);
-                if (player.getWorld().getBlockState(pos).isReplaceable()) {
-                    player.getWorld().setBlockState(pos, Blocks.SLIME_BLOCK.getDefaultState(), 3);
-                    placed++;
-                }
-            }
-        }
-        if (placed == 0) return false;
-        hand.decrement(1);
-        player.sendMessage(Messages.gold("自救平台已展开！"), true);
-        return true;
     }
 
     /** 由摔落伤害拦截器消费一次空岛开局免伤。 */
@@ -3999,6 +4080,7 @@ public final class Match {
             } else {
             if (this.type == MatchType.SKYWARS) {
                 this.removeSkywarsCage();
+                this.skywarsMetrics.begin(this.players, this.skywarsProfessions);
                 for (ServerPlayerEntity player : this.players) {
                     ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
                     if (online == null) {
@@ -5008,29 +5090,23 @@ public final class Match {
         };
     }
 
-    /** 空岛战争缩圈行：未开始显示剩余时间，进行中显示当前安全半径。 */
+    /** 信息栏与真正缩圈共用时间表，避免显示的半径和实际淘汰边界不同。 */
     private String skywarsShrinkLine() {
-        if (this.skywarsLayout == null) {
-            return "§7缩圈: -";
-        }
-        PvPConfig cfg = PvPConfig.INSTANCE;
+        if (this.skywarsLayout == null) return "§7缩圈: -";
+        SkyWarsShrinkSchedule schedule = this.skywarsShrinkSchedule();
         int elapsed = this.activeElapsedTicks() / 20;
-        int startSec = cfg.skywarsShrinkStartSeconds;
-        if (elapsed < startSec) {
-            return "§c缩圈 §7" + formatTime(startSec - elapsed) + " 后";
-        }
-        int stage = (elapsed - startSec) / cfg.skywarsShrinkIntervalSeconds + 1;
-        int keep = this.skywarsLayout.maxRadius() - stage * cfg.skywarsShrinkBlocksPerStage;
-        if (keep < this.skywarsMinShrinkRadius()) {
-            keep = this.skywarsMinShrinkRadius();
-        }
-        return "§c缩圈中 §e半径 " + keep;
+        int stage = schedule.stageAt(elapsed);
+        if (stage == 0) return "§c缩圈 §7" + formatTime(schedule.startSeconds() - elapsed) + " 后";
+        if (stage == schedule.stages()) return "§c决战区 §e半径 " + schedule.finalRadius();
+        return "§c半径 " + schedule.radiusForStage(stage) + " §7下圈 "
+                + formatTime(schedule.secondsForStage(stage + 1) - elapsed);
     }
 
-    /** 缩圈最小安全半径：不低于中间主岛半径+2，避免缩圈拆掉主岛。 */
-    private int skywarsMinShrinkRadius() {
-        return Math.max(PvPConfig.INSTANCE.skywarsShrinkMinRadius,
-                PvPConfig.INSTANCE.skywarsMiddleRadius + 2);
+    private SkyWarsShrinkSchedule skywarsShrinkSchedule() {
+        PvPConfig cfg = PvPConfig.INSTANCE;
+        int finalRadius = Math.max(cfg.skywarsShrinkMinRadius, this.skywarsLayout.suggestedFinalRadius());
+        return new SkyWarsShrinkSchedule(this.skywarsLayout.maxRadius(), finalRadius,
+                cfg.skywarsShrinkStartSeconds, cfg.skywarsShrinkIntervalSeconds, cfg.skywarsFinalShrinkSeconds);
     }
 
     private static String formatTime(int seconds) {

@@ -333,9 +333,9 @@ public final class PvPMod implements ModInitializer {
                 }
                 Match skywarsMatch = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
                 if (skywarsMatch != null && skywarsMatch.getType() == MatchType.SKYWARS
-                        && skywarsMatch.getState() == MatchState.ACTIVE
-                        && skywarsMatch.skywarsProfessionUse(serverPlayer, stack)) {
-                    return TypedActionResult.success(stack);
+                        && com.example.pvp.match.SkyWarsItems.isRescuePlatform(stack)) {
+                    return skywarsMatch.skywarsProfessionUse(serverPlayer, stack)
+                            ? TypedActionResult.success(stack) : TypedActionResult.fail(stack);
                 }
                 if (skywarsMatch != null && skywarsMatch.getType() == MatchType.SKYWARS
                         && skywarsMatch.getState() == MatchState.COUNTDOWN) {
@@ -413,6 +413,12 @@ public final class PvPMod implements ModInitializer {
                 if (match != null && match.getType() == MatchType.SKYWARS
                         && match.getState() == MatchState.COUNTDOWN) {
                     return ActionResult.FAIL;
+                }
+                // 对方块右键也走同一救援校验，防止只支持对空气使用。
+                if (match != null && match.getType() == MatchType.SKYWARS
+                        && com.example.pvp.match.SkyWarsItems.isRescuePlatform(sp.getStackInHand(hand))) {
+                    return match.skywarsProfessionUse(sp, sp.getStackInHand(hand))
+                            ? ActionResult.SUCCESS : ActionResult.FAIL;
                 }
             }
             return ActionResult.PASS;
@@ -590,6 +596,10 @@ public final class PvPMod implements ModInitializer {
             if (entity instanceof ServerPlayerEntity sp && MATCH != null) {
                 Match match = MATCH.getMatchFor(sp);
                 if (match != null) {
+                    // 致死首击会立即结算，需在淘汰前记录，避免结束日志漏掉首次交战。
+                    if (source.getAttacker() instanceof ServerPlayerEntity attacker) {
+                        match.recordSkywarsCombat(attacker, sp);
+                    }
                     if (match.getType().isBridge()) {
                         match.onBridgeDeath(sp);
                     } else if (match.getType().isBedWars()) {
@@ -612,7 +622,11 @@ public final class PvPMod implements ModInitializer {
                     } else if (match.getState() == MatchState.ACTIVE) {
                         // 不死图腾救场：空岛/幸运之柱受到致死伤害时消耗图腾取消死亡（非掉虚空→原版逻辑原地复活）
                         if ((match.getType() == MatchType.SKYWARS || match.getType() == MatchType.LUCKY_PILLAR)
-                                && match.tryTotemSave(sp, false)) {
+                                && (match.getType() != MatchType.SKYWARS
+                                || !source.isIn(net.minecraft.registry.tag.DamageTypeTags.BYPASSES_INVULNERABILITY)
+                                || source.isOf(net.minecraft.entity.damage.DamageTypes.OUT_OF_WORLD))
+                                && match.tryTotemSave(sp, match.getType() == MatchType.SKYWARS
+                                && source.isOf(net.minecraft.entity.damage.DamageTypes.OUT_OF_WORLD))) {
                             // 已救回，不淘汰
                         } else {
                             // 幸运之柱：记录击杀（超时决胜用），再淘汰
@@ -737,6 +751,11 @@ public final class PvPMod implements ModInitializer {
         });
         // 村庄保卫战：克星僵尸"受击引爆"（对齐 VD explosive_hit）
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
+            if (taken > 0 && entity instanceof ServerPlayerEntity victim
+                    && source.getAttacker() instanceof ServerPlayerEntity attacker && MATCH != null) {
+                Match match = MATCH.getMatchFor(victim);
+                if (match != null) match.recordSkywarsCombat(attacker, victim);
+            }
             if (entity instanceof net.minecraft.entity.mob.ZombieEntity && MATCH != null) {
                 MATCH.onVillageDefenseEnemyDamaged(entity, source);
             }

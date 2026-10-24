@@ -7,7 +7,6 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.ChestBlockEntity;
-import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
@@ -16,6 +15,8 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.world.chunk.ChunkSection;
+import net.minecraft.world.chunk.WorldChunk;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.feature.ConfiguredFeature;
 import net.minecraft.world.gen.feature.TreeConfiguredFeatures;
@@ -98,22 +99,18 @@ public final class SkyWarsMapGenerator {
                 : SkyWarsLayout.compute(mapCenter, seed, playerCount);
         SkyWarsTheme theme = SkyWarsTheme.pick(seed);
 
-        // 出生岛/中途岛按玩家索引归属：本局 Elo 最低的 1~2 名获得轻微的装备/神器提升
-        int[] handicaps = players == null
-                ? new int[Math.max(0, playerCount)]
-                : SkyWarsLoot.handicapForMatch(players);
         List<SkyWarsLayout.Island> spawnIslands = layout.spawnIslands();
         for (int i = 0; i < spawnIslands.size(); i++) {
-            buildIsland(world, spawnIslands.get(i), false, theme, handicaps[i], false);
+            buildIsland(world, spawnIslands.get(i), false, theme, false, layout.styleSeed() ^ 0x195bL);
         }
         List<SkyWarsLayout.Island> midIslands = layout.midIslands();
         for (int i = 0; i < midIslands.size(); i++) {
-            buildIsland(world, midIslands.get(i), false, theme, handicaps[i], false);
+            buildIsland(world, midIslands.get(i), false, theme, false, layout.styleSeed() ^ 0x69f1L);
         }
         // 中岛群：中央主岛（END 主题才空心环）+ 卫星岛（实心），各带障碍物
         List<SkyWarsLayout.Island> middleIslands = layout.middleIslands();
         for (int i = 0; i < middleIslands.size(); i++) {
-            buildIsland(world, middleIslands.get(i), true, theme, 0, i == 0);
+            buildIsland(world, middleIslands.get(i), true, theme, i == 0, layout.styleSeed() ^ (0x783aL + i));
         }
 
         // 村庄地图：中岛整座岛铺成村庄（原版房屋模板 + 道路 + 原版箱子）
@@ -129,8 +126,8 @@ public final class SkyWarsMapGenerator {
 
     /** 铺一座岛（按主题选材质 + 箱子 + 偶发装饰）；中间岛前两个箱子放在石砖柱上；中岛群带障碍物。 */
     private static void buildIsland(ArenaWorld world, SkyWarsLayout.Island island, boolean middle,
-                                    SkyWarsTheme theme, int handicap, boolean ring) {
-        Random random = new Random(island.center.hashCode());
+                                    SkyWarsTheme theme, boolean ring, long decorationSeed) {
+        Random random = new Random(decorationSeed);
         int r = island.radius;
         BlockPos c = island.center;
         Block top = theme.topBlock(), sub = theme.subBlock(), deep = theme.deepBlock();
@@ -138,11 +135,10 @@ public final class SkyWarsMapGenerator {
         boolean applyCore = ring && theme.hasMiddleCore();
         int innerR = applyCore ? (int) (r * theme.middleCoreRatio()) : 0;
         Block coreFluid = applyCore ? theme.middleCoreFluid() : null; // null = 空心，不铺块
-        // 地狱岛面随机危害：灵魂沙/岩浆（只放玩家岛，避免中岛太混乱）
+        // 外岛保留灵魂沙地形，移除开局随机岩浆，避免同局某个出生位额外承受伤害风险。
         int soulSandLeft = theme == SkyWarsTheme.NETHER ? 3 + random.nextInt(3) : 0;
-        int lavaLeft = theme == SkyWarsTheme.NETHER ? 1 + random.nextInt(2) : 0;
 
-        // 圆台：按主题铺表层/次层/深层；中岛核心见上；地狱岛面随机刷灵魂沙/岩浆
+        // 圆台：按主题铺表层/次层/深层；中岛核心见上。
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
                 double dist = Math.sqrt(dx * dx + dz * dz);
@@ -155,16 +151,13 @@ public final class SkyWarsMapGenerator {
                 BlockPos topPos = new BlockPos(c.getX() + dx, c.getY(), c.getZ() + dz);
                 // 冰原/地狱：正中只把表层换成水/岩浆，下面两层照铺，池底是实心地面
                 Block topBlock = (applyCore && dist < innerR) ? coreFluid : top;
-                // 岛心留一圈干净地面：出生点在岛心正上方，刷岩浆会把玩家出生就泡进岩浆
+                // 岛心留一圈普通地面，保证出生时不会陷入减速方块。
                 if (!middle && theme == SkyWarsTheme.NETHER
                         && dx * dx + dz * dz > SPAWN_CLEAR_RADIUS_SQ) {
                     int roll = random.nextInt(100);
                     if (roll < 4 && soulSandLeft > 0) {
                         topBlock = Blocks.SOUL_SAND;
                         soulSandLeft--;
-                    } else if (roll < 5 && lavaLeft > 0) {
-                        topBlock = Blocks.LAVA;
-                        lavaLeft--;
                     }
                 }
                 world.setBlockState(topPos, topBlock.getDefaultState(), 3);
@@ -173,6 +166,14 @@ public final class SkyWarsMapGenerator {
                     world.setBlockState(topPos.down(depth), deep.getDefaultState(), 3);
                 }
             }
+        }
+
+        if (!middle) {
+            // 给矿工少量可挖资源；各出生位数量相同，不把矿藏变成额外随机装备礼包。
+            world.setBlockState(c.add(2, -2, 0), Blocks.IRON_ORE.getDefaultState(), 3);
+            world.setBlockState(c.add(-2, -2, 0), Blocks.IRON_ORE.getDefaultState(), 3);
+            world.setBlockState(c.add(0, -2, 2), Blocks.COAL_ORE.getDefaultState(), 3);
+            world.setBlockState(c.add(0, -2, -2), Blocks.COAL_ORE.getDefaultState(), 3);
         }
 
         // 主世界主题：中央主岛先铺好第二层，箱子落位才能知道自己在第一层还是第二层
@@ -217,10 +218,7 @@ public final class SkyWarsMapGenerator {
                 world.setBlockState(pos.down(), Blocks.STONE_BRICKS.getDefaultState(), 3);
             }
             world.setBlockState(pos, Blocks.CHEST.getDefaultState(), 3);
-            BlockEntity be = world.getBlockEntity(pos);
-            if (be instanceof ChestBlockEntity chest) {
-                SkyWarsLoot.populate(chest, middle, handicap);
-            }
+            world.setBlockState(pos.up(), Blocks.AIR.getDefaultState(), 3);
         }
 
         // 中岛群障碍物：石柱/蜘蛛网/水(岩浆)池/矮墙掩体，提供遮蔽与战术点（避开箱子与树）
@@ -246,28 +244,20 @@ public final class SkyWarsMapGenerator {
     }
 
     /**
-     * 铺主岛第二层：一座实心圆台（比第一层高 {@link #SECOND_LAYER_HEIGHT} 格）。
-     *
-     * <p>用实心而不是悬空平台，是因为它是"岛的第二层"而不是屋顶；顶面仍用主题草方块，
-     * 下面两层是泥土、再往下是石头，和第一层的材质层次保持一致。
-     * 第二层把第一层岛面盖住了，所以落在它范围内的箱子会被 {@link #islandChestPos} 抬到第二层顶面，
-     * 不会被埋进石头里（补货时用同一个函数，刷出来的位置也一致）。
+     * 第二层只铺两层厚的平台，保留下方可通行空间；连接坡道由立体生成器统一生成。
      */
     private static void buildSecondLayer(ArenaWorld world, SkyWarsLayout.Island island, int tierRadius,
                                          SkyWarsTheme theme) {
         BlockPos c = island.center;
         Block top = theme.topBlock();
         Block sub = theme.subBlock();
-        Block deep = theme.deepBlock();
         for (int dx = -tierRadius; dx <= tierRadius; dx++) {
             for (int dz = -tierRadius; dz <= tierRadius; dz++) {
                 if (dx * dx + dz * dz > tierRadius * tierRadius) {
                     continue;
                 }
-                for (int dy = 1; dy <= SECOND_LAYER_HEIGHT; dy++) {
-                    Block block = dy == SECOND_LAYER_HEIGHT
-                            ? top
-                            : dy >= SECOND_LAYER_HEIGHT - 1 ? sub : deep;
+                for (int dy = SECOND_LAYER_HEIGHT - 1; dy <= SECOND_LAYER_HEIGHT; dy++) {
+                    Block block = dy == SECOND_LAYER_HEIGHT ? top : sub;
                     world.setBlockState(c.add(dx, dy, dz), block.getDefaultState(), 3);
                 }
             }
@@ -277,9 +267,7 @@ public final class SkyWarsMapGenerator {
     /**
      * 不死图腾的救回点。
      *
-     * <p>主世界主题的中央主岛有第二层，岛心已经被实心填满，直接沿用
-     * {@link SkyWarsTheme#rescuePoint} 会把玩家传进石头里 —— 这里改落到第二层顶面的空地中心
-     * （箱子生成时会避开这块空地）。
+     * <p>主世界选上层预留空地；其他主题避开核心液体或虚空。
      */
     public static BlockPos rescuePoint(SkyWarsLayout layout, SkyWarsTheme theme) {
         SkyWarsLayout.Island middle = layout == null ? null : layout.middle();
@@ -303,7 +291,7 @@ public final class SkyWarsMapGenerator {
      * 末地中央主岛(空心环)会把落在环内的箱子沿角度外推至环内缘；中岛群前两个箱子上 3 格立柱。
      * 生成与"物资刷新"共用，保证重刷时能找到生成时真正落位的箱子。
      */
-    private static BlockPos islandChestPos(SkyWarsLayout.Island island, int chestIndex, boolean middle,
+    static BlockPos islandChestPos(SkyWarsLayout.Island island, int chestIndex, boolean middle,
                                            boolean ring, SkyWarsTheme theme) {
         BlockPos chestPos = island.chests().get(chestIndex);
         int cx = chestPos.getX();
@@ -312,18 +300,17 @@ public final class SkyWarsMapGenerator {
         int cZ = island.center.getZ();
         boolean applyCore = ring && theme.hasMiddleCore();
         int innerR = applyCore ? (int) (island.radius * theme.middleCoreRatio()) : 0;
-        if (ring) {
-            // 落在核心（虚空/水/岩浆）里的箱子一律推到核心外缘，避免浮空或泡在液体里。
-            // 再按箱子序号错开角度：两个原本落在核心里的箱子可能在取整后撞到同一格，
-            // 那样生成时又会被覆盖掉一个。这里按序号散开，周长足够不会重叠。
-            double d = Math.hypot(cx - cX, cz - cZ);
-            if (d < innerR + 1) {
-                double ang = Math.atan2(cz - cZ, cx - cX) + chestIndex * 0.7;
-                cx = cX + (int) Math.round(Math.cos(ang) * (innerR + 1));
-                cz = cZ + (int) Math.round(Math.sin(ang) * (innerR + 1));
-            }
-        }
         int tierRadius = secondLayerRadius(island, middle, ring, theme);
+        if (ring) {
+            // 中央奖励按序号均分安全环，避免随机外推后重叠或落在液体/上下层的边缘。
+            BlockPos first = island.chests().get(0);
+            double angle = Math.atan2(first.getZ() - cZ, first.getX() - cX)
+                    + chestIndex * Math.PI * 2.0 / island.chests().size();
+            int distance = tierRadius > 0 ? Math.max(4, tierRadius - 2)
+                    : Math.max(innerR + 2, (int) Math.round(island.radius * 0.65));
+            cx = cX + (int) Math.round(Math.cos(angle) * distance);
+            cz = cZ + (int) Math.round(Math.sin(angle) * distance);
+        }
         boolean onSecondLayer = tierRadius > 0 && Math.hypot(cx - cX, cz - cZ) <= tierRadius;
         if (onSecondLayer) {
             // 第二层中心是图腾救回点：落在里面的箱子沿原角度推到空地外缘
@@ -343,88 +330,82 @@ public final class SkyWarsMapGenerator {
         return new BlockPos(cx, y, cz);
     }
 
-    /**
-     * "物资刷新"事件：清空并重新塞满全图所有箱子（含已被开过的）。
-     * 需要与生成时相同的布局/主题/弱势补偿，逐岛按生成顺序定位箱子并重填战利品；
-     * 被玩家/缩圈拆掉的箱子不复活（找不到方块实体即跳过）。
-     *
-     * @param players 本场原始玩家列表（重新计算弱势补偿，结果与生成时一致）
-     */
-    /**
-     * 定时补货。
-     *
-     * @return {@code {找到的箱子数, 补货前就已经有物资的箱子数}}。第二个数是个很有用的自检：
-     *         正常情况下开局那次装填已经把箱子塞满了，所以第一次补货时它应该 &gt; 0；
-     *         如果恒为 0，说明"开局装填"没生效（历史上空岛箱子变空就是这个原因）。
-     */
+    /** 定时补货，返回找到的箱数和补货前非空箱数；被拆除的箱子不会重建。 */
     public static int[] refillChests(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
                                      List<ServerPlayerEntity> players) {
-        if (world == null || layout == null) {
-            return new int[]{0, 0};
-        }
+        return populateChests(world, layout, theme, players, true);
+    }
+
+    /**
+     * 地形全部完成后再按整岛填箱，附加侧台不会额外复制一套保底装备。
+     * 初次和补货共用布局持有的神器配额，刷新不能重新抽取整局稀有物品。
+     */
+    static int[] populateChests(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
+                               List<ServerPlayerEntity> players, boolean refill) {
+        if (world == null || layout == null) return new int[]{0, 0};
         int[] handicaps = players == null ? new int[0] : SkyWarsLoot.handicapForMatch(players);
         int[] stats = new int[2];
+        java.util.Set<BlockPos> visited = new java.util.HashSet<>();
+        populateOuterIslands(world, layout, theme, layout.spawnIslands(),
+                SkyWarsLootPolicy.Tier.SPAWN, handicaps, refill, stats, visited);
+        populateOuterIslands(world, layout, theme, layout.midIslands(),
+                SkyWarsLootPolicy.Tier.TRANSIT, handicaps, refill, stats, visited);
 
-        List<SkyWarsLayout.Island> spawnIslands = layout.spawnIslands();
-        for (int i = 0; i < spawnIslands.size(); i++) {
-            refillIslandChests(world, spawnIslands.get(i), false, false, theme, handicapAt(handicaps, i), stats);
+        List<ChestBlockEntity> centerChests = new ArrayList<>();
+        for (int i = 0; i < layout.middleIslands().size(); i++) {
+            collectIslandChests(world, layout.middleIslands().get(i), true, i == 0,
+                    theme, centerChests, stats, visited);
         }
-        List<SkyWarsLayout.Island> midIslands = layout.midIslands();
-        for (int i = 0; i < midIslands.size(); i++) {
-            refillIslandChests(world, midIslands.get(i), false, false, theme, handicapAt(handicaps, i), stats);
+        for (SkyWarsLayout.ExtraChest extra : layout.extraChests()) {
+            if (extra.lootTable() != null) {
+                // 原版村庄生活箱不参与战斗预算，也不与军械箱重复计数。
+                if (refill && visited.add(extra.pos())
+                        && world.getBlockEntity(extra.pos()) instanceof ChestBlockEntity chest) {
+                    stats[0]++;
+                    if (!chest.isEmpty()) stats[1]++;
+                    chest.clear();
+                    chest.setLootTable(extra.lootTable(), world.getRandom().nextLong());
+                }
+            } else if (extra.tier() == SkyWarsLootPolicy.Tier.CENTER) {
+                collectChest(world, extra.pos(), centerChests, stats, visited);
+            }
         }
-        List<SkyWarsLayout.Island> middleIslands = layout.middleIslands();
-        for (int i = 0; i < middleIslands.size(); i++) {
-            refillIslandChests(world, middleIslands.get(i), true, i == 0, theme, 0, stats);
-        }
-        refillExtraChests(world, layout, handicaps, stats);
+        SkyWarsLoot.populateIsland(centerChests, SkyWarsLootPolicy.Tier.CENTER, 0, refill, layout.lootPolicy());
         return stats;
     }
 
-    /**
-     * 补货 Beta 立体地形上的附加箱子（出生岛侧台 / 中途岛观察台 / 中央核心上下两层）。
-     *
-     * <p>这些位置不是布局算出来的，生成时登记在 {@link SkyWarsLayout#extraChests()}，
-     * 这里直接按登记补货——不补的话，"物资刷新"之后新地形上的箱子会一直是空的。
-     */
-    private static void refillExtraChests(ArenaWorld world, SkyWarsLayout layout, int[] handicaps, int[] stats) {
-        for (SkyWarsLayout.ExtraChest extra : layout.extraChests()) {
-            BlockEntity be = world.getBlockEntity(extra.pos());
-            if (!(be instanceof ChestBlockEntity chest)) {
-                continue; // 被玩家/缩圈拆掉的箱子不复活，与岛上箱子一致
-            }
-            stats[0]++;
-            if (!chest.isEmpty()) {
-                stats[1]++;
-            }
-            chest.clear();
-            if (extra.lootTable() != null) {
-                // 村庄箱子：仍然是"原版村庄刷的箱子"，刷新只是清空并换一个新的战利品种子
-                chest.setLootTable(extra.lootTable(), world.getRandom().nextLong());
-            } else {
-                SkyWarsLoot.populate(chest, extra.middle(), handicapAt(handicaps, extra.handicapIndex()));
-            }
-        }
-    }
-
-    private static int handicapAt(int[] handicaps, int i) {
-        return i >= 0 && i < handicaps.length ? handicaps[i] : 0;
-    }
-
-    private static void refillIslandChests(ArenaWorld world, SkyWarsLayout.Island island, boolean middle,
-                                           boolean ring, SkyWarsTheme theme, int handicap, int[] stats) {
-        for (int i = 0; i < island.chests().size(); i++) {
-            BlockPos pos = islandChestPos(island, i, middle, ring, theme);
-            BlockEntity be = world.getBlockEntity(pos);
-            if (be instanceof ChestBlockEntity chest) {
-                stats[0]++;
-                if (!chest.isEmpty()) {
-                    stats[1]++;
+    private static void populateOuterIslands(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
+                                             List<SkyWarsLayout.Island> islands, SkyWarsLootPolicy.Tier tier,
+                                             int[] handicaps, boolean refill, int[] stats,
+                                             java.util.Set<BlockPos> visited) {
+        for (int i = 0; i < islands.size(); i++) {
+            List<ChestBlockEntity> chests = new ArrayList<>();
+            collectIslandChests(world, islands.get(i), false, false, theme, chests, stats, visited);
+            for (SkyWarsLayout.ExtraChest extra : layout.extraChests()) {
+                if (extra.lootTable() == null && extra.tier() == tier && extra.handicapIndex() == i) {
+                    collectChest(world, extra.pos(), chests, stats, visited);
                 }
-                chest.clear(); // 清空旧物资，再重新塞满全新随机战利品
-                SkyWarsLoot.populate(chest, middle, handicap);
             }
+            SkyWarsLoot.populateIsland(chests, tier, i < handicaps.length ? handicaps[i] : 0,
+                    refill, layout.lootPolicy());
         }
+    }
+
+    private static void collectIslandChests(ArenaWorld world, SkyWarsLayout.Island island, boolean middle,
+                                            boolean central, SkyWarsTheme theme, List<ChestBlockEntity> chests,
+                                            int[] stats, java.util.Set<BlockPos> visited) {
+        for (int i = 0; i < island.chests().size(); i++) {
+            collectChest(world, islandChestPos(island, i, middle, central, theme), chests, stats, visited);
+        }
+    }
+
+    private static void collectChest(ArenaWorld world, BlockPos pos, List<ChestBlockEntity> chests,
+                                     int[] stats, java.util.Set<BlockPos> visited) {
+        if (!visited.add(pos) || !(world.getBlockEntity(pos) instanceof ChestBlockEntity chest)) return;
+        stats[0]++;
+        if (!chest.isEmpty()) stats[1]++;
+        chest.clear();
+        chests.add(chest);
     }
 
     /**
@@ -446,7 +427,7 @@ public final class SkyWarsMapGenerator {
             double angle = random.nextDouble() * 2.0 * Math.PI;
             int x = island.center.getX() + (int) Math.round(Math.cos(angle) * dist);
             int z = island.center.getZ() + (int) Math.round(Math.sin(angle) * dist);
-            // 主世界中央主岛有第二层：圆台范围内的障碍会被实心填埋，直接跳过
+            // 上下层之间保留主要通路，第二层投影范围不放额外障碍。
             int tierRadius = secondLayerRadius(island, true, central, theme);
             if (tierRadius > 0 && Math.hypot(x - island.center.getX(), z - island.center.getZ()) <= tierRadius + 1) {
                 continue;
@@ -609,23 +590,40 @@ public final class SkyWarsMapGenerator {
         return false;
     }
 
-    /** 缩圈：把水平距离大于 keepRadius 的所有方块（含岛、立柱、箱子）清为空气。 */
+    /** 缩圈按整列清除，包含下层、深处自救平台与向上搭建的塔。 */
     public static void removeRing(ArenaWorld world, BlockPos center, int maxRadius, int keepRadius) {
-        for (int dx = -maxRadius; dx <= maxRadius; dx++) {
-            for (int dz = -maxRadius; dz <= maxRadius; dz++) {
-                double dist = Math.sqrt(dx * dx + dz * dz);
-                if (dist <= keepRadius) {
-                    continue;
-                }
-                int x = center.getX() + dx;
-                int z = center.getZ() + dz;
-                // 上限要盖住主世界第二层和它顶面的箱子。岛心高度在 PLATFORM_Y 上下浮动 ±3，
-                // 第二层顶面最高 PLATFORM_Y+14、顶面箱子 +15，所以这里留到 +16；
-                // 原来只清到 +9，缩圈经过第二层时会留下悬空的圆台边和箱子。
-                for (int dy = -ISLAND_DEPTH - 3; dy <= SECOND_LAYER_HEIGHT + 6; dy++) {
-                    BlockPos p = new BlockPos(x, ArenaTemplate.PLATFORM_Y + dy, z);
-                    if (!world.getBlockState(p).isAir()) {
-                        world.setBlockState(p, Blocks.AIR.getDefaultState(), 3);
+        clearColumns(world, center, maxRadius, keepRadius);
+    }
+
+    /**
+     * 只遍历非空section，覆盖全世界高度而不对大片虚空逐格扫描。
+     * 必须取得完整区块，不能跳过已卸载区块，否则下次加载可能重新出现圈外地形。
+     */
+    private static void clearColumns(ArenaWorld world, BlockPos center, int maxRadius, int keepRadius) {
+        int minX = center.getX() - maxRadius;
+        int maxX = center.getX() + maxRadius;
+        int minZ = center.getZ() - maxRadius;
+        int maxZ = center.getZ() + maxRadius;
+        long keepSquared = (long) keepRadius * keepRadius;
+        for (int chunkX = Math.floorDiv(minX, 16); chunkX <= Math.floorDiv(maxX, 16); chunkX++) {
+            for (int chunkZ = Math.floorDiv(minZ, 16); chunkZ <= Math.floorDiv(maxZ, 16); chunkZ++) {
+                WorldChunk chunk = world.getChunk(chunkX, chunkZ);
+                ChunkSection[] sections = chunk.getSectionArray();
+                for (int sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+                    ChunkSection section = sections[sectionIndex];
+                    if (section == null || section.isEmpty()) continue;
+                    int bottomY = world.sectionIndexToCoord(sectionIndex) << 4;
+                    for (int x = Math.max(minX, chunkX << 4); x <= Math.min(maxX, (chunkX << 4) + 15); x++) {
+                        for (int z = Math.max(minZ, chunkZ << 4); z <= Math.min(maxZ, (chunkZ << 4) + 15); z++) {
+                            long dx = x - center.getX();
+                            long dz = z - center.getZ();
+                            if (keepRadius >= 0 && dx * dx + dz * dz <= keepSquared) continue;
+                            for (int y = 0; y < 16; y++) {
+                                if (!section.getBlockState(x & 15, y, z & 15).isAir()) {
+                                    world.setBlockState(new BlockPos(x, bottomY + y, z), Blocks.AIR.getDefaultState(), 3);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -645,26 +643,11 @@ public final class SkyWarsMapGenerator {
         }
         BlockPos center = center(regionIndex); // 与生成时一致的地图中心
 
-        // 先拆方块：箱子被拆掉时会把里面战利品掉落成实体，
-        // 所以必须先拆块、再清掉落物，否则箱子内容会残留在地上
-        // 大图大部分是虚空空气，跳过空气降低耗时；高度清到世界最高可搭建 Y（玩家可能向上搭很高的塔）
-        int maxDy = world.getTopY() - 1 - ArenaTemplate.PLATFORM_Y;
-        for (int dx = -maxRadius; dx <= maxRadius; dx++) {
-            for (int dz = -maxRadius; dz <= maxRadius; dz++) {
-                for (int dy = -16; dy <= maxDy; dy++) {
-                    BlockPos pos = new BlockPos(center.getX() + dx,
-                            ArenaTemplate.PLATFORM_Y + dy, center.getZ() + dz);
-                    if (!world.getBlockState(pos).isAir()) {
-                        world.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
-                    }
-                }
-            }
-        }
-
-        // 再清掉落物（含拆箱掉出来的战利品与玩家淘汰时的掉落）
+        // 先拆箱再清掉落物，避免箱子 contents 在清实体后重新落到地上。
+        clearColumns(world, center, maxRadius, -1);
         Box box = new Box(
-                center.getX() - maxRadius, ArenaTemplate.PLATFORM_Y - 16, center.getZ() - maxRadius,
-                center.getX() + maxRadius + 1, ArenaTemplate.PLATFORM_Y + maxDy, center.getZ() + maxRadius + 1
+                center.getX() - maxRadius, world.getBottomY(), center.getZ() - maxRadius,
+                center.getX() + maxRadius + 1, world.getTopY(), center.getZ() + maxRadius + 1
         );
         for (ItemEntity entity : world.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
             entity.discard();

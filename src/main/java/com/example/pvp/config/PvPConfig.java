@@ -85,32 +85,30 @@ public final class PvPConfig {
     /** 地图覆盖边长（生成/清理边界，需覆盖所有岛屿）。 */
     public int skywarsSize = 176;
     public int skywarsIslandRadius = 5;
-    /** 中岛群半径（岛群覆盖范围，中央主岛+卫星岛；spawnDist 随之外推，与其他岛 gap 不变）。
-     *  地图放大主要拉大该值：80 → 整图直径约 290 格（原 ~218）。 */
+    /** 中岛群尺寸基准；按人数缩放并限制范围，2～4 人紧凑图、5～8 人标准图。 */
     public int skywarsMiddleRadius = 80;
-    /** 出生岛边缘到中间主岛边缘的空隙（格）：越大出生岛离中间岛越远、越难偷袭。 */
+    /** 旧配置兼容字段；实际桥距由按人数生成的公平布局决定。 */
     public int skywarsIslandGap = 50;
     public int skywarsChestsPerIsland = 3;
     /** 中间主岛箱子数（均匀分布在整个圆盘上）。 */
     public int skywarsMiddleChests = 10;
-    /** 中途岛：半径固定为玩家岛×1.5，每个玩家岛对应的中途岛箱数。 */
+    /** 每个玩家岛对应的中途岛箱数；同岛多个箱子共享物资预算。 */
     public int skywarsMidIslandChests = 3;
-    /** 对局超时（秒）与缩圈：开赛多少秒后开始缩圈、每圈间隔多少秒、每圈塌掉几格、最小安全半径。 */
+    /** 对局超时（秒）与缩圈开始时间、阶段间隔、最小安全半径。 */
     public int skywarsTimeoutSeconds = 600;
     public int skywarsShrinkStartSeconds = 180;
     public int skywarsShrinkIntervalSeconds = 30;
+    /** 旧配置兼容字段；每阶段半径根据决战时间自动计算。 */
     public int skywarsShrinkBlocksPerStage = 4;
     public int skywarsShrinkMinRadius = 8;
-    /** 开赛多少秒后触发"物资刷新"事件：清空并重新塞满全图所有箱子（默认 180s=3 分钟）。 */
+    /** 六分钟内收束至本图的中央决战区；新增字段缺省生效，无需重置其他玩法配置。 */
+    public int skywarsFinalShrinkSeconds = 360;
     /**
-     * 空岛战争"掉入虚空"的兼容配置值（保留用于旧配置迁移）。
-     *
-     * <p>原来硬编码 -8 格，太浅了：空岛地图的构建/清理盒本身就到 -16 格，
-     * 从高岛往低处跳、下落超过 8 格就会在空中被判成"掉入虚空"，
-     * <p>实际判定以竞技场世界的 {@code bottomY} 为准，在极限死亡高度前一格触发。
+     * 保留给幸运之柱的图腾高度配置；空岛按真实虚空淘汰线提前十格救援。
      */
     public int skywarsVoidSaveDepth = 164;
 
+    /** 开赛多少秒后补货；外圈补消耗品，中岛补升级物资。 */
     public int skywarsRefillSeconds = 180;
 
     // ---------- 战桥 (Bridge) ----------
@@ -708,6 +706,19 @@ public final class PvPConfig {
         } else if (this.skywarsMiddleRadius == 45 || this.skywarsMiddleRadius == 52) {
             // 旧默认 45/52 改为新默认（地图继续加大，配合 REGION_SPACING 增大）
             this.skywarsMiddleRadius = defaults.skywarsMiddleRadius;
+            changed = true;
+        }
+        if (this.skywarsShrinkStartSeconds < 15) {
+            this.skywarsShrinkStartSeconds = 15;
+            changed = true;
+        }
+        if (this.skywarsShrinkIntervalSeconds <= 0) {
+            this.skywarsShrinkIntervalSeconds = defaults.skywarsShrinkIntervalSeconds;
+            changed = true;
+        }
+        if (this.skywarsFinalShrinkSeconds < this.skywarsShrinkStartSeconds) {
+            this.skywarsFinalShrinkSeconds = Math.max(defaults.skywarsFinalShrinkSeconds,
+                    this.skywarsShrinkStartSeconds);
             changed = true;
         }
         if (this.skywarsIslandGap <= 0) {
