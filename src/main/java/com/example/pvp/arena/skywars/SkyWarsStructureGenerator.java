@@ -95,7 +95,7 @@ public final class SkyWarsStructureGenerator {
         }
 
         private void clearOldCenter() {
-            int limit = radius + 3;
+            int limit = layout.centralClearanceRadius();
             for (int x = -limit; x <= limit; x++) {
                 for (int z = -limit; z <= limit; z++) {
                     if (x * x + z * z > limit * limit) continue;
@@ -110,37 +110,37 @@ public final class SkyWarsStructureGenerator {
 
         private void ringCitadel() {
             disk(center, radius, 3, masonry);
-            int wallRadius = radius - 2;
+            int wallRadius = radius - h(2);
             for (int x = -wallRadius; x <= wallRadius; x++) {
                 for (int z = -wallRadius; z <= wallRadius; z++) {
                     double distance = Math.hypot(x, z);
-                    if (distance <= wallRadius - 2 || distance > wallRadius) continue;
-                    // 四个三格宽门洞，城墙顶的回廊仍完整跨过门洞。
-                    boolean gate = Math.abs(x) <= 1 || Math.abs(z) <= 1;
+                    if (distance <= wallRadius - h(2) || distance > wallRadius) continue;
+                    // 四个加宽门洞，城墙顶的回廊仍完整跨过门洞。
+                    boolean gate = Math.abs(x) <= h(1) || Math.abs(z) <= h(1);
                     for (int y = gate ? 4 : 1; y <= 4; y++) set(center.add(x, y, z), accent);
                 }
             }
-            int towerOffset = (int) Math.floor((radius - 4) / Math.sqrt(2.0));
+            int towerOffset = (int) Math.floor((radius - h(4)) / Math.sqrt(2.0));
             for (int sx : new int[]{-1, 1}) {
                 for (int sz : new int[]{-1, 1}) {
                     BlockPos tower = center.add(sx * towerOffset, 0, sz * towerOffset);
-                    for (int x = -2; x <= 2; x++) {
-                        for (int z = -2; z <= 2; z++) {
-                            if (Math.abs(x) != 2 && Math.abs(z) != 2) continue;
+                    for (int x = -h(2); x <= h(2); x++) {
+                        for (int z = -h(2); z <= h(2); z++) {
+                            if (Math.abs(x) != h(2) && Math.abs(z) != h(2)) continue;
                             for (int y = 1; y <= 6; y++) set(tower.add(x, y, z), masonry);
                         }
                     }
-                    disk(tower.up(4), 2, 0, accent);
-                    disk(tower.up(7), 3, 0, accent);
+                    disk(tower.up(4), h(2), 0, accent);
+                    disk(tower.up(7), h(3), 0, accent);
                     // 向中心开的门连接内院；顶部仅为可挖城楼屋顶，不放独占物资。
                     for (int y = 1; y <= 3; y++) {
-                        set(tower.add(-sx * 2, y, 0), Blocks.AIR.getDefaultState());
-                        set(tower.add(0, y, -sz * 2), Blocks.AIR.getDefaultState());
+                        set(tower.add(-sx * h(2), y, 0), Blocks.AIR.getDefaultState());
+                        set(tower.add(0, y, -sz * h(2)), Blocks.AIR.getDefaultState());
                     }
                     for (int y = 5; y <= 6; y++) {
                         for (int sign : new int[]{-1, 1}) {
-                            set(tower.add(sign * 2, y, 0), Blocks.AIR.getDefaultState());
-                            set(tower.add(0, y, sign * 2), Blocks.AIR.getDefaultState());
+                            set(tower.add(sign * h(2), y, 0), Blocks.AIR.getDefaultState());
+                            set(tower.add(0, y, sign * h(2)), Blocks.AIR.getDefaultState());
                         }
                     }
                 }
@@ -150,67 +150,67 @@ public final class SkyWarsStructureGenerator {
             for (SkyWarsLayout.Island spawn : layout.spawnIslands()) {
                 double angle = Math.atan2(spawn.center().getZ() - center.getZ(),
                         spawn.center().getX() - center.getX());
-                walkway(polar(radius, angle, 0), polar(5, angle, 0), 1, masonry);
+                walkway(polar(radius, angle, 0), polar(h(5), angle, 0), h(1), masonry);
             }
             BlockPos keep = center.up(4);
-            disk(keep, 4, 0, masonry);
+            disk(keep, h(4), 0, masonry);
             // 终圈会切掉外墙，城楼主层改由圈内斜桥直连中央，避免留下孤立高台。
             for (int sx : new int[]{-1, 1}) {
                 for (int sz : new int[]{-1, 1}) {
-                    walkway(keep, center.add(sx * towerOffset, 4, sz * towerOffset), 1, masonry);
+                    walkway(keep, center.add(sx * towerOffset, 4, sz * towerOffset), h(1), masonry);
                 }
             }
-            walkway(keep.add(0, 0, -4), keep.add(0, 0, -wallRadius), 1, accent);
-            walkway(keep.add(0, 0, 4), keep.add(0, 0, wallRadius), 1, accent);
-            // 两个坡道完全落在半径10的最终圈内；城墙坍塌后中央高台仍可从两侧进攻。
-            walkway(center.add(-9, 0, 0), keep.add(-4, 0, 0), 1, masonry);
-            walkway(center.add(9, 0, 0), keep.add(4, 0, 0), 1, masonry);
-            candidateRing(center, 6, 12, Math.PI / 12.0);
-            candidateRing(center, radius - 4, 16, Math.PI / 16.0);
-            candidateCorners(keep, 2);
-            oreAt(center.add(3, -1, 3));
-            oreAt(center.add(-3, -1, -3));
+            walkway(keep.add(0, 0, -h(4)), keep.add(0, 0, -wallRadius), h(1), accent);
+            walkway(keep.add(0, 0, h(4)), keep.add(0, 0, wallRadius), h(1), accent);
+            // 两个坡道完全落在同步扩大的最终圈内；城墙坍塌后中央高台仍可从两侧进攻。
+            walkway(center.add(-h(9), 0, 0), keep.add(-h(4), 0, 0), h(1), masonry);
+            walkway(center.add(h(9), 0, 0), keep.add(h(4), 0, 0), h(1), masonry);
+            candidateRing(center, h(6), 12, Math.PI / 12.0);
+            candidateRing(center, radius - h(4), 16, Math.PI / 16.0);
+            candidateCorners(keep, h(2));
+            oreAt(center.add(h(3), -1, h(3)));
+            oreAt(center.add(-h(3), -1, -h(3)));
         }
 
         private void shatteredArchipelago() {
-            int coreRadius = layout.compact() ? 5 : 7;
+            int coreRadius = h(layout.compact() ? 5 : 7);
             disk(center.down(2), coreRadius, 3, accent);
             int players = layout.spawnIslands().size();
             int petals = players <= 4 ? players * 2 : players;
-            int distance = radius - 4;
+            int distance = radius - h(4);
             double phase = routePhase();
             List<BlockPos> islands = new ArrayList<>();
             for (int i = 0; i < petals; i++) {
                 double angle = phase + i * Math.PI * 2.0 / petals;
                 BlockPos island = polar(distance, angle, 2);
                 islands.add(island);
-                disk(island, 3, 2, masonry);
+                disk(island, h(3), 2, masonry);
                 // 短锥形岛底与中间虚空让小岛保持独立轮廓。
-                disk(island.down(3), 2, 1, accent);
-                candidateRing(island, 2, 8, angle + Math.PI / 8.0);
+                disk(island.down(3), h(2), 1, accent);
+                candidateRing(island, h(2), 8, angle + Math.PI / 8.0);
             }
             for (int i = 0; i < petals; i++) {
                 double angle = phase + i * Math.PI * 2.0 / petals;
                 BlockPos inner = center.down(2);
-                walkway(inner, islands.get(i), 1, masonry);
+                walkway(inner, islands.get(i), h(1), masonry);
                 // 环向短桥让每个浮岛都有侧面入口，避免唯一窄桥可被完全封锁。
-                walkway(islands.get(i), islands.get((i + 1) % petals), 1, timber);
+                walkway(islands.get(i), islands.get((i + 1) % petals), h(1), timber);
             }
-            candidateRing(center.down(2), coreRadius - 1, 16, phase + Math.PI / 16.0);
-            oreAt(center.add(0, -3, 3));
-            oreAt(center.add(0, -3, -3));
+            candidateRing(center.down(2), coreRadius - h(1), 16, phase + Math.PI / 16.0);
+            oreAt(center.add(0, -3, h(3)));
+            oreAt(center.add(0, -3, -h(3)));
         }
 
         private void canopy() {
             disk(center, radius, 2, accent);
-            int treeOffset = layout.compact() ? 5 : 6;
-            int crownRadius = layout.compact() ? 3 : 4;
+            int treeOffset = h(layout.compact() ? 5 : 6);
+            int crownRadius = h(layout.compact() ? 3 : 4);
             List<BlockPos> crowns = new ArrayList<>();
             for (int sx : new int[]{-1, 1}) {
                 for (int sz : new int[]{-1, 1}) {
                     BlockPos tree = center.add(sx * treeOffset, 0, sz * treeOffset);
-                    for (int x = 0; x <= 1; x++) {
-                        for (int z = 0; z <= 1; z++) {
+                    for (int x = 0; x < h(2); x++) {
+                        for (int z = 0; z < h(2); z++) {
                             for (int y = 1; y <= 5; y++) set(tree.add(x * sx, y, z * sz), trunk);
                         }
                     }
@@ -219,69 +219,69 @@ public final class SkyWarsStructureGenerator {
                     // 树冠可见树叶永久保留，实际营地和箱台由完整木板承重。
                     disk(crown.down(), crownRadius, 0, foliage);
                     disk(crown, crownRadius, 0, foliage);
-                    disk(crown, crownRadius - 1, 0, timber);
-                    candidateRing(crown, crownRadius - 1, 8, Math.PI / 8.0);
+                    disk(crown, crownRadius - h(1), 0, timber);
+                    candidateRing(crown, crownRadius - h(1), 8, Math.PI / 8.0);
                 }
             }
             BlockPos camp = center.up(6);
-            disk(camp, 4, 0, timber);
-            for (BlockPos crown : crowns) walkway(camp, crown, 1, timber);
-            walkway(crowns.get(0), crowns.get(1), 1, timber);
-            walkway(crowns.get(2), crowns.get(3), 1, timber);
-            walkway(crowns.get(0), crowns.get(2), 1, timber);
-            walkway(crowns.get(1), crowns.get(3), 1, timber);
-            walkway(center.add(-9, 0, 0), camp.add(-3, 0, 0), 1, timber);
-            walkway(center.add(9, 0, 0), camp.add(3, 0, 0), 1, timber);
-            candidateCorners(camp, 2);
-            candidateRing(center, 7, 16, Math.PI / 16.0);
-            candidateRing(center, radius - 2, 16, Math.PI / 16.0);
-            oreAt(center.add(3, -1, 3));
-            oreAt(center.add(-3, -1, -3));
+            disk(camp, h(4), 0, timber);
+            for (BlockPos crown : crowns) walkway(camp, crown, h(1), timber);
+            walkway(crowns.get(0), crowns.get(1), h(1), timber);
+            walkway(crowns.get(2), crowns.get(3), h(1), timber);
+            walkway(crowns.get(0), crowns.get(2), h(1), timber);
+            walkway(crowns.get(1), crowns.get(3), h(1), timber);
+            walkway(center.add(-h(9), 0, 0), camp.add(-h(3), 0, 0), h(1), timber);
+            walkway(center.add(h(9), 0, 0), camp.add(h(3), 0, 0), h(1), timber);
+            candidateCorners(camp, h(2));
+            candidateRing(center, h(7), 16, Math.PI / 16.0);
+            candidateRing(center, radius - h(2), 16, Math.PI / 16.0);
+            oreAt(center.add(h(3), -1, h(3)));
+            oreAt(center.add(-h(3), -1, -h(3)));
         }
 
         private void viaduct() {
             BlockPos lower = center.down(3);
             BlockPos upper = center.up(3);
-            int end = radius - 3;
-            disk(lower, 5, 1, accent);
+            int end = radius - h(3);
+            disk(lower, h(5), 1, accent);
             // 下层十字桥及上层矩形回廊在空间中交错，桥间保持至少两格身体净空。
-            walkway(lower.add(-radius, 0, 0), lower.add(radius, 0, 0), 2, accent);
-            walkway(lower.add(0, 0, -radius), lower.add(0, 0, radius), 2, accent);
+            walkway(lower.add(-radius, 0, 0), lower.add(radius, 0, 0), h(2), accent);
+            walkway(lower.add(0, 0, -radius), lower.add(0, 0, radius), h(2), accent);
             for (int sign : new int[]{-1, 1}) {
-                walkway(upper.add(-end, 0, sign * 4), upper.add(end, 0, sign * 4), 1, masonry);
-                walkway(upper.add(sign * end, 0, -4), upper.add(sign * end, 0, 4), 1, masonry);
+                walkway(upper.add(-end, 0, sign * h(4)), upper.add(end, 0, sign * h(4)), h(1), masonry);
+                walkway(upper.add(sign * end, 0, -h(4)), upper.add(sign * end, 0, h(4)), h(1), masonry);
                 for (int zSign : new int[]{-1, 1}) {
-                    BlockPos pier = upper.add(sign * end, 0, zSign * 4);
-                    disk(pier, 3, 0, masonry);
-                    for (int y = -7; y < 3; y++) set(center.add(sign * end, y, zSign * 4), accent);
-                    candidateCorners(pier, 2);
+                    BlockPos pier = upper.add(sign * end, 0, zSign * h(4));
+                    disk(pier, h(3), 0, masonry);
+                    for (int y = -7; y < 3; y++) set(center.add(sign * end, y, zSign * h(4)), accent);
+                    candidateCorners(pier, h(2));
                 }
             }
-            disk(upper, 3, 0, masonry);
-            walkway(upper.add(0, 0, -4), upper.add(0, 0, 4), 1, masonry);
+            disk(upper, h(3), 0, masonry);
+            walkway(upper.add(0, 0, -h(4)), upper.add(0, 0, h(4)), h(1), masonry);
             // 给每一个实际出生方向同高度的接入点，避免只有正对桥轴的玩家容易抢中。
             for (SkyWarsLayout.Island spawn : layout.spawnIslands()) {
                 double angle = Math.atan2(spawn.center().getZ() - center.getZ(),
                         spawn.center().getX() - center.getX());
-                BlockPos landing = polar(radius - 2, angle, -3);
-                disk(landing, 2, 1, accent);
-                walkway(polar(3, angle, -3), landing, 1, accent);
-                candidateRing(landing, 1, 4, angle + Math.PI / 4.0);
+                BlockPos landing = polar(radius - h(2), angle, -3);
+                disk(landing, h(2), 1, accent);
+                walkway(polar(h(3), angle, -3), landing, h(1), accent);
+                candidateRing(landing, h(1), 4, angle + Math.PI / 4.0);
             }
-            walkway(lower.add(-8, 0, 0), upper.add(-2, 0, 0), 1, masonry);
-            walkway(lower.add(8, 0, 0), upper.add(2, 0, 0), 1, masonry);
-            candidateCorners(lower, 2);
-            candidateCorners(upper, 2);
+            walkway(lower.add(-h(8), 0, 0), upper.add(-h(2), 0, 0), h(1), masonry);
+            walkway(lower.add(h(8), 0, 0), upper.add(h(2), 0, 0), h(1), masonry);
+            candidateCorners(lower, h(2));
+            candidateCorners(upper, h(2));
             for (int x : new int[]{-6, -3, 3, 6}) {
-                chestCandidates.add(upper.add(x, 0, -5));
-                chestCandidates.add(upper.add(x, 0, 5));
+                chestCandidates.add(upper.add(h(x), 0, -h(5)));
+                chestCandidates.add(upper.add(h(x), 0, h(5)));
             }
-            oreAt(lower.add(3, -1, 0));
-            oreAt(lower.add(-3, -1, 0));
+            oreAt(lower.add(h(3), -1, 0));
+            oreAt(lower.add(-h(3), -1, 0));
         }
 
         private void excavation() {
-            int basinRadius = layout.compact() ? 5 : 7;
+            int basinRadius = h(layout.compact() ? 5 : 7);
             // 同心台阶形成真正下降八格的盆地；中段宽环道高度-4，内圈地板高度-8。
             for (int x = -radius; x <= radius; x++) {
                 for (int z = -radius; z <= radius; z++) {
@@ -293,18 +293,18 @@ public final class SkyWarsStructureGenerator {
                     for (int depth = 0; depth < 4; depth++) set(floor.down(depth), top);
                 }
             }
-            // 四个三格宽入口把环道接到坑底；最终圈裁掉外缘时保留的盆地仍处处连通。
+            // 四个加宽入口把环道接到坑底；最终圈裁掉外缘时保留的盆地仍处处连通。
             for (int sign : new int[]{-1, 1}) {
-                walkway(center.add(sign * radius, 0, 0), center.add(sign * (radius - 8), -8, 0), 1, masonry);
-                walkway(center.add(0, 0, sign * radius), center.add(0, -8, sign * (radius - 8)), 1, masonry);
-                walkway(center.add(sign * (radius - 8), -8, 0), center.add(sign * basinRadius, -8, 0), 1, masonry);
-                walkway(center.add(0, -8, sign * (radius - 8)), center.add(0, -8, sign * basinRadius), 1, masonry);
+                walkway(center.add(sign * radius, 0, 0), center.add(sign * (radius - h(8)), -8, 0), h(1), masonry);
+                walkway(center.add(0, 0, sign * radius), center.add(0, -8, sign * (radius - h(8))), h(1), masonry);
+                walkway(center.add(sign * (radius - h(8)), -8, 0), center.add(sign * basinRadius, -8, 0), h(1), masonry);
+                walkway(center.add(0, -8, sign * (radius - h(8))), center.add(0, -8, sign * basinRadius), h(1), masonry);
             }
-            candidateRing(center.down(8), basinRadius - 2, 12, Math.PI / 12.0);
-            candidateRing(center.down(4), radius - 5, 20, Math.PI / 20.0);
+            candidateRing(center.down(8), basinRadius - h(2), 12, Math.PI / 12.0);
+            candidateRing(center.down(4), radius - h(5), 20, Math.PI / 20.0);
             for (int sx : new int[]{-1, 1}) {
                 for (int sz : new int[]{-1, 1}) {
-                    int coordinate = layout.compact() ? 5 : 7;
+                    int coordinate = h(layout.compact() ? 5 : 7);
                     int ring = (int) Math.ceil(Math.hypot(coordinate, coordinate));
                     oreAt(center.add(sx * coordinate, excavationHeight(ring, basinRadius) - 1, sz * coordinate));
                 }
@@ -313,9 +313,14 @@ public final class SkyWarsStructureGenerator {
 
         private int excavationHeight(int ring, int basinRadius) {
             if (ring <= basinRadius) return -8;
-            if (ring <= basinRadius + 4) return -8 + ring - basinRadius;
-            if (ring <= radius - 4) return -4;
-            return ring - radius;
+            int slope = h(4);
+            if (ring <= basinRadius + slope) return -8 + (int) Math.round((ring - basinRadius) * 4.0 / slope);
+            if (ring <= radius - slope) return -4;
+            return -4 + (int) Math.round((ring - radius + slope) * 4.0 / slope);
+        }
+
+        private static int h(int blocks) {
+            return SkyWarsLayout.scaleCentral(blocks);
         }
 
         private void disk(BlockPos point, int diskRadius, int depth, BlockState block) {
@@ -488,7 +493,7 @@ public final class SkyWarsStructureGenerator {
                         int dx = next.getX() - center.getX();
                         int dz = next.getZ() - center.getZ();
                         int y = next.getY() - center.getY();
-                        if (dx * dx + dz * dz > (radius + 3) * (radius + 3) || y < -14 || y > 24
+                        if (dx * dx + dz * dz > layout.centralClearanceRadius() * layout.centralClearanceRadius() || y < -14 || y > 24
                                 || reachableFloors.contains(next.asLong()) || !canStandAbove(next)
                                 || (dy > 0 && !world.getBlockState(floor.up(3)).isAir())
                                 || (dy < 0 && !world.getBlockState(next.up(3)).isAir())) continue;
@@ -524,7 +529,7 @@ public final class SkyWarsStructureGenerator {
             int dx = pos.getX() - center.getX();
             int dz = pos.getZ() - center.getZ();
             // 中央清区之外是其他玩家的卫星岛，任何装饰或桥面都不能侵占。
-            if (dx * dx + dz * dz > (radius + 3) * (radius + 3)) return;
+            if (dx * dx + dz * dz > layout.centralClearanceRadius() * layout.centralClearanceRadius()) return;
             world.setBlockState(pos, state, FLAGS);
         }
     }

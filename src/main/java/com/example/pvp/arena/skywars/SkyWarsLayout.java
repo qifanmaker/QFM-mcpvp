@@ -1,6 +1,7 @@
 package com.example.pvp.arena.skywars;
 
 import com.example.pvp.config.PvPConfig;
+import com.example.pvp.arena.ArenaTemplate;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -12,6 +13,12 @@ import java.util.Set;
 /** 确定性的空岛布局：主路线按玩家旋转对称，装饰与地形风格使用独立随机源。 */
 public final class SkyWarsLayout {
     public static final int MAX_RADIUS_MARGIN = 4;
+    /** 按要求只扩展中央岛的水平尺度；高度保持可正常跳跃，外围按净距顺移。 */
+    public static final double CENTRAL_SCALE = 2.5;
+
+    public static int scaleCentral(int blocks) {
+        return (int) Math.copySign(Math.round(Math.abs(blocks) * CENTRAL_SCALE), blocks);
+    }
 
     public static final class Island {
         public final BlockPos center;
@@ -88,14 +95,22 @@ public final class SkyWarsLayout {
     public SkyWarsLootPolicy lootPolicy() { return this.lootPolicy; }
 
     /** 上下层都有实心落脚面，末地/地狱也能安全缩到中央决战区域。 */
-    public int suggestedFinalRadius() { return this.compact ? 10 : 14; }
+    public int suggestedFinalRadius() { return scaleCentral(this.compact ? 10 : 14); }
+
+    public int centralClearanceRadius() { return this.middle().radius() + scaleCentral(3); }
 
     /** 清场兜底包含出生侧台、观察台和高层桥，不依赖旧版 skywarsSize 方框。 */
     public static int computeMaxRadius() {
         PvPConfig cfg = PvPConfig.INSTANCE;
         int spawnRadius = Math.max(4, Math.min(8, cfg.skywarsIslandRadius));
         int transitRadius = spawnRadius + 3;
-        return middleExtent(cfg, false) + 2 * transitRadius + 2 * spawnRadius + 9 + 19 + 12;
+        int maximum = 0;
+        for (SkyWarsMapStyle style : SkyWarsMapStyle.values()) {
+            int extent = middleExtent(cfg, false, style, spawnRadius, transitRadius);
+            maximum = Math.max(maximum, extent + 8 + 2 * transitRadius + 2 * spawnRadius
+                    + 18 + 9 + MAX_RADIUS_MARGIN);
+        }
+        return maximum;
     }
 
     public static SkyWarsLayout compute(BlockPos mapCenter, int seed, int playerCount) {
@@ -109,7 +124,7 @@ public final class SkyWarsLayout {
         double rotation = topology.nextDouble() * Math.PI * 2.0;
         int spawnRadius = Math.max(4, Math.min(8, cfg.skywarsIslandRadius));
         int transitRadius = spawnRadius + (compact ? 1 : 3);
-        int extent = middleExtent(cfg, compact);
+        int extent = middleExtent(cfg, compact, mapStyle, spawnRadius, transitRadius);
         // 圆周坐标取整最多带来约1.4格偏差，目标留在区间内部，实际桥距仍为10~14/14~20。
         int firstGap = compact ? 12 : 16 + topology.nextInt(3);
         int innerGap = compact ? 6 : 8;
@@ -168,10 +183,17 @@ public final class SkyWarsLayout {
                 spawns, variant, compact, styleSeed, mapStyle, seed);
     }
 
-    private static int middleExtent(PvPConfig cfg, boolean compact) {
-        // 保留旧配置的尺度作用，默认80对应28/40；限制极端配置避免岛屿重叠或越过比赛区域。
-        return Math.max(compact ? 28 : 40,
+    private static int middleExtent(PvPConfig cfg, boolean compact, SkyWarsMapStyle style,
+                                    int spawnRadius, int transitRadius) {
+        int base = Math.max(compact ? 28 : 40,
                 Math.min(compact ? 36 : 50, (int) Math.round(cfg.skywarsMiddleRadius * (compact ? 0.35 : 0.5))));
+        int wanted = style == SkyWarsMapStyle.VILLAGE ? scaleCentral(base)
+                : Math.max(base, style.centralRadius(compact) + scaleCentral(3)
+                        + 2 * style.satelliteRadius(compact) + 4);
+        // 给扩大后的中岛让位，同时保留外围岛尺寸/桥距，并限制在本局暂存区域内。
+        int outerAllowance = (compact ? 6 : 8) + 2 * transitRadius + 2 * spawnRadius
+                + (compact ? 12 : 18) + 9 + MAX_RADIUS_MARGIN;
+        return Math.min(wanted, ArenaTemplate.REGION_SPACING / 2 - 16 - outerAllowance);
     }
 
     private static Island buildIsland(Random random, BlockPos center, int radius, int chestCount, double rotation) {

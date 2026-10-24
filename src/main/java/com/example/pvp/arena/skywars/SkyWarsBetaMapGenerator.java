@@ -121,26 +121,26 @@ public final class SkyWarsBetaMapGenerator {
         int radius = middle.radius();
         // 原下层在岛面-5，箱子和净空被加厚后的岛体填满；-9保证厚4的岛底下有4格净空。
         BlockPos lower = center.down(LOWER_LAYER_DROP);
-        buildPlatform(world, lower, radius - 2, accent, 1);
-        for (int dx = -(radius - 2); dx <= radius - 2; dx++) {
-            for (int dz = -(radius - 2); dz <= radius - 2; dz++) {
-                if (dx * dx + dz * dz <= (radius - 2) * (radius - 2)) {
+        buildPlatform(world, lower, radius - h(2), accent, 1);
+        for (int dx = -(radius - h(2)); dx <= radius - h(2); dx++) {
+            for (int dz = -(radius - h(2)); dz <= radius - h(2); dz++) {
+                if (dx * dx + dz * dz <= (radius - h(2)) * (radius - h(2))) {
                     clearHeadroom(world, lower.add(dx, 0, dz), 4);
                 }
             }
         }
         // 入口放在最终圈内，错开两条走廊；跨过岛心留足水平距离，缩圈后仍能上下。
-        int approach = layout.suggestedFinalRadius() - 2;
-        buildBridge(world, center.add(4, 0, approach), lower.add(4, 0, -3), structure, 1, true);
-        buildBridge(world, center.add(-4, 0, -approach), lower.add(-4, 0, 3), structure, 1, true);
-        placeExtraChest(world, layout, lower.add(3, 1, 3), SkyWarsLootPolicy.Tier.CENTER, -1);
+        int approach = layout.suggestedFinalRadius() - h(2);
+        buildBridge(world, center.add(h(4), 0, approach), lower.add(h(4), 0, -h(3)), structure, h(1), true);
+        buildBridge(world, center.add(-h(4), 0, -approach), lower.add(-h(4), 0, h(3)), structure, h(1), true);
+        placeExtraChest(world, layout, lower.add(h(3), 1, h(3)), SkyWarsLootPolicy.Tier.CENTER, -1);
 
         // 可拆的侧墙提供近战掩体，矿工可以直接开洞穿过；南北主通路始终开放。
         if (style % 2 == 1) {
             for (int sign : new int[]{-1, 1}) {
-                for (int z = -2; z <= 2; z++) {
+                for (int z = -h(2); z <= h(2); z++) {
                     for (int y = 1; y <= 2; y++) {
-                        world.setBlockState(lower.add(sign * 5, y, z), structure.getDefaultState(), 3);
+                        world.setBlockState(lower.add(sign * h(5), y, z), structure.getDefaultState(), 3);
                     }
                 }
             }
@@ -148,22 +148,26 @@ public final class SkyWarsBetaMapGenerator {
 
         int upperY = theme == SkyWarsTheme.OVERWORLD ? SkyWarsMapGenerator.SECOND_LAYER_HEIGHT : 6 + style % 3;
         int upperRadius = theme == SkyWarsTheme.OVERWORLD
-                ? SkyWarsMapGenerator.secondLayerRadius(middle, true, true, theme) : 6 + style % 2;
+                ? SkyWarsMapGenerator.secondLayerRadius(middle, true, true, theme) : h(6 + style % 2);
         BlockPos upper = center.up(upperY);
         if (theme != SkyWarsTheme.OVERWORLD) buildPlatform(world, upper, upperRadius, structure, 1);
         // 两条上行走廊分置岛心两侧，和下层通道保留高度间隔，入口不随最终圈消失。
-        buildBridge(world, center.add(approach, 0, 4), upper.add(-4, 0, 4), structure, 1, true);
-        buildBridge(world, center.add(-approach, 0, -4), upper.add(4, 0, -4), structure, 1, true);
-        // 避开 z=±4 的坡道净空；原箱位(3,3)下方会被坡道挖穿，留下悬空箱。
-        placeExtraChest(world, layout, upper.add(3, 1, 0), SkyWarsLootPolicy.Tier.CENTER, -1);
+        buildBridge(world, center.add(approach, 0, h(4)), upper.add(-h(4), 0, h(4)), structure, h(1), true);
+        buildBridge(world, center.add(-approach, 0, -h(4)), upper.add(h(4), 0, -h(4)), structure, h(1), true);
+        // 加宽后的坡道仍需避让上层箱底座。
+        placeExtraChest(world, layout, upper.add(h(3), 1, 0), SkyWarsLootPolicy.Tier.CENTER, -1);
         if (style >= 3) {
             // 半高围挡提供远程掩护，同时保留两端进攻面和中央空地。
             for (int sign : new int[]{-1, 1}) {
-                for (int dx = -2; dx <= 2; dx++) {
-                    world.setBlockState(upper.add(dx, 1, sign * (upperRadius - 1)), accent.getDefaultState(), 3);
+                for (int dx = -h(2); dx <= h(2); dx++) {
+                    world.setBlockState(upper.add(dx, 1, sign * (upperRadius - h(1))), accent.getDefaultState(), 3);
                 }
             }
         }
+    }
+
+    private static int h(int blocks) {
+        return SkyWarsLayout.scaleCentral(blocks);
     }
 
     private static void buildPlatform(ArenaWorld world, BlockPos center, int radius, Block block, int depth) {

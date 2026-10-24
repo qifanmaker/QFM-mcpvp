@@ -46,7 +46,7 @@ class SkyWarsLayoutTest {
                     assertEquals(theme, SkyWarsTheme.pick(seed), context);
                     assertEquals(List.of(), SkyWarsBetaLayoutValidator.validate(layout, players), context);
                     assertEquals(players <= 4, layout.compact(), context);
-                    assertEquals(players <= 4 ? 10 : 14, layout.suggestedFinalRadius(), context);
+                    assertEquals(players <= 4 ? 25 : 35, layout.suggestedFinalRadius(), context);
                     for (int i = 0; i < players; i++) {
                         SkyWarsLayout.Island spawn = layout.spawnIslands().get(i);
                         SkyWarsLayout.Island transit = layout.midIslands().get(i);
@@ -57,6 +57,23 @@ class SkyWarsLayoutTest {
                     }
                     assertFootprint(layout, context);
                 }
+            }
+        }
+    }
+
+    @Test
+    void centralDiameterIsAboutTwoAndAHalfTimesWhileOuterIslandSizesStayOriginal() {
+        int[][] original = {{12,16},{14,18},{12,16},{12,16},{13,17},{14,18},{28,40}};
+        for (int seed = 0; seed < 100; seed++) {
+            for (int players : new int[]{2,4,5,8}) {
+                SkyWarsLayout layout = SkyWarsLayout.compute(CENTER, seed, players);
+                int before = original[layout.mapStyle().ordinal()][layout.compact() ? 0 : 1];
+                assertEquals(SkyWarsLayout.scaleCentral(before), layout.middle().radius());
+                double ratio = layout.middle().radius() / (double) before;
+                assertTrue(ratio >= 2 && ratio <= 3);
+                assertEquals(5, layout.spawnIslands().get(0).radius());
+                assertEquals(layout.compact() ? 6 : 8, layout.midIslands().get(0).radius());
+                assertTrue(layout.maxRadius() <= 176, "地图必须完整落在暂存区域内");
             }
         }
     }
@@ -163,7 +180,7 @@ class SkyWarsLayoutTest {
                     SkyWarsLayout layout = SkyWarsLayout.compute(CENTER, seed, players);
                     if (!layout.mapStyle().usesCustomStructure()) continue;
                     covered.add(layout.mapStyle());
-                    int clearingRadius = layout.middle().radius() + 3;
+                    int clearingRadius = layout.centralClearanceRadius();
                     for (int i = 1; i < layout.middleIslands().size(); i++) {
                         SkyWarsLayout.Island island = layout.middleIslands().get(i);
                         assertTrue(distance(layout.middle().center(), island.center()) - island.radius() > clearingRadius,

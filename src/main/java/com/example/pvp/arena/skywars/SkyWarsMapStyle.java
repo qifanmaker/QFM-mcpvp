@@ -43,7 +43,9 @@ public enum SkyWarsMapStyle {
 
     public String getDisplayName() { return this.displayName; }
     public boolean usesCustomStructure() { return this != TERRACES && this != VILLAGE; }
-    public int centralRadius(boolean compact) { return compact ? this.compactCentralRadius : this.standardCentralRadius; }
+    public int centralRadius(boolean compact) {
+        return SkyWarsLayout.scaleCentral(compact ? this.compactCentralRadius : this.standardCentralRadius);
+    }
     public int satelliteRadius(boolean compact) { return compact ? this.compactSatelliteRadius : this.standardSatelliteRadius; }
     public int satelliteHeight(int variant) { return this == TERRACES ? Math.floorMod(variant, 3) - 1 : this.satelliteHeight; }
     public int branchHeight(int variant) { return this == TERRACES ? (Math.floorMod(variant, 3) == 1 ? -3 : 3) : this.branchHeight; }
