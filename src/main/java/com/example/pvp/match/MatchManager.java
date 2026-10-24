@@ -70,6 +70,7 @@ public final class MatchManager {
     }
 
     private final Map<UUID, InventorySnapshot> pendingRestores = new ConcurrentHashMap<>();
+    private final Map<UUID, ServerPlayerEntity> joinedRestorePlayers = new HashMap<>();
     /** OP 强制开赛时指定的一次性空岛主题（下一次 SKYWARS 用，用后清除）。 */
     private SkyWarsTheme pendingSkywarsTheme;
     /** OP 强制开赛时指定的一次性床战地图文件夹名（下一次 BED_WARS 用，用后清除）。 */
@@ -196,6 +197,7 @@ public final class MatchManager {
 
     /** 每个服务器 tick 调用。 */
     public void tick() {
+        this.restoreJoinedPlayers();
         for (Match match : List.copyOf(this.matches)) {
             if (match.getState() != MatchState.ENDED && match.allPlayersOffline()) {
                 match.cancelMatch("所有玩家离线");
@@ -698,9 +700,25 @@ public final class MatchManager {
 
     /** 玩家登录事件：恢复上次对局状态。 */
     public void onPlayerJoin(ServerPlayerEntity player) {
-        InventorySnapshot snapshot = this.pendingRestores.remove(player.getUuid());
-        if (snapshot != null) {
+        // Fabric JOIN 早于 PlayerManager 将实体加入原世界。此时跨维度传送会重复注册实体，
+        // 再次退出时导致 ChunkTicketManager.handleChunkLeave 空指针；统一延至 tick 开头恢复。
+        if (this.pendingRestores.containsKey(player.getUuid())) {
+            this.joinedRestorePlayers.put(player.getUuid(), player);
+        }
+    }
+
+    private void restoreJoinedPlayers() {
+        for (var entry : List.copyOf(this.joinedRestorePlayers.entrySet())) {
+            UUID uuid = entry.getKey();
+            ServerPlayerEntity player = entry.getValue();
+            this.joinedRestorePlayers.remove(uuid);
+            if (this.getOnlinePlayer(uuid) != player || player.isDisconnected()) continue;
+            InventorySnapshot snapshot = this.pendingRestores.get(uuid);
+            if (snapshot == null) continue;
             snapshot.restore(player);
+            this.pendingRestores.remove(uuid, snapshot);
+            PvpGuiManager.get().giveMenuItem(player);
+            PvpGuiManager.removeQueueItem(player);
             player.sendMessage(Messages.info("你上次对局时的状态已恢复"), false);
         }
     }
@@ -763,6 +781,7 @@ public final class MatchManager {
 
     /** 玩家断线事件。 */
     public void onPlayerDisconnect(ServerPlayerEntity player) {
+        this.joinedRestorePlayers.remove(player.getUuid(), player);
         // 会话结束，清除"已注册计分板 objective"标记：重进后需重新发 ADD 包，
         // 否则客户端不知道 pvp_info 存在，侧边栏永远不显示
         this.scoreboardObjectiveKnown.remove(player.getUuid());
