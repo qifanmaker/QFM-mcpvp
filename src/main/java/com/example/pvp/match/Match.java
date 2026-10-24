@@ -961,8 +961,8 @@ public final class Match {
         if (arena == null) {
             return;
         }
-        // 以竞技场世界底部为准，提前 4 格触发给服务端 tick/网络延迟留出冗余，避免高空误吃图腾
-        double rescueY = arena.getBottomY() + 4.0;
+        // 以竞技场世界底部为准，提前 10 格触发给服务端 tick/网络延迟留出冗余，避免临界高度漏救
+        double rescueY = arena.getBottomY() + 10.0;
         for (ServerPlayerEntity player : this.players) {
             if (this.eliminated.contains(player.getUuid())) {
                 continue;
