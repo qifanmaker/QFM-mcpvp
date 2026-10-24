@@ -93,9 +93,12 @@ final class MyGoMapAssetsTest {
         }
         for (var spawn : map.getAsJsonObject("spawns").getAsJsonArray("CT")) {
             int[] pos = position(spawn.getAsJsonObject().getAsJsonArray("pos"));
-            assertEquals(-2, pos[1], "CT starts on the low bridge road, not upper tunnels");
-            assertEquals(-3, pos[2]);
-            assertTrue(pos[0] >= 36 && pos[0] <= 48);
+            assertEquals(-2, pos[1], "CT starts under the bridge, not on short A");
+            assertEquals(43, pos[0]);
+            assertTrue(pos[2] >= 12 && pos[2] <= 24, "The open CT-mid road is not the CT spawn zone");
+            // 只检查可站立会把中门后的空地误认成 CT 家；真正出生带上方有原图桥板。
+            assertEquals("minecraft:spruce_stairs", blocks.get(key(pos[0], 3, pos[2])),
+                    "All CT slots must be below the authored short-A bridge");
         }
         int[] a = position(map.getAsJsonArray("sites").get(0).getAsJsonObject().getAsJsonArray("pos"));
         assertEquals("minecraft:red_concrete", blocks.get(key(a[0], a[1] - 1, a[2])),

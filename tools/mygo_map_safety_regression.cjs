@@ -4,6 +4,8 @@
 // and invisible bounds killed players on walkable architecture. Verify the
 // corrected tactical landmarks, normal movement, safe recovery and both sites
 // with ten ordinary clients. Position replies and physics are never suppressed.
+// CT mid's open courtyard is not CT spawn: the actual CT starting area is
+// farther toward A, beneath the catwalk, as checked against Valve's overview.
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
@@ -245,8 +247,8 @@ async function returnToLobby(label) {
 async function main() {
   emit('mapFixture',{map:blueprint.id,cells:blueprint.blocks.length,blueprintSha256:crypto.createHash('sha256').update(blueprintBytes).digest('hex')});
   const expectedT=[24,27,30,33,36].map(z=>fromSource([-2,18,z]));
-  const expectedCt=[88,91,94,97,100].map(x=>fromSource([x,11,39]));
-  check('spawns are the real T platform and low CT courtyard instead of A short/B tunnels',
+  const expectedCt=[54,57,60,63,66].map(z=>fromSource([95,11,z]));
+  check('spawns are the real T platform and roofed CT spawn instead of A short/B tunnels/CT mid',
     blueprint.spawns.T.every((spawn,i)=>samePosition(spawn.pos,expectedT[i]))
     && blueprint.spawns.CT.every((spawn,i)=>samePosition(spawn.pos,expectedCt[i])),blueprint.spawns);
   check('A and B anchors follow the actual painted platform and front of B boxes',samePosition(blueprint.sites[0].pos,fromSource([103,18,88]))
@@ -279,7 +281,7 @@ async function main() {
     && bots[ctWalker].inventory.items().some(item=>item.name==='shears'),await status(ctWalker));
   await waitPhase('A','LIVE',1,18000);
   const tp=position(walker);await walk(walker,{x:tp.x+3,y:tp.y,z:tp.z-.5},'T platform natural walking');
-  const cp=position(ctWalker);await walk(ctWalker,{x:cp.x-.5,y:cp.y,z:cp.z+3},'CT low courtyard natural walking');
+  const cp=position(ctWalker);await walk(ctWalker,{x:cp.x-.5,y:cp.y,z:cp.z+3},'CT spawn underpass natural walking');
   await teleport(walker,world([36,1,23]));
   await walk(walker,world([37.5,1,23]),'old lethal low stone route',[37,1,23]);
   await teleport(walker,world([73,32,-12]));await sleep(350);

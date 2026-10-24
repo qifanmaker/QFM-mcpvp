@@ -338,3 +338,28 @@ SHA-1 `d191135ce9ed995f22564ee916ce4237beed01f1`，无需重新上传。
 `77f26e8cf0d15ffc5f55d287a5738fb5136d93b4c8ce3c54a7cf4dbbab17f660`。
 最终地图 SHA-256 `9c31ad02513b05f1bae8f76a08ee0b852e494f8990e3b3892835d93ebcc216c6`；
 构建及各实服记录汇总在 `build/mygo-input-map-verification.json`。原 25565 服务没有重启或更换 Mod。
+
+## 2026-10-24：复核 T/CT 是否对调
+
+结论：阵营布尔、默认手枪、C4、制服、购买区和第 16 回合换边没有反；T 在真实匪家高台后墙内。
+但上次 CT 五点实际位于 `source z=39` 的开阔 CT mid，只检查地板/净空/连通性不足以确认
+战术区域，称其为“桥下”不准确。
+
+对照 CS:GO 原始 overview 的 A/B、T/CT 标记及原图桥板后，CT 调至原存档
+`(95,11,z)`，z 为 `54/57/60/63/66`；原 T 坐标、两个包点和建筑方块完全不变。
+CT 购买区调整到 `(90,10,49)`～`(100,14,70)`，前两格面向中门/B，后三格面向 A 坡。
+详情和原始雷达文件链接在 `tools/assets/mygo-dust2/layout-notes.md`。
+
+`MyGoMapAssetsTest` 现在还要求每个 CT 点上方的原图桥板 `spruce_stairs` 存在，防止
+再次用可站立的开阔道路代替 CT 家。`./gradlew build` 成功，76 项单元检查全部通过，
+日志 `build/mygo-ct-spawn-build.log`；静态 20 条出生到包点路线审计通过。
+实服回归使用 `build/mygo-ct-spawn-check/`，十客户端正常物理及位移回复，
+包括新 CT 出生、购买、自然步行、A/B 安拆、安全救援、实体重载与跨局恢复。
+63 项全部通过，无 Java 异常堆栈；实体重载同 UUID、网络 ID `103 → 130`，下一场仍无重复。
+25585 已正常关闭并保存，原 25565 未改动。定位、构建与测试汇总见
+`build/mygo-ct-spawn-check/verification.json`；示意图 `build/mygo-spawn-orientation-corrected.png`。
+
+本次交付 `dist/pvp-1.0.0-mygo-ct-spawn-fix.jar`，1,708,070 bytes，SHA-256
+`b8095784dcce9808cb5835539496668510ce110a63ca4c37404c3be03ccece1f`。
+新版地图 SHA-256 `a0df8b4f9ea070c9e7496134488061b73d75fd8a338862c2bde774e8246d839c`。
+资源包不变，替换服务器 Mod 后重启才会加载新出生配置。
