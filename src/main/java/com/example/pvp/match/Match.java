@@ -961,8 +961,8 @@ public final class Match {
         if (arena == null) {
             return;
         }
-        // 以竞技场世界底部为准，在 Minecraft 极限虚空死亡前一格才触发，避免高空误吃图腾
-        double rescueY = arena.getBottomY() + 1.0;
+        // 以竞技场世界底部为准，提前 4 格触发给服务端 tick/网络延迟留出冗余，避免高空误吃图腾
+        double rescueY = arena.getBottomY() + 4.0;
         for (ServerPlayerEntity player : this.players) {
             if (this.eliminated.contains(player.getUuid())) {
                 continue;
