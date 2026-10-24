@@ -3873,6 +3873,36 @@ public final class Match {
         this.skywarsProfessions.put(uuid, profession);
     }
 
+    /** 足力健老人鞋：在无脚下方块时消耗一根自救平台烈焰棒，生成 5x5 圆形粘液平台。 */
+    public boolean skywarsProfessionUse(ServerPlayerEntity player, ItemStack hand) {
+        if (this.type != MatchType.SKYWARS || this.state != MatchState.ACTIVE
+                || this.skywarsProfessionOf(player.getUuid()) != SkyWarsProfession.SHOE_SENIOR
+                || !hand.isOf(net.minecraft.item.Items.BLAZE_ROD)) {
+            return false;
+        }
+        BlockPos feet = player.getBlockPos();
+        if (!player.getWorld().getBlockState(feet.down()).isAir()) {
+            player.sendMessage(Messages.warn("脚下有方块，无法展开自救平台"), true);
+            return false;
+        }
+        BlockPos platform = feet.down();
+        int placed = 0;
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                if (dx * dx + dz * dz > 4) continue;
+                BlockPos pos = platform.add(dx, 0, dz);
+                if (player.getWorld().getBlockState(pos).isReplaceable()) {
+                    player.getWorld().setBlockState(pos, Blocks.SLIME_BLOCK.getDefaultState(), 3);
+                    placed++;
+                }
+            }
+        }
+        if (placed == 0) return false;
+        hand.decrement(1);
+        player.sendMessage(Messages.gold("自救平台已展开！"), true);
+        return true;
+    }
+
     /** 由摔落伤害拦截器消费一次空岛开局免伤。 */
     public boolean consumeSkywarsStartFallProtection(ServerPlayerEntity player) {
         return this.type == MatchType.SKYWARS && this.state == MatchState.ACTIVE

@@ -333,6 +333,11 @@ public final class PvPMod implements ModInitializer {
                 }
                 Match skywarsMatch = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
                 if (skywarsMatch != null && skywarsMatch.getType() == MatchType.SKYWARS
+                        && skywarsMatch.getState() == MatchState.ACTIVE
+                        && skywarsMatch.skywarsProfessionUse(serverPlayer, stack)) {
+                    return TypedActionResult.success(stack);
+                }
+                if (skywarsMatch != null && skywarsMatch.getType() == MatchType.SKYWARS
                         && skywarsMatch.getState() == MatchState.COUNTDOWN) {
                     if (stack.isOf(Items.PAPER) && stack.getName().getString().contains("选择空岛职业")) {
                         SkyWarsProfessionGui.open(serverPlayer, skywarsMatch);

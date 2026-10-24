@@ -8,6 +8,7 @@ import net.minecraft.potion.Potions;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.component.DataComponentTypes;
 
 import java.util.List;
 
@@ -24,7 +25,9 @@ public enum SkyWarsProfession {
     FISHERMAN("渔夫", Items.FISHING_ROD, List.of(stack(Items.FISHING_ROD), stack(Items.IRON_SWORD), stack(Items.STONE, 16), stack(Items.COOKED_SALMON, 8))),
     TANK("坦克", Items.IRON_CHESTPLATE,
             List.of(stack(Items.STONE_SWORD), stack(Items.IRON_CHESTPLATE), stack(Items.IRON_HELMET),
-                    stack(Items.STONE, 8), stack(Items.COOKED_BEEF, 8)), 1.5);
+                    stack(Items.STONE, 8), stack(Items.COOKED_BEEF, 8)), 1.5),
+    SHOE_SENIOR("足力健老人鞋", Items.BLAZE_ROD,
+            List.of(namedStack(Items.BLAZE_ROD, 2, "§e自救平台"), stack(Items.STONE_SWORD), stack(Items.STONE, 8)));
 
     private final String displayName;
     private final Item icon;
@@ -74,6 +77,12 @@ public enum SkyWarsProfession {
 
     private static ItemStack stack(Item item, int count) {
         return new ItemStack(item, count);
+    }
+
+    private static ItemStack namedStack(Item item, int count, String name) {
+        ItemStack stack = stack(item, count);
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal(name));
+        return stack;
     }
 
     private static ItemStack potion(net.minecraft.registry.entry.RegistryEntry<net.minecraft.potion.Potion> potion) {
