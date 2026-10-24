@@ -58,5 +58,6 @@ public final class KitApplicator {
         player.changeGameMode(kit.getGamemode());
         player.setInvulnerable(false);
         player.currentScreenHandler.sendContentUpdates();
+        HotbarSync.sendSelection(player);
     }
 }

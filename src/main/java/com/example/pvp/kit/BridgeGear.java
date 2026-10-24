@@ -69,6 +69,7 @@ public final class BridgeGear {
         player.changeGameMode(GameMode.SURVIVAL);
         player.setInvulnerable(false);
         player.currentScreenHandler.sendContentUpdates();
+        HotbarSync.sendSelection(player);
     }
 
     private static ItemStack dyed(Item item, int rgb) {

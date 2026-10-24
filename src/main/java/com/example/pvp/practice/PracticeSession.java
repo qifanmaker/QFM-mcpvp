@@ -5,6 +5,7 @@ import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.gui.PvpGuiManager;
+import com.example.pvp.kit.HotbarSync;
 import com.example.pvp.text.Messages;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
@@ -301,6 +302,7 @@ public final class PracticeSession {
 
         giveLoadout(player);
         player.currentScreenHandler.sendContentUpdates();
+        HotbarSync.sendSelection(player);
     }
 
     private void giveLoadout(ServerPlayerEntity player) {

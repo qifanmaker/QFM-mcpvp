@@ -158,5 +158,6 @@ public final class InventorySnapshot {
         player.getAbilities().flying = this.flying;
         player.sendAbilitiesUpdate();
         player.currentScreenHandler.sendContentUpdates();
+        HotbarSync.sendSelection(player);
     }
 }

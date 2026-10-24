@@ -1,5 +1,6 @@
 package com.example.pvp.match;
 
+import com.example.pvp.kit.HotbarSync;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.enchantment.Enchantments;
@@ -108,6 +109,7 @@ public enum SkyWarsProfession {
         player.setHealth(player.getMaxHealth());
         player.sendMessage(Text.literal("§a职业：§e" + this.displayName), false);
         player.currentScreenHandler.sendContentUpdates();
+        HotbarSync.sendSelection(player);
     }
 
     private void placeInInventory(ServerPlayerEntity player, ItemStack item) {
