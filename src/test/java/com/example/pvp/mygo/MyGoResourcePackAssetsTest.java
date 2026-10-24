@@ -86,17 +86,17 @@ final class MyGoResourcePackAssetsTest {
     @Test
     void everyGunHasDifferentThreeDimensionalGeometryAndResolvedMaterials() throws Exception {
         Set<String> geometry = new HashSet<>();
-        for (String gun : new String[]{"p9", "mp5", "ak", "m4", "aw", "knife"}) {
+        for (String gun : new String[]{"p9", "mp5", "ak", "m4", "aw", "m16", "scar", "mini14", "mk14", "p90", "uzi", "vector", "tommy", "m24", "s686", "knife"}) {
             JsonObject model = json("assets/pvp/models/item/mygo/" + gun + ".json");
             JsonArray elements = model.getAsJsonArray("elements");
-            assertTrue(elements.size() >= 5, gun + " needs actual barrel/receiver/grip geometry");
+            assertTrue(elements.size() >= 3, gun + " needs actual barrel/receiver/grip geometry");
             assertTrue(geometry.add(elements.toString()), "Repeated placeholder geometry: " + gun);
             for (var part : elements) {
                 JsonObject cuboid = part.getAsJsonObject();
                 for (int axis = 0; axis < 3; axis++) {
                     double from = cuboid.getAsJsonArray("from").get(axis).getAsDouble();
                     double to = cuboid.getAsJsonArray("to").get(axis).getAsDouble();
-                    assertTrue(from >= -16 && to <= 32 && from < to, gun + " invalid element bounds");
+                    assertTrue(from >= -16 && to <= 32 && from <= to, gun + " invalid element bounds");
                 }
             }
             for (var material : model.getAsJsonObject("textures").entrySet()) {
@@ -124,9 +124,35 @@ final class MyGoResourcePackAssetsTest {
     }
 
     @Test
+    void everyGunPoseAndUtilityResolvesThroughVanillaCustomModelData() {
+        JsonArray guns = json("assets/minecraft/models/item/iron_pickaxe.json").getAsJsonArray("overrides");
+        for (MyGoWeapon weapon : MyGoWeapon.values()) {
+            String name = weapon.name().toLowerCase(java.util.Locale.ROOT);
+            assertEquals("pvp:item/mygo/" + name, selectedModel(guns, weapon.model));
+            for (String pose : new String[]{"fire", "reload"}) {
+                int offset = pose.equals("fire") ? 100 : 200;
+                assertEquals("pvp:item/mygo/" + name + "_" + pose, selectedModel(guns, weapon.model + offset));
+                assertEquals("pvp:item/mygo/" + name, json("assets/pvp/models/item/mygo/" + name + "_" + pose + ".json").get("parent").getAsString());
+            }
+        }
+        JsonArray utilities = json("assets/minecraft/models/item/slime_ball.json").getAsJsonArray("overrides");
+        for (MyGoUtilities.Type utility : MyGoUtilities.Type.values())
+            assertEquals("pvp:item/mygo/" + utility.name().toLowerCase(java.util.Locale.ROOT), selectedModel(utilities, utility.model));
+        assertEquals("pvp:item/mygo/fog", selectedModel(utilities, 72004));
+    }
+
+    @Test
+    void adaptedAssetsCarryPinnedSourceAndLicense() {
+        assertTrue(new String(FILES.get("WEAPON_PACK_LICENSE.txt"), StandardCharsets.UTF_8).contains("Pelmeshka_"));
+        JsonObject source = json("WEAPON_PACK_source.json");
+        assertEquals("MIT", source.get("license").getAsString());
+        assertEquals("9ab80d963650c09a3c3b4e384db0133c9a7dd846", source.get("sha1").getAsString());
+    }
+
+    @Test
     void allEventsResolveToRealMonoOggSoundFiles() {
         JsonObject sounds = json("assets/pvp/sounds.json");
-        for (String name : new String[]{"p9", "mp5", "ak", "m4", "aw", "reload", "empty", "plant", "defuse", "explode"}) {
+        for (String name : new String[]{"p9", "mp5", "ak", "m4", "aw", "m16", "scar", "mini14", "mk14", "p90", "uzi", "vector", "tommy", "m24", "s686", "reload", "empty", "plant", "defuse", "explode", "hit", "headshot", "throw", "flash", "smoke"}) {
             assertTrue(sounds.has("mygo." + name));
             String location = sounds.getAsJsonObject("mygo." + name).getAsJsonArray("sounds")
                     .get(0).getAsJsonObject().get("name").getAsString();

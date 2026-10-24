@@ -1,0 +1,16 @@
+MyGO Arsenal references and adapted assets
+
+CounterStrike4Minecraft by J3y0r
+https://github.com/J3y0r/CounterStrike4Minecraft
+Commit: 497a1f3c65e72040d55ea2ce76dc38162d0059e4
+License: Unlicense (included as CS4M_UNLICENSE.txt).
+Reference/adaptation areas: server-side weapon cadence, movement spread and camera recoil,
+side-specific weapon availability, categorized purchases and round presentation.
+The 26.2 mod is not bundled; the integration targets this project's Fabric 1.21.1 session and snapshot lifecycle.
+
+Weapon Pack 1.1 by Pelmeshka_
+https://modrinth.com/resourcepack/weapon-pack
+License: MIT. Models and textures are pinned in tools/assets/mygo-weapon-pack.
+The adapted client ZIP includes WEAPON_PACK_LICENSE.txt and WEAPON_PACK_source.json.
+Changes: vanilla CustomModelData mapping replaces OptiFine CIT, namespaced materials,
+firing/reload pose variants. Knife, utility models, fog, scope and synthetic sounds are MyGO assets.

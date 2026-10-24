@@ -1247,10 +1247,11 @@ public final class QueueManager {
         }
     }
 
-    /** 达到十人立即开局；四至八人等待一分钟，奇数队列保留最后一位。 */
+    /** 允许两人正常自动开局；十人立即开始，其余等待一分钟，奇数队列保留最后一位。 */
     private void tickMyGo(MatchManager manager) {
         int count = this.countQueued(MatchType.MYGO);
-        if (count < 4) {
+        int minimum = MatchType.MYGO.requiredPlayers();
+        if (count < minimum) {
             this.myGoFillTicks = 60 * 20;
             return;
         }
@@ -1265,7 +1266,7 @@ public final class QueueManager {
             }
             return;
         }
-        if (!this.startMyGoMatch(manager, 4)) this.myGoRetryTicks = 20;
+        if (!this.startMyGoMatch(manager, minimum)) this.myGoRetryTicks = 20;
     }
 
     private boolean startMyGoMatch(MatchManager manager, int minimum) {
@@ -1468,7 +1469,7 @@ public final class QueueManager {
         MatchType type = entry.getType();
 
         if (type == MatchType.MYGO) {
-            if (this.startMyGoMatch(matchManager, 2)) return true;
+            if (this.startMyGoMatch(matchManager, MatchType.MYGO.requiredPlayers())) return true;
             player.sendMessage(Messages.warn("MyGO 至少需要两名已加载资源包的玩家，并保持双方等员"), false);
             return false;
         }

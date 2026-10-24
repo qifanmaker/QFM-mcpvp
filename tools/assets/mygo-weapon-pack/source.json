@@ -1,0 +1,10 @@
+{
+  "title": "Weapon Pack",
+  "author": "Pelmeshka_",
+  "version": "1.1",
+  "license": "MIT",
+  "project": "https://modrinth.com/resourcepack/weapon-pack",
+  "download": "https://cdn.modrinth.com/data/ZmFMCmrA/versions/lr9OJ68n/Weapon%20Pack.zip",
+  "sha1": "9ab80d963650c09a3c3b4e384db0133c9a7dd846",
+  "changes": "OptiFine CIT selectors replaced with vanilla 1.21.1 CustomModelData; textures placed under textures/item/mygo for the vanilla block/item atlas; namespaced materials, particle fallback and firing/reload poses added."
+}

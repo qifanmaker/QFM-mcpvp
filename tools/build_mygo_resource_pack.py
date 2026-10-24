@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Build original MyGO 1.21.1 assets so vanilla clients can display tool-based guns.
+"""Build MyGO 1.21.1 assets so vanilla clients can display tool-based guns.
 
-The cuboid models, pixel materials and synthetic sounds are authored here; no game
-assets or third-party gun sounds are redistributed. Requires Python 3 and ffmpeg.
+Weapon Pack 1.1 models by Pelmeshka_ are adapted under MIT; see the pinned source
+and license in tools/assets/mygo-weapon-pack. Knife, utilities, scope and synthetic
+sounds are authored here. Requires Python 3 and ffmpeg.
 Run from any directory. The committed ZIP is the runtime input, so server builds
 do not require Python or ffmpeg. ZIP timestamps are fixed for reproducible SHA-1.
 """
@@ -24,6 +25,45 @@ import zlib
 ROOT = Path(__file__).resolve().parents[1]
 STAGING = ROOT / "build/mygo-resource-pack"
 OUTPUT = ROOT / "src/main/resources/pvp/mygo"
+UPSTREAM = ROOT / "tools/assets/mygo-weapon-pack"
+GUN_MODELS = {
+    "p9": (71001, "p18c"), "mp5": (71002, "ump"), "ak": (71003, "akm"),
+    "m4": (71004, "m416"), "aw": (71005, "awm"), "m16": (71011, "m16a4"),
+    "scar": (71012, "scar-l"), "mini14": (71013, "mini14"), "mk14": (71014, "mk14"),
+    "p90": (71015, "p90"), "uzi": (71016, "uzi"), "vector": (71017, "vector"),
+    "tommy": (71018, "tommy_gun"), "m24": (71019, "m24"), "s686": (71020, "s686"),
+}
+
+
+def imported_models():
+    """Convert CIT selectors and use item/ so vanilla 1.21.1 stitches the PNGs.
+
+    A PNG outside the block/item atlas directories still appears purple/black
+    even when it exists in the ZIP. Keep every item material in the vanilla
+    atlas input instead of relying on OptiFine to discover custom folders.
+    """
+    for name, (_, source) in GUN_MODELS.items():
+        data = json.loads((UPSTREAM / (source + ".json")).read_text())
+        data["textures"] = {key: "pvp:item/mygo/" + source for key in data["textures"]}
+        data["textures"].setdefault("particle", "pvp:item/mygo/" + source)
+        data["gui_light"] = "front"
+        data["credit"] = "Weapon Pack 1.1 by Pelmeshka_ (MIT), adapted for MyGO; made with Blockbench"
+        write_json(f"assets/pvp/models/item/mygo/{name}.json", data)
+        texture = STAGING / f"assets/pvp/textures/item/mygo/{source}.png"
+        texture.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(UPSTREAM / (source + ".png"), texture)
+        for suffix, kick, tilt in [("fire", 0.6, -3), ("reload", -1.8, -24)]:
+            display = json.loads(json.dumps(data.get("display", {})))
+            for hand in ["firstperson_righthand", "firstperson_lefthand"]:
+                pose = display.setdefault(hand, {})
+                position = pose.setdefault("translation", [0, 0, 0])
+                position[1] += kick
+                rotation = pose.setdefault("rotation", [0, 0, 0])
+                rotation[2] += tilt
+            write_json(f"assets/pvp/models/item/mygo/{name}_{suffix}.json", {
+                "parent": f"pvp:item/mygo/{name}", "display": display})
+    for file in ["LICENSE.txt", "source.json"]:
+        shutil.copyfile(UPSTREAM / file, STAGING / ("WEAPON_PACK_" + file))
 
 
 def write_json(path: str, data: dict) -> None:
@@ -147,12 +187,13 @@ def build_visuals():
                 elif name == "grip" and (x + y) % 3 == 0:
                     change -= 12
                 pixels.append(tuple(max(0, min(255, channel + change)) for channel in base) + (255,))
-        write_png(f"assets/pvp/textures/mygo/{name}.png", 16, 16, pixels)
+        write_png(f"assets/pvp/textures/item/mygo/{name}.png", 16, 16, pixels)
 
     for name, elements in models().items():
         write_json(f"assets/pvp/models/item/mygo/{name}.json", {
             "parent": "minecraft:block/block", "ambientocclusion": False,
-            "gui_light": "front", "textures": {name: "pvp:mygo/" + name for name in MATERIALS},
+            "gui_light": "front", "textures": {**{name: "pvp:item/mygo/" + name for name in MATERIALS},
+                                                       "particle": "pvp:item/mygo/silver"},
             "elements": elements,
             "display": {
                 "firstperson_righthand": {"rotation": [0, 0, 0], "translation": [1, 3, -3], "scale": [1, 1, 1]},
@@ -177,14 +218,51 @@ def build_visuals():
         write_json(f"assets/pvp/models/item/mygo/vanilla_{item}.json", {
             "parent": "minecraft:item/handheld", "textures": {"layer0": "minecraft:item/" + item}})
 
-    override("iron_pickaxe", [(71001, "p9"), (71002, "mp5"), (71003, "ak"), (71004, "m4"), (71005, "aw")])
+    imported_models()
+    entries = []
+    for name, (value, _) in GUN_MODELS.items():
+        entries.extend([(value, name), (value + 100, name + "_fire"), (value + 200, name + "_reload")])
+    override("iron_pickaxe", sorted(entries))
     override("iron_sword", [(71006, "knife")])
+    for i, (name, material) in enumerate([("he", "olive"), ("flash", "silver"), ("smoke", "dark")]):
+        base = json.loads((STAGING / "assets/pvp/models/item/mygo/knife.json").read_text())
+        base["textures"]["particle"] = "pvp:item/mygo/" + material
+        base["elements"] = [box([5, 3, 5], [11, 11, 11], material),
+                            box([6, 11, 6], [10, 13, 10], "dark"),
+                            box([9, 6, 8], [11, 14, 9], "silver"),
+                            box([5.5, 7, 4.9], [10.5, 9, 5], "red")]
+        write_json(f"assets/pvp/models/item/mygo/{name}.json", base)
+    override("slime_ball", [(72001, "he"), (72002, "flash"), (72003, "smoke"), (72004, "fog")])
+    for name, elements in {
+        "c4": [box([3, 3, 5], [13, 10, 11], "olive"), box([4, 10, 6], [12, 12, 10], "dark"),
+               box([5, 10.1, 5.8], [10, 11.7, 6], "glass"), box([3, 6, 4.7], [13, 6.7, 5], "red"),
+               box([10, 4, 4.7], [10.7, 10, 5], "silver")],
+        "kit": [box([4, 3, 7], [6, 11, 9], "tan"), box([10, 3, 7], [12, 11, 9], "tan"),
+                box([5, 10, 7], [11, 12, 9], "silver"), box([5, 11, 7], [7, 15, 9], "silver"),
+                box([9, 11, 7], [11, 15, 9], "silver")],
+    }.items():
+        data = json.loads((STAGING / "assets/pvp/models/item/mygo/knife.json").read_text())
+        data["elements"] = elements
+        data["textures"]["particle"] = "pvp:item/mygo/" + ("olive" if name == "c4" else "silver")
+        write_json(f"assets/pvp/models/item/mygo/{name}.json", data)
+    override("redstone", [(73001, "c4")])
+    override("shears", [(73002, "kit")])
+    fog_pixels = []
+    for y in range(64):
+        for x in range(64):
+            radius = math.hypot(x - 31.5, y - 31.5)
+            fog_pixels.append((170, 176, 180, 255 if radius < 29 else 0))
+    write_png("assets/pvp/textures/item/mygo/fog.png", 64, 64, fog_pixels)
+    write_json("assets/pvp/models/item/mygo/fog.json", {"textures": {"fog": "pvp:item/mygo/fog", "particle": "pvp:item/mygo/fog"},
+        "elements": [{"from": [0, 0, 8], "to": [16, 16, 8], "faces": {
+            "north": {"texture": "#fog", "uv": [0, 0, 16, 16]},
+            "south": {"texture": "#fog", "uv": [0, 0, 16, 16]}}}]})
     write_json("assets/minecraft/models/item/carved_pumpkin.json", {
         "parent": "minecraft:block/carved_pumpkin", "overrides": [
             {"predicate": {"custom_model_data": 71010}, "model": "pvp:item/mygo/scope"},
             {"predicate": {"custom_model_data": 71011}, "model": "minecraft:block/carved_pumpkin"}]})
     write_json("assets/pvp/models/item/mygo/scope.json", {
-        "parent": "minecraft:item/generated", "textures": {"layer0": "pvp:mygo/scope_icon"},
+        "parent": "minecraft:item/generated", "textures": {"layer0": "pvp:item/mygo/scope_icon", "particle": "pvp:item/mygo/scope_icon"},
         "display": {"head": {"scale": [0, 0, 0]}}})
     size = 512
     scope = []
@@ -214,7 +292,7 @@ def build_visuals():
             r = math.hypot(x - 15.5, y - 15.5)
             icon.append((52, 75, 82, 255) if 10 < r < 14 else
                         (21, 142, 163, 220) if r <= 10 else (0, 0, 0, 0))
-    write_png("assets/pvp/textures/mygo/scope_icon.png", 32, 32, icon)
+    write_png("assets/pvp/textures/item/mygo/scope_icon.png", 32, 32, icon)
     write_png("pack.png", 32, 32, icon)
 
 
@@ -223,6 +301,10 @@ SOUNDS = {
     "m4": (0.23, 155), "aw": (0.65, 68), "reload": (0.70, 0),
     "empty": (0.11, 0), "plant": (0.25, 960), "defuse": (0.45, 680),
     "explode": (1.6, 42),
+    "m16": (.23, 160), "scar": (.26, 132), "mini14": (.31, 200), "mk14": (.32, 97),
+    "p90": (.15, 320), "uzi": (.13, 350), "vector": (.12, 295), "tommy": (.24, 145),
+    "m24": (.55, 82), "s686": (.48, 58), "hit": (.08, 1200), "headshot": (.12, 1500),
+    "throw": (.15, 700), "flash": (.55, 1750), "smoke": (1.0, 120),
 }
 
 
@@ -330,10 +412,9 @@ def main():
         shutil.rmtree(STAGING)
     STAGING.mkdir(parents=True)
     write_json("pack.mcmeta", {"pack": {"pack_format": 34,
-               "description": "MyGO 1.21.1 | Original gun models, scope and sounds"}})
+               "description": "MyGO Arsenal | vanilla atlas fix, 15 MIT gun models, utilities and scope | 1.21.1"}})
     build_visuals()
     build_sounds()
-    preview()
     OUTPUT.mkdir(parents=True, exist_ok=True)
     destination = OUTPUT / "mygo-pack.zip"
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:

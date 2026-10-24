@@ -1,0 +1,95 @@
+{
+  "formatVersion": 1,
+  "mapId": "lesraisins_dust2",
+  "source": {
+    "title": "[LesRaisins | CSGO] Dust II",
+    "version": "dust II-0.1",
+    "authors": [
+      "LeComte",
+      "LesRaisins Studio"
+    ],
+    "publisher": "xjqsh / LesRaisinsStudio",
+    "projectUrl": "https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-dust-ii",
+    "authorUrl": "https://www.planetminecraft.com/project/dust2-from-cs-go-made-by-lesraisins/",
+    "fileUrl": "https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-dust-ii/files/5637196",
+    "downloadUrl": "https://mediafilez.forgecdn.net/files/5637/196/dust2.zip",
+    "archiveSha256": "3debce04b6fb9183038b88a0a751927a7b431e23a3a52ee4d9fa570710085803",
+    "sha256": "3debce04b6fb9183038b88a0a751927a7b431e23a3a52ee4d9fa570710085803",
+    "sourceMinecraftVersion": "1.16.5",
+    "sourceDataVersion": 2586,
+    "publishedAt": "2024-08-17",
+    "reviewedAt": "2026-10-24",
+    "license": "Custom non-commercial permission with retained copyright information; all other rights reserved",
+    "copyright": "Minecraft recreation by LeComte / LesRaisins Studio. Original Dust II map copyright Valve.",
+    "permissionText": "Archives, images, projects, and presentation files of this map are allowed to be used for non-commercial purposes or to be filmed and shared for non-commercial purposes, provided that the copyright information is retained (which must be retained).\n\nAny commercial use or re-creation for commercial use is prohibited, unless authorized by the author.\n\nProhibited behaviors include, but are not limited to: Claiming this is your work, selling this work, uploading this work to NetEase Minecraft, posting or republishing this work without retaining copyright information.",
+    "adaptation": "Static architectural blocks cropped for MyGO; stable gravity blocks, dry states, persistent leaves and extinguished campfires. MyGO adds its own spawn, buy-zone and bomb-site configuration. Source world logic and player data are omitted."
+  },
+  "sourceMin": [
+    -25,
+    9,
+    -34
+  ],
+  "sourceMax": [
+    130,
+    45,
+    119
+  ],
+  "origin": [
+    52,
+    13,
+    42
+  ],
+  "bounds": {
+    "min": [
+      -77,
+      -4,
+      -76
+    ],
+    "max": [
+      78,
+      32,
+      77
+    ]
+  },
+  "size": [
+    156,
+    37,
+    154
+  ],
+  "blockCount": 196187,
+  "paletteCount": 770,
+  "blockOrder": "Architectural supports first, then dependent decorations; each group ordered by y, x, z ascending.",
+  "dependentDecorationCount": 2921,
+  "blockReplacements": {
+    "minecraft:anvil -> minecraft:iron_block": 3,
+    "minecraft:brown_concrete_powder -> minecraft:brown_concrete": 6,
+    "minecraft:cyan_concrete_powder -> minecraft:cyan_concrete": 7,
+    "minecraft:grass -> minecraft:short_grass": 66,
+    "minecraft:gravel -> minecraft:andesite": 120,
+    "minecraft:gray_concrete_powder -> minecraft:gray_concrete": 1339,
+    "minecraft:light_gray_concrete_powder -> minecraft:light_gray_concrete": 14,
+    "minecraft:red_concrete_powder -> minecraft:red_concrete": 12,
+    "minecraft:red_sand -> minecraft:red_sandstone": 61,
+    "minecraft:sand -> minecraft:sandstone": 2072,
+    "minecraft:white_concrete_powder -> minecraft:white_concrete": 658
+  },
+  "propertyChanges": {
+    "leaves persistent -> true": 423
+  },
+  "omittedExecutableBlocks": {},
+  "omittedBlockEntityNbt": {
+    "minecraft:banner": 13,
+    "minecraft:beehive": 15,
+    "minecraft:campfire": 7,
+    "minecraft:sign": 382,
+    "minecraft:skull": 67
+  },
+  "notes": [
+    "Static block states only; no entities, block entity NBT, player data, datapacks or source resource packs.",
+    "Runtime layout coordinates are relative to origin; source crop coordinates are inclusive."
+  ],
+  "layoutSha256": "80f7cc967c8f656b6acf32da95f9914401c399a17d568b9dec4ca7c36e4fa8dd",
+  "geometrySha256": "2afc6fd9c58584fff4df603870029607be19d2ab483ef5cefff5f64e6da06670",
+  "geometryBytes": 562129,
+  "minecraftSourcesSha256": "9780274ba8ca382aa1071c480fef6c78207d965cdcf4c788bbb51f9d38d73cfa"
+}

@@ -493,8 +493,8 @@ public final class MatchManager {
                 return false;
             }
         } else if (type == MatchType.MYGO) {
-            // OP 可用两人练习；正式队列至少四人，同场双方始终等员。
-            if (players.size() < 2 || players.size() > 10 || players.size() % 2 != 0
+            // 正常匹配最低两人，同场双方始终等员；与队列读取同一最低人数。
+            if (players.size() < type.requiredPlayers() || players.size() > 10 || players.size() % 2 != 0
                     || players.stream().anyMatch(p -> !com.example.pvp.mygo.MyGoResourcePack.isReady(p))) {
                 return false;
             }
@@ -918,7 +918,7 @@ public final class MatchManager {
             case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceSize;
             case ISLAND_SIEGE -> 160;
             case MINECRAFT_PARTY -> 176;
-            case MYGO -> 112;
+            case MYGO -> 320; // 真实 Dust II 与独立阵亡室的实体清扫范围，仍小于 384 分区间距。
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO -> ArenaTemplate.Layout.DUEL_1V1;

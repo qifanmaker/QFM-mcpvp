@@ -24,7 +24,13 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=25575)
     parser.add_argument("--run-dir", type=Path)
     parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--legacy-config", action="store_true",
+                        help="Write an old unversioned empty pack URL to verify configuration migration.")
+    parser.add_argument("--previous-cdn-config", action="store_true",
+                        help="Verify a version-2 server migrates the previous broken texture-pack CDN.")
     args = parser.parse_args()
+    if args.legacy_config and args.previous_cdn_config:
+        parser.error("Choose one legacy resource-pack fixture")
     root = Path(__file__).resolve().parents[1]
     run_dir = (args.run_dir or root / "build/mygo-server-test").resolve()
     # A mistaken CLI argument must not overwrite an ordinary Minecraft server.
@@ -107,10 +113,18 @@ def main() -> None:
     (run_dir / "ops.json").write_text(json.dumps(operators, indent=2) + "\n")
     pack_config = run_dir / "config/pvp/mygo/resource-pack.json"
     pack_config.parent.mkdir(parents=True, exist_ok=True)
-    pack_config.write_text(json.dumps({
+    pack_settings = {
         "bindAddress": "127.0.0.1", "httpPort": args.port + 1,
         "advertisedHost": "127.0.0.1", "packUrl": "", "loadTimeoutSeconds": 10,
-    }, indent=2) + "\n")
+    }
+    # Ordinary protocol checks explicitly keep the local HTTP fixture. The
+    # legacy fixture deliberately omits the version to exercise public-URL migration.
+    if args.previous_cdn_config:
+        # The texture fix must reach already-upgraded live servers, not only fresh configs.
+        pack_settings.update(configVersion=2, packUrl="https://qfmaker.com/upload/files/5df4ab7h.zip")
+    elif not args.legacy_config:
+        pack_settings["configVersion"] = 1
+    pack_config.write_text(json.dumps(pack_settings, indent=2) + "\n")
     command = [str(java), "-Xms256M", "-Xmx2G", f"-Dfabric.dli.config={launch_file}",
                "-Dfabric.dli.env=server", "-Dfabric.dli.main=net.fabricmc.loader.impl.launch.knot.KnotServer",
                "-Dfile.encoding=UTF-8", "-Duser.language=en", "-Duser.country=US",

@@ -220,7 +220,7 @@ public final class PvpGuiManager {
 
     // ---------- 页面 ----------
 
-    /** 主菜单：PvP 对战、立体空岛战争、战桥、趣味小游戏、起床战争与功能入口。 */
+    /** 主菜单：PvP 对战、立体空岛战争、MyGO、战桥、趣味小游戏、起床战争与功能入口。 */
     public void openMainMenu(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.MAIN;
@@ -235,7 +235,7 @@ public final class PvpGuiManager {
         for (int slot = 0; slot < 36; slot++) {
             inv.setStack(slot, makeButton(Items.GRAY_STAINED_GLASS_PANE, " "));
         }
-        // 第 1 行：四大类（显示分类排队总人数）
+        // 模式入口：分类显示总排队人数，独立模式显示本模式人数。
         ItemStack pvp = makeButton(Items.DIAMOND_SWORD, "§b§lPvP 对战",
                 "1v1 / 2v2 / 自由乱斗 / 相扑",
                 "点击选择对战模式与套件");
@@ -252,6 +252,14 @@ public final class PvpGuiManager {
         this.applyQueueIndicator(skywars, player, PvPMod.QUEUE.countQueued(MatchType.SKYWARS));
         inv.setStack(10, skywars);
 
+        // MyGO 允许两人正常匹配，入口同步提示 1v1；火药可堆叠以完整显示排队人数。
+        inv.setStack(11, queueButton(Items.GUNPOWDER, "§6MyGO 枪战爆破", player, MatchType.MYGO,
+                "1v1~5v5 快速爆破，先赢七回合",
+                "工具枪械 / 经济购买 / 南瓜瞄准镜",
+                "左键点射，右键瞄准/关镜，F 换弹",
+                "首次点击下载资源包，加载成功后再次点击加入",
+                "十人立即开局，至少两人等待 60 秒等员开局"));
+
         ItemStack bridge = makeButton(Items.BRICK, "§3§l战桥",
                 "1v1 / 1v1v1v1 / 2v2 / 混战",
                 "跳进对方球门洞得分，先得 " + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜",
@@ -262,11 +270,11 @@ public final class PvpGuiManager {
 
         ItemStack games = makeButton(Items.FIREWORK_ROCKET, "§d§l趣味小游戏",
                 "幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋",
-                "MyGO 枪战 / Minecraft Party 2（移植中） / 海岛攻防",
+                "Minecraft Party 2（移植中） / 海岛攻防",
                 "点击选择小游戏");
         this.applyQueueIndicator(games, player, PvPMod.QUEUE.countQueued(
                 MatchType.LUCKY_PILLAR, MatchType.TNT_RUN, MatchType.HEARTBEAT, MatchType.HOT_POTATO,
-                MatchType.MINECRAFT_PARTY, MatchType.ISLAND_SIEGE, MatchType.MYGO));
+                MatchType.MINECRAFT_PARTY, MatchType.ISLAND_SIEGE));
         inv.setStack(13, games);
 
         ItemStack bedwars = makeButton(Items.RED_BED, "§c§l起床战争",
@@ -497,12 +505,6 @@ public final class PvpGuiManager {
                 "红队进攻、蓝队防守，先建防线再攻岛",
                 "进攻方完成三项目标中的两项获胜",
                 "装备由玩法统一发放，点击直接加入"));
-        inv.setStack(19, queueButton(Items.IRON_PICKAXE, "§6MyGO 枪战爆破", player, MatchType.MYGO,
-                "2v2~5v5 快速爆破，先赢七回合",
-                "工具枪械 / 经济购买 / 南瓜瞄准镜",
-                "右键点射，Shift 瞄准，F 换弹",
-                "首次点击下载资源包，加载成功后再次点击加入",
-                "十人立即开局，至少四人等待 60 秒等员开局"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
@@ -883,6 +885,7 @@ public final class PvpGuiManager {
             case 9 -> this.openPvpCategory(player);
             // 空岛战争无套件，直接加入
             case 10 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
+            case 11 -> this.joinQueue(player, MatchType.MYGO, KitManager.portedGameKit());
             case 12 -> this.openBridgeCategory(player);
             case 13 -> this.openGamesCategory(player);
             case 14 -> this.openBedWarsCategory(player);
@@ -979,7 +982,6 @@ public final class PvpGuiManager {
             case 16 -> MatchType.BOAT_RACE;
             case 17 -> MatchType.MINECRAFT_PARTY;
             case 18 -> MatchType.ISLAND_SIEGE;
-            case 19 -> MatchType.MYGO;
             default -> null;
         };
         if (type == null) {
@@ -992,7 +994,7 @@ public final class PvpGuiManager {
             case VILLAGE_DEFENSE -> KitManager.villageDefenseKit();
             case COLORBLIND_PARTY -> KitManager.colorblindPartyKit();
             case BOAT_RACE -> KitManager.boatRaceKit();
-            case MINECRAFT_PARTY, ISLAND_SIEGE, MYGO -> KitManager.portedGameKit();
+            case MINECRAFT_PARTY, ISLAND_SIEGE -> KitManager.portedGameKit();
             default -> KitManager.hotPotatoKit();
         };
         this.joinQueue(player, type, kit);
@@ -1153,8 +1155,8 @@ public final class PvpGuiManager {
                         + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛；原版船 + 随机冰面赛道，跑 "
                         + PvPConfig.INSTANCE.boatRaceLaps + " 圈"), false);
             } else if (type == MatchType.MYGO) {
-                player.sendMessage(Messages.info("已加入 MyGO：十人立即开局，至少四人等待 60 秒等员开局；"
-                        + "右键点射、Shift 瞄准、F 换弹、/pvp mygo 打开商店"), false);
+                player.sendMessage(Messages.info("已加入 MyGO：十人立即开局，至少两人等待 60 秒等员开局；"
+                        + "左键点射、右键瞄准/关镜、F 换弹、/pvp mygo 打开商店"), false);
             } else if (type.isPortedGame()) {
                 player.sendMessage(Messages.info("已加入" + type.getDisplayName() + "：凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛；至少 " + MatchType.PORTED_MIN_PLAYERS

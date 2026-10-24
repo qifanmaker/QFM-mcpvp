@@ -468,8 +468,8 @@ public final class PvPCommands {
                         + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛；原版船 + 每场随机生成的冰面赛道（"
                         + PvPConfig.INSTANCE.boatRaceLaps + " 圈）"), false);
             } else if (type == MatchType.MYGO) {
-                player.sendMessage(Messages.info("已加入 MyGO：十人立即开局，至少四人等待 60 秒等员开局；"
-                        + "右键点射、Shift 瞄准、F 换弹、/pvp mygo 打开购买菜单"), false);
+                player.sendMessage(Messages.info("已加入 MyGO：十人立即开局，至少两人等待 60 秒等员开局；"
+                        + "左键点射、右键瞄准/关镜、F 换弹、/pvp mygo 打开购买菜单"), false);
             } else if (type.isPortedGame()) {
                 player.sendMessage(Messages.info("已加入" + type.getDisplayName() + "：凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛；至少 " + MatchType.PORTED_MIN_PLAYERS

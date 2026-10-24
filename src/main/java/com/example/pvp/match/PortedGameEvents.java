@@ -83,7 +83,7 @@ public final class PortedGameEvents {
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             Match match = matchOf(player);
-            // 准星指向玩家时原版走实体交互；仍须开枪，且不能落回原版工具行为。
+            // 准星指向玩家时右键仍可开镜，且不能落回原版工具行为。
             if (player instanceof ServerPlayerEntity sp && match != null
                     && match.portedSession() instanceof com.example.pvp.mygo.MyGoSession session) {
                 if (match.getState() != MatchState.ACTIVE) return ActionResult.FAIL;

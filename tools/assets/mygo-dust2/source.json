@@ -1,0 +1,20 @@
+{
+  "title": "[LesRaisins | CSGO] Dust II",
+  "version": "dust II-0.1",
+  "authors": ["LeComte", "LesRaisins Studio"],
+  "publisher": "xjqsh / LesRaisinsStudio",
+  "projectUrl": "https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-dust-ii",
+  "authorUrl": "https://www.planetminecraft.com/project/dust2-from-cs-go-made-by-lesraisins/",
+  "fileUrl": "https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-dust-ii/files/5637196",
+  "downloadUrl": "https://mediafilez.forgecdn.net/files/5637/196/dust2.zip",
+  "archiveSha256": "3debce04b6fb9183038b88a0a751927a7b431e23a3a52ee4d9fa570710085803",
+  "sha256": "3debce04b6fb9183038b88a0a751927a7b431e23a3a52ee4d9fa570710085803",
+  "sourceMinecraftVersion": "1.16.5",
+  "sourceDataVersion": 2586,
+  "publishedAt": "2024-08-17",
+  "reviewedAt": "2026-10-24",
+  "license": "Custom non-commercial permission with retained copyright information; all other rights reserved",
+  "copyright": "Minecraft recreation by LeComte / LesRaisins Studio. Original Dust II map copyright Valve.",
+  "permissionText": "Archives, images, projects, and presentation files of this map are allowed to be used for non-commercial purposes or to be filmed and shared for non-commercial purposes, provided that the copyright information is retained (which must be retained).\n\nAny commercial use or re-creation for commercial use is prohibited, unless authorized by the author.\n\nProhibited behaviors include, but are not limited to: Claiming this is your work, selling this work, uploading this work to NetEase Minecraft, posting or republishing this work without retaining copyright information.",
+  "adaptation": "Static architectural blocks cropped for MyGO; stable gravity blocks, dry states, persistent leaves and extinguished campfires. MyGO adds its own spawn, buy-zone and bomb-site configuration. Source world logic and player data are omitted."
+}

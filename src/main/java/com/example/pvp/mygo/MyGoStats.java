@@ -48,7 +48,7 @@ public final class MyGoStats {
     }
 
     public static void record(List<ServerPlayerEntity> players, Set<UUID> winners) {
-        // 两人 OP 强开仅供练习，不能用来刷正式记录。
+        // 双人局不计正式记录，避免互刷战绩；开局入口不影响这一规则。
         if (players.size() < 4) return;
         Map<String, Entry> records = entries();
         for (ServerPlayerEntity player : players) {

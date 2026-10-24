@@ -37,10 +37,13 @@ import java.util.function.Consumer;
 
 /**
  * MyGO 的枪械和瞄准镜依赖客户端资源，故在排队前确认实际加载成功，而非只接受下载提示。
- * 内置 HTTP 仅供本机、局域网测试；公网服应将导出的同一 ZIP 托管至 HTTPS 并配置 packUrl。
+ * 默认使用独立 HTTPS 下载地址，内置 HTTP 仅供本机、局域网测试。
  * 所有状态在服务器线程管理，退包仅指定 MyGO UUID，不影响服务器已有的其他资源包。
  */
 public final class MyGoResourcePack {
+    static final String DEFAULT_PACK_URL = "https://qfmaker.com/upload/files/zevadwr3.zip";
+    private static final String PREVIOUS_PACK_URL = "https://qfmaker.com/upload/files/5df4ab7h.zip";
+    private static final String ORIGINAL_PACK_URL = "https://qfmaker.com/upload/files/wmcvlnck.zip";
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Map<UUID, LoadState> STATES = new HashMap<>();
@@ -63,14 +66,17 @@ public final class MyGoResourcePack {
         try {
             Files.createDirectories(directory);
             Path configPath = directory.resolve("resource-pack.json");
+            boolean writeConfig = !Files.exists(configPath);
             if (Files.exists(configPath)) {
                 Config parsed = GSON.fromJson(Files.readString(configPath), Config.class);
                 config = parsed == null ? new Config() : parsed;
             } else {
                 config = new Config();
-                Files.writeString(configPath, GSON.toJson(config));
             }
             config.validate();
+            // 升级旧空配置与上一版默认 CDN；已显式选择的局域网 HTTP、自定义 CDN 保留。
+            writeConfig |= config.migrate();
+            if (writeConfig) Files.writeString(configPath, GSON.toJson(config));
             try (InputStream input = MyGoResourcePack.class.getResourceAsStream("/pvp/mygo/mygo-pack.zip")) {
                 if (input == null) {
                     throw new IOException("mod 缺少 /pvp/mygo/mygo-pack.zip");
@@ -289,12 +295,24 @@ public final class MyGoResourcePack {
     private record LoadState(boolean ready, long deadline) {
     }
 
-    private static final class Config {
-        String packUrl = "";
+    static final class Config {
+        int configVersion = 0;
+        String packUrl = DEFAULT_PACK_URL;
         String bindAddress = "0.0.0.0";
         int httpPort = 25566;
         String advertisedHost = "";
         int loadTimeoutSeconds = 120;
+
+        boolean migrate() {
+            if (configVersion >= 3) return false;
+            // 旧默认包的枪械纹理未进入原版图集；升级下载地址，同时保留管理员显式选择的 HTTP 或自定义 CDN。
+            if ((configVersion < 1 && packUrl.isBlank()) || PREVIOUS_PACK_URL.equals(packUrl)
+                    || ORIGINAL_PACK_URL.equals(packUrl)) {
+                packUrl = DEFAULT_PACK_URL;
+            }
+            configVersion = 3;
+            return true;
+        }
 
         void validate() {
             packUrl = packUrl == null ? "" : packUrl.trim();

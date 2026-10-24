@@ -1,0 +1,46 @@
+MyGO bundled Dust II geometry — third-party copyright and usage notice
+
+Map: [LesRaisins | CSGO] Dust II / dust II-0.1
+Minecraft recreation: LeComte / LesRaisins Studio
+CurseForge publisher: xjqsh / LesRaisinsStudio
+Original Dust II map: copyright Valve
+
+Primary project:
+https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-dust-ii
+Original author page:
+https://www.planetminecraft.com/project/dust2-from-cs-go-made-by-lesraisins/
+Source release:
+https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-dust-ii/files/5637196
+Source ZIP SHA-256:
+3debce04b6fb9183038b88a0a751927a7b431e23a3a52ee4d9fa570710085803
+
+The source project reserves copyright and provides the following specific
+non-commercial permission. It is not an unrestricted open-source map license.
+Retain this copyright and permission notice when sharing this map or the Mod
+that contains it. Commercial use requires separate permission from the author.
+
+Author's permission text (reviewed 2026-10-24):
+
+Archives, images, projects, and presentation files of this map are allowed to be
+used for non-commercial purposes or to be filmed and shared for non-commercial
+purposes, provided that the copyright information is retained (which must be
+retained).
+
+Any commercial use or re-creation for commercial use is prohibited, unless
+authorized by the author.
+
+Prohibited behaviors include, but are not limited to: Claiming this is your work,
+selling this work, uploading this work to NetEase Minecraft, posting or
+republishing this work without retaining copyright information.
+
+MyGO adaptation:
+Only cropped static block states are distributed. MyGO's own gameplay supplies
+the spawn points and orientations, buy zones, bomb sites and isolated spectator
+room. Falling blocks are replaced with stable materials; waterlogging is
+disabled, leaves persist and decorative campfires are extinguished. Entities,
+block-entity NBT, commands, datapacks, player data and source resource packs are
+not imported. The architectural design remains credited to the authors above.
+
+中文说明：地图建筑由 LesRaisins Studio 的 LeComte 制作，原 Dust II 地图版权归
+Valve。作者仅允许保留版权信息的非商业使用与分享；商业使用须另获作者授权。
+禁止冒充原创、出售、上传网易 Minecraft 或删除署名后重新发布。
