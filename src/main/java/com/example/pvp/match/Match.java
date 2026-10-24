@@ -3885,8 +3885,8 @@ public final class Match {
             player.sendMessage(Messages.warn("脚下有方块，无法展开自救平台"), true);
             return false;
         }
-        // 留一格缓冲：平台放在脚下两格，避免右键触发与下落同步存在延迟时卡进平台
-        BlockPos platform = feet.down(2);
+        // 留出四格缓冲：平台放在脚下五格，避免右键触发与下落同步存在延迟时卡进平台
+        BlockPos platform = feet.down(5);
         int placed = 0;
         for (int dx = -2; dx <= 2; dx++) {
             for (int dz = -2; dz <= 2; dz++) {
