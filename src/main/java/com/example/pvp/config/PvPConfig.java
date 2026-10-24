@@ -30,7 +30,7 @@ public final class PvPConfig {
      * 老文件里的旧值会一直盖着，表现就是"明明改了却没生效"。版本号让代码能识别出
      * "默认值世代变了"，从而主动整份重置为新默认值并写回文件。
      */
-    public static final int CURRENT_CONFIG_VERSION = 16;
+    public static final int CURRENT_CONFIG_VERSION = 17;
 
     /**
      * 生成这份文件时的配置版本。
@@ -103,16 +103,13 @@ public final class PvPConfig {
     public int skywarsShrinkMinRadius = 8;
     /** 开赛多少秒后触发"物资刷新"事件：清空并重新塞满全图所有箱子（默认 180s=3 分钟）。 */
     /**
-     * 空岛战争"掉入虚空"的判定深度（相对 {@code PLATFORM_Y} 往下多少格）。
+     * 空岛战争"掉入虚空"的兼容配置值（保留用于旧配置迁移）。
      *
      * <p>原来硬编码 -8 格，太浅了：空岛地图的构建/清理盒本身就到 -16 格，
      * 从高岛往低处跳、下落超过 8 格就会在空中被判成"掉入虚空"，
-     * 结果白吃一个不死图腾并被传送回去。现在放到 24，只有真正掉出地图较深处才会触发。
-     *
-     * <p>空岛没有单独的浅层淘汰线，竞技场世界的虚空兜底远低于地图结构；
-     * 因此这里下移到 24，避免从高低岛之间跳落时在地图附近就误触发。
+     * <p>实际判定以竞技场世界的 {@code bottomY} 为准，在极限死亡高度前一格触发。
      */
-    public int skywarsVoidSaveDepth = 24;
+    public int skywarsVoidSaveDepth = 164;
 
     public int skywarsRefillSeconds = 180;
 

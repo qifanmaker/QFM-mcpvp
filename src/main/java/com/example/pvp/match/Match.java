@@ -961,8 +961,8 @@ public final class Match {
         if (arena == null) {
             return;
         }
-        // 判定深度可配（默认 24）：低于地图最低岛体后再触发，避免高低岛之间跳落误吃图腾
-        double rescueY = ArenaTemplate.PLATFORM_Y - PvPConfig.INSTANCE.skywarsVoidSaveDepth;
+        // 以竞技场世界底部为准，在 Minecraft 极限虚空死亡前一格才触发，避免高空误吃图腾
+        double rescueY = arena.getBottomY() + 1.0;
         for (ServerPlayerEntity player : this.players) {
             if (this.eliminated.contains(player.getUuid())) {
                 continue;
