@@ -152,9 +152,12 @@ async function status(id) {
   await chat(id, '/pvp mygo status', 180);
   const message = chats.slice(start).find(entry => entry.id === id && entry.message.includes('MyGO round='))?.message;
   if (!message) throw new Error(`No MyGO status for bot ${id}`);
+  return parseStatusMessage(message);
+}
+function parseStatusMessage(message) {
   const state = Object.fromEntries([...message.matchAll(/([A-Za-z]+)=([^ ]+)/g)].map(match => [match[1], match[2]]));
-  for (const key of ['round', 'remainingTicks', 'team', 'hp', 'cash', 'ammo', 'reserve', 'kills', 'activeGrenades', 'smokes', 'moveSpeed', 'walkSpeed']) state[key] = Number(state[key]);
-  for (const key of ['alive', 'vest', 'helmet', 'bombPlanted', 'scoped', 'awZoom']) state[key] = state[key] === 'true';
+  for (const key of ['round', 'remainingTicks', 'team', 'hp', 'cash', 'ammo', 'reserve', 'kills', 'activeGrenades', 'smokes', 'moveSpeed', 'walkSpeed', 'scopeLevel', 'scopeFov', 'buyTicks', 'lossLevel', 'armor']) state[key] = Number(state[key]);
+  for (const key of ['alive', 'vest', 'helmet', 'bombPlanted', 'scoped', 'awZoom', 'usingItem']) if (key in state) state[key] = state[key] === 'true';
   for (const key of ['range', 'spawn', 'waiting']) {
     const [x,y,z] = state[key].split(',').map(Number);
     state[key] = {x,y,z};
@@ -662,6 +665,405 @@ async function twoPlayerAuto() {
   return {initial, ...summary};
 }
 
+// Reason: the old smoke scenario encoded the PUBG arsenal and quick-round
+// economy. Exercise the CS:GO replacement with real earnings and purchases,
+// including timing boundaries, rather than manufacturing money in debug code.
+function csgoSendLook(id) {
+  // Mineflayer look(force=true) only changes its local orientation; its next
+  // physics update sends the packet later. Emit look now so a following swing
+  // cannot reach the server before the intended aim direction.
+  const entity = bots[id].entity;
+  bots[id]._client.write('look', {yaw: (Math.PI - entity.yaw) * 180 / Math.PI,
+    pitch: -entity.pitch * 180 / Math.PI, onGround: true});
+}
+async function csgoLookAt(id, point) {
+  await bots[id].lookAt(point, true); csgoSendLook(id); await sleep(80);
+}
+async function csgoLook(id, yaw, pitch) {
+  await bots[id].look(yaw, pitch, true); csgoSendLook(id); await sleep(80);
+}
+async function csgoState(id, predicate, timeout = 10000, label = 'CS:GO state') {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const state = await status(id);
+    if (predicate(state)) return state;
+    await sleep(120);
+  }
+  throw new Error(`Timeout waiting for ${label} (${id})`);
+}
+async function csgoScopeClick(id) {
+  // Always send each click; the previous Boolean helper cannot distinguish
+  // first scope, second scope and the third click that closes the optic.
+  await sleep(350); bots[id].activateItem(); await sleep(180);
+  return status(id);
+}
+function csgoFov(id, state) {
+  return 70 * ((state.moveSpeed / abilities[id]?.walkingSpeed + 1) / 2);
+}
+async function csgoPlant(id, site, cash) {
+  await teleport(id, site); await select(id, 5);
+  bots[id].setControlState('sneak', true); await sleep(150);
+  const startedAt = Date.now(); bots[id].activateItem();
+  await sleep(2600);
+  const early = await status(id);
+  check('C4 has not completed before the 3.2 second channel', !early.bombPlanted,
+    {elapsedMs: Date.now() - startedAt, state: early}, 'still installing before 3.2 seconds');
+  const planted = await csgoState(id, state => state.bombPlanted, 2500, '3.2 second C4 installation');
+  const elapsedMs = Date.now() - startedAt;
+  check('C4 installation uses 3.2 seconds and starts a 40 second fuse', elapsedMs >= 3100 && elapsedMs < 4500
+    && planted.remainingTicks <= 800 && planted.remainingTicks > 760 && planted.cash === cash + 300,
+    {elapsedMs, planted}, '3.2 seconds; 40 second fuse; planter +$300');
+  bots[id].setControlState('sneak', false);
+  return planted;
+}
+async function csgoDefuse(id, site, seconds, cash) {
+  await teleport(id, {...site, z: site.z + 1}); await select(id, 5);
+  bots[id].setControlState('sneak', true); await sleep(150);
+  const startedAt = Date.now(); bots[id].activateItem();
+  await sleep((seconds - 1.1) * 1000);
+  const early = await status(id);
+  check(`${seconds} second defuse has not completed one second early`, early.phase === 'LIVE' && early.bombPlanted,
+    {elapsedMs: Date.now() - startedAt, state: early}, 'still defusing');
+  const result = await csgoState(id, state => state.phase === 'POST', 2600, `${seconds} second defuse`);
+  const elapsedMs = Date.now() - startedAt;
+  check(`${seconds} second defuse pays personal and bomb-defuse victory rewards`, elapsedMs >= seconds * 1000 - 100
+    && elapsedMs < seconds * 1000 + 1600 && result.cash === cash + 300 + 3500,
+    {elapsedMs, result}, `${seconds}s; personal $300 plus team $3500`);
+  bots[id].setControlState('sneak', false);
+  return result;
+}
+async function csgo() {
+  const ids = Object.keys(bots);
+  await waitUntil(() => ids.every(id => bots[id].entity), 30000, 'CS:GO four clients');
+  check('CS:GO regression has four real 1.21.1 clients', ids.length === 4 && ids.every(id => bots[id].version === '1.21.1'), ids, 'ABCD');
+  for (const id of ids) await chat(id, '/hub', 100);
+  await sleep(6500);
+  const lobby = Object.fromEntries(ids.map(id => [id, bots[id].testWorldName]));
+  for (const id of ids) {
+    await chat('A', `/item replace entity MyGoCheck${id} armor.head with minecraft:golden_helmet`, 100);
+    await chat('A', `/item replace entity MyGoCheck${id} hotbar.7 with minecraft:apple 3`, 100);
+  }
+  const packAt = chats.length;
+  for (const id of ids) await chat(id, '/pvp join mygo', 180);
+  await waitUntil(() => ids.every(id => packs[id] && chats.slice(packAt).some(entry => entry.id === id
+    && entry.message.includes('MyGO 资源包加载成功'))), 25000, 'all CS:GO resource packs acknowledged by server');
+  for (const id of ids) await chat(id, '/pvp join mygo', 100);
+  await chat('A', '/pvp start', 100);
+  await waitUntil(() => ids.every(id => bots[id].inventory.items().some(item => item.name === 'iron_pickaxe')), 30000, 'CS:GO opening loadouts');
+  for (const id of ids) await select(id, 1);
+  const opening = Object.fromEntries(await Promise.all(ids.map(async id => [id, await status(id)])));
+  const terrorists = ids.filter(id => opening[id].side === 'T'), cts = ids.filter(id => opening[id].side === 'CT');
+  check('opening is balanced 2v2 with $800 and 100 HP', terrorists.length === 2 && cts.length === 2
+    && Object.values(opening).every(state => state.cash === 800 && state.hp === 100 && state.phase === 'BUY'), opening, 'two T / two CT; $800; 100 HP; freeze');
+  for (const id of terrorists) check(`${id} T starts with Glock-18 and 20/120 ammunition`, opening[id].gun === 'GLOCK'
+    && opening[id].pistol === 'GLOCK' && opening[id].ammo === 20 && opening[id].reserve === 120, opening[id], 'GLOCK 20/120');
+  for (const id of cts) check(`${id} CT starts with USP-S and 12/24 ammunition`, opening[id].gun === 'USP_S'
+    && opening[id].pistol === 'USP_S' && opening[id].ammo === 12 && opening[id].reserve === 24, opening[id], 'USP_S 12/24');
+  const firstFreeze = opening[ids[0]], freezeStart = Date.now() - (300 - firstFreeze.remainingTicks) * 50;
+  check('freeze and independent buy deadline are initialized to 15 plus 20 seconds', firstFreeze.remainingTicks <= 300
+    && firstFreeze.remainingTicks > 240 && Math.abs(firstFreeze.buyTicks - firstFreeze.remainingTicks - 400) <= 1,
+    firstFreeze, '15 second freeze; purchase deadline 20 seconds after unfreeze');
+  let carrier = terrorists.find(id => bots[id].inventory.items().some(item => item.name === 'redstone'));
+  const gunner = terrorists.find(id => id !== carrier), defuser = cts[0], rifleman = cts[1];
+  check('one of the two T players receives C4', !!carrier && terrorists.filter(id => bots[id].inventory.items().some(item => item.name === 'redstone')).length === 1, carrier, 'one carrier');
+  const site = opening[carrier].sites.at(-1), range = opening[carrier].range;
+  await chat(gunner, '/pvp mygo', 180);
+  check('54-slot shop exposes all 34 guns without overflowing equipment slots', bots[gunner].currentWindow?.slots.length === 90
+    && bots[gunner].currentWindow.slots.slice(9, 43).every(item => item?.name === 'iron_pickaxe')
+    && stringify(bots[gunner].currentWindow.slots.slice(9, 43)).includes('Negev'),
+    {size: bots[gunner].currentWindow?.slots.length, guns: bots[gunner].currentWindow?.slots.slice(9, 43).map(itemInfo)}, '54 shop plus 36 player slots, 34 guns');
+  // P250 is enum ordinal 3, immediately following the three starting pistols.
+  await bots[gunner].clickWindow(12, 0, 0); await sleep(180);
+  bots[gunner].closeWindow(bots[gunner].currentWindow); await select(gunner, 1);
+  let state = await status(gunner);
+  check('buying a P250 replaces only the sidearm and costs $300', state.pistol === 'P250' && state.gun === 'P250'
+    && state.cash === 500 && state.ammo === 13 && state.reserve === 26, state, 'P250 13/26; cash $500');
+  await chat(gunner, '/pvp mygo buy usp_s', 100);
+  check('T cannot buy the CT USP-S', (await status(gunner)).cash === 500 && (await status(gunner)).pistol === 'P250', await status(gunner), 'unchanged P250 and $500');
+  await chat(defuser, '/pvp mygo buy glock', 100);
+  check('CT cannot buy the T Glock-18', (await status(defuser)).cash === 800 && (await status(defuser)).pistol === 'USP_S', await status(defuser), 'unchanged USP-S and $800');
+  await chat(rifleman, '/pvp mygo buy vest', 100);
+  check('pistol-round vest costs $650', (await status(rifleman)).cash === 150 && (await status(rifleman)).armor === 100, await status(rifleman), '$150 and 100 armor');
+  const live = await waitPhase(defuser, 'LIVE', 20000), freezeElapsedMs = Date.now() - freezeStart;
+  check('unfreezing starts a 115-second round and separate 20-second buying period', freezeElapsedMs >= 14500 && freezeElapsedMs < 17500
+    && live.remainingTicks <= 2300 && live.remainingTicks > 2240 && live.buyTicks <= 400 && live.buyTicks > 340,
+    {freezeElapsedMs, live}, '15 second freeze, 115 second round, 20 second live buying');
+  await chat(defuser, '/pvp mygo buy p250', 100); await select(defuser, 1);
+  state = await status(defuser);
+  check('buying remains possible in spawn after unfreezing', state.pistol === 'P250' && state.cash === 500, state, 'P250; $500 during LIVE');
+  await teleport(defuser, site); await chat(defuser, '/pvp mygo buy flash', 100);
+  check('leaving the buy zone denies purchases before the timer expires', (await status(defuser)).cash === 500, await status(defuser), '$500 unchanged outside buy zone');
+  await teleport(defuser, opening[defuser].spawn);
+  const buying = await status(defuser);
+  await sleep(Math.max(0, buying.buyTicks * 50 + 200));
+  await chat(defuser, '/pvp mygo buy flash', 100);
+  state = await status(defuser);
+  check('the 20-second live purchase deadline denies purchases even back at spawn', state.buyTicks === 0 && state.cash === 500
+    && state.phase === 'LIVE' && !bots[defuser].currentWindow, state, 'LIVE, no remaining buy ticks, $500 unchanged');
+  await csgoPlant(carrier, site, 800);
+  const firstPost = await csgoDefuse(defuser, site, 10, 500);
+  const firstResult = Object.fromEntries(await Promise.all(ids.map(async id => [id, await status(id)])));
+  check('first T loss starts at $1900 and adds $800 to every T after a defused plant', firstResult[carrier].cash === 3800
+    && firstResult[gunner].cash === 3200 && terrorists.every(id => firstResult[id].lossLevel === 2), firstResult,
+    'carrier 800+300+1900+800=3800, partner 500+1900+800=3200; next loss level 2');
+  check('CT victory lowers loss level by one and pays $3500 to both CTs', firstPost.cash === 4300
+    && firstResult[rifleman].cash === 3650 && cts.every(id => firstResult[id].lossLevel === 0), firstResult,
+    'defuser 500+300+3500=4300; partner 150+3500=3650; next loss level 0');
+  await waitPhase(defuser, 'BUY', 10000);
+  await chat(gunner, '/pvp mygo buy ak47', 100); await select(gunner, 0);
+  check('saved loss money buys the T AK-47 at $2700', (await status(gunner)).gun === 'AK47'
+    && (await status(gunner)).cash === 500, await status(gunner), 'AK47; cash $500');
+  await chat(rifleman, '/pvp mygo buy aug', 100); await select(rifleman, 0);
+  check('CT can buy its $3300 AUG after winning', (await status(rifleman)).gun === 'AUG'
+    && (await status(rifleman)).cash === 350, await status(rifleman), 'AUG; cash $350');
+  await chat(defuser, '/pvp mygo buy kit', 100);
+  check('defuse kit costs $400', (await status(defuser)).cash === 3900, await status(defuser), '$4300 - $400 = $3900');
+  await waitPhase(gunner, 'LIVE', 20000);
+  await teleport(gunner, range); await teleport(rifleman, {...range, x: range.x + 6});
+  await sleep(400);
+  state = await csgoScopeClick(gunner);
+  check('right click does not attach an optic to AK-47', state.scopeLevel === 0 && !state.scoped
+    && bots[gunner].inventory.slots[5]?.name !== 'carved_pumpkin', state, 'unscoped AK47');
+  const armorBefore = await status(rifleman);
+  await csgoLookAt(gunner, bots[rifleman].entity.position.offset(0, .9, 0));
+  await trigger(gunner, 1, 300);
+  const akShot = await status(gunner), armorAfter = await status(rifleman);
+  check('left click AK-47 fires one bullet and preserves its shooter', akShot.ammo === 29 && akShot.alive && akShot.hp === 100,
+    akShot, '30 to 29, alive at 100 HP');
+  check('a real armored body hit consumes armor as well as HP', armorAfter.hp < armorBefore.hp && armorAfter.hp > 0
+    && armorAfter.armor < armorBefore.armor && armorAfter.armor > 0, {armorBefore, armorAfter}, 'armor and health both decrease without death');
+  const augNormal = {...abilities[rifleman]}, augAimed = await csgoScopeClick(rifleman);
+  check('AUG has one 45-degree scope stage with unchanged server abilities', augAimed.scopeLevel === 1
+    && augAimed.scopeFov === 45 && augAimed.scoped && Math.abs(csgoFov(rifleman, augAimed) - 45) < .02
+    && Math.abs(augAimed.walkSpeed - .1) < 1e-6 && abilities[rifleman].flags === augNormal.flags
+    && abilities[rifleman].flyingSpeed === augNormal.flyingSpeed && augAimed.usingItem === false,
+    {state: augAimed, packet: abilities[rifleman], computedFov: csgoFov(rifleman, augAimed)}, 'one 45-degree stage; no item-use lock or permission change');
+  await csgoLook(rifleman, 0, -1.2); await trigger(rifleman, 1, 300);
+  check('scoped AUG left click remains usable', (await status(rifleman)).ammo === 29 && (await status(rifleman)).alive, await status(rifleman), '29 bullets, alive');
+  state = await csgoScopeClick(rifleman);
+  check('second AUG right click closes its only scope stage', state.scopeLevel === 0 && !state.scoped
+    && Math.abs(abilities[rifleman].walkingSpeed - .1) < 1e-6, state, 'closed; client walk baseline .1');
+  carrier = terrorists.find(id => bots[id].inventory.items().some(item => item.name === 'redstone'));
+  const secondPlantCash = (await status(carrier)).cash;
+  await csgoPlant(carrier, site, secondPlantCash);
+  const secondPost = await csgoDefuse(defuser, site, 5, 3900);
+  check('second T loss advances to $2400 instead of resetting after a CT win', (await status(carrier)).cash === secondPlantCash + 300 + 2400 + 800
+    && (await status(carrier)).lossLevel === 3, await status(carrier), '$300 planter + $2400 loss + $800 planted loss; next level 3');
+  await waitPhase(defuser, 'BUY', 10000);
+  const carriedArmor = await status(rifleman);
+  check('surviving armor damage persists across rounds', carriedArmor.armor < 100 && carriedArmor.armor > 0
+    && carriedArmor.hp === 100 && carriedArmor.gun === 'AUG', carriedArmor, 'HP resets, worn armor and AUG persist');
+  await chat(rifleman, '/pvp mygo buy vest', 100);
+  const repaired = await status(rifleman);
+  check('repairing worn armor costs $650', repaired.armor === 100 && repaired.cash === carriedArmor.cash - 650,
+    {carriedArmor, repaired}, '100 armor for $650');
+  await chat(rifleman, '/pvp mygo buy helmet', 100);
+  check('adding a helmet to full armor costs only $350', (await status(rifleman)).helmet
+    && (await status(rifleman)).cash === repaired.cash - 350, await status(rifleman), 'helmet for $350');
+  await chat(defuser, '/pvp mygo buy awp', 100); await select(defuser, 0);
+  const awpBought = await status(defuser);
+  check('earned economy buys the final CS:GO AWP with a five-round magazine', awpBought.gun === 'AWP'
+    && awpBought.cash === secondPost.cash - 4750 && awpBought.ammo === 5 && awpBought.reserve === 30,
+    awpBought, '$4750; AWP 5/30');
+  await waitPhase(defuser, 'LIVE', 20000); await select(defuser, 0);
+  const awpNormal = {...abilities[defuser]}, awpUnscoped = await status(defuser);
+  const awpFirst = await csgoScopeClick(defuser);
+  check('AWP first right click selects 40 degrees', awpFirst.scopeLevel === 1 && awpFirst.scopeFov === 40
+    && awpFirst.scoped && Math.abs(csgoFov(defuser, awpFirst) - 40) < .02,
+    {state: awpFirst, packet: abilities[defuser]}, 'scope level 1 at 40 degrees');
+  const awpSecond = await csgoScopeClick(defuser);
+  check('AWP second right click selects a real 10-degree view', awpSecond.scopeLevel === 2 && awpSecond.scopeFov === 10
+    && Math.abs(csgoFov(defuser, awpSecond) - 10) < .02 && awpSecond.usingItem === false
+    && Math.abs(awpSecond.walkSpeed - .1) < 1e-6 && awpSecond.moveSpeed > 0
+    && abilities[defuser].flags === awpNormal.flags && abilities[defuser].flyingSpeed === awpNormal.flyingSpeed,
+    {state: awpSecond, packet: abilities[defuser], computedFov: csgoFov(defuser, awpSecond)}, 'scope level 2 at 10 degrees; positive server movement; unchanged permissions');
+  await csgoLook(defuser, 0, -1.2); await trigger(defuser, 1, 300);
+  const awpFired = await status(defuser);
+  check('AWP fires from second scope and temporarily unzooms to cycle its bolt', awpFired.ammo === 4 && awpFired.hp === 100
+    && awpFired.alive && awpFired.scopeLevel === 0 && !awpFired.scoped, awpFired, '5 to 4 bullets, 100 HP, temporarily unscoped');
+  const awpRescoped = await csgoState(defuser, value => value.scopeLevel === 2, 2500, 'AWP automatic return to previous scope stage');
+  check('AWP returns to the previous 10-degree scope after its firing cycle', awpRescoped.ammo === 4 && awpRescoped.scoped
+    && Math.abs(csgoFov(defuser, awpRescoped) - 10) < .02, {state: awpRescoped, packet: abilities[defuser]}, 'level 2 restores automatically without another shot');
+  const awpClosed = await csgoScopeClick(defuser);
+  check('AWP third right click returns to the original view', awpClosed.scopeLevel === 0 && !awpClosed.scoped
+    && Math.abs(abilities[defuser].walkingSpeed - awpNormal.walkingSpeed) < 1e-6
+    && Math.abs(awpClosed.moveSpeed - awpUnscoped.moveSpeed) < 1e-6
+    && !bots[defuser].inventory.slots[5], awpClosed, 'unscoped; empty in-match head slot, original movement and ability baseline');
+  await csgoScopeClick(defuser); await trigger(defuser, 1, 120); await select(defuser, 1);
+  await sleep(1600);
+  state = await status(defuser);
+  check('switching to a sidearm during the AWP bolt cycle cancels automatic rescope', state.scopeLevel === 0 && !state.scoped
+    && Math.abs(abilities[defuser].walkingSpeed - .1) < 1e-6, state, 'unscoped P250; client baseline .1');
+  state = await csgoScopeClick(defuser);
+  check('right click on P250 cannot reopen the AWP scope', state.scopeLevel === 0 && !state.scoped, state, 'unscoped P250');
+  await select(defuser, 0); await teleport(defuser, range); await teleport(gunner, {...range, x: range.x + 6});
+  await csgoScopeClick(defuser); await csgoScopeClick(defuser); await sleep(500);
+  await csgoLookAt(defuser, bots[gunner].entity.position.offset(0, .9, 0));
+  const beforeKill = await status(defuser);
+  await trigger(defuser, 1, 350);
+  const afterKill = await status(defuser), victim = await status(gunner);
+  check('real AWP elimination awards its $100 weapon reward', !victim.alive && victim.hp === 0
+    && afterKill.kills === beforeKill.kills + 1 && afterKill.cash === beforeKill.cash + 100,
+    {beforeKill, afterKill, victim}, 'one death; AWP +$100');
+  for (const id of ids) { bots[id].setControlState('sneak', false); await chat(id, '/hub', 200); }
+  await sleep(300);
+  for (const id of ids) check(`${id} exits with original lobby inventory, helmet and abilities`, bots[id].testWorldName === lobby[id]
+    && bots[id].inventory.slots[5]?.name === 'golden_helmet'
+    && bots[id].inventory.items().some(item => item.name === 'apple' && item.count === 3)
+    && !bots[id].inventory.items().some(item => item.name === 'iron_pickaxe') && !packs[id]
+    && Math.abs(abilities[id].walkingSpeed - .1) < 1e-6, snapshot(id), 'gold helmet, three apples, no MyGO equipment/pack, client baseline .1');
+  const summary = {passed: assertions.filter(result => result.pass).length, failed: assertions.filter(result => !result.pass).length,
+    rounds: 3, fundedByNormalEconomy: true, renderingVerified: false};
+  emit('csgoComplete', summary);
+  return {opening, ...summary};
+}
+
+// Vanilla /tick is used only on the isolated test server. Rate changes are
+// restored even when an assertion fails; no product-only money or round hooks.
+async function csgoFastStatus(id) {
+  const start = chats.length;
+  await chat(id, '/pvp mygo status', 30);
+  const deadline = Date.now() + 2000;
+  let message;
+  while (!(message = chats.slice(start).find(entry => entry.id === id && entry.message.includes('MyGO round='))?.message)) {
+    if (Date.now() > deadline) throw new Error(`No fast MyGO status for ${id}`);
+    await sleep(20);
+  }
+  return parseStatusMessage(message);
+}
+async function csgoFastState(id, predicate, timeout = 7000, label = 'accelerated CS:GO phase') {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const state = await csgoFastStatus(id);
+    if (predicate(state)) return state;
+    await sleep(30);
+  }
+  throw new Error(`Timeout waiting for ${label}`);
+}
+async function csgoFastTeleport(id, position) {
+  await chat('A', `/execute in pvp:arena run tp MyGoCheck${id} ${position.x + .5} ${position.y} ${position.z + .5}`, 30);
+}
+async function csgoHalftime() {
+  const ids = Object.keys(bots);
+  await waitUntil(() => ids.every(id => bots[id].entity), 30000, 'halftime four clients');
+  check('MR15 test has exactly four clients on an isolated server', ids.length === 4 && port !== 25565, {ids, port}, 'four players; test port');
+  const lobby = Object.fromEntries(ids.map(id => [id, bots[id].testWorldName]));
+  try {
+    for (const id of ids) await chat(id, '/hub', 60);
+    await sleep(6500);
+    for (const id of ids) {
+      await chat('A', `/item replace entity MyGoCheck${id} armor.head with minecraft:golden_helmet`, 30);
+      await chat('A', `/item replace entity MyGoCheck${id} hotbar.7 with minecraft:apple 3`, 30);
+    }
+    const packAt = chats.length;
+    for (const id of ids) await chat(id, '/pvp join mygo', 100);
+    await waitUntil(() => ids.every(id => packs[id] && chats.slice(packAt).some(entry => entry.id === id
+      && entry.message.includes('MyGO 资源包加载成功'))), 25000, 'halftime resource pack acknowledgements');
+    for (const id of ids) await chat(id, '/pvp join mygo', 60);
+    await chat('A', '/pvp start', 60);
+    await waitUntil(() => ids.every(id => bots[id].inventory.items().some(item => item.name === 'iron_pickaxe')), 30000, 'halftime first-round loadouts');
+    for (const id of ids) await select(id, 1);
+    const opening = Object.fromEntries(await Promise.all(ids.map(async id => [id, await csgoFastStatus(id)])));
+    const originalT = ids.filter(id => opening[id].side === 'T'), originalCt = ids.filter(id => opening[id].side === 'CT');
+    check('MR15 opening has two players on each side at $800', originalT.length === 2 && originalCt.length === 2
+      && ids.every(id => opening[id].phase === 'BUY' && opening[id].cash === 800), opening, '2v2; first freeze; $800');
+    const carrier = originalT.find(id => bots[id].inventory.items().some(item => item.name === 'redstone'));
+    const receiver = originalT.find(id => id !== carrier), position = bots[carrier].entity.position;
+    const bombSpot = {x: Math.floor(position.x), y: Math.floor(position.y), z: Math.floor(position.z)};
+    await select(carrier, 5);
+    bots[carrier]._client.write('block_dig', {status: 4, location: {x: 0, y: 0, z: 0}, face: 0, sequence: 0});
+    await sleep(100);
+    // Both positions remain in the T buy zone. Move the original owner away
+    // before the one-second pickup lock expires so it cannot reclaim C4 first.
+    await csgoFastTeleport(carrier, {...bombSpot, x: bombSpot.x + 8});
+    await csgoFastTeleport(receiver, bombSpot);
+    await sleep(1200);
+    const transferred = await csgoFastStatus(receiver);
+    check('C4 can be handed to a teammate during the normal 15-second freeze', transferred.phase === 'BUY'
+      && bots[receiver].inventory.items().some(item => item.name === 'redstone')
+      && !bots[carrier].inventory.items().some(item => item.name === 'redstone'),
+      {carrier, receiver, transferred, carrierInventory: snapshot(carrier).items}, 'C4 belongs to receiver before LIVE');
+    // Keep the original CT team alive for fifteen wins, so kit, grenade, armor
+    // and primary really survive until halftime instead of disappearing on death.
+    const winners = originalCt, losers = originalT, leader = winners[0], winningTeam = opening[leader].team;
+    await chat(leader, '/pvp mygo buy kit', 30);
+    await chat(leader, '/pvp mygo buy flash', 30);
+    check('winning CT carries a bought kit and flash before accelerated rounds', bots[leader].inventory.items().some(item => item.name === 'shears')
+      && (await csgoFastStatus(leader)).grenades === '{FLASH=1}', snapshot(leader), 'kit and one flash bought normally');
+    await chat('A', '/tick rate 200', 30);
+    emit('csgoTestTickRate', {rate: 200, reason: 'isolated MR15 integration test'});
+    for (let round = 1; round <= 15; round++) {
+      if (round === 2) {
+        await csgoFastState(leader, value => value.phase === 'BUY' && value.round === 2, 6000, 'round two purchase freeze');
+        for (const product of ['mp9', 'vest', 'helmet']) await chat(leader, `/pvp mygo buy ${product}`, 30);
+        await select(leader, 0);
+        const equipped = await csgoFastStatus(leader);
+        check('first win funds MP9, full armor and helmet without injected cash', equipped.gun === 'MP9' && equipped.armor === 100
+          && equipped.helmet && equipped.cash === 1200, equipped, '800 - 400 - 200 + 3250 - 1250 - 650 - 350 = 1200');
+      }
+      const live = await csgoFastState(leader, value => value.phase === 'LIVE' && value.round === round, 7000, `round ${round} LIVE`);
+      check(`round ${round} remains in the original half before settlement`, live.side === 'CT' && live.team === winningTeam, live, 'original CT side through round 15');
+      for (const id of losers) await csgoFastTeleport(id, {...live.range, x: live.range.x + 500});
+      const post = await csgoFastState(leader, value => value.phase === 'POST' && value.round === round, 2500, `round ${round} single settlement`);
+      if (round === 15) {
+        // Slow down before the end of POST so the full half-reset state can be
+        // inspected during a real fifteen-second freeze, without a timing race.
+        await chat('A', '/tick rate 20', 30);
+        emit('csgoTestTickRate', {rate: 20, reason: 'inspect round 16 halftime reset'});
+      }
+      const expectedScore = `${winningTeam === 0 ? round : 0}:${winningTeam === 1 ? round : 0}`;
+      check(`round ${round} elimination awards exactly one point`, post.score === expectedScore, post, expectedScore);
+    }
+    const beforeHalf = await csgoFastStatus(leader);
+    check('fifteenth POST preserves old side and surviving purchased equipment', beforeHalf.round === 15 && beforeHalf.phase === 'POST'
+      && beforeHalf.side === 'CT' && beforeHalf.gun === 'MP9' && beforeHalf.armor === 100 && beforeHalf.helmet
+      && beforeHalf.grenades === '{FLASH=1}' && beforeHalf.cash === 16000
+      && bots[leader].inventory.items().some(item => item.name === 'shears'), beforeHalf,
+      'old CT side; MP9, kit, flash, armor and helmet retained; money capped at $16000');
+    await csgoFastState(leader, value => value.phase === 'BUY' && value.round === 16, 10000, 'sixteenth round halftime freeze');
+    for (const id of ids) await select(id, 1);
+    const halftime = Object.fromEntries(await Promise.all(ids.map(async id => [id, await csgoFastStatus(id)])));
+    for (const id of ids) {
+      const state = halftime[id], expectedSide = opening[id].side === 'T' ? 'CT' : 'T';
+      const expectedPistol = expectedSide === 'T' ? 'GLOCK' : 'USP_S';
+      check(`${id} changes side at round 16 with reset money and loss level`, state.phase === 'BUY' && state.round === 16
+        && state.side === expectedSide && state.team === opening[id].team && state.cash === 800 && state.lossLevel === 1
+        && state.alive && state.hp === 100, state, 'opposite side, same team, $800, loss level 1, alive at 100 HP');
+      check(`${id} receives new side default pistol and clears old equipment`, state.pistol === expectedPistol && state.gun === expectedPistol
+        && state.ammo === (expectedSide === 'T' ? 20 : 12) && state.reserve === (expectedSide === 'T' ? 120 : 24)
+        && state.armor === 0 && !state.vest && !state.helmet && state.grenades === '{}'
+        && bots[id].inventory.items().filter(item => item.name === 'iron_pickaxe').length === 1
+        && !bots[id].inventory.items().some(item => item.name === 'shears'), state, 'new default pistol; no old primary, kit, armor, helmet or grenades');
+    }
+    await chat('A', '/tick rate 200', 30);
+    emit('csgoTestTickRate', {rate: 200, reason: 'finish sixteenth round'});
+    const finalLive = await csgoFastState(leader, value => value.phase === 'LIVE' && value.round === 16, 7000, 'sixteenth round LIVE');
+    check('former CT winners now play T in the final round', finalLive.side === 'T', finalLive, 'T after halftime');
+    const finishAt = chats.length;
+    for (const id of losers) await csgoFastTeleport(id, {...finalLive.range, x: finalLive.range.x + 500});
+    // Dimension/pack removal arrives before the following inventory packet;
+    // wait for the whole restoration instead of inspecting a half-read stream.
+    await waitUntil(() => ids.every(id => bots[id].testWorldName === lobby[id] && !packs[id]
+      && bots[id].inventory.slots[5]?.name === 'golden_helmet'
+      && bots[id].inventory.items().some(item => item.name === 'apple' && item.count === 3)
+      && !bots[id].inventory.items().some(item => item.name === 'iron_pickaxe')),
+    15000, '16-point match ending and complete lobby inventory restoration');
+    const expectedScore = `${winningTeam === 0 ? 16 : 0}:${winningTeam === 1 ? 16 : 0}`;
+    check('sixteenth victory ends the match instead of starting round 17', chats.slice(finishAt).some(entry => entry.message.includes('回合结束：')
+      && entry.message.includes(expectedScore)), chats.slice(finishAt).filter(entry => entry.message.includes('回合结束：')), expectedScore);
+    for (const id of ids) check(`${id} restores lobby equipment after the MR15 match`, bots[id].inventory.slots[5]?.name === 'golden_helmet'
+      && bots[id].inventory.items().some(item => item.name === 'apple' && item.count === 3)
+      && !bots[id].inventory.items().some(item => item.name === 'iron_pickaxe'), snapshot(id), 'gold helmet, three apples, no guns');
+    const summary = {passed: assertions.filter(result => result.pass).length, failed: assertions.filter(result => !result.pass).length,
+      finalScore: expectedScore, completedRounds: 16, halftimeRound: 16, renderingVerified: false};
+    emit('csgoHalftimeComplete', summary);
+    return {opening, halftime, ...summary};
+  } finally {
+    await chat('A', '/tick rate 20', 100);
+    emit('csgoTestTickRate', {rate: 20, reason: 'finally restore isolated server default'});
+  }
+}
+
 async function execute(command) {
   const id = command.who || 'A', bot = bots[id];
   switch (command.op) {
@@ -682,6 +1084,8 @@ async function execute(command) {
     case 'arsenal': return arsenal();
     case 'awZoom': return awZoom();
     case 'twoPlayerAuto': return twoPlayerAuto();
+    case 'csgo': return csgo();
+    case 'csgoHalftime': return csgoHalftime();
     case 'packMode': packMode[id] = command.value; return packMode[id];
     case 'packProcess': if (!packRequests[id]) throw new Error('No pack requested'); await handlePack(bot, packRequests[id]); return;
     case 'packReply': packStatus(bot, { uuid: command.uuid || packRequests[id]?.uuid }, command.result); return;

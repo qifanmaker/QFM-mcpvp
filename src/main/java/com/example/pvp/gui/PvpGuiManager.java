@@ -254,9 +254,9 @@ public final class PvpGuiManager {
 
         // MyGO 允许两人正常匹配，入口同步提示 1v1；火药可堆叠以完整显示排队人数。
         inv.setStack(11, queueButton(Items.GUNPOWDER, "§6MyGO 枪战爆破", player, MatchType.MYGO,
-                "1v1~5v5 快速爆破，先赢七回合",
+                "1v1~5v5 经典爆破，先赢十六回合",
                 "工具枪械 / 经济购买 / 南瓜瞄准镜",
-                "左键点射，右键瞄准/关镜，F 换弹",
+                "左键点射，瞄具枪右键切倍率/关镜，F 换弹",
                 "首次点击下载资源包，加载成功后再次点击加入",
                 "十人立即开局，至少两人等待 60 秒等员开局"));
 
@@ -1156,7 +1156,7 @@ public final class PvpGuiManager {
                         + PvPConfig.INSTANCE.boatRaceLaps + " 圈"), false);
             } else if (type == MatchType.MYGO) {
                 player.sendMessage(Messages.info("已加入 MyGO：十人立即开局，至少两人等待 60 秒等员开局；"
-                        + "左键点射、右键瞄准/关镜、F 换弹、/pvp mygo 打开商店"), false);
+                        + "左键点射、瞄具枪右键切倍率/关镜、F 换弹、/pvp mygo 打开商店"), false);
             } else if (type.isPortedGame()) {
                 player.sendMessage(Messages.info("已加入" + type.getDisplayName() + "：凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛；至少 " + MatchType.PORTED_MIN_PLAYERS

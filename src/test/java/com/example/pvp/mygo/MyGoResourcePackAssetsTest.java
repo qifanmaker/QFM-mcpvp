@@ -59,13 +59,16 @@ final class MyGoResourcePackAssetsTest {
     @Test
     void onlyReservedCustomModelNumbersSelectGuns() {
         JsonArray overrides = json("assets/minecraft/models/item/iron_pickaxe.json").getAsJsonArray("overrides");
-        String[] names = {"p9", "mp5", "ak", "m4", "aw"};
-        for (int i = 0; i < names.length; i++) {
-            assertEquals("pvp:item/mygo/" + names[i], selectedModel(overrides, 71001 + i));
+        for (MyGoWeapon weapon : MyGoWeapon.values()) {
+            assertEquals("pvp:item/mygo/" + weapon.name().toLowerCase(java.util.Locale.ROOT),
+                    selectedModel(overrides, weapon.model));
         }
         assertNull(selectedModel(overrides, 0), "Ordinary pickaxes must keep their vanilla model");
         assertEquals("pvp:item/mygo/vanilla_iron_pickaxe", selectedModel(overrides, 71006));
+        assertEquals("pvp:item/mygo/vanilla_iron_pickaxe", selectedModel(overrides, 71010));
         assertEquals("pvp:item/mygo/vanilla_iron_pickaxe", selectedModel(overrides, 99999));
+        assertFalse(FILES.containsKey("assets/minecraft/models/item/spyglass.json"),
+                "MyGO scopes must preserve the ordinary spyglass model");
         assertEquals("pvp:item/mygo/knife", selectedModel(json("assets/minecraft/models/item/iron_sword.json")
                 .getAsJsonArray("overrides"), 71006));
         assertEquals("pvp:item/mygo/scope", selectedModel(json("assets/minecraft/models/item/carved_pumpkin.json")
@@ -86,7 +89,10 @@ final class MyGoResourcePackAssetsTest {
     @Test
     void everyGunHasDifferentThreeDimensionalGeometryAndResolvedMaterials() throws Exception {
         Set<String> geometry = new HashSet<>();
-        for (String gun : new String[]{"p9", "mp5", "ak", "m4", "aw", "m16", "scar", "mini14", "mk14", "p90", "uzi", "vector", "tommy", "m24", "s686", "knife"}) {
+        Set<String> expected = new HashSet<>();
+        for (MyGoWeapon weapon : MyGoWeapon.values()) expected.add(weapon.name().toLowerCase(java.util.Locale.ROOT));
+        expected.add("knife");
+        for (String gun : expected) {
             JsonObject model = json("assets/pvp/models/item/mygo/" + gun + ".json");
             JsonArray elements = model.getAsJsonArray("elements");
             assertTrue(elements.size() >= 3, gun + " needs actual barrel/receiver/grip geometry");
@@ -142,17 +148,28 @@ final class MyGoResourcePackAssetsTest {
     }
 
     @Test
-    void adaptedAssetsCarryPinnedSourceAndLicense() {
-        assertTrue(new String(FILES.get("WEAPON_PACK_LICENSE.txt"), StandardCharsets.UTF_8).contains("Pelmeshka_"));
-        JsonObject source = json("WEAPON_PACK_source.json");
+    void originalAssetsCarryTheirLicenseAndCatalogAlignedWithRuntimeWeapons() {
+        assertTrue(new String(FILES.get("MYGO_ASSETS_LICENSE.txt"), StandardCharsets.UTF_8).contains("MIT License"));
+        JsonObject source = json("MYGO_ASSETS_source.json");
         assertEquals("MIT", source.get("license").getAsString());
-        assertEquals("9ab80d963650c09a3c3b4e384db0133c9a7dd846", source.get("sha1").getAsString());
+        assertFalse(source.get("valve_assets_included").getAsBoolean());
+        Set<String> names = new HashSet<>();
+        for (var entry : source.getAsJsonArray("weapons")) {
+            JsonObject gun = entry.getAsJsonObject();
+            MyGoWeapon weapon = MyGoWeapon.valueOf(gun.get("name").getAsString().toUpperCase(java.util.Locale.ROOT));
+            assertEquals(weapon.model, gun.get("model").getAsInt());
+            assertEquals("mygo." + weapon.name().toLowerCase(java.util.Locale.ROOT), gun.get("sound").getAsString());
+            assertTrue(names.add(weapon.name()), "Duplicate weapon in the distributed manifest");
+        }
+        assertEquals(MyGoWeapon.values().length, names.size());
     }
 
     @Test
     void allEventsResolveToRealMonoOggSoundFiles() {
         JsonObject sounds = json("assets/pvp/sounds.json");
-        for (String name : new String[]{"p9", "mp5", "ak", "m4", "aw", "m16", "scar", "mini14", "mk14", "p90", "uzi", "vector", "tommy", "m24", "s686", "reload", "empty", "plant", "defuse", "explode", "hit", "headshot", "throw", "flash", "smoke"}) {
+        Set<String> events = new HashSet<>(Set.of("reload", "empty", "plant", "defuse", "explode", "hit", "headshot", "throw", "flash", "smoke"));
+        for (MyGoWeapon weapon : MyGoWeapon.values()) events.add(weapon.name().toLowerCase(java.util.Locale.ROOT));
+        for (String name : events) {
             assertTrue(sounds.has("mygo." + name));
             String location = sounds.getAsJsonObject("mygo." + name).getAsJsonArray("sounds")
                     .get(0).getAsJsonObject().get("name").getAsString();

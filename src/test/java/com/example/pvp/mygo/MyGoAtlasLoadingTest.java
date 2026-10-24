@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * PNG 存在并不代表客户端能渲染：旧包把 26 张材质放在默认物品图集未收录的目录。
+ * PNG 存在并不代表客户端能渲染：旧包把材质放在默认物品图集未收录的目录。
  * 使用 1.21.1 的真实资源管理器、DirectoryAtlasSource 和模型继承解析防止紫黑材质回归；
  * 这里只加载资源及解析模型，不启动 OpenGL，也不把协议机器人视为画面渲染验证。
  */
@@ -79,17 +79,27 @@ final class MyGoAtlasLoadingTest {
                 assertSprite(resources, sprites, model.resolveSprite(particle).getTextureId(), id, usedSprites);
                 models++;
             }
-            assertEquals(58, models, "Every custom gun pose, utility and vanilla fallback must be checked");
-            assertTrue(faces > 3000, "Fire/reload poses must inherit and validate actual gun faces");
-            assertEquals(26, sprites.stream().filter(id -> id.getNamespace().equals("pvp")).count());
-            assertEquals(26, usedSprites.stream().filter(id -> id.getNamespace().equals("pvp")).count());
+            assertTrue(models >= MyGoWeapon.values().length * 3,
+                    "Every runtime gun needs its base, fire and reload model checked");
+            assertTrue(faces >= MyGoWeapon.values().length * 3 * 3 * 6,
+                    "Every pose must inherit at least three complete gun cuboids");
+            Set<Identifier> expectedSprites = new HashSet<>();
+            for (Identifier path : resources.findResources("textures/item/mygo", id ->
+                    id.getNamespace().equals("pvp") && id.getPath().endsWith(".png")).keySet()) {
+                expectedSprites.add(textureId(path));
+            }
+            assertFalse(expectedSprites.isEmpty());
+            assertEquals(expectedSprites, sprites.stream().filter(id -> id.getNamespace().equals("pvp"))
+                    .collect(java.util.stream.Collectors.toSet()));
+            assertEquals(expectedSprites, usedSprites.stream().filter(id -> id.getNamespace().equals("pvp"))
+                    .collect(java.util.stream.Collectors.toSet()), "No unreferenced custom material should hide an atlas regression");
             System.out.printf("MyGO atlas: %d models, %d inherited faces, %d custom PNG sprites resolved%n",
                     models, faces, usedSprites.stream().filter(id -> id.getNamespace().equals("pvp")).count());
         }
     }
 
     @Test
-    void previousHostedPackReproducesTwentySixMissingAtlasSpritesWhenAvailable() throws Exception {
+    void previousHostedPackReproducesMissingAtlasSpritesWhenAvailable() throws Exception {
         // Local diagnostic only: the old downloaded ZIP is deliberately not a committed fixture.
         Path previous = Path.of("build/mygo-texture-fix/hosted-5df4ab7h.zip");
         assumeTrue(Files.isRegularFile(previous), "Optional original hosted pack is not present");
@@ -110,14 +120,17 @@ final class MyGoAtlasLoadingTest {
                     }
                 }
             }
-            assertEquals(26, missing.size(), "The original visible purple/black failure must be reproduced");
+            long originalPngs = resources.findResources("textures/mygo", id ->
+                    id.getNamespace().equals("pvp") && id.getPath().endsWith(".png")).size();
+            assertTrue(originalPngs > 0, "The original pack must contain custom textures");
+            assertEquals(originalPngs, missing.size(), "The original visible purple/black failure must be reproduced");
             for (Identifier id : missing) {
                 // This is precisely the old test's blind spot: valid PNGs that the atlas never sees.
                 try (InputStream input = resources.getResourceOrThrow(texturePath(id)).getInputStream()) {
                     assertNotNull(ImageIO.read(input), "The old PNG itself is present and readable: " + id);
                 }
             }
-            System.out.println("MyGO original hosted pack: 0 custom atlas sprites, 26 valid PNGs missing: " + missing);
+            System.out.println("MyGO original hosted pack: 0 custom atlas sprites, valid PNGs missing: " + missing);
         }
     }
 
@@ -170,6 +183,11 @@ final class MyGoAtlasLoadingTest {
 
     private static Identifier texturePath(Identifier id) {
         return id.withPath("textures/" + id.getPath() + ".png");
+    }
+
+    private static Identifier textureId(Identifier resource) {
+        String path = resource.getPath();
+        return resource.withPath(path.substring("textures/".length(), path.length() - ".png".length()));
     }
 
     private static Identifier modelId(Identifier resource) {

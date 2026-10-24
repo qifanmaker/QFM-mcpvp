@@ -18,7 +18,6 @@ import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.decoration.ArmorStandEntity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerAbilities;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.Item;
@@ -26,7 +25,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
-import net.minecraft.network.packet.s2c.play.PlayerAbilitiesS2CPacket;
 import net.minecraft.network.packet.s2c.play.UpdateSelectedSlotS2CPacket;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
 import net.minecraft.particle.ParticleTypes;
@@ -65,7 +63,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 新增 MyGO 经济爆破闭环：原版工具仅承载枪械外观，不能走原版工具伤害、护甲或无敌帧。
+ * 按 CS:GO 统一军械、瞄具、经济与时限；保留工具承载及服务端虚拟伤害，避免原版物品属性介入。
  * 编辑前审查：成员、存活、回合、整场胜负分别管理；截止 tick 先于引导进度；所有枪包状态由服务端授权。
  * 装备模型、快捷栏和南瓜镜框只是状态投影，移动或伪造物品不会获得另一把枪或多出弹药。
  */
@@ -89,10 +87,12 @@ public final class MyGoSession implements PortedGameSession {
         final UUID id;
         final int team;
         int cash = MyGoRules.START_MONEY;
-        double hp = 100;
+        double hp = 100, armor;
         boolean alive, vest, helmet, kit, scoped;
         boolean awZoom;
-        Gun primary, pistol = new Gun(MyGoWeapon.P9);
+        int scopeLevel, resumeScopeLevel, resumeScopeAt;
+        final MyGoScope scopeView = new MyGoScope();
+        Gun primary, pistol;
         int selected = -1, aimSince, stoppedAt, knifeReady, throwReady, feedbackUntil;
         int scopeUseTick = -20;
         int kills, deaths, roundKills, objectiveScore;
@@ -103,7 +103,7 @@ public final class MyGoSession implements PortedGameSession {
         ItemStack oldHead = ItemStack.EMPTY;
         Fighter(UUID id, int team) { this.id = id; this.team = team; }
         Gun gun(int slot) { return slot == 0 ? this.primary : slot == 1 ? this.pistol : null; }
-        void cancel() { if (this.primary != null) this.primary.cancel(); this.pistol.cancel(); }
+        void cancel() { if (this.primary != null) this.primary.cancel(); if (this.pistol != null) this.pistol.cancel(); this.resumeScopeLevel = 0; this.resumeScopeAt = 0; }
     }
     private static final class GroundGun {
         final Gun gun;
@@ -126,10 +126,10 @@ public final class MyGoSession implements PortedGameSession {
     private final Map<UUID, Entity> ownedEntities = new HashMap<>();
     private final Random random;
     private final MyGoUtilities utilities;
-    private final int[] scores = new int[2], losses = new int[2];
+    private final int[] scores = new int[2], losses = {MyGoRules.START_LOSS_LEVEL, MyGoRules.START_LOSS_LEVEL};
     private final ServerBossBar timer = new ServerBossBar(Text.literal("MyGO · 购买阶段"), BossBar.Color.BLUE, BossBar.Style.PROGRESS);
     private Phase phase = Phase.BUY;
-    private int ticks, deadline, bombPickupAt, round = 1;
+    private int ticks, deadline, buyUntil, bombPickupAt, round = 1;
     private boolean ended, finalResult, bombPlanted;
     private Integer winningTeam;
     private UUID bombCarrier;
@@ -145,7 +145,9 @@ public final class MyGoSession implements PortedGameSession {
                 () -> participants().stream().filter(p -> fighter(p).alive).toList(), (victim, owner, amount) -> {
             Fighter target = fighter(victim), source = fighter(owner);
             if (target == null || source == null || target.team == source.team && victim != owner) return;
-            damage(victim, this.active.contains(source.id) ? owner : null, amount * (target.vest ? .65 : 1), "破片手雷");
+            MyGoRules.Damage hit = MyGoRules.protect(amount, .5, target.armor, true);
+            consumeArmor(target, hit.armor());
+            damage(victim, this.active.contains(source.id) ? owner : null, hit.health(), "破片手雷");
         });
         int half = match.players().size() / 2;
         for (int i = 0; i < match.players().size(); i++) {
@@ -165,9 +167,9 @@ public final class MyGoSession implements PortedGameSession {
             Fighter fighter = fighter(player);
             fighter.oldHead = player.getEquippedStack(EquipmentSlot.HEAD).copy();
             this.timer.addPlayer(player);
-            player.sendMessage(Text.literal("§6MyGO 经济爆破 · 快速局先赢 7 回合，第 6 回合换边，6:6 平局。"), false);
-            player.sendMessage(Text.literal("§e左键点射 · 右键瞄准/关镜 · F 换弹 · Q 丢主枪/C4 · 购买器右键商店。"), false);
-            player.sendMessage(Text.literal("§7军械库 15 种枪械 · 4 手雷 / 5 闪光 / 7 烟雾 · AKM 仅进攻方购买，M416 仅防守方购买。"), false);
+            player.sendMessage(Text.literal("§6MyGO 经典爆破 · 先赢 16 回合，第 15 回合换边，15:15 平局。"), false);
+            player.sendMessage(Text.literal("§e左键点射 · 瞄具枪右键切换倍率/关镜 · F 换弹 · Q 丢枪/C4 · 购买器右键商店。"), false);
+            player.sendMessage(Text.literal("§7CS:GO 军械库 34 种枪械 · T 默认 Glock-18 / CT 默认 USP-S · 仅瞄具枪支持开镜。"), false);
             player.sendMessage(Text.literal("§7携 C4 到包点，选择第 6 格，潜行右键安装；防守方同样操作拆包。阵亡后在封闭室等待下一回合。"), false);
         }
         String invalidSpawn = this.map.validateSpawns(this.match.arenaWorld());
@@ -195,7 +197,7 @@ public final class MyGoSession implements PortedGameSession {
             this.phase = Phase.LIVE;
             this.deadline = this.ticks + MyGoRules.ROUND_TICKS;
             announce("§c开始行动！进攻方安装 C4，防守方阻止或拆除。");
-            for (ServerPlayerEntity p : participants()) p.closeHandledScreen();
+            // 解冻不关闭军械库：留在购买区的玩家还有独立 20 秒补购窗口。
         }
         // 截止时间优先于引导完成，防止压线拆包和超时安装改变已经产生的胜负。
         if (this.phase == Phase.LIVE) {
@@ -208,12 +210,14 @@ public final class MyGoSession implements PortedGameSession {
                     // C4 只影响本局虚拟存活和下回合保枪，不调用原版爆炸破坏共享世界。
                     for (ServerPlayerEntity p : participants()) if (fighter(p).alive && near(p, this.bombPosition, 12)) kill(p, null, "C4 爆炸");
                 }
-                resolve(timed, this.bombPlanted ? "C4 爆炸" : "进攻超时");
+                resolve(timed, this.bombPlanted ? MyGoRules.WinCause.BOMB_EXPLODED : MyGoRules.WinCause.TIMEOUT);
                 return;
             }
             if (this.bombPlanted && this.ticks % (this.deadline - this.ticks <= 200 ? 10 : 20) == 0)
                 soundAt(this.bombPosition, "plant", .35F);
         }
+        if (this.phase == Phase.LIVE && this.ticks == this.buyUntil)
+            for (ServerPlayerEntity p : participants()) if (p.currentScreenHandler instanceof ShopHandler) p.closeHandledScreen();
         for (ServerPlayerEntity player : participants()) {
             Fighter fighter = fighter(player);
             player.setFireTicks(0);
@@ -242,34 +246,41 @@ public final class MyGoSession implements PortedGameSession {
             boolean moving = player.getPos().squaredDistanceTo(fighter.last) > .0004;
             if (moving || player.isSprinting()) fighter.stoppedAt = this.ticks;
             fighter.last = player.getPos();
-            if (fighter.scoped && (this.phase != Phase.LIVE || fighter.gun(selected) == null)) {
-                fighter.scoped = false; updateHead(player, fighter);
+            Gun selectedGun = fighter.gun(selected);
+            if (fighter.scoped && (!combatPhase() || selectedGun == null
+                    || selectedGun.type.scopeLevels() == 0 || fighter.scopeLevel > selectedGun.type.scopeLevels())) {
+                fighter.scoped = false; fighter.scopeLevel = 0; updateHead(player, fighter);
             }
             updateSpeed(player, fighter);
-            if (this.phase == Phase.LIVE || this.phase == Phase.BUY) tickGun(player, fighter, fighter.gun(selected));
+            if (combatPhase() || this.phase == Phase.BUY) tickGun(player, fighter, fighter.gun(selected));
             if (this.ticks % 10 == 0) sendHud(player, fighter);
             // 实际枪械身份存于 Fighter，整理显示背包不会刷新同一物品、不会重启每 tick 挥手动画。
             if (this.ticks % 20 == 0) syncEquipment(player, fighter);
         }
-        if (this.phase == Phase.LIVE) {
+        if (combatPhase()) {
             this.utilities.tick(this.ticks);
-            checkElimination();
-            if (this.phase == Phase.LIVE) { tickChannel(); tickPickups(); }
+            if (this.phase == Phase.LIVE) { checkElimination(); if (this.phase == Phase.LIVE) tickChannel(); }
         }
+        // 冻结期也必须能给队友发枪、交换副枪和交接 C4。
+        if (combatPhase() || this.phase == Phase.BUY) tickPickups();
         if (this.ticks % 10 == 0) updateBar();
     }
 
     private void beginRound(boolean first) {
+        // 回合末仍可活动，换边必须等新回合开始，不能在第15局结算时提前交换阵营。
+        if (!first) this.round++;
         clearRoundEntities();
         this.bombPlanted = false; this.bombPosition = null; this.bombGround = null; this.bombCarrier = null; this.channel = null;
-        this.phase = Phase.BUY; this.deadline = this.ticks + MyGoRules.BUY_TICKS;
-        boolean halftime = this.round == 7;
+        this.phase = Phase.BUY; this.deadline = this.ticks + MyGoRules.FREEZE_TICKS;
+        this.buyUntil = this.deadline + MyGoRules.BUY_TICKS;
+        boolean halftime = this.round == MyGoRules.HALF_ROUNDS + 1;
         for (ServerPlayerEntity player : participants()) {
             Fighter f = fighter(player);
-            if (first || halftime) { f.cash = MyGoRules.START_MONEY; f.primary = null; f.vest = false; f.helmet = false; f.kit = false; f.grenades.clear(); }
-            if (!f.alive && !first) { f.primary = null; f.vest = false; f.helmet = false; f.kit = false; f.grenades.clear(); }
+            if (first || halftime) { f.cash = MyGoRules.START_MONEY; f.primary = null; f.pistol = null; f.armor = 0; f.vest = false; f.helmet = false; f.kit = false; f.grenades.clear(); }
+            if (!f.alive && !first) { f.primary = null; f.pistol = null; f.armor = 0; f.vest = false; f.helmet = false; f.kit = false; f.grenades.clear(); }
+            if (f.pistol == null) f.pistol = new Gun(MyGoWeapon.defaultPistol(attackers(f)));
             f.alive = true; f.hp = 100; f.roundKills = 0; f.roundDamage = 0; f.objectiveScore = 0; f.pistol.refill(); if (f.primary != null) f.primary.refill();
-            f.scoped = false; f.selected = -1; f.aimSince = this.ticks; f.stoppedAt = this.ticks;
+            f.scoped = false; f.scopeLevel = 0; f.resumeScopeLevel = 0; f.resumeScopeAt = 0; f.scopeView.reset(player); f.selected = -1; f.aimSince = this.ticks; f.stoppedAt = this.ticks;
             player.closeHandledScreen(); player.changeGameMode(GameMode.ADVENTURE); player.clearStatusEffects();
             player.setHealth(player.getMaxHealth()); player.setVelocity(Vec3d.ZERO);
             player.getInventory().clear(); player.getInventory().selectedSlot = f.primary == null ? 1 : 0;
@@ -279,11 +290,11 @@ public final class MyGoSession implements PortedGameSession {
             player.equipStack(EquipmentSlot.FEET, ItemStack.EMPTY);
             teleportHome(player); updateHead(player, f);
         }
-        if (halftime) { this.losses[0] = 0; this.losses[1] = 0; announce("§e半场换边，现金与装备重置。"); }
+        if (halftime) { this.losses[0] = MyGoRules.START_LOSS_LEVEL; this.losses[1] = MyGoRules.START_LOSS_LEVEL; announce("§e半场换边，现金与装备重置。"); }
         List<Fighter> attack = this.fighters.values().stream().filter(f -> this.active.contains(f.id) && attackers(f)).toList();
         if (!attack.isEmpty()) this.bombCarrier = attack.get(this.random.nextInt(attack.size())).id;
         for (ServerPlayerEntity player : participants()) syncEquipment(player, fighter(player));
-        announce("§6第 " + this.round + " 回合 · " + this.scores[0] + ":" + this.scores[1] + " · 购买时间 10 秒");
+        announce("§6第 " + this.round + " 回合 · " + this.scores[0] + ":" + this.scores[1] + " · 冻结 15 秒，解冻后可在购买区补购 20 秒");
         for (ServerPlayerEntity player : participants()) player.sendMessage(Text.literal(attackers(fighter(player))
                 ? "§c本回合：进攻方" + (player.getUuid().equals(this.bombCarrier) ? " · 你携带 C4" : "") : "§9本回合：防守方"), false);
         updateBar(); checkTeams();
@@ -291,6 +302,12 @@ public final class MyGoSession implements PortedGameSession {
 
     private void tickGun(ServerPlayerEntity player, Fighter f, Gun gun) {
         if (gun == null) return;
+        if (f.resumeScopeLevel > 0 && this.ticks >= f.resumeScopeAt) {
+            int level = f.resumeScopeLevel; f.resumeScopeLevel = 0;
+            if (combatPhase() && gun.type.unzoomAfterShot() && gun.ammo > 0 && gun.reloadAt == 0) {
+                f.scopeLevel = level; f.scoped = true; f.aimSince = this.ticks; updateHead(player, f); updateSpeed(player, f);
+            }
+        }
         if (gun.reloadAt > 0 && this.ticks >= gun.reloadAt) {
             int amount = Math.min(gun.type.magazine - gun.ammo, gun.reserve);
             gun.ammo += amount; gun.reserve -= amount; gun.reloadAt = 0;
@@ -299,12 +316,12 @@ public final class MyGoSession implements PortedGameSession {
         if (gun.lastShot > 0 && this.ticks == gun.lastShot + 2) syncEquipment(player, f);
         while (!gun.shots.isEmpty() && gun.shots.getFirst() <= this.ticks) {
             gun.shots.removeFirst();
-            if (gun.ammo > 0 && f.alive && this.phase == Phase.LIVE) fire(player, f, gun);
+            if (gun.ammo > 0 && f.alive && combatPhase()) fire(player, f, gun);
         }
     }
 
     private void trigger(ServerPlayerEntity player, Fighter f, Gun gun) {
-        if (this.phase != Phase.LIVE || !f.alive || gun.reloadAt > 0 || this.channel != null && this.channel.player().equals(f.id)) return;
+        if (!combatPhase() || !f.alive || gun.reloadAt > 0 || this.channel != null && this.channel.player().equals(f.id)) return;
         if (this.ticks < gun.ready) return;
         if (gun.ammo <= 0) { gun.ready = this.ticks + 8; sound(player, "empty", .7F); actionBar(player, "§e弹匣已空，按 F 换弹。"); return; }
         gun.ready = this.ticks + gun.type.cycleTicks;
@@ -358,18 +375,20 @@ public final class MyGoSession implements PortedGameSession {
                 double fraction = (hitPoint.y - box.minY) / box.getLengthY();
                 MyGoRules.Part part = fraction >= .75 ? MyGoRules.Part.HEAD : fraction <= .38 ? MyGoRules.Part.LEGS : MyGoRules.Part.BODY;
                 Fighter target = fighter(victim);
-                hits.merge(victim, MyGoRules.damage(gun.type, Math.sqrt(nearest), part, target.vest, target.helmet), Double::sum);
+                MyGoRules.Damage hit = MyGoRules.damageWithArmor(gun.type, Math.sqrt(nearest), part, target.armor, target.helmet);
+                consumeArmor(target, hit.armor());
+                hits.merge(victim, hit.health(), Double::sum);
                 if (part == MyGoRules.Part.HEAD) headshots.add(victim.getUuid());
             } else if (block.getType() != net.minecraft.util.hit.HitResult.Type.MISS) {
                 this.match.arenaWorld().spawnParticles(ParticleTypes.SMOKE, end.x, end.y, end.z, 2, .03, .03, .03, .01);
             }
         }
-        soundAt(player.getBlockPos(), gun.type.name().toLowerCase(Locale.ROOT), 1);
+        soundAt(player.getBlockPos(), gun.type.soundKey(), 1);
         Vec3d muzzle = player.getEyePos().add(player.getRotationVec(1).multiply(.65));
         this.match.arenaWorld().spawnParticles(ParticleTypes.FLAME, muzzle.x, muzzle.y, muzzle.z, 1, .01, .01, .01, .005);
         for (var hit : hits.entrySet()) {
             boolean headshot = headshots.contains(hit.getKey().getUuid());
-            damage(hit.getKey(), player, hit.getValue(), gun.type.label + (headshot ? " 爆头" : ""));
+            damage(hit.getKey(), player, hit.getValue(), gun.type.label + (headshot ? " 爆头" : ""), gun.type.killReward);
             sound(player, headshot ? "headshot" : "hit", .55F);
             f.feedbackUntil = this.ticks + 8;
             actionBar(player, (headshot ? "§6✦ 爆头 " : "§a✦ 命中 ")
@@ -377,7 +396,7 @@ public final class MyGoSession implements PortedGameSession {
         }
         // 开枪只旋转视角，不能使用会改写玩家坐标及待确认传送位置的 requestTeleport。
         // 旧版把后坐力当传送执行，曾将玩家移出竞技场并触发“离开战场”阵亡。
-        if (!this.ended && f.alive && this.phase == Phase.LIVE) {
+        if (!this.ended && f.alive && combatPhase()) {
             float kick = (float) (gun.type.recoil() * (f.scoped ? .6 : 1));
             float yaw = (float) (Math.sin(gun.sequence * .65) * kick * .35);
             float pitch = net.minecraft.util.math.MathHelper.clamp(player.getPitch() - kick, -89.9F, 89.9F);
@@ -388,34 +407,50 @@ public final class MyGoSession implements PortedGameSession {
             // Vanilla ignores the negative confirmation ID and processes the normal movement reply.
             player.networkHandler.sendPacket(new PlayerPositionLookS2CPacket(0, 0, 0, yaw, pitchDelta,
                     EnumSet.allOf(PositionFlag.class), RECOIL_CONFIRM_ID));
+            // 栓狙开火后先退镜拉栓，周期结束自动回到原镜位；切枪/换弹/手动镜位会取消恢复。
+            if (gun.type.unzoomAfterShot() && f.scopeLevel > 0) {
+                f.resumeScopeLevel = f.scopeLevel; f.resumeScopeAt = this.ticks + gun.type.cycleTicks;
+                f.scopeLevel = 0; f.scoped = false; updateHead(player, f); updateSpeed(player, f);
+            }
             syncEquipment(player, f);
         }
     }
 
     private void damage(ServerPlayerEntity victim, ServerPlayerEntity attacker, double amount, String reason) {
+        damage(victim, attacker, amount, reason, 300);
+    }
+    private void consumeArmor(Fighter f, double used) {
+        f.armor = Math.max(0, f.armor - used); f.vest = f.armor > 0;
+    }
+    private void damage(ServerPlayerEntity victim, ServerPlayerEntity attacker, double amount, String reason, int killReward) {
         Fighter f = fighter(victim);
-        if (f == null || !f.alive || this.phase != Phase.LIVE || amount <= 0) return;
+        if (f == null || !f.alive || !combatPhase() || amount <= 0) return;
         Fighter source = attacker == null ? null : fighter(attacker);
         if (source != null && source.team != f.team) source.roundDamage += Math.min(f.hp, amount);
         f.hp = Math.max(0, f.hp - amount);
-        if (f.hp <= .0000001) kill(victim, attacker, reason);
+        if (f.hp <= .0000001) kill(victim, attacker, reason, killReward);
         else actionBar(victim, "§c受到 " + String.format(Locale.ROOT, "%.1f", amount) + " 伤害 · "
                 + String.format(Locale.ROOT, "%.1f", f.hp) + " HP");
     }
 
     private void kill(ServerPlayerEntity victim, ServerPlayerEntity attacker, String reason) {
+        kill(victim, attacker, reason, 300);
+    }
+    private void kill(ServerPlayerEntity victim, ServerPlayerEntity attacker, String reason, int killReward) {
         Fighter f = fighter(victim);
         if (f == null || !f.alive) return;
         f.alive = false; f.hp = 0; f.deaths++; f.cancel(); f.grenades.clear();
         if (this.channel != null && this.channel.player().equals(f.id)) cancelChannel();
         if (f.id.equals(this.bombCarrier)) dropBomb(victim.getBlockPos());
         if (f.primary != null) { dropGun(f.primary, victim.getBlockPos()); f.primary = null; }
-        f.vest = false; f.helmet = false; f.kit = false; f.scoped = false;
+        else if (f.pistol != null) dropGun(f.pistol, victim.getBlockPos());
+        f.pistol = null;
+        f.armor = 0; f.vest = false; f.helmet = false; f.kit = false; f.scoped = false; f.scopeLevel = 0;
         victim.closeHandledScreen(); victim.getInventory().clear(); updateHead(victim, f); removeSpeed(victim, f);
         victim.changeGameMode(GameMode.ADVENTURE); victim.setHealth(victim.getMaxHealth());
         teleport(victim, this.map.spectator(), 0);
         if (attacker != null && fighter(attacker) != null && fighter(attacker).team != f.team) {
-            Fighter killer = fighter(attacker); killer.cash = MyGoRules.addMoney(killer.cash, 300); killer.kills++; killer.roundKills++;
+            Fighter killer = fighter(attacker); killer.cash = MyGoRules.addMoney(killer.cash, killReward); killer.kills++; killer.roundKills++;
         }
         announce("§7" + victim.getName().getString() + " 阵亡" + (attacker == null ? "（" + reason + "）"
                 : " ← " + attacker.getName().getString() + "（" + reason + "）"));
@@ -423,9 +458,10 @@ public final class MyGoSession implements PortedGameSession {
     }
 
     public void reload(ServerPlayerEntity player) {
-        Fighter f = fighter(player); if (f == null || !f.alive || this.ended || this.phase == Phase.POST) return;
+        Fighter f = fighter(player); if (f == null || !f.alive || this.ended) return;
         Gun gun = f.gun(player.getInventory().selectedSlot);
         if (gun == null || gun.reloadAt > 0 || gun.ammo >= gun.type.magazine || gun.reserve <= 0) return;
+        f.resumeScopeLevel = 0; f.resumeScopeAt = 0;
         gun.shots.clear(); gun.reloadAt = this.ticks + gun.type.reloadTicks;
         syncEquipment(player, f);
         sound(player, "reload", .8F); actionBar(player, "§e正在换弹，切枪会取消。");
@@ -439,6 +475,7 @@ public final class MyGoSession implements PortedGameSession {
         f.selected = player.getInventory().selectedSlot;
         f.aimSince = this.ticks;
         f.scoped = false;
+        f.scopeLevel = 0;
         f.scopeUseTick = this.ticks - 6;
         updateHead(player, f);
         syncEquipment(player, f);
@@ -457,11 +494,11 @@ public final class MyGoSession implements PortedGameSession {
     public ActionResult attack(ServerPlayerEntity player, Entity entity) {
         Fighter f = fighter(player);
         if (f == null) return ActionResult.PASS;
-        if (!f.alive || this.phase != Phase.LIVE || player.getInventory().selectedSlot != 2 || this.ticks < f.knifeReady) return ActionResult.FAIL;
+        if (!f.alive || !combatPhase() || player.getInventory().selectedSlot != 2 || this.ticks < f.knifeReady) return ActionResult.FAIL;
         f.knifeReady = this.ticks + 12;
         if (entity instanceof ServerPlayerEntity target && fighter(target) != null && fighter(target).team != f.team
                 && fighter(target).alive && target.getWorld() == player.getWorld() && player.squaredDistanceTo(target) <= 9
-                && player.canSee(target)) damage(target, player, 40, "战术刀");
+                && player.canSee(target)) damage(target, player, 40, "战术刀", 1500);
         return ActionResult.SUCCESS;
     }
 
@@ -474,7 +511,7 @@ public final class MyGoSession implements PortedGameSession {
         if (slot == 5) { beginChannel(player, f); return ActionResult.SUCCESS; }
         for (MyGoUtilities.Type type : MyGoUtilities.Type.values()) if (slot == type.slot) {
             int count = f.grenades.getOrDefault(type, 0);
-            if (this.phase == Phase.LIVE && count > 0 && this.ticks >= f.throwReady) {
+            if (combatPhase() && count > 0 && this.ticks >= f.throwReady) {
                 f.grenades.put(type, count - 1); f.throwReady = this.ticks + 10;
                 this.utilities.launch(player, type, this.ticks); syncEquipment(player, f);
             }
@@ -482,13 +519,15 @@ public final class MyGoSession implements PortedGameSession {
         }
         Gun gun = f.gun(slot);
         if (gun != null) {
-            if (this.phase == Phase.LIVE) {
+            if (combatPhase() && gun.type.scopeLevels() > 0) {
                 // 原版按住右键每 4 tick 重复使用；同次实体／方块／物品交互也可能有多个包。
                 // 连续输入仅延长去抖窗口，松开后再次点按才切换，避免镜框不停闪烁。
                 int interval = this.ticks - f.scopeUseTick;
                 f.scopeUseTick = this.ticks;
                 if (interval > 5) {
-                    f.scoped = !f.scoped; f.aimSince = this.ticks;
+                    f.resumeScopeLevel = 0; f.resumeScopeAt = 0;
+                    f.scopeLevel = (f.scopeLevel + 1) % (gun.type.scopeLevels() + 1);
+                    f.scoped = f.scopeLevel > 0; f.aimSince = this.ticks;
                     updateHead(player, f); updateSpeed(player, f);
                 }
             }
@@ -539,7 +578,7 @@ public final class MyGoSession implements PortedGameSession {
             this.deadline = this.ticks + MyGoRules.BOMB_TICKS;
             f.cash = MyGoRules.addMoney(f.cash, 300); f.objectiveScore += 1000; setBombMarker(this.bombPosition, "§c已安装 C4 · 防守方潜行右键第 6 格拆除");
             announce("§cC4 已安装！40 秒后爆炸，进攻方全灭也会继续计时。"); syncEquipment(p, f);
-        } else { f.cash = MyGoRules.addMoney(f.cash, 300); f.objectiveScore += 1500; resolve(MyGoRules.Outcome.DEFENDERS, "C4 已拆除"); }
+        } else { f.cash = MyGoRules.addMoney(f.cash, 300); f.objectiveScore += 1500; resolve(MyGoRules.Outcome.DEFENDERS, MyGoRules.WinCause.BOMB_DEFUSED); }
     }
 
     private void cancelChannel() { this.channel = null; }
@@ -547,16 +586,17 @@ public final class MyGoSession implements PortedGameSession {
     /** 原版 Q 由入口取消，装备掉落由本会话记录，避免复制枪械或把 C4 丢入虚空后卡死。 */
     public boolean drop(ServerPlayerEntity player) {
         Fighter f = fighter(player); if (f == null) return false;
-        if (!f.alive || this.ended || this.phase == Phase.POST) return true;
+        if (!f.alive || this.ended) return true;
         int slot = player.getInventory().selectedSlot;
-        if (slot == 0 && f.primary != null) { dropGun(f.primary, player.getBlockPos()); f.primary = null; }
+        if (slot == 0 && f.primary != null) { dropGun(f.primary, player.getBlockPos()); f.primary = null; closeScope(player, f); }
+        else if (slot == 1 && f.pistol != null) { dropGun(f.pistol, player.getBlockPos()); f.pistol = null; closeScope(player, f); }
         else if (slot == 5 && f.id.equals(this.bombCarrier)) dropBomb(player.getBlockPos());
         syncEquipment(player, f); return true;
     }
 
     private void dropGun(Gun gun, BlockPos pos) {
         gun.cancel(); BlockPos safe = this.map.safeDrop(this.match.arenaWorld(), pos);
-        ArmorStandEntity marker = label(safe, "§e" + gun.type.label + " · 空主枪槽靠近拾取");
+        ArmorStandEntity marker = label(safe, "§e" + gun.type.label + " · 空" + (gun.type.pistol() ? "副枪" : "主枪") + "槽靠近拾取");
         this.groundGuns.add(new GroundGun(gun, safe, this.ticks + 20, marker));
     }
     private void dropBomb(BlockPos pos) {
@@ -571,10 +611,11 @@ public final class MyGoSession implements PortedGameSession {
                 this.bombCarrier = f.id; this.bombGround = null; removeBombMarker(); syncEquipment(p, f);
                 actionBar(p, "§6已拾取 C4。");
             }
-            if (f.primary != null) continue;
             for (GroundGun drop : List.copyOf(this.groundGuns)) {
+                if (drop.gun.type.pistol() ? f.pistol != null : f.primary != null) continue;
                 if (this.ticks >= drop.pickupAt && near(p, drop.pos, 1.6)) {
-                    f.primary = drop.gun; this.groundGuns.remove(drop); discard(drop.marker); syncEquipment(p, f); break;
+                    if (drop.gun.type.pistol()) f.pistol = drop.gun; else f.primary = drop.gun;
+                    this.groundGuns.remove(drop); discard(drop.marker); syncEquipment(p, f); break;
                 }
             }
         }
@@ -582,45 +623,47 @@ public final class MyGoSession implements PortedGameSession {
 
     public boolean buy(ServerPlayerEntity player, String id) {
         Fighter f = fighter(player);
-        if (f == null || !f.alive || this.ended || this.phase != Phase.BUY || !this.map.inBuyZone(player.getBlockPos(), attackers(f))) {
-            actionBar(player, "§c只能在购买阶段、本方出生区购买。"); return false;
+        if (!canBuy(player, f)) {
+            actionBar(player, "§c只能在购买时限内、本方购买区购买。"); return false;
         }
         String key = id.toLowerCase(Locale.ROOT);
         if ("defuser".equals(key) || "defuse".equals(key)) key = "kit";
         MyGoWeapon type = MyGoWeapon.parse(key);
         MyGoUtilities.Type utility = MyGoUtilities.Type.parse(key);
-        if (type == MyGoWeapon.P9) { actionBar(player, "§eP18C 是免费副枪，按 2 切换。"); return false; }
         int cost;
         if (type != null) {
-            if (!type.availableTo(attackers(f))) { actionBar(player, "§c" + type.label + " 仅供" + (type == MyGoWeapon.AK ? "进攻方" : "防守方") + "购买，可拾取敌方掉落枪械。"); return false; }
-            if (f.primary != null) { actionBar(player, "§e已有主枪，请先按 Q 丢下再购买。"); return false; }
+            if (!type.availableTo(attackers(f))) { actionBar(player, "§c本阵营不可购买 " + type.label + "，可拾取敌方掉落枪械。"); return false; }
+            if (!type.pistol() && f.primary != null) { actionBar(player, "§e已有主枪，请先按 Q 丢下再购买。"); return false; }
             cost = type.price;
         } else if (utility != null) {
             if (f.grenades.getOrDefault(utility, 0) >= utility.maximum) { actionBar(player, "§e已达到该投掷物携带上限。"); return false; }
             cost = utility.price;
         } else if ("vest".equals(key)) {
-            if (f.vest) return false; cost = 650;
+            cost = MyGoRules.armorCost(f.armor, f.helmet, false); if (cost == 0) return false;
         } else if ("helmet".equals(key)) {
-            if (!f.vest || f.helmet) { actionBar(player, "§e需要先购买防弹衣，头盔不能重复购买。"); return false; }
-            cost = 350;
+            cost = MyGoRules.armorCost(f.armor, f.helmet, true); if (cost == 0) return false;
         } else if ("kit".equals(key)) {
             if (attackers(f) || f.kit) { actionBar(player, "§e拆包器仅防守方可购买一次。"); return false; }
             cost = 400;
         } else { player.sendMessage(Text.literal("§c未知商品，请打开 /pvp mygo 查看军械库。"), false); return false; }
         if (f.cash < cost) { actionBar(player, "§c现金不足，需要 $" + cost); return false; }
         f.cash -= cost;
-        if (type != null) f.primary = new Gun(type);
+        if (type != null) {
+            if (player.getInventory().selectedSlot == (type.pistol() ? 1 : 0)) closeScope(player, f);
+            if (type.pistol()) { if (f.pistol != null) dropGun(f.pistol, player.getBlockPos()); f.pistol = new Gun(type); }
+            else f.primary = new Gun(type);
+        }
         else if (utility != null) f.grenades.merge(utility, 1, Integer::sum);
-        else if ("vest".equals(key)) f.vest = true;
-        else if ("helmet".equals(key)) f.helmet = true;
+        else if ("vest".equals(key)) { f.armor = 100; f.vest = true; }
+        else if ("helmet".equals(key)) { f.armor = 100; f.vest = true; f.helmet = true; }
         else f.kit = true;
         syncEquipment(player, f); actionBar(player, "§a购买成功"); return true;
     }
 
     public void openShop(ServerPlayerEntity player) {
         Fighter f = fighter(player);
-        if (f == null || !f.alive || this.phase != Phase.BUY || this.ended) {
-            actionBar(player, "§e军械库只在每回合开始的 10 秒购买阶段开放。"); return;
+        if (!canBuy(player, f)) {
+            actionBar(player, "§e军械库限冻结阶段及解冻后 20 秒内，在本方购买区使用。"); return;
         }
         player.openHandledScreen(new NamedScreenHandlerFactory() {
             @Override public Text getDisplayName() { return Text.literal("MyGO 军械库 · " + (attackers(f) ? "进攻方" : "防守方")); }
@@ -629,21 +672,21 @@ public final class MyGoSession implements PortedGameSession {
     }
 
     private final class ShopHandler extends ScreenHandler {
-        private final SimpleInventory inventory = new SimpleInventory(45);
+        private final SimpleInventory inventory = new SimpleInventory(54);
         private final Map<Integer, String> products = new HashMap<>();
         ShopHandler(int syncId, PlayerInventory player, ServerPlayerEntity buyer) {
-            super(ScreenHandlerType.GENERIC_9X5, syncId);
-            for (int i = 0; i < 45; i++) addSlot(new Slot(this.inventory, i, 8 + i % 9 * 18, 18 + i / 9 * 18));
-            for (int row = 0; row < 3; row++) for (int col = 0; col < 9; col++) addSlot(new Slot(player, 9 + row * 9 + col, 8 + col * 18, 122 + row * 18));
-            for (int i = 0; i < 9; i++) addSlot(new Slot(player, i, 8 + i * 18, 180));
+            super(ScreenHandlerType.GENERIC_9X6, syncId);
+            for (int i = 0; i < 54; i++) addSlot(new Slot(this.inventory, i, 8 + i % 9 * 18, 18 + i / 9 * 18));
+            for (int row = 0; row < 3; row++) for (int col = 0; col < 9; col++) addSlot(new Slot(player, 9 + row * 9 + col, 8 + col * 18, 140 + row * 18));
+            for (int i = 0; i < 9; i++) addSlot(new Slot(player, i, 8 + i * 18, 198));
             redraw(buyer);
         }
         private void redraw(ServerPlayerEntity buyer) {
             Fighter f = fighter(buyer); this.products.clear();
-            for (int i = 0; i < 45; i++) this.inventory.setStack(i, named(Items.GRAY_STAINED_GLASS_PANE, " "));
-            this.inventory.setStack(0, named(Items.IRON_INGOT, "§f枪械 · 先丢弃已有主枪再购买"));
+            for (int i = 0; i < 54; i++) this.inventory.setStack(i, named(Items.GRAY_STAINED_GLASS_PANE, " "));
+            this.inventory.setStack(0, named(Items.IRON_INGOT, "§fCS:GO 军械库 · 主/副枪独立装备"));
             this.inventory.setStack(4, named(Items.EMERALD, "§6现金 $" + f.cash));
-            this.inventory.setStack(8, named(Items.CLOCK, "§e购买剩余 " + time(deadline - ticks)));
+            this.inventory.setStack(8, named(Items.CLOCK, "§e购买剩余 " + time(buyUntil - ticks)));
             for (MyGoWeapon weapon : MyGoWeapon.values()) {
                 int slot = 9 + weapon.ordinal();
                 ItemStack icon = gunStack(new Gun(weapon));
@@ -652,21 +695,21 @@ public final class MyGoSession implements PortedGameSession {
                 icon.set(DataComponentTypes.LORE, new LoreComponent(List.of(
                         Text.literal("§7" + weapon.category() + " · " + weapon.magazine + " 发 · 换弹 " + weapon.reloadTicks / 20.0 + " 秒"),
                         Text.literal("§7基础伤害 " + weapon.damage + (weapon.pellets() > 1 ? " × " + weapon.pellets() : "") + " · 穿甲 " + (int) (weapon.penetration * 100) + "%"),
-                        Text.literal(weapon == MyGoWeapon.P9 ? "§a回合自带" : !allowed ? "§c本阵营不可购买" : "§a点击购买"))));
+                        Text.literal(!allowed ? "§c本阵营不可购买" : "§a点击购买 · 击杀奖励 $" + weapon.killReward))));
                 this.inventory.setStack(slot, icon); this.products.put(slot, weapon.name().toLowerCase(Locale.ROOT));
             }
             String[] ids = {"vest", "helmet", "kit"};
-            String[] names = {"防弹衣 · $650", "头盔升级 · $350", "拆包器 · $400（仅防守方）"};
+            String[] names = {"防弹衣/补甲 · $650", "防弹衣+头盔 · $" + MyGoRules.armorCost(f.armor, f.helmet, true), "拆包器 · $400（仅防守方）"};
             Item[] items = {Items.LEATHER_CHESTPLATE, Items.LEATHER_HELMET, Items.SHEARS};
-            for (int i = 0; i < ids.length; i++) { this.inventory.setStack(27 + i, named(items[i], "§b" + names[i])); this.products.put(27 + i, ids[i]); }
+            for (int i = 0; i < ids.length; i++) { this.inventory.setStack(45 + i, named(items[i], "§b" + names[i])); this.products.put(45 + i, ids[i]); }
             for (MyGoUtilities.Type utility : MyGoUtilities.Type.values()) {
-                int slot = 30 + utility.ordinal(); ItemStack icon = utility.stack(1);
+                int slot = 48 + utility.ordinal(); ItemStack icon = utility.stack(1);
                 icon.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§e" + utility.label + " · $" + utility.price));
                 icon.set(DataComponentTypes.LORE, new LoreComponent(List.of(Text.literal("§7携带 " + f.grenades.getOrDefault(utility, 0) + "/" + utility.maximum + " · 热键 " + (utility.slot + 1)),
                         Text.literal(utility == MyGoUtilities.Type.SMOKE ? "§7烟幕持续 12 秒，子弹可穿过" : utility == MyGoUtilities.Type.FLASH ? "§7背对闪光、掩体遮挡可降低效果" : "§7范围伤害，护甲与掩体可减伤"))));
                 this.inventory.setStack(slot, icon); this.products.put(slot, utility.name().toLowerCase(Locale.ROOT));
             }
-            this.inventory.setStack(40, named(Items.PAPER, "§7左键点射 · 右键瞄准/关镜 · F 换弹 · Q 丢主枪"));
+            this.inventory.setStack(52, named(Items.PAPER, "§7左键点射 · 瞄具枪右键倍率/关镜 · F 换弹 · Q 丢枪"));
         }
         @Override public void onSlotClick(int index, int button, SlotActionType action, PlayerEntity p) {
             if (p instanceof ServerPlayerEntity sp && this.products.containsKey(index)
@@ -674,22 +717,28 @@ public final class MyGoSession implements PortedGameSession {
                 buy(sp, this.products.get(index)); redraw(sp); sendContentUpdates();
             }
         }
-        @Override public boolean canUse(PlayerEntity p) { Fighter f = fighters.get(p.getUuid()); return !ended && phase == Phase.BUY && f != null && f.alive && map.inBuyZone(p.getBlockPos(), attackers(f)); }
+        @Override public boolean canUse(PlayerEntity p) { Fighter f = fighters.get(p.getUuid()); return p instanceof ServerPlayerEntity sp && canBuy(sp, f); }
         @Override public ItemStack quickMove(PlayerEntity player, int index) { return ItemStack.EMPTY; }
     }
 
-    private void resolve(MyGoRules.Outcome outcome, String reason) {
+    private void resolve(MyGoRules.Outcome outcome, MyGoRules.WinCause cause) {
+        String reason = switch (cause) {
+            case BOMB_EXPLODED -> "C4 爆炸"; case BOMB_DEFUSED -> "C4 已拆除";
+            case TIMEOUT -> "进攻超时"; case ELIMINATION -> outcome == MyGoRules.Outcome.ATTACKERS ? "防守方全灭" : "进攻方全灭";
+        };
         if (this.phase != Phase.LIVE || this.ended) return;
         int attackerTeam = MyGoRules.switchedSides(this.round) ? 1 : 0;
         int winner = outcome == MyGoRules.Outcome.ATTACKERS ? attackerTeam : 1 - attackerTeam;
-        this.utilities.clear();
         this.phase = Phase.POST; this.deadline = this.ticks + MyGoRules.POST_TICKS; cancelChannel(); this.scores[winner]++;
-        this.losses[winner] = 0; this.losses[1 - winner]++;
+        int loser = 1 - winner;
+        int loserReward = MyGoRules.lossReward(this.losses[loser]);
+        this.losses[winner] = MyGoRules.afterWin(this.losses[winner]);
+        this.losses[loser] = MyGoRules.afterLoss(this.losses[loser]);
         for (ServerPlayerEntity p : participants()) {
-            Fighter f = fighter(p); f.cancel(); f.scoped = false; updateHead(p, f);
-            int reward = f.team == winner ? 3250 : MyGoRules.lossReward(this.losses[f.team]);
+            Fighter f = fighter(p); f.cancel(); f.scoped = false; f.scopeLevel = 0; updateHead(p, f);
+            int reward = f.team == winner ? MyGoRules.roundReward(cause) : loserReward;
             if (outcome == MyGoRules.Outcome.DEFENDERS && !this.bombPlanted && "进攻超时".equals(reason) && attackers(f) && f.alive) reward = 0;
-            if (this.bombPlanted && f.team != winner && attackers(f)) reward += 600;
+            if (cause == MyGoRules.WinCause.BOMB_DEFUSED && f.team != winner && attackers(f)) reward += 800;
             f.cash = MyGoRules.addMoney(f.cash, reward);
             p.sendMessage(Text.literal("§6回合" + (f.team == winner ? "胜利" : "失败") + " · " + reason + " · +$" + reward), false);
         }
@@ -701,8 +750,8 @@ public final class MyGoSession implements PortedGameSession {
                     if (mvp != null) announce("§e★ MVP " + mvp.getName().getString() + " · " + f.roundKills + " 击杀 / " + String.format(Locale.ROOT, "%.0f", f.roundDamage) + " 伤害" + (f.objectiveScore > 0 ? " · 爆破贡献" : "")); });
         if (MyGoRules.finished(this.scores[0], this.scores[1])) {
             Integer win = this.scores[0] == this.scores[1] ? null : this.scores[0] > this.scores[1] ? 0 : 1;
-            finish(win, win == null ? "§eMyGO 6:6 平局。" : "§6MyGO 队伍 " + (win + 1) + " 获胜！");
-        } else this.round++;
+            finish(win, win == null ? "§eMyGO 15:15 平局。" : "§6MyGO 队伍 " + (win + 1) + " 获胜！");
+        }
         updateBar();
     }
 
@@ -711,7 +760,7 @@ public final class MyGoSession implements PortedGameSession {
         int a = 0, d = 0;
         for (Fighter f : this.fighters.values()) if (this.active.contains(f.id) && f.alive) { if (attackers(f)) a++; else d++; }
         MyGoRules.Outcome outcome = MyGoRules.eliminationOutcome(this.bombPlanted, a, d);
-        if (outcome != null) resolve(outcome, a == 0 ? "进攻方全灭" : "防守方全灭");
+        if (outcome != null) resolve(outcome, MyGoRules.WinCause.ELIMINATION);
     }
 
     private void checkTeams() {
@@ -766,9 +815,9 @@ public final class MyGoSession implements PortedGameSession {
         long attackAlive = this.fighters.values().stream().filter(f -> this.active.contains(f.id) && f.alive && attackers(f)).count();
         long defendAlive = this.fighters.values().stream().filter(f -> this.active.contains(f.id) && f.alive && !attackers(f)).count();
         return List.of("§6MyGO · 经济爆破", "§f队伍1 §c" + this.scores[0] + " §7: §9" + this.scores[1] + " §f队伍2",
-                "§e第 " + Math.min(12, this.round) + " 回合 · " + phaseName(), "§f剩余 " + time(this.deadline - this.ticks),
+                "§e第 " + Math.min(MyGoRules.MAX_ROUNDS, this.round) + " 回合 · " + phaseName(), "§f剩余 " + time(this.deadline - this.ticks),
                 "§cT 存活 " + attackAlive + " §7/ §9CT 存活 " + defendAlive,
-                this.bombPlanted ? "§cC4 已安装" : "§7C4 尚未安装", "§7左键点射 · F 换弹", "§7右键瞄准/关镜 · 9 商店");
+                this.bombPlanted ? "§cC4 已安装" : "§7C4 尚未安装", "§7左键点射 · F 换弹", "§7瞄具枪右键倍率 · 9 商店");
     }
 
     public String debugState(ServerPlayerEntity player) {
@@ -778,9 +827,13 @@ public final class MyGoSession implements PortedGameSession {
                 + " side=" + (f != null && attackers(f) ? "T" : "CT") + " alive=" + (f != null && f.alive)
                 + " hp=" + (f == null ? 0 : f.hp) + " cash=" + (f == null ? 0 : f.cash)
                 + " gun=" + (gun == null ? "none" : gun.type) + " ammo=" + (gun == null ? 0 : gun.ammo)
-                + " scoped=" + (f != null && f.scoped) + " awZoom=" + (f != null && f.awZoom)
+                + " scoped=" + (f != null && f.scoped) + " scopeLevel=" + (f == null ? 0 : f.scopeLevel)
+                + " scopeFov=" + (f != null && gun != null && f.scopeLevel > 0 ? gun.type.scopeFov(f.scopeLevel) : 70)
+                + " usingItem=" + player.isUsingItem() + " awZoom=" + (f != null && f.awZoom)
                 + " moveSpeed=" + player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED)
                 + " walkSpeed=" + player.getAbilities().getWalkSpeed()
+                + " buyTicks=" + Math.max(0, this.buyUntil - this.ticks) + " lossLevel=" + (f == null ? 0 : this.losses[f.team])
+                + " armor=" + (f == null ? 0 : f.armor) + " pistol=" + (f == null || f.pistol == null ? "none" : f.pistol.type)
                 + " reserve=" + (gun == null ? 0 : gun.reserve) + " vest=" + (f != null && f.vest)
                 + " kills=" + (f == null ? 0 : f.kills) + " grenades=" + (f == null ? "none" : f.grenades)
                 + " activeGrenades=" + this.utilities.activeGrenades() + " smokes=" + this.utilities.activeSmokes()
@@ -800,10 +853,10 @@ public final class MyGoSession implements PortedGameSession {
             if (!p.getInventory().getStack(i).isEmpty()) p.getInventory().setStack(i, ItemStack.EMPTY);
         }
         setSlot(p, 0, f.primary == null ? ItemStack.EMPTY : gunStack(f.primary));
-        setSlot(p, 1, gunStack(f.pistol));
+        setSlot(p, 1, f.pistol == null ? ItemStack.EMPTY : gunStack(f.pistol));
         ItemStack knife = model(Items.IRON_SWORD, 71006, "§f战术刀 · 左键"); setSlot(p, 2, knife);
         ItemStack objective = attackers(f) ? (f.id.equals(this.bombCarrier) ? model(Items.REDSTONE, 73001, "§6C4 · 包点潜行右键安装") : ItemStack.EMPTY)
-                : model(f.kit ? Items.SHEARS : Items.STICK, f.kit ? 73002 : 0, "§b" + (f.kit ? "拆包器 · 4 秒" : "徒手拆包 · 8 秒") + " · 潜行右键");
+                : model(f.kit ? Items.SHEARS : Items.STICK, f.kit ? 73002 : 0, "§b" + (f.kit ? "拆包器 · 5 秒" : "徒手拆包 · 10 秒") + " · 潜行右键");
         for (MyGoUtilities.Type type : MyGoUtilities.Type.values()) {
             int count = f.grenades.getOrDefault(type, 0);
             setSlot(p, type.slot, count > 0 ? type.stack(count) : ItemStack.EMPTY);
@@ -830,31 +883,27 @@ public final class MyGoSession implements PortedGameSession {
         if (!ItemStack.areEqual(p.getEquippedStack(EquipmentSlot.HEAD), expected)) p.equipStack(EquipmentSlot.HEAD, expected);
         updateScopeZoom(p, f);
     }
-    private void restoreHead(ServerPlayerEntity p, Fighter f) { f.scoped = false; p.equipStack(EquipmentSlot.HEAD, f.oldHead.copy()); updateScopeZoom(p, f); }
+    private void closeScope(ServerPlayerEntity p, Fighter f) {
+        f.scoped = false; f.scopeLevel = 0; f.resumeScopeLevel = 0; f.resumeScopeAt = 0; updateHead(p, f); updateSpeed(p, f);
+    }
+    private void restoreHead(ServerPlayerEntity p, Fighter f) { f.scoped = false; f.scopeLevel = 0; p.equipStack(EquipmentSlot.HEAD, f.oldHead.copy()); updateScopeZoom(p, f); }
 
-    /** AWM 需要更大的倍率：只调整客户端 FOV 计算基准，服务端能力与实际移速不变。 */
+    /** 只给有瞄具的枪发送视野基准；保持真实权限、真实移动速度不变。 */
     private void updateScopeZoom(ServerPlayerEntity p, Fighter f) {
         Gun gun = f.gun(p.getInventory().selectedSlot);
-        boolean zoom = !this.ended && this.phase == Phase.LIVE && f.alive && f.scoped && gun != null && gun.type == MyGoWeapon.AW;
-        if (zoom == f.awZoom) return;
-        f.awZoom = zoom;
-        if (!zoom) { p.sendAbilitiesUpdate(); return; }
-        // 1.21.1 客户端 FOV 使用 movementSpeed / abilities.walkSpeed；该字段不参与客户端行走物理。
-        // 复制权限标记，仅向客户端发送两倍基准值；绝不修改玩家真实的 PlayerAbilities。
-        PlayerAbilities original = p.getAbilities(), view = new PlayerAbilities();
-        view.invulnerable = original.invulnerable; view.flying = original.flying;
-        view.allowFlying = original.allowFlying; view.creativeMode = original.creativeMode;
-        view.setFlySpeed(original.getFlySpeed()); view.setWalkSpeed(original.getWalkSpeed() * 2);
-        p.networkHandler.sendPacket(new PlayerAbilitiesS2CPacket(view));
+        boolean zoom = !this.ended && combatPhase() && f.alive && f.scoped && gun != null && gun.type.scopeLevels() > 0;
+        f.awZoom = zoom && gun.type == MyGoWeapon.AW;
+        if (zoom) f.scopeView.update(p, f.scopeLevel, gun.type.scopeFov(f.scopeLevel));
+        else f.scopeView.reset(p);
     }
     private void updateSpeed(ServerPlayerEntity p, Fighter f) {
         Gun gun = f.gun(p.getInventory().selectedSlot);
-        double amount = this.phase == Phase.BUY || this.phase == Phase.POST ? -1 : gun == null ? 0 : gun.type.sniper() ? -.25 : gun.type.smg() ? -.03 : -.10;
+        double amount = this.phase == Phase.BUY ? -1 : gun == null ? 0 : gun.type.sniper() ? -.25 : gun.type.smg() ? -.03 : -.10;
         if (f.scoped && gun != null) amount -= .10;
-        if (Double.compare(amount, f.speed) == 0) return;
+        if (Double.compare(amount, f.speed) == 0) { updateScopeZoom(p, f); return; }
         var attr = p.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
         if (attr != null) { attr.removeModifier(SPEED_ID); if (amount != 0) attr.addTemporaryModifier(new EntityAttributeModifier(SPEED_ID, amount, EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL)); }
-        f.speed = amount;
+        f.speed = amount; updateScopeZoom(p, f);
     }
     private void removeSpeed(ServerPlayerEntity p, Fighter f) { var attr = p.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED); if (attr != null) attr.removeModifier(SPEED_ID); f.speed = Double.NaN; }
     /** 金钱固定显示在快捷栏上方，并保留在购枪、命中、换弹和拆包提示中。 */
@@ -868,16 +917,20 @@ public final class MyGoSession implements PortedGameSession {
         Gun gun = f.gun(p.getInventory().selectedSlot);
         String weapon = gun == null ? "" : " · " + gun.type.label + " " + gun.ammo + "/" + gun.reserve + (gun.reloadAt > 0 ? " 换弹 " + (int) (100 * (1 - (gun.reloadAt - this.ticks) / (double) gun.type.reloadTicks)) + "%" : "");
         actionBar(p, "§a" + String.format(Locale.ROOT, "%.1f", f.hp) + " HP"
-                + " §7K/D " + f.kills + "/" + f.deaths + " · " + (f.vest ? "衣" : "无甲") + (f.helmet ? "+盔" : "") + weapon);
+                + " §7K/D " + f.kills + "/" + f.deaths + " · " + (f.vest ? "甲 " + (int) Math.ceil(f.armor) : "无甲") + (f.helmet ? "+盔" : "") + weapon);
     }
     private void updateBar() {
-        int total = this.phase == Phase.BUY ? MyGoRules.BUY_TICKS : this.phase == Phase.POST ? MyGoRules.POST_TICKS : this.bombPlanted ? MyGoRules.BOMB_TICKS : MyGoRules.ROUND_TICKS;
+        int total = this.phase == Phase.BUY ? MyGoRules.FREEZE_TICKS : this.phase == Phase.POST ? MyGoRules.POST_TICKS : this.bombPlanted ? MyGoRules.BOMB_TICKS : MyGoRules.ROUND_TICKS;
         this.timer.setName(Text.literal("MyGO " + this.scores[0] + ":" + this.scores[1] + " · " + phaseName() + " " + time(this.deadline - this.ticks)));
         this.timer.setColor(this.bombPlanted ? BossBar.Color.RED : this.phase == Phase.BUY ? BossBar.Color.BLUE : BossBar.Color.YELLOW);
         this.timer.setPercent(Math.max(0, Math.min(1, (float) (this.deadline - this.ticks) / total)));
     }
-    private String phaseName() { return switch (this.phase) { case BUY -> "购买"; case LIVE -> this.bombPlanted ? "C4 倒计时" : "作战"; case POST -> "回合结束"; case FINISHED -> "比赛结束"; }; }
+    private String phaseName() { return switch (this.phase) { case BUY -> "冻结购买"; case LIVE -> this.bombPlanted ? "C4 倒计时" : "作战"; case POST -> "回合结束"; case FINISHED -> "比赛结束"; }; }
     private static String time(int ticks) { int sec = Math.max(0, (ticks + 19) / 20); return String.format(Locale.ROOT, "%d:%02d", sec / 60, sec % 60); }
+    private boolean combatPhase() { return this.phase == Phase.LIVE || this.phase == Phase.POST; }
+    private boolean canBuy(ServerPlayerEntity p, Fighter f) { return !this.ended && f != null && f.alive
+            && (this.phase == Phase.BUY || this.phase == Phase.LIVE && this.ticks < this.buyUntil)
+            && this.map.inBuyZone(p.getBlockPos(), attackers(f)); }
     private boolean attackers(Fighter f) { return f.team == (MyGoRules.switchedSides(this.round) ? 1 : 0); }
     private Fighter fighter(ServerPlayerEntity p) { return this.fighters.get(p.getUuid()); }
     private List<ServerPlayerEntity> participants() { return this.match.onlineParticipants().stream().filter(p -> this.active.contains(p.getUuid())).toList(); }

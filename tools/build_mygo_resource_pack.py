@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Build MyGO 1.21.1 assets so vanilla clients can display tool-based guns.
 
-Weapon Pack 1.1 models by Pelmeshka_ are adapted under MIT; see the pinned source
-and license in tools/assets/mygo-weapon-pack. Knife, utilities, scope and synthetic
-sounds are authored here. Requires Python 3 and ffmpeg.
+The original PUBG-themed imports do not match the CS:GO arsenal. All 34 gun
+silhouettes, materials, poses, utilities, scope and synthetic sounds are now
+authored here under this repository's MIT license; no Valve game assets are
+redistributed. Requires Python 3 and ffmpeg.
 Run from any directory. The committed ZIP is the runtime input, so server builds
 do not require Python or ffmpeg. ZIP timestamps are fixed for reproducible SHA-1.
 """
@@ -25,45 +26,12 @@ import zlib
 ROOT = Path(__file__).resolve().parents[1]
 STAGING = ROOT / "build/mygo-resource-pack"
 OUTPUT = ROOT / "src/main/resources/pvp/mygo"
-UPSTREAM = ROOT / "tools/assets/mygo-weapon-pack"
-GUN_MODELS = {
-    "p9": (71001, "p18c"), "mp5": (71002, "ump"), "ak": (71003, "akm"),
-    "m4": (71004, "m416"), "aw": (71005, "awm"), "m16": (71011, "m16a4"),
-    "scar": (71012, "scar-l"), "mini14": (71013, "mini14"), "mk14": (71014, "mk14"),
-    "p90": (71015, "p90"), "uzi": (71016, "uzi"), "vector": (71017, "vector"),
-    "tommy": (71018, "tommy_gun"), "m24": (71019, "m24"), "s686": (71020, "s686"),
-}
-
-
-def imported_models():
-    """Convert CIT selectors and use item/ so vanilla 1.21.1 stitches the PNGs.
-
-    A PNG outside the block/item atlas directories still appears purple/black
-    even when it exists in the ZIP. Keep every item material in the vanilla
-    atlas input instead of relying on OptiFine to discover custom folders.
-    """
-    for name, (_, source) in GUN_MODELS.items():
-        data = json.loads((UPSTREAM / (source + ".json")).read_text())
-        data["textures"] = {key: "pvp:item/mygo/" + source for key in data["textures"]}
-        data["textures"].setdefault("particle", "pvp:item/mygo/" + source)
-        data["gui_light"] = "front"
-        data["credit"] = "Weapon Pack 1.1 by Pelmeshka_ (MIT), adapted for MyGO; made with Blockbench"
-        write_json(f"assets/pvp/models/item/mygo/{name}.json", data)
-        texture = STAGING / f"assets/pvp/textures/item/mygo/{source}.png"
-        texture.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(UPSTREAM / (source + ".png"), texture)
-        for suffix, kick, tilt in [("fire", 0.6, -3), ("reload", -1.8, -24)]:
-            display = json.loads(json.dumps(data.get("display", {})))
-            for hand in ["firstperson_righthand", "firstperson_lefthand"]:
-                pose = display.setdefault(hand, {})
-                position = pose.setdefault("translation", [0, 0, 0])
-                position[1] += kick
-                rotation = pose.setdefault("rotation", [0, 0, 0])
-                rotation[2] += tilt
-            write_json(f"assets/pvp/models/item/mygo/{name}_{suffix}.json", {
-                "parent": f"pvp:item/mygo/{name}", "display": display})
-    for file in ["LICENSE.txt", "source.json"]:
-        shutil.copyfile(UPSTREAM / file, STAGING / ("WEAPON_PACK_" + file))
+GUN_NAMES = ("glock usp_s p2000 p250 fiveseven tec9 cz75 duals deagle revolver "
+             "mac10 mp9 mp7 mp5sd ump45 p90 bizon galil famas ak47 m4a4 m4a1s "
+             "aug sg553 ssg08 awp g3sg1 scar20 nova xm1014 mag7 sawedoff m249 negev").split()
+# 71006 is the knife and 71010 the scope icon. Keep this sequence aligned with
+# MyGoWeapon; selectors and all animation offsets are checked against the enum.
+GUN_MODELS = dict(zip(GUN_NAMES, (value for value in range(71001, 71037) if value not in (71006, 71010))))
 
 
 def write_json(path: str, data: dict) -> None:
@@ -101,79 +69,219 @@ def box(a, b, material="metal", rotation=None):
     return element
 
 
-def models():
-    """Distinct slide, stock, barrel, magazine and optic geometry, all within 0..16."""
-    return {
-        "p9": [
-            box([6.5, 8, 3], [9.5, 10, 12], "silver"),
-            box([7, 8.4, 1.8], [9, 9.6, 3], "dark"),
-            box([6.7, 3, 9], [9.3, 8, 11.8], "grip"),
-            box([7, 7, 5.5], [9, 8, 10], "dark"),
-            box([7.4, 5.3, 6.2], [8.6, 5.8, 9.2], "metal"),
-            box([7.4, 5.8, 6.2], [8.6, 7.4, 6.7], "metal"),
-            box([7.7, 9.9, 3.8], [8.3, 10.5, 4.3], "red"),
-            box([6.8, 9.9, 11], [9.2, 10.5, 11.5], "dark"),
-        ],
-        "mp5": [
-            box([6.6, 8, 4], [9.4, 10.2, 12.5], "dark"),
-            box([7.3, 8.6, 0.8], [8.7, 9.6, 4], "metal"),
-            box([6.4, 7.7, 3.5], [9.6, 9.8, 6.4], "grip"),
-            box([7, 2.5, 6.8], [9, 8, 8.7], "metal"),
-            box([6.8, 3.7, 10], [9.2, 8.1, 12], "grip"),
-            box([7.2, 8.5, 12.5], [8.8, 9.8, 15], "silver"),
-            box([6.6, 7.2, 14.8], [9.4, 11, 16], "dark"),
-            box([7, 10.2, 4], [9, 11, 4.7], "metal"),
-            box([7, 10.2, 11], [9, 11, 11.7], "metal"),
-        ],
-        "ak": [
-            box([6.7, 8, 6], [9.3, 10.3, 11.5], "metal"),
-            box([6.6, 7.5, 3.3], [9.4, 9.8, 6.5], "wood"),
-            box([7.3, 8.8, 0], [8.7, 9.7, 3.5], "dark"),
-            box([7.55, 10, 1.5], [8.45, 11.5, 2.2], "dark"),
-            box([7.4, 9.7, 2.5], [8.6, 10.5, 6.3], "metal"),
-            box([6.8, 4.4, 7.3], [9.2, 8, 9.7], "dark"),
-            box([6.8, 2, 6.4], [9.2, 4.8, 9.2], "dark"),
-            box([6.8, 4.1, 10.3], [9.2, 8, 12.2], "wood"),
-            box([7, 8.5, 11.5], [9, 9.7, 13], "metal"),
-            box([6.7, 6.8, 12.8], [9.3, 10, 16], "wood"),
-            box([9.2, 8.8, 9], [10.2, 9.5, 9.8], "silver"),
-        ],
-        "m4": [
-            box([6.6, 8, 7], [9.4, 10.3, 11.8], "dark"),
-            box([6.4, 8, 3.5], [9.6, 10, 7.1], "tan"),
-            box([7.35, 8.65, 0], [8.65, 9.55, 3.7], "metal"),
-            box([7, 5, 7.4], [9, 8, 9.4], "silver"),
-            box([7, 2.4, 6.9], [9, 5.4, 9], "silver"),
-            box([6.8, 4.1, 10], [9.2, 8, 12], "tan"),
-            box([7.2, 8.5, 11.5], [8.8, 9.7, 14.8], "metal"),
-            box([6.5, 6.8, 13.7], [9.5, 10.1, 16], "tan"),
-            box([6.8, 10.3, 7.8], [9.2, 12.2, 9.8], "dark"),
-            box([7.3, 10.7, 7.75], [8.7, 11.8, 7.85], "glass"),
-            box([7.2, 10, 3], [8.8, 11.6, 3.6], "dark"),
-        ],
-        "aw": [
-            box([6.4, 7.5, 7], [9.6, 9.3, 13.5], "olive"),
-            box([7, 9, 5], [9, 10.3, 12], "metal"),
-            box([7.35, 9.3, 0], [8.65, 10.1, 5.5], "dark"),
-            box([6.5, 6.5, 12], [9.5, 9.4, 16], "olive"),
-            box([6.8, 4.8, 10.4], [9.2, 7.8, 12.3], "grip"),
-            box([7, 4.5, 8], [9, 7.8, 10], "dark"),
-            box([7.3, 10.1, 7.5], [8.7, 11.5, 8.2], "metal"),
-            box([7.3, 10.1, 10.5], [8.7, 11.5, 11.2], "metal"),
-            box([6.6, 11.2, 6], [9.4, 13.3, 11.8], "dark"),
-            box([6.3, 10.9, 5.2], [9.7, 13.6, 6.5], "metal"),
-            box([6.7, 11.3, 5.1], [9.3, 13.2, 5.2], "glass"),
-            box([9, 9.1, 10.3], [11.3, 10.1, 11.1], "silver"),
-        ],
-        "knife": [
-            box([7.4, 8, 1], [8.6, 9, 9.5], "silver"),
-            box([7.7, 8.25, 0], [8.3, 8.75, 1.5], "silver"),
-            box([6.3, 7.5, 9.4], [9.7, 9.5, 10.2], "dark"),
-            box([7, 7.8, 10], [9, 9.2, 15], "grip"),
-            box([6.9, 7.7, 14.8], [9.1, 9.3, 15.5], "metal"),
-        ],
-    }
+def sight(z=5, y=10):
+    return [box([7.5, y, z], [8.5, y + .7, z + .5], "dark")]
 
+
+def optic(z=6, length=4, large=False):
+    width = 1.6 if large else 1.15
+    y = 11.7 if large else 11.2
+    return [box([7.5, 10, z + 1], [8.5, y, z + 1.6], "metal"),
+            box([8 - width, y, z], [8 + width, y + 1.8, z + length], "dark"),
+            box([7.8 - width, y - .2, z - .5], [8.2 + width, y + 2, z + .3], "metal"),
+            box([8 - width, y, z - .55], [8 + width, y + 1.8, z - .5], "glass")]
+
+
+def pistol(length=8, slide="dark", frame="grip", width=1.25, start=3, grip_z=9):
+    return [box([8 - width, 8.2, start], [8 + width, 10.1, start + length], slide),
+            box([7.2, 8.6, start - .25], [8.8, 9.6, start], "dark"),
+            box([7.05, 7.5, start + 1.2], [8.95, 8.3, start + length], frame),
+            box([6.9, 3.2, grip_z], [9.1, 8.2, grip_z + 2.8], frame),
+            box([7.25, 5.4, grip_z - 2.7], [8.75, 5.9, grip_z + .2], "metal"),
+            box([7.25, 5.9, grip_z - 2.7], [8.75, 7.7, grip_z - 2.2], "metal"),
+            *sight(start + .6, 10.1), *sight(start + length - 1, 10.1)]
+
+
+def rifle(material="dark", stock="dark", front=3.4, barrel=0, magazine="dark", curved=False):
+    result = [box([6.65, 8.1, 6.4], [9.35, 10.15, 11.4], "metal"),
+              box([6.5, 8, front], [9.5, 9.9, 6.5], material),
+              box([7.4, 8.7, barrel], [8.6, 9.55, front], "dark"),
+              box([6.95, 3.8, 10], [9.05, 8.1, 12], "grip"),
+              box([7.3, 8.5, 11.4], [8.7, 9.6, 13.2], "metal"),
+              box([6.7, 6.8, 13], [9.3, 10, 16], stock),
+              box([7, 5, 7.5], [9, 8.1, 9.5], magazine),
+              box([7, 2.5, 6.8 if curved else 7.5], [9, 5.2, 9.2 if curved else 9.5], magazine),
+              *sight(front, 9.9), *sight(10, 10.15)]
+    return result
+
+
+def tube_magazine(front=1, rear=8, material="metal"):
+    return [box([7.25, 7.25, front], [8.75, 8.35, rear], material)]
+
+
+def models():
+    """Original recognisable silhouettes: barrel points -Z; each gun has unique geometry.
+
+    Cuboids stay in Minecraft's legal bounds and shared materials are inside
+    textures/item so vanilla 1.21.1 stitches every face without OptiFine.
+    """
+    guns = {}
+    guns["glock"] = pistol(length=7.3, start=3.4, grip_z=8.6)
+    guns["usp_s"] = pistol(length=6.9, start=4.5, grip_z=9.3) + [
+        box([7.05, 8.1, .2], [8.95, 10, 4.5], "dark"),
+        box([7.5, 8.6, .1], [8.5, 9.5, .2], "metal")]
+    guns["p2000"] = pistol(length=7.1, start=3.9, slide="metal", grip_z=9.5) + [
+        box([7.4, 9.6, 11], [8.6, 10.6, 11.6], "dark")]
+    guns["p250"] = pistol(length=7.7, start=3.5, frame="tan", grip_z=9.5) + [
+        box([7, 7, 4.6], [9, 7.6, 7], "metal")]
+    guns["fiveseven"] = pistol(length=8.2, start=3, width=1.1, frame="metal", grip_z=9.1) + [
+        box([7, 2.4, 9.1], [9, 3.3, 11.9], "dark")]
+    guns["tec9"] = [box([6.9, 8.5, 1.6], [9.1, 10.7, 11.8], "metal"),
+        box([7.4, 9, .2], [8.6, 10, 1.6], "dark"),
+        box([7, 3.1, 10.5], [9, 8.5, 13], "grip"),
+        box([7.15, .6, 6.6], [8.85, 8.5, 8.4], "dark"),
+        box([7.1, 6.3, 8.3], [8.9, 7, 11.1], "metal"), *sight(2, 10.7), *sight(10.8, 10.7)]
+    for z in [2.4, 3.6, 4.8]:
+        guns["tec9"].append(box([6.85, 9.1, z], [9.15, 10, z + .5], "dark"))
+    guns["cz75"] = pistol(length=8, start=2.5, slide="metal", grip_z=8.8) + [
+        box([7.1, 4.8, 3.2], [8.9, 8.2, 5.1], "dark"),
+        box([7, 2, 8.7], [9, 3.3, 11.7], "metal")]
+    guns["duals"] = []
+    for shift in [-3, 3]:
+        for part in pistol(length=7.8, start=3.1, slide="silver", frame="wood", grip_z=9.2):
+            part["from"][0] += shift
+            part["to"][0] += shift
+            guns["duals"].append(part)
+    guns["deagle"] = pistol(length=10, start=1.9, slide="silver", frame="grip", width=1.6, grip_z=9.4) + [
+        box([7.3, 10.1, 2.2], [8.7, 10.7, 10.8], "metal")]
+    guns["revolver"] = [box([7.25, 8.8, .8], [8.75, 10.3, 7.4], "silver"),
+        box([6.4, 7.6, 7], [9.6, 10.8, 9.8], "metal"),
+        box([7, 8, 9.8], [9, 10, 12], "silver"),
+        box([6.8, 3.3, 9.6], [9.2, 8.1, 12.6], "wood"),
+        box([7.4, 5.8, 6.3], [8.6, 6.4, 10.1], "silver"),
+        box([7.4, 6.3, 6.3], [8.6, 8.3, 6.9], "silver"),
+        box([7.5, 10, 10.5], [8.5, 11.1, 11.3], "dark"), *sight(1.3, 10.3)]
+    for y, z in [(8, 7.2), (9.5, 7.2), (8, 8.6), (9.5, 8.6)]:
+        guns["revolver"].append(box([6.35, y, z], [6.4, y + .7, z + .7], "dark"))
+    guns["mac10"] = [box([6.35, 8, 4.1], [9.65, 11.2, 11.7], "metal"),
+        box([7.25, 8.9, 1.8], [8.75, 10, 4.1], "dark"),
+        box([6.8, 4.4, 8.2], [9.2, 8, 10.8], "grip"),
+        box([7.1, .4, 8.6], [8.9, 4.5, 10.4], "metal"),
+        box([7.45, 9.9, 11.7], [8.55, 10.5, 15.8], "silver"),
+        box([7.45, 6.2, 15.3], [8.55, 10.5, 16], "silver"), *sight(4.8, 11.2)]
+    guns["mp9"] = rifle(material="grip", stock="dark", front=2.6)
+    guns["mp9"][5] = box([7.3, 6.5, 13], [8.7, 10.1, 15.5], "metal")
+    guns["mp9"] += [box([7, 4.4, 3.7], [9, 8, 5.3], "grip"), box([6.4, 9.7, 4], [9.6, 10.3, 8], "dark")]
+    guns["mp7"] = [box([6.5, 7.6, 4], [9.5, 10.5, 11], "dark"),
+        box([7.35, 8.6, 1.2], [8.65, 9.5, 4], "metal"),
+        box([6.9, 3, 8.8], [9.1, 7.8, 11.5], "grip"),
+        box([7.2, .8, 9], [8.8, 3.2, 11], "metal"),
+        box([7.1, 4.5, 4.5], [8.9, 7.7, 6.1], "grip"),
+        box([6.6, 9.3, 10.8], [7.2, 10, 15.7], "silver"),
+        box([8.8, 9.3, 10.8], [9.4, 10, 15.7], "silver"),
+        box([6.5, 6.8, 15.4], [9.5, 10.3, 16], "dark"), *sight(4.2, 10.5), *sight(10.2, 10.5)]
+    guns["mp5sd"] = rifle(material="grip", stock="grip", front=3.7, curved=True)
+    guns["mp5sd"][2] = box([6.85, 7.9, -.5], [9.15, 10.2, 4.3], "dark")
+    guns["mp5sd"] += [box([7.3, 10.1, 4.6], [8.7, 11.4, 5.3], "metal")]
+    guns["ump45"] = rifle(material="dark", stock="grip", front=2.4, magazine="metal")
+    guns["ump45"][5] = box([7.25, 6.5, 13.1], [8.75, 10.3, 16], "dark")
+    for z in [3, 4.2, 5.4]:
+        guns["ump45"].append(box([6.45, 8.7, z], [9.55, 9.35, z + .5], "metal"))
+    guns["p90"] = [box([6.1, 7.2, 3.3], [9.9, 10, 14.8], "olive"),
+        box([6.5, 10.1, 4.2], [9.5, 11.2, 13.5], "tan"),
+        box([7.3, 8.1, 1], [8.7, 9.3, 3.3], "metal"),
+        box([6.6, 3.6, 7.1], [9.4, 7.3, 9.3], "grip"),
+        box([6.4, 3.6, 9.3], [9.6, 4.8, 15], "olive"),
+        box([6.1, 4.7, 13], [9.9, 7.4, 15.5], "olive"),
+        box([7.1, 11.2, 7], [8.9, 13, 8.5], "dark"),
+        box([7.35, 11.6, 6.95], [8.65, 12.6, 7], "glass")]
+    guns["bizon"] = rifle(material="grip", stock="metal", front=2.5, curved=True)
+    guns["bizon"] = guns["bizon"][:6] + guns["bizon"][8:] + [
+        box([6.5, 5.7, 2.2], [9.5, 8.1, 8.5], "dark"),
+        box([7, 10, 2.8], [9, 10.8, 6.4], "metal")]
+    guns["galil"] = rifle(material="tan", stock="grip", front=2.1, curved=True)
+    guns["galil"] += [box([6.3, 8.5, 3.5], [9.7, 9.4, 5.5], "grip"),
+                       box([9.35, 9, 8.8], [10.3, 9.8, 9.6], "silver")]
+    guns["famas"] = [box([6.5, 7.9, 5.3], [9.5, 10, 15.5], "dark"),
+        box([7.4, 8.6, 0], [8.6, 9.5, 5.3], "metal"),
+        box([6.5, 5.7, 12], [9.5, 8, 16], "grip"),
+        box([7, 3.5, 7.2], [9, 7.9, 9.2], "grip"),
+        box([7, 2.6, 11], [9, 7.9, 12.9], "metal"),
+        box([6.9, 10, 6.5], [9.1, 12.5, 7.3], "dark"),
+        box([6.9, 10, 12], [9.1, 12.5, 12.8], "dark"),
+        box([6.9, 12, 6.5], [9.1, 12.7, 12.8], "dark"), *sight(1, 9.5)]
+    guns["ak47"] = rifle(material="wood", stock="wood", front=2.9, curved=True)
+    guns["ak47"] += [box([7.35, 9.8, 1.7], [8.65, 10.6, 6.6], "metal"),
+                      box([7.45, 9.6, .9], [8.55, 11.2, 1.7], "dark"),
+                      box([9.3, 8.9, 8.8], [10.25, 9.6, 9.5], "silver")]
+    guns["ak47"][3] = box([6.95, 3.8, 10], [9.05, 8.1, 12], "wood")
+    guns["m4a4"] = rifle(material="dark", stock="grip", front=2.9, magazine="silver")
+    guns["m4a4"] += [box([7, 10.15, 7.1], [9, 12, 7.8], "dark"),
+                      box([7, 10.15, 10.5], [9, 12, 11.2], "dark"),
+                      box([7, 11.5, 7.1], [9, 12.2, 11.2], "dark")]
+    guns["m4a1s"] = rifle(material="grip", stock="dark", front=4.4, barrel=-1, magazine="metal")
+    guns["m4a1s"][2] = box([7, 8.25, -1.6], [9, 10, 3], "dark")
+    guns["m4a1s"][7] = box([7, 4.1, 7.5], [9, 5.2, 9.5], "metal")
+    guns["m4a1s"] += [box([7.2, 10.2, 7.4], [8.8, 11.7, 8], "dark"),
+                       box([7.2, 11.2, 7.4], [8.8, 11.8, 10.5], "dark")]
+    guns["aug"] = [box([6.5, 7.5, 5.1], [9.5, 10, 15.3], "olive"),
+        box([7.4, 8.65, -.4], [8.6, 9.55, 5.1], "metal"),
+        box([6.4, 6, 12], [9.6, 8.1, 16], "olive"),
+        box([7, 3.9, 7.9], [9, 7.6, 10], "grip"),
+        box([7.1, 3.4, 11.2], [8.9, 7.6, 13.2], "dark"),
+        box([7.1, 4.7, 3.8], [8.9, 8.2, 5.6], "grip"), *optic(6.9, 3.7)]
+    guns["sg553"] = rifle(material="olive", stock="dark", front=2, curved=True, magazine="tan")
+    guns["sg553"][5] = box([7.2, 6.8, 13.2], [8.8, 10, 16], "metal")
+    guns["sg553"] += optic(6.2, 3.4)
+    guns["ssg08"] = rifle(material="metal", stock="tan", front=4.5, barrel=-2, magazine="dark")
+    guns["ssg08"][5] = box([7.1, 6.8, 13], [8.9, 9.7, 16], "tan")
+    guns["ssg08"][7] = box([7.1, 4, 7.5], [8.9, 5.2, 9.5], "dark")
+    guns["ssg08"] += optic(6, 4.4) + [box([9.3, 9, 10], [11.4, 9.8, 10.7], "silver")]
+    guns["awp"] = rifle(material="olive", stock="olive", front=5, barrel=-3, magazine="dark")
+    guns["awp"][0] = box([6.3, 7.5, 6.4], [9.7, 10.15, 12.5], "olive")
+    guns["awp"][5] = box([6.4, 6.2, 12.7], [9.6, 9.8, 16], "olive")
+    guns["awp"] += optic(5.4, 5.8, large=True) + [
+        box([9.3, 9.2, 10.4], [11.7, 10, 11.2], "silver"),
+        box([6.5, 4.2, 5.2], [7.2, 8.1, 6.1], "metal"),
+        box([8.8, 4.2, 5.2], [9.5, 8.1, 6.1], "metal")]
+    guns["g3sg1"] = rifle(material="olive", stock="olive", front=1.5, barrel=-2, magazine="silver")
+    guns["g3sg1"] += optic(5.2, 5.2) + [box([6.3, 9.9, 12.8], [9.7, 10.8, 15.9], "dark")]
+    guns["scar20"] = rifle(material="tan", stock="tan", front=1.7, barrel=-1.5, magazine="dark")
+    guns["scar20"][0] = box([6.5, 8, 5.4], [9.5, 10.8, 11.4], "tan")
+    guns["scar20"] += optic(5.7, 4.6) + [box([6.9, 3.7, 2.1], [7.5, 8, 3], "dark"),
+                                          box([8.5, 3.7, 2.1], [9.1, 8, 3], "dark")]
+    guns["nova"] = [box([7, 8.4, -1], [9, 10.1, 8], "metal"),
+        box([6.6, 8, 7.2], [9.4, 10, 11.4], "dark"),
+        box([6.7, 6.8, 3.4], [9.3, 8.4, 7], "wood"),
+        box([7.1, 7.3, -.5], [8.9, 8.4, 7], "metal"),
+        box([7, 4.5, 10.1], [9, 8.2, 12.1], "wood"),
+        box([6.7, 6.2, 11.4], [9.3, 9.1, 16], "wood"), *sight(0, 10.1)]
+    guns["xm1014"] = [box([7.1, 8.7, -.7], [8.9, 10.3, 7], "metal"),
+        box([6.5, 8.1, 6.8], [9.5, 10.3, 11.6], "dark"),
+        box([6.5, 7.1, 2.8], [9.5, 8.7, 6.8], "grip"),
+        *tube_magazine(-.3, 7), box([7, 3.8, 10], [9, 8.2, 11.8], "grip"),
+        box([7.4, 8.6, 11.4], [8.6, 9.6, 15.3], "silver"),
+        box([6.8, 6.4, 14.6], [9.2, 10, 16], "dark"), *sight(0, 10.3), *sight(9.8, 10.3)]
+    guns["mag7"] = [box([6.3, 8, 4.4], [9.7, 10.9, 12], "dark"),
+        box([7.2, 8.6, 1.1], [8.8, 10, 4.4], "metal"),
+        box([6.7, 4.2, 9], [9.3, 8.1, 11.6], "grip"),
+        box([6.9, 1.2, 9.3], [9.1, 4.3, 11.3], "metal"),
+        box([6.5, 6.7, 3.5], [9.5, 8.1, 6.4], "grip"),
+        box([7.3, 6.4, 6], [8.7, 7, 9.1], "metal"), *sight(4.5, 10.9), *sight(11, 10.9)]
+    guns["sawedoff"] = [box([6.9, 8.7, 2], [9.1, 10.5, 8.8], "metal"),
+        box([7.2, 7.2, 2.4], [8.8, 8.7, 8.8], "metal"),
+        box([6.5, 6.8, 5], [9.5, 8.7, 8.3], "wood"),
+        box([6.7, 8, 8.5], [9.3, 10.3, 11.6], "metal"),
+        box([6.8, 4.8, 10.5], [9.2, 8.2, 13.9], "wood"), *sight(2.4, 10.5)]
+    guns["m249"] = rifle(material="olive", stock="tan", front=1.5, barrel=-2, magazine="olive")
+    guns["m249"][6:8] = [box([5.5, 2.7, 7], [10.5, 8.1, 10.8], "olive")]
+    guns["m249"] += [box([7.2, 10.2, 6.7], [8.8, 12.3, 7.4], "dark"),
+                      box([7.2, 11.8, 6.7], [8.8, 12.5, 9.5], "dark"),
+                      box([6.6, 3.5, .8], [7.2, 8.3, 1.8], "metal"),
+                      box([8.8, 3.5, .8], [9.4, 8.3, 1.8], "metal")]
+    guns["negev"] = rifle(material="dark", stock="olive", front=1, barrel=-3, magazine="dark")
+    guns["negev"][6:8] = [box([5.3, 2, 6.2], [10.7, 8.1, 10.1], "dark")]
+    guns["negev"] += [box([6.4, 10.1, 4], [9.6, 10.8, 8.7], "olive"),
+                       box([7.15, 10.7, 5.8], [8.85, 12.2, 6.4], "dark"),
+                       box([6.5, 2.5, .1], [7.2, 8.2, 1.1], "metal"),
+                       box([8.8, 2.5, .1], [9.5, 8.2, 1.1], "metal")]
+    guns["knife"] = [box([7.4, 8, 1], [8.6, 9, 9.5], "silver"),
+        box([7.7, 8.25, 0], [8.3, 8.75, 1.5], "silver"),
+        box([6.3, 7.5, 9.4], [9.7, 9.5, 10.2], "dark"),
+        box([7, 7.8, 10], [9, 9.2, 15], "grip"),
+        box([6.9, 7.7, 14.8], [9.1, 9.3, 15.5], "metal")]
+    assert set(guns) == set(GUN_MODELS) | {"knife"}
+    return guns
 
 def build_visuals():
     for index, (name, base) in enumerate(MATERIALS.items()):
@@ -190,8 +298,9 @@ def build_visuals():
         write_png(f"assets/pvp/textures/item/mygo/{name}.png", 16, 16, pixels)
 
     for name, elements in models().items():
-        write_json(f"assets/pvp/models/item/mygo/{name}.json", {
+        data = {
             "parent": "minecraft:block/block", "ambientocclusion": False,
+            "credit": "Original MyGO cuboid model by qifan_maker; MIT; generated reproducibly",
             "gui_light": "front", "textures": {**{name: "pvp:item/mygo/" + name for name in MATERIALS},
                                                        "particle": "pvp:item/mygo/silver"},
             "elements": elements,
@@ -203,7 +312,16 @@ def build_visuals():
                 "gui": {"rotation": [25, -65, 0], "translation": [0, 0, 0], "scale": [1.05, 1.05, 1.05]},
                 "ground": {"rotation": [0, 0, 90], "translation": [0, 2, 0], "scale": [0.65, 0.65, 0.65]},
                 "fixed": {"rotation": [0, 90, 0], "translation": [0, 0, 0], "scale": [1, 1, 1]},
-            }})
+            }}
+        write_json(f"assets/pvp/models/item/mygo/{name}.json", data)
+        if name in GUN_MODELS:
+            for suffix, kick, tilt in [("fire", .6, -3), ("reload", -1.8, -24)]:
+                display = json.loads(json.dumps(data["display"]))
+                for hand in ["firstperson_righthand", "firstperson_lefthand"]:
+                    display[hand]["translation"][1] += kick
+                    display[hand]["rotation"][2] += tilt
+                write_json(f"assets/pvp/models/item/mygo/{name}_{suffix}.json", {
+                    "parent": f"pvp:item/mygo/{name}", "display": display})
 
     # Predicates use >= semantics. Restore vanilla at each custom value + 1 so
     # unrelated tools with larger CustomModelData do not inherit a gun model.
@@ -218,9 +336,8 @@ def build_visuals():
         write_json(f"assets/pvp/models/item/mygo/vanilla_{item}.json", {
             "parent": "minecraft:item/handheld", "textures": {"layer0": "minecraft:item/" + item}})
 
-    imported_models()
     entries = []
-    for name, (value, _) in GUN_MODELS.items():
+    for name, value in GUN_MODELS.items():
         entries.extend([(value, name), (value + 100, name + "_fire"), (value + 200, name + "_reload")])
     override("iron_pickaxe", sorted(entries))
     override("iron_sword", [(71006, "knife")])
@@ -297,13 +414,19 @@ def build_visuals():
 
 
 SOUNDS = {
-    "p9": (0.20, 195), "mp5": (0.17, 260), "ak": (0.28, 112),
-    "m4": (0.23, 155), "aw": (0.65, 68), "reload": (0.70, 0),
+    "glock": (.20, 195), "usp_s": (.13, 310), "p2000": (.21, 205),
+    "p250": (.23, 180), "fiveseven": (.19, 240), "tec9": (.20, 220),
+    "cz75": (.18, 230), "duals": (.21, 200), "deagle": (.37, 95), "revolver": (.40, 83),
+    "mac10": (.16, 290), "mp9": (.14, 320), "mp7": (.15, 305),
+    "mp5sd": (.12, 370), "ump45": (.22, 180), "p90": (.15, 330), "bizon": (.17, 270),
+    "galil": (.27, 140), "famas": (.24, 170), "ak47": (.31, 112),
+    "m4a4": (.26, 155), "m4a1s": (.16, 280), "aug": (.27, 150), "sg553": (.30, 125),
+    "ssg08": (.48, 100), "awp": (.65, 68), "g3sg1": (.37, 115), "scar20": (.36, 130),
+    "nova": (.43, 60), "xm1014": (.40, 73), "mag7": (.39, 85), "sawedoff": (.46, 55),
+    "m249": (.32, 108), "negev": (.30, 105), "reload": (0.70, 0),
     "empty": (0.11, 0), "plant": (0.25, 960), "defuse": (0.45, 680),
     "explode": (1.6, 42),
-    "m16": (.23, 160), "scar": (.26, 132), "mini14": (.31, 200), "mk14": (.32, 97),
-    "p90": (.15, 320), "uzi": (.13, 350), "vector": (.12, 295), "tommy": (.24, 145),
-    "m24": (.55, 82), "s686": (.48, 58), "hit": (.08, 1200), "headshot": (.12, 1500),
+    "hit": (.08, 1200), "headshot": (.12, 1500),
     "throw": (.15, 700), "flash": (.55, 1750), "smoke": (1.0, 120),
 }
 
@@ -351,7 +474,7 @@ def build_sounds():
                     envelope = sum(math.exp(-(t - start) * 85) for start in points if t >= start)
                     value = (0.6 * noise + 0.4 * math.sin(2 * math.pi * 1100 * t)) * envelope * 0.5
                 else:
-                    decay = 4 if name == "explode" else 19 if name == "aw" else 28
+                    decay = 4 if name == "explode" else 19 if name == "awp" else 28
                     envelope = math.exp(-t * decay)
                     tone = math.sin(2 * math.pi * (frequency * t - 22 * t * t))
                     value = (0.5 * noise + 0.7 * previous + 0.55 * tone) * envelope
@@ -370,7 +493,7 @@ def build_sounds():
                             "-map_metadata", "-1", "-c:a", "libvorbis", "-q:a", "3", str(output)], check=True)
             normalize_ogg_serial(output, 71001 + index)
             sound_json["mygo." + name] = {"sounds": [{"name": "pvp:mygo/" + name,
-                                                       "attenuation_distance": 40 if name in ("ak", "aw", "explode") else 24}]}
+                                                       "attenuation_distance": 40 if name in ("ak47", "awp", "explode") else 24}]}
     write_json("assets/pvp/sounds.json", sound_json)
 
 
@@ -380,15 +503,16 @@ def preview():
         from PIL import Image, ImageDraw
     except ImportError:
         return
-    canvas = Image.new("RGB", (1200, 830), "#e8edf0")
+    rows = math.ceil(len(GUN_MODELS) / 4)
+    canvas = Image.new("RGB", (1440, rows * 230 + 250), "#e8edf0")
     draw = ImageDraw.Draw(canvas)
-    draw.text((24, 18), "MyGO | Original vanilla-client 3D models | Minecraft 1.21.1", fill="#17272e")
-    for n, (name, elements) in enumerate(models().items()):
-        ox, oy = 180 + (n % 3) * 400, 210 + (n // 3) * 300
-        draw.rounded_rectangle((ox - 155, oy - 150, ox + 190, oy + 110), 16, fill="#25343b")
-        draw.text((ox - 130, oy - 128), name.upper(), fill="white")
+    draw.text((24, 18), "MyGO CS:GO Arsenal | 34 original vanilla-client models | MIT | Minecraft 1.21.1", fill="#17272e")
+    for n, (name, elements) in enumerate((name, model) for name, model in models().items() if name in GUN_MODELS):
+        ox, oy = 175 + (n % 4) * 360, 165 + (n // 4) * 230
+        draw.rounded_rectangle((ox - 162, oy - 112, ox + 175, oy + 103), 12, fill="#25343b")
+        draw.text((ox - 140, oy - 94), name.upper().replace("_", "-"), fill="white")
         def proj(x, y, z):
-            return (ox + (8 - z) * 14 + (x - 8) * 7, oy + (8 - y) * 13 + (x - 8) * 4)
+            return (ox + (8 - z) * 11 + (x - 8) * 5, oy + (8 - y) * 11 + (x - 8) * 3)
         for element in sorted(elements, key=lambda el: el["from"][0] + el["from"][2] * 0.01):
             (x0, y0, z0), (x1, y1, z1) = element["from"], element["to"]
             name_key = element["faces"]["up"]["texture"][1:]
@@ -399,9 +523,9 @@ def preview():
                 color = tuple(min(255, int(c * factor)) for c in rgb)
                 draw.polygon([proj(*point) for point in points], fill=color, outline="#111b20")
     scope = Image.open(STAGING / "assets/minecraft/textures/misc/pumpkinblur.png").resize((180, 180))
-    canvas.paste(scope, (950, 635), scope)
-    draw.text((24, 740), "P9: slide + grip | MP5: compact stock | AK: wood + curved magazine", fill="#17272e")
-    draw.text((24, 765), "M4: tan stock + optic | AW: long barrel + scope | right: transparent-centered pumpkin overlay", fill="#17272e")
+    canvas.paste(scope, (1225, rows * 230 + 50), scope)
+    draw.text((24, rows * 230 + 90), "All silhouettes and synthetic sounds are generated from repository source.", fill="#17272e")
+    draw.text((24, rows * 230 + 120), "This is a cuboid inspection preview, not an in-game renderer screenshot.", fill="#17272e")
     target = ROOT / "build/mygo-resource-pack-preview.png"
     canvas.save(target)
     print(f"Preview: {target}")
@@ -412,9 +536,16 @@ def main():
         shutil.rmtree(STAGING)
     STAGING.mkdir(parents=True)
     write_json("pack.mcmeta", {"pack": {"pack_format": 34,
-               "description": "MyGO Arsenal | vanilla atlas fix, 15 MIT gun models, utilities and scope | 1.21.1"}})
+               "description": "MyGO CS:GO Arsenal | 34 original MIT gun models, utilities and scope | 1.21.1"}})
     build_visuals()
     build_sounds()
+    shutil.copyfile(ROOT / "LICENSE", STAGING / "MYGO_ASSETS_LICENSE.txt")
+    write_json("MYGO_ASSETS_source.json", {
+        "license": "MIT", "author": "qifan_maker", "kind": "original procedural assets",
+        "generator": "tools/build_mygo_resource_pack.py", "valve_assets_included": False,
+        "weapons": [{"name": name, "model": model, "sound": "mygo." + name} for name, model in GUN_MODELS.items()],
+        "materials": list(MATERIALS), "poses": ["base", "fire", "reload"],
+    })
     OUTPUT.mkdir(parents=True, exist_ok=True)
     destination = OUTPUT / "mygo-pack.zip"
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
@@ -426,6 +557,7 @@ def main():
     sha1 = hashlib.sha1(destination.read_bytes()).hexdigest()
     (OUTPUT / "mygo-pack.sha1").write_text(sha1 + "\n")
     print(f"Created {destination} ({destination.stat().st_size:,} bytes), SHA-1 {sha1}")
+    preview()
 
 
 if __name__ == "__main__":

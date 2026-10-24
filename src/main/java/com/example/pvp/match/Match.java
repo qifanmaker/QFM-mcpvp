@@ -735,7 +735,7 @@ public final class Match {
         int activeTimeout;
         if (this.type.usesGameSession()) {
             // 会话自行计时；兜底只处理运行时卡死，不擅自把第一队判为胜者。
-            activeTimeout = 20 * 60 * (this.type == MatchType.MYGO ? 60 : 30);
+            activeTimeout = 20 * 60 * (this.type == MatchType.MYGO ? 120 : 30);
         } else if (this.type == MatchType.SKYWARS) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20);
         } else if (this.type.isBridge()) {

@@ -41,7 +41,8 @@ import java.util.function.Consumer;
  * 所有状态在服务器线程管理，退包仅指定 MyGO UUID，不影响服务器已有的其他资源包。
  */
 public final class MyGoResourcePack {
-    static final String DEFAULT_PACK_URL = "https://qfmaker.com/upload/files/zevadwr3.zip";
+    static final String DEFAULT_PACK_URL = "https://qfmaker.com/upload/files/uxv5wsbc.zip";
+    private static final String TEXTURE_FIX_PACK_URL = "https://qfmaker.com/upload/files/zevadwr3.zip";
     private static final String PREVIOUS_PACK_URL = "https://qfmaker.com/upload/files/5df4ab7h.zip";
     private static final String ORIGINAL_PACK_URL = "https://qfmaker.com/upload/files/wmcvlnck.zip";
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -304,13 +305,13 @@ public final class MyGoResourcePack {
         int loadTimeoutSeconds = 120;
 
         boolean migrate() {
-            if (configVersion >= 3) return false;
-            // 旧默认包的枪械纹理未进入原版图集；升级下载地址，同时保留管理员显式选择的 HTTP 或自定义 CDN。
+            if (configVersion >= 4) return false;
+            // 新版34枪与旧资源模型编号不同，升级已知旧默认CDN；显式本地HTTP和自定义CDN仍保留。
             if ((configVersion < 1 && packUrl.isBlank()) || PREVIOUS_PACK_URL.equals(packUrl)
-                    || ORIGINAL_PACK_URL.equals(packUrl)) {
+                    || ORIGINAL_PACK_URL.equals(packUrl) || TEXTURE_FIX_PACK_URL.equals(packUrl)) {
                 packUrl = DEFAULT_PACK_URL;
             }
-            configVersion = 3;
+            configVersion = 4;
             return true;
         }
 
