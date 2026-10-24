@@ -77,6 +77,7 @@ public abstract class PlayerEntityMixin {
             return;
         }
         if (target instanceof LivingEntity victim && victim != self) {
+            if (!com.example.pvp.match.PortedGameEvents.allowsExtraKnockback(sp, victim)) return;
             double dx = victim.getX() - self.getX(); // 指向目标（远离自己）
             double dz = victim.getZ() - self.getZ();
             double d = Math.sqrt(dx * dx + dz * dz);

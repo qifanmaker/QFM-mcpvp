@@ -38,6 +38,7 @@ public abstract class SnowballEntityMixin {
         if (match == null) {
             return;
         }
+        if (!com.example.pvp.match.PortedGameEvents.allowsExtraKnockback(caster, victim)) return;
         // 沿雪球飞行方向击退（水平 1.2，竖直 0.3）
         Vec3d vel = snowball.getVelocity();
         double len = Math.sqrt(vel.x * vel.x + vel.z * vel.z);

@@ -193,6 +193,7 @@ public final class PvPMod implements ModInitializer {
         StatsStore.INSTANCE.load();
         KitManager.reload();
         PvpGuiManager.init();
+        com.example.pvp.match.PortedGameEvents.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SERVER = server;
@@ -590,7 +591,9 @@ public final class PvPMod implements ModInitializer {
             if (entity instanceof ServerPlayerEntity sp && MATCH != null) {
                 Match match = MATCH.getMatchFor(sp);
                 if (match != null) {
-                    if (match.getType().isBridge()) {
+                    if (match.portedSession() != null) {
+                        match.onPortedDeath(sp);
+                    } else if (match.getType().isBridge()) {
                         match.onBridgeDeath(sp);
                     } else if (match.getType().isBedWars()) {
                         // 起床战争：床活 → 延迟重生；床死 → 淘汰
@@ -711,7 +714,8 @@ public final class PvPMod implements ModInitializer {
             return true;
         });
 
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+        // Fabric 的断线事件也可从 Netty channelInactive 触发；实体和比赛状态必须由服务器线程清理。
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> server.execute(() -> {
             AUTO_CLICKER_DETECTOR.clear(handler.player.getUuid());
             if (PRACTICE != null) {
                 // 玩家正在断线，不能再用它做传送：只清场并回收区域
@@ -724,7 +728,7 @@ public final class PvPMod implements ModInitializer {
             if (QUEUE != null) {
                 QUEUE.leave(handler.player.getUuid());
             }
-        });
+        }));
 
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayerEntity player && MATCH != null) {

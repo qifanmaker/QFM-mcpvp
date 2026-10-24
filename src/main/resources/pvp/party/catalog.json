@@ -1,0 +1,887 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "name": "Minecraft Party 2",
+    "minecraftVersion": "1.21.10",
+    "page": "https://www.minecraftmaps.com/52024-minecraft-party-2",
+    "catalogFunction": "data/mcp/function/listminigamenumbers.mcfunction",
+    "catalogSha256": "b8fae674a5c89d4adc089a6845165b6f91d12a07b012e3fa731c1a9f85c7c166",
+    "languageFiles": [
+      "assets/minecraft/lang/en_us.json",
+      "assets/minecraft/lang/zh_cn.json"
+    ]
+  },
+  "scope": "First-stage native port of three Quick Play games. Remaining entries are planned, not playable placeholders.",
+  "entryCount": 102,
+  "implementedGameIds": [
+    408,
+    412,
+    424
+  ],
+  "sessionBehavior": "One selected minigame, ranking, then return to the PvP lobby. Ten-second item voting is this server's matchmaking wrapper, not an original Party 2 rule.",
+  "modules": [
+    {
+      "name": "Boards and paths",
+      "status": "planned"
+    },
+    {
+      "name": "Turns and dice",
+      "status": "planned"
+    },
+    {
+      "name": "Coins, stars and shops",
+      "status": "planned"
+    },
+    {
+      "name": "Items and traps",
+      "status": "planned"
+    },
+    {
+      "name": "Turn mode",
+      "status": "planned"
+    },
+    {
+      "name": "Star Race",
+      "status": "planned"
+    },
+    {
+      "name": "Grand Prix",
+      "status": "planned"
+    },
+    {
+      "name": "Doubles",
+      "status": "planned"
+    },
+    {
+      "name": "Mega Party",
+      "status": "planned"
+    },
+    {
+      "name": "Mini Party",
+      "status": "planned"
+    },
+    {
+      "name": "Remaining minigames",
+      "status": "planned"
+    },
+    {
+      "name": "Custom resource-pack audiovisuals",
+      "status": "planned"
+    },
+    {
+      "name": "Achievements",
+      "status": "planned"
+    }
+  ],
+  "knownDifferences": [
+    "Normal-difficulty 19-tick red-light reaction window is fixed in this stage.",
+    "Same-tick finishes or falls are tied rather than resolved by selector order.",
+    "Scene extraction excludes entities and block-entity inventories; decorative barrels and custom skull textures are not reproduced.",
+    "Nine newer decorative plants in Tile Capture medium are replaced by 1.21.1 counterparts; resource metadata records exact replacements.",
+    "Decorative water and lava remain static inside Party scenes to prevent cropped channels from flowing into other arenas."
+  ],
+  "games": [
+    {
+      "id": 101,
+      "name": "Minions (Mns)",
+      "category": "duel",
+      "sourceFunction": "minions",
+      "status": "planned",
+      "nameZhSource": "随从争夺战"
+    },
+    {
+      "id": 102,
+      "name": "Ring In The Ring (RITR)",
+      "category": "duel",
+      "sourceFunction": "ring_in_the_ring",
+      "status": "planned",
+      "nameZhSource": "快速敲钟"
+    },
+    {
+      "id": 103,
+      "name": "Gladiator Fight (FFF)",
+      "category": "duel",
+      "sourceFunction": "player_battle",
+      "status": "planned"
+    },
+    {
+      "id": 104,
+      "name": "Turtle Hockey (TuH)",
+      "category": "duel",
+      "sourceFunction": "turtle_hockey",
+      "status": "planned",
+      "nameZhSource": "乌龟冰球"
+    },
+    {
+      "id": 105,
+      "name": "Fishing (Fsh)",
+      "category": "duel",
+      "sourceFunction": "fishing",
+      "status": "planned"
+    },
+    {
+      "id": 106,
+      "name": "Don't Push My Buttons (DPMB)",
+      "category": "duel",
+      "sourceFunction": "dpmb",
+      "status": "planned",
+      "nameZhSource": "别摁按钮"
+    },
+    {
+      "id": 107,
+      "name": "Bridge Crossing (BC)",
+      "category": "duel",
+      "sourceFunction": "bridge_crossing",
+      "status": "planned",
+      "nameZhSource": "战桥"
+    },
+    {
+      "id": 108,
+      "name": "Pig Pushers (PPr)",
+      "category": "duel",
+      "sourceFunction": "pig_pushers",
+      "status": "planned",
+      "nameZhSource": "赶猪上架"
+    },
+    {
+      "id": 109,
+      "name": "Balance Beam (BBm)",
+      "category": "duel",
+      "sourceFunction": "balance_beam",
+      "status": "planned",
+      "nameZhSource": "平衡木"
+    },
+    {
+      "id": 110,
+      "name": "Button Search (BS)",
+      "category": "duel",
+      "sourceFunction": "button_search",
+      "status": "planned",
+      "nameZhSource": "寻找按钮"
+    },
+    {
+      "id": 111,
+      "name": "Betris (Bts)",
+      "category": "duel",
+      "sourceFunction": "tetris",
+      "status": "planned"
+    },
+    {
+      "id": 112,
+      "name": "Deuce (Dce)",
+      "category": "duel",
+      "sourceFunction": "deuce",
+      "status": "planned",
+      "nameZhSource": "排球"
+    },
+    {
+      "id": 113,
+      "name": "Decryption (Dc)",
+      "category": "duel",
+      "sourceFunction": "decryption",
+      "status": "planned",
+      "nameZhSource": "破译密文"
+    },
+    {
+      "id": 114,
+      "name": "Cannoneers (Cns)",
+      "category": "duel",
+      "sourceFunction": "cannoneers",
+      "status": "planned",
+      "nameZhSource": "加农炮手"
+    },
+    {
+      "id": 201,
+      "name": "Prison Pals (PPl)",
+      "category": "2v2",
+      "sourceFunction": "prison_pals",
+      "status": "planned",
+      "nameZhSource": "狱中好友"
+    },
+    {
+      "id": 202,
+      "name": "Rock, Paper, Scissors, Chase (RPSC)",
+      "category": "2v2",
+      "sourceFunction": "rpsc",
+      "status": "planned",
+      "nameZhSource": "石头剪刀布，谁输谁跑路"
+    },
+    {
+      "id": 203,
+      "name": "Tanks (Ts)",
+      "category": "2v2",
+      "sourceFunction": "tanks",
+      "status": "planned",
+      "nameZhSource": "坦克大战"
+    },
+    {
+      "id": 204,
+      "name": "Capture The Flag (CTF)",
+      "category": "2v2",
+      "sourceFunction": "capture_the_flag",
+      "status": "planned",
+      "nameZhSource": "夺旗比赛"
+    },
+    {
+      "id": 205,
+      "name": "Mine Your Business (MYB)",
+      "category": "2v2",
+      "sourceFunction": "mine_and_kill",
+      "status": "planned"
+    },
+    {
+      "id": 206,
+      "name": "Team Hockey (TeH)",
+      "category": "2v2",
+      "sourceFunction": "team_hockey",
+      "status": "planned",
+      "nameZhSource": "团队冰球"
+    },
+    {
+      "id": 207,
+      "name": "Maze Navigator (MN)",
+      "category": "2v2",
+      "sourceFunction": "maze_navigator",
+      "status": "planned",
+      "nameZhSource": "寻物汇合"
+    },
+    {
+      "id": 208,
+      "name": "Bombs Away! (BA)",
+      "category": "2v2",
+      "sourceFunction": "bombs_away",
+      "status": "planned",
+      "nameZhSource": "炸弹投出！"
+    },
+    {
+      "id": 209,
+      "name": "Labyrinth (Lh)",
+      "category": "2v2",
+      "sourceFunction": "labyrinth",
+      "status": "planned",
+      "nameZhSource": "天地迷宫"
+    },
+    {
+      "id": 210,
+      "name": "Snow Wars (SW)",
+      "category": "2v2",
+      "sourceFunction": "snow_wars",
+      "status": "planned",
+      "nameZhSource": "雪球大战"
+    },
+    {
+      "id": 211,
+      "name": "Space Jumpers (SJ)",
+      "category": "2v2",
+      "sourceFunction": "space_jumpers",
+      "status": "planned",
+      "nameZhSource": "太空跳跃"
+    },
+    {
+      "id": 212,
+      "name": "Boom Carts (BoC)",
+      "category": "2v2",
+      "sourceFunction": "boom_carts",
+      "status": "planned",
+      "nameZhSource": "爆炸矿车"
+    },
+    {
+      "id": 213,
+      "name": "What The Cluck? (WTC)",
+      "category": "2v2",
+      "sourceFunction": "what_the_cluck",
+      "status": "planned",
+      "nameZhSource": "鸡飞蛋打"
+    },
+    {
+      "id": 214,
+      "name": "Recruitment Royale (RR)",
+      "category": "2v2",
+      "sourceFunction": "mob_royale",
+      "status": "planned"
+    },
+    {
+      "id": 301,
+      "name": "Hide And Seek (HAS)",
+      "category": "1v3",
+      "sourceFunction": "hide_and_seek",
+      "status": "planned",
+      "nameZhSource": "捉迷藏"
+    },
+    {
+      "id": 302,
+      "name": "Game Theory (GT)",
+      "category": "1v3",
+      "sourceFunction": "game_theory",
+      "status": "planned",
+      "nameZhSource": "博弈游戏"
+    },
+    {
+      "id": 303,
+      "name": "Boss Brawl (BBl)",
+      "category": "1v3",
+      "sourceFunction": "boss_brawl",
+      "status": "planned",
+      "nameZhSource": "斩首行动"
+    },
+    {
+      "id": 304,
+      "name": "Gold Rush (GR)",
+      "category": "1v3",
+      "sourceFunction": "gold_rush",
+      "status": "planned",
+      "nameZhSource": "淘金热"
+    },
+    {
+      "id": 305,
+      "name": "Block Buster (BBr)",
+      "category": "1v3",
+      "sourceFunction": "block_search",
+      "status": "planned"
+    },
+    {
+      "id": 306,
+      "name": "Pac Cube (PC)",
+      "category": "1v3",
+      "sourceFunction": "pac_cube",
+      "status": "planned",
+      "nameZhSource": "吃豆人"
+    },
+    {
+      "id": 307,
+      "name": "Ghost Hunt (GH)",
+      "category": "1v3",
+      "sourceFunction": "ghost_hunt",
+      "status": "planned",
+      "nameZhSource": "幽灵猎人"
+    },
+    {
+      "id": 308,
+      "name": "Treetop Hop (THp)",
+      "category": "1v3",
+      "sourceFunction": "treetop_hop",
+      "status": "planned",
+      "nameZhSource": "树顶之战"
+    },
+    {
+      "id": 309,
+      "name": "Slime Time (ST)",
+      "category": "1v3",
+      "sourceFunction": "slime_time",
+      "status": "planned",
+      "nameZhSource": "史莱姆时间"
+    },
+    {
+      "id": 310,
+      "name": "In The Zone (ITZ)",
+      "category": "1v3",
+      "sourceFunction": "in_the_zone",
+      "status": "planned",
+      "nameZhSource": "据点争夺"
+    },
+    {
+      "id": 311,
+      "name": "Ghast Blast (GB)",
+      "category": "1v3",
+      "sourceFunction": "ghast_blast",
+      "status": "planned",
+      "nameZhSource": "恶魂打击"
+    },
+    {
+      "id": 312,
+      "name": "Eggcellence (Egg)",
+      "category": "1v3",
+      "sourceFunction": "eggcellence",
+      "status": "planned",
+      "nameZhSource": "一模一样"
+    },
+    {
+      "id": 313,
+      "name": "Ravager Rodeo (RRo)",
+      "category": "1v3",
+      "sourceFunction": "ravager_rodeo",
+      "status": "planned",
+      "nameZhSource": "劫掠兽冲击"
+    },
+    {
+      "id": 314,
+      "name": "Mouse Trap (MT)",
+      "category": "1v3",
+      "sourceFunction": "mouse_trap",
+      "status": "planned",
+      "nameZhSource": "投鼠忌器"
+    },
+    {
+      "id": 401,
+      "name": "Dropper (Dr)",
+      "category": "free_for_all",
+      "sourceFunction": "dropper",
+      "status": "planned",
+      "nameZhSource": "星跳水立方"
+    },
+    {
+      "id": 402,
+      "name": "Whack-A-Mob (WAM)",
+      "category": "free_for_all",
+      "sourceFunction": "whack_a_mob",
+      "status": "planned",
+      "nameZhSource": "怪物打地鼠"
+    },
+    {
+      "id": 403,
+      "name": "Monster Shoot (MSh)",
+      "category": "free_for_all",
+      "sourceFunction": "monster_shoot",
+      "status": "planned",
+      "nameZhSource": "狙击怪物"
+    },
+    {
+      "id": 404,
+      "name": "Cave Parkour (ACP)",
+      "category": "free_for_all",
+      "sourceFunction": "parkour",
+      "status": "planned"
+    },
+    {
+      "id": 405,
+      "name": "Raft Racers (RRs)",
+      "category": "free_for_all",
+      "sourceFunction": "boat_race",
+      "status": "planned"
+    },
+    {
+      "id": 406,
+      "name": "Knockout (KO)",
+      "category": "free_for_all",
+      "sourceFunction": "knockout",
+      "status": "planned",
+      "nameZhSource": "击退大乱战"
+    },
+    {
+      "id": 407,
+      "name": "Hoopin' n' Swoopin' (SF)",
+      "category": "free_for_all",
+      "sourceFunction": "sky_fly",
+      "status": "planned"
+    },
+    {
+      "id": 408,
+      "name": "Spleef (Sp)",
+      "category": "free_for_all",
+      "sourceFunction": "spleef",
+      "status": "implemented_phase_1",
+      "nameZhSource": "掘一死战"
+    },
+    {
+      "id": 409,
+      "name": "Meat Slap (MSl)",
+      "category": "free_for_all",
+      "sourceFunction": "meat_slap",
+      "status": "planned",
+      "nameZhSource": "烫手的生肉"
+    },
+    {
+      "id": 410,
+      "name": "Weapon Devolution (Gl)",
+      "category": "free_for_all",
+      "sourceFunction": "weapon_devolution",
+      "status": "planned",
+      "nameZhSource": "全能武器王"
+    },
+    {
+      "id": 411,
+      "name": "Tedious Tasks (TT)",
+      "category": "free_for_all",
+      "sourceFunction": "tedious_tasks",
+      "status": "planned",
+      "nameZhSource": "繁琐任务"
+    },
+    {
+      "id": 412,
+      "name": "Tile Capture (TC)",
+      "category": "free_for_all",
+      "sourceFunction": "tile_capture",
+      "status": "implemented_phase_1",
+      "nameZhSource": "方块占领"
+    },
+    {
+      "id": 413,
+      "name": "Rainbow Run (RRn)",
+      "category": "free_for_all",
+      "sourceFunction": "rainbow_run",
+      "status": "planned",
+      "nameZhSource": "彩虹之路"
+    },
+    {
+      "id": 414,
+      "name": "Platforms (Pl)",
+      "category": "free_for_all",
+      "sourceFunction": "platforms",
+      "status": "planned",
+      "nameZhSource": "抉择平台"
+    },
+    {
+      "id": 415,
+      "name": "Runner (Rn)",
+      "category": "free_for_all",
+      "sourceFunction": "runner",
+      "status": "planned",
+      "nameZhSource": "踏碎狂奔"
+    },
+    {
+      "id": 416,
+      "name": "Horse Race (HR)",
+      "category": "free_for_all",
+      "sourceFunction": "horse_race",
+      "status": "planned",
+      "nameZhSource": "马术大赛"
+    },
+    {
+      "id": 417,
+      "name": "Speed Builders (SB)",
+      "category": "free_for_all",
+      "sourceFunction": "speed_builders",
+      "status": "planned",
+      "nameZhSource": "速建专家"
+    },
+    {
+      "id": 418,
+      "name": "Steve Says (SS)",
+      "category": "free_for_all",
+      "sourceFunction": "steve_says",
+      "status": "planned",
+      "nameZhSource": "史蒂夫说——"
+    },
+    {
+      "id": 419,
+      "name": "Power Towers (PT)",
+      "category": "free_for_all",
+      "sourceFunction": "power_towers",
+      "status": "planned",
+      "nameZhSource": "速度之巅"
+    },
+    {
+      "id": 420,
+      "name": "Farming Frenzy (FF)",
+      "category": "free_for_all",
+      "sourceFunction": "farming_frenzy",
+      "status": "planned",
+      "nameZhSource": "农场狂欢"
+    },
+    {
+      "id": 421,
+      "name": "Port Priority (PPy)",
+      "category": "free_for_all",
+      "sourceFunction": "port_priority",
+      "status": "planned",
+      "nameZhSource": "繁忙货港"
+    },
+    {
+      "id": 422,
+      "name": "Match Me Not (MMN)",
+      "category": "free_for_all",
+      "sourceFunction": "match_me_not",
+      "status": "planned",
+      "nameZhSource": "禁止匹配"
+    },
+    {
+      "id": 423,
+      "name": "Rocket Launch (RL)",
+      "category": "free_for_all",
+      "sourceFunction": "rocket_launch",
+      "status": "planned",
+      "nameZhSource": "火箭发射"
+    },
+    {
+      "id": 424,
+      "name": "Red Light, Green Light (RLGL)",
+      "category": "free_for_all",
+      "sourceFunction": "rlgl",
+      "status": "implemented_phase_1"
+    },
+    {
+      "id": 425,
+      "name": "Memory Lane (ML)",
+      "category": "free_for_all",
+      "sourceFunction": "memory",
+      "status": "planned"
+    },
+    {
+      "id": 426,
+      "name": "Pearl Hurl (PH)",
+      "category": "free_for_all",
+      "sourceFunction": "pearl_hurl",
+      "status": "planned",
+      "nameZhSource": "珍珠投手"
+    },
+    {
+      "id": 427,
+      "name": "Take Flight (TF)",
+      "category": "free_for_all",
+      "sourceFunction": "take_flight",
+      "status": "planned",
+      "nameZhSource": "空中飞驰"
+    },
+    {
+      "id": 428,
+      "name": "One Shot Wonder (OITQ)",
+      "category": "free_for_all",
+      "sourceFunction": "oitq",
+      "status": "planned"
+    },
+    {
+      "id": 429,
+      "name": "Odd One Out (OOO)",
+      "category": "free_for_all",
+      "sourceFunction": "odd_one_out",
+      "status": "planned",
+      "nameZhSource": "与众不同"
+    },
+    {
+      "id": 430,
+      "name": "Sheep Scramble (SSb)",
+      "category": "free_for_all",
+      "sourceFunction": "sheep_scramble",
+      "status": "planned",
+      "nameZhSource": "数羊竞赛"
+    },
+    {
+      "id": 431,
+      "name": "Trident Tumblers (TT)",
+      "category": "free_for_all",
+      "sourceFunction": "trident_tumblers",
+      "status": "planned",
+      "nameZhSource": "三叉戟翻筋斗"
+    },
+    {
+      "id": 432,
+      "name": "Puzzled (Pz)",
+      "category": "free_for_all",
+      "sourceFunction": "puzzled",
+      "status": "planned",
+      "nameZhSource": "拼图"
+    },
+    {
+      "id": 433,
+      "name": "Boss Battle (BBe)",
+      "category": "free_for_all",
+      "sourceFunction": "boss_battle",
+      "status": "planned",
+      "nameZhSource": "猎杀首领"
+    },
+    {
+      "id": 434,
+      "name": "Minecraft Party Intelligence Quiz (MPIQ)",
+      "category": "free_for_all",
+      "sourceFunction": "mpiq",
+      "status": "planned",
+      "nameZhSource": "我的世界派对智力问答"
+    },
+    {
+      "id": 435,
+      "name": "Hog Riders (HR)",
+      "category": "free_for_all",
+      "sourceFunction": "hog_riders",
+      "status": "planned",
+      "nameZhSource": "疣猪骑士"
+    },
+    {
+      "id": 436,
+      "name": "Bomber Brigade (BomB)",
+      "category": "free_for_all",
+      "sourceFunction": "bomber_brigade",
+      "status": "planned",
+      "nameZhSource": "轰炸派对"
+    },
+    {
+      "id": 501,
+      "name": "Color Chaos (CCh)",
+      "category": "battle",
+      "sourceFunction": "color_chaos",
+      "status": "planned",
+      "nameZhSource": "色盲派对"
+    },
+    {
+      "id": 502,
+      "name": "Creeper's Crazy Combustion (CCC)",
+      "category": "battle",
+      "sourceFunction": "ccc",
+      "status": "planned",
+      "nameZhSource": "苦力怕的死亡按钮"
+    },
+    {
+      "id": 504,
+      "name": "Color Trails (CT)",
+      "category": "battle",
+      "sourceFunction": "color_trails",
+      "status": "planned",
+      "nameZhSource": "贪吃蛇"
+    },
+    {
+      "id": 505,
+      "name": "Musical Minecarts (MMcs)",
+      "category": "battle",
+      "sourceFunction": "musical_minecarts",
+      "status": "planned",
+      "nameZhSource": "音乐矿车"
+    },
+    {
+      "id": 506,
+      "name": "Hole In The Wall (HITW)",
+      "category": "battle",
+      "sourceFunction": "hole_in_the_wall",
+      "status": "planned",
+      "nameZhSource": "动洞墙"
+    },
+    {
+      "id": 507,
+      "name": "Dragon Doom (DDm)",
+      "category": "battle",
+      "sourceFunction": "dragon_doom",
+      "status": "planned",
+      "nameZhSource": "龙灾之下"
+    },
+    {
+      "id": 508,
+      "name": "Dripstone Dance (DDc)",
+      "category": "battle",
+      "sourceFunction": "tip_drop",
+      "status": "planned"
+    },
+    {
+      "id": 509,
+      "name": "Obstacle Field (OF) <- shut up",
+      "category": "battle",
+      "sourceFunction": "obstacle_field",
+      "status": "planned",
+      "nameZhSource": "穿越障碍"
+    },
+    {
+      "id": 510,
+      "name": "Laser Evaders (LE)",
+      "category": "battle",
+      "sourceFunction": "laser_evaders",
+      "status": "planned",
+      "nameZhSource": "躲避激光"
+    },
+    {
+      "id": 601,
+      "name": "Mineshaft Madness (MMds)",
+      "category": "coin",
+      "sourceFunction": "mineshaft_madness",
+      "status": "planned",
+      "nameZhSource": "疯狂矿井"
+    },
+    {
+      "id": 602,
+      "name": "Markey Mayhem (MMhm)",
+      "category": "coin",
+      "sourceFunction": "market_mayhem",
+      "status": "planned",
+      "nameZhSource": "混乱市场"
+    },
+    {
+      "id": 603,
+      "name": "Tunnel O' Fun (ToF)",
+      "category": "coin",
+      "sourceFunction": "tunnel_o_fun",
+      "status": "planned",
+      "nameZhSource": "欢乐隧道"
+    },
+    {
+      "id": 604,
+      "name": "Cat Catchers (CCt)",
+      "category": "coin",
+      "sourceFunction": "creeper_catchers",
+      "status": "planned"
+    },
+    {
+      "id": 605,
+      "name": "Hungry Hungry Humans (HHH)",
+      "category": "coin",
+      "sourceFunction": "hungry_hungry_humans",
+      "status": "planned",
+      "nameZhSource": "愿者上钩"
+    },
+    {
+      "id": 606,
+      "name": "Bat Blast (BBst)",
+      "category": "coin",
+      "sourceFunction": "bat_blast",
+      "status": "planned",
+      "nameZhSource": "狂扁蝙蝠"
+    },
+    {
+      "id": 607,
+      "name": "Grave Diggers (GDs)",
+      "category": "coin",
+      "sourceFunction": "grave_diggers",
+      "status": "planned",
+      "nameZhSource": "掘墓者"
+    },
+    {
+      "id": 701,
+      "name": "Snowman, Zombie, Blaze (SZB)",
+      "category": "micro_duel",
+      "sourceFunction": "szb",
+      "status": "planned",
+      "nameZhSource": "雪人，僵尸，烈焰人"
+    },
+    {
+      "id": 702,
+      "name": "Quick Draw (QD)",
+      "category": "micro_duel",
+      "sourceFunction": "quick_draw",
+      "status": "planned",
+      "nameZhSource": "西部对决"
+    },
+    {
+      "id": 703,
+      "name": "Just Joust (JJ)",
+      "category": "micro_duel",
+      "sourceFunction": "just_joust",
+      "status": "planned",
+      "nameZhSource": "矿车乱斗"
+    },
+    {
+      "id": 704,
+      "name": "Ground Mark (GM)",
+      "category": "micro_duel",
+      "sourceFunction": "ground_mark",
+      "status": "planned",
+      "nameZhSource": "俯冲中靶"
+    },
+    {
+      "id": 705,
+      "name": "On The Dot (OTD)",
+      "category": "micro_duel",
+      "sourceFunction": "on_the_dot",
+      "status": "planned",
+      "nameZhSource": "准时准点"
+    },
+    {
+      "id": 706,
+      "name": "Mining Away (MA)",
+      "category": "micro_duel",
+      "sourceFunction": "mining_away",
+      "status": "planned",
+      "nameZhSource": "眼疾手快"
+    },
+    {
+      "id": 708,
+      "name": "Path Finder (PF)",
+      "category": "micro_duel",
+      "sourceFunction": "path_finder",
+      "status": "planned",
+      "nameZhSource": "路径先锋"
+    },
+    {
+      "id": 709,
+      "name": "Reactor Reactor (RRr)",
+      "category": "micro_duel",
+      "sourceFunction": "reactor_reactor",
+      "status": "planned",
+      "nameZhSource": "死亡倒计时"
+    }
+  ]
+}

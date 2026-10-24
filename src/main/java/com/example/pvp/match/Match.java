@@ -248,6 +248,11 @@ public final class Match {
      */
     private BoatRaceSession boatRaceSession;
 
+    /** 外部地图移植会话隔离本场逻辑，避免运行原图的全服命令或污染大厅状态。 */
+    private PortedGameSession portedSession;
+    private boolean portedSessionEnded;
+    private Set<UUID> portedFinalWinners;
+
     // ---------- 死斗 (Deathmatch) ----------
     /** 人头数 / 死亡数 / 当前连杀（死亡清零）。 */
     private final Map<UUID, Integer> deathmatchKills = new HashMap<>();
@@ -550,7 +555,14 @@ public final class Match {
             this.tntRunLayout = null;
             this.heartbeatLayout = null;
             this.hotPotatoLayout = null;
-            spawnPositions = template.computeSpawns(regionIndex, this.players.size());
+            if (type.isPortedGame()) {
+                this.portedSession = type == MatchType.ISLAND_SIEGE
+                        ? new IslandSiegeSession(this, template, regionIndex, id)
+                        : new MinecraftPartySession(this, template, regionIndex, id);
+                spawnPositions = this.portedSession.spawnPositions();
+            } else {
+                spawnPositions = template.computeSpawns(regionIndex, this.players.size());
+            }
             if (type == MatchType.DEATHMATCH) {
                 // 复活点池：同一个 FFA 环形算法，但按 2N（至少 16）均布，给出更多"远点"可选。
                 // 只用于复活，开局出生点仍用上面按人数算的那一份。
@@ -583,7 +595,8 @@ public final class Match {
         if (type == MatchType.DUEL_1V1 || type == MatchType.SUMO || type == MatchType.BRIDGE_1V1) {
             teams.add(new MatchTeam("红队", Formatting.RED, List.of(players.get(0))));
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));
-        } else if (type == MatchType.DUEL_2V2 || type == MatchType.BRIDGE_2V2 || type == MatchType.BRIDGE_TEAM) {
+        } else if (type == MatchType.DUEL_2V2 || type == MatchType.BRIDGE_2V2 || type == MatchType.BRIDGE_TEAM
+                || type == MatchType.ISLAND_SIEGE) {
             // 战桥 2v2 / 混战：总人数/2 平均分两队（队列已随机洗牌）
             teams.add(new MatchTeam("红队", Formatting.RED, players.subList(0, players.size() / 2)));
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, players.subList(players.size() / 2, players.size())));
@@ -713,7 +726,10 @@ public final class Match {
             this.finishSetup();
         }
         int activeTimeout;
-        if (this.type == MatchType.SKYWARS) {
+        if (this.type.isPortedGame()) {
+            // 会话自行计时；兜底只处理运行时卡死，不擅自把第一队判为胜者。
+            activeTimeout = 20 * 60 * 30;
+        } else if (this.type == MatchType.SKYWARS) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20);
         } else if (this.type.isBridge()) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.bridgeTimeoutSeconds * 20);
@@ -748,6 +764,10 @@ public final class Match {
         if (this.state == MatchState.ACTIVE && this.activeStartTick >= 0
                 && this.ticks > this.activeStartTick + activeTimeout) {
             LOGGER.warn("[PvP] 比赛 #{} 超时（{} 秒）结束", this.id, activeTimeout / 20);
+            if (this.portedSession != null) {
+                this.cancelMatch("玩法运行超时");
+                return;
+            }
             if (this.type == MatchType.HOT_POTATO) {
                 // 烫手山芋超时：当前持有者爆炸淘汰（一次性），若之后仍互传拖时间则 60 秒后强制平局
                 if (!this.hotPotatoTimeoutTriggered) {
@@ -786,6 +806,9 @@ public final class Match {
         switch (this.state) {
             case COUNTDOWN -> this.tickCountdown();
             case ACTIVE -> {
+                if (this.portedSession != null) {
+                    this.portedSession.tick();
+                }
                 if (this.type == MatchType.SUMO) {
                     this.checkSumoRingOut();
                 }
@@ -3311,6 +3334,7 @@ public final class Match {
             return;
         }
         this.state = MatchState.ENDED;
+        this.endPortedSession();
         try {
             this.removeSkywarsCage();
             this.broadcast(Messages.error("比赛取消：" + reason));
@@ -3337,7 +3361,10 @@ public final class Match {
         }
         this.winnerTeam = winnerTeam;
         this.celebrationTicks = 100; // 5 秒庆祝
+        // 结算公告与持久化战绩必须一致；庆祝期间回大厅或断线不能改写已产生的胜负。
+        if (this.portedSession != null) this.portedFinalWinners = Set.copyOf(this.computeWinners());
         this.state = MatchState.CELEBRATING;
+        this.endPortedSession();
         this.removeSkywarsCage();
         if (this.type == MatchType.COLORBLIND_PARTY && this.colorblindSession != null) {
             // 色盲派对：撤掉灾难/加成残留，把地板重绘成 GAME OVER
@@ -3365,6 +3392,7 @@ public final class Match {
 
         // 获胜大字（动作栏）
         for (ServerPlayerEntity player : this.players) {
+            if (this.portedSession != null && this.leftEarly.contains(player.getUuid())) continue;
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online != null) {
                 if (winners.contains(player.getUuid())) {
@@ -3381,6 +3409,12 @@ public final class Match {
     /** 结算胜者集合：心跳水立方为第一名到达者，其余模式为胜利队伍存活成员。 */
     private Set<UUID> computeWinners() {
         Set<UUID> winners = new HashSet<>();
+        if (this.portedSession != null) {
+            if (this.portedFinalWinners != null) return this.portedFinalWinners;
+            // 会话负责退赛资格与结果冻结（Party 先展示排名再进入 Match 庆祝）。
+            winners.addAll(this.portedSession.winners());
+            return winners;
+        }
         if (this.type.isBoatRace()) {
             // 竞速：所有跑完全部圈数的人都算胜场；无人跑完（超时）时按当前进度把第一名记为胜者。
             if (this.boatRaceSession != null) {
@@ -3581,7 +3615,9 @@ public final class Match {
         }
         try {
             int mapMaxRadius = this.arenaClearRadius();
-            if (this.type.isBedWars()) {
+            if (this.portedSession != null) {
+                this.portedSession.clearArena();
+            } else if (this.type.isBedWars()) {
                 // 床战：精确清理（地图原始方块 + 玩家放置方块），避免扫整个区域太慢导致残留
                 ArenaWorld arena = this.manager.getArenaManager().getWorld();
                 if (arena != null) {
@@ -3815,6 +3851,19 @@ public final class Match {
 
     /** 玩家主动离开竞技场回主城：幽灵走旁观离开流程；活跃玩家视为弃权淘汰并恢复赛前状态。 */
     public void leaveMatch(ServerPlayerEntity player) {
+        if (this.portedSession != null && this.contains(player.getUuid())) {
+            // 铺图/倒计时尚未开始会话，退赛要取消整场，避免按旧名单发装备和传送。
+            if (this.state == MatchState.COUNTDOWN) {
+                this.cancelMatch(player.getGameProfile().getName() + " 中途退出");
+                return;
+            }
+            this.portedSession.onLeave(player);
+            if (this.state == MatchState.CELEBRATING || this.portedSession.hasFinalResult()) {
+                // 已经公布成绩后回大厅只是离场，不再播报“弃权淘汰”。
+                this.spectatorLeave(player, false);
+                return;
+            }
+        }
         if (this.eliminated.contains(player.getUuid())) {
             this.spectatorLeave(player, false);
             return;
@@ -3947,6 +3996,9 @@ public final class Match {
         if (this.type == MatchType.LUCKY_PILLAR || this.type == MatchType.HEARTBEAT) {
             this.lockPlayersToSpawn();
         }
+        if (this.portedSession != null) {
+            this.lockPlayersToSpawn();
+        }
         // 亦可赛艇：倒计时期间保证玩家还在自己的船上（可以在船上移动，但下不了船）。
         // 抢跑由起跑线上的发车挡板挡住，GO 时撤掉。
         if (this.type.isBoatRace() && this.boatRaceSession != null) {
@@ -4017,6 +4069,9 @@ public final class Match {
                     online.setInvulnerable(false);
                     online.setNoGravity(false);
                 }
+            }
+            if (this.portedSession != null) {
+                this.portedSession.start();
             }
         }
     }
@@ -4139,6 +4194,10 @@ public final class Match {
      * @return false 表示要放弃本场（调用方会 cancelMatch）
      */
     private boolean stageArena(ArenaWorld arena) {
+        if (this.portedSession != null) {
+            this.portedSession.stageMap();
+            return true;
+        }
         if (this.type.isBoatRace()) {
             // 亦可赛艇：赛道（含门架/环境）由 Session 铺设，同样走暂存
             if (this.boatRaceSession != null) {
@@ -4331,7 +4390,7 @@ public final class Match {
             } else if (tntRun) {
                 // TNT 跑酷：无套件，生存模式空手开局，靠地面刷新火焰弹/TNT 掉落物
                 this.clearForBareStart(online, GameMode.SURVIVAL, 5f, true);
-            } else if (heartbeat || hotPotato || villageDefense || colorblindParty) {
+            } else if (heartbeat || hotPotato || villageDefense || colorblindParty || this.portedSession != null) {
                 // 心跳水立方 / 烫手山芋 / 村庄保卫战 / 色盲派对：无套件，冒险模式空手开局
                 // （专注玩法本身，不能放/拆方块 —— 色盲派对尤其要防止搭桥躲避）
                 this.clearForBareStart(online, GameMode.ADVENTURE, 5f, true);
@@ -4432,6 +4491,9 @@ public final class Match {
     }
 
     private MatchTeam computeWinner() {
+        if (this.portedSession != null) {
+            return null; // 会话负责目标、小游戏名次及退赛判定，不使用通用淘汰规则。
+        }
         if (this.type.isBoatRace()) {
             // 亦可赛艇没有"活着的队伍只剩一个"这回事（全员同一队且没人被淘汰），
             // 必须在这里返回 null，否则一进 ACTIVE 就会被通用逻辑判成"仅剩一队获胜"直接结算。
@@ -4482,6 +4544,13 @@ public final class Match {
     }
 
     private void announceResult(Set<UUID> winners) {
+        if (this.portedSession != null) {
+            List<String> names = this.players.stream().filter(p -> winners.contains(p.getUuid()))
+                    .map(p -> p.getGameProfile().getName()).toList();
+            this.broadcast(names.isEmpty() ? Messages.warn("本局结束，无获胜者")
+                    : Messages.gold("获胜：" + String.join("、", names)));
+            return;
+        }
         if (this.type.isBoatRace()) {
             this.announceBoatRaceResult();
             return;
@@ -4720,7 +4789,12 @@ public final class Match {
         this.setInfoLine(scoreboard, objective, this.playerCountLine(), score--);
         this.setInfoLine(scoreboard, objective, "§8------------------------", score--);
 
-        if (this.type == MatchType.HEARTBEAT) {
+        if (this.portedSession != null) {
+            for (String line : this.portedSession.scoreboardLines()) {
+                if (score <= 0) break;
+                this.setInfoLine(scoreboard, objective, line, score--);
+            }
+        } else if (this.type == MatchType.HEARTBEAT) {
             // 心跳水立方：已通关人数 + 领先者 + 各玩家关卡进度
             HeartbeatLayout layout = this.heartbeatLayout;
             int finished = this.heartbeatFinished.size();
@@ -4953,6 +5027,8 @@ public final class Match {
             case COLORBLIND_PARTY -> "§d";
             case DEATHMATCH -> "§4";
             case BOAT_RACE -> "§b";
+            case MINECRAFT_PARTY -> "§d";
+            case ISLAND_SIEGE -> "§c";
         };
         return "模式: " + color + this.type.getDisplayName();
     }
@@ -4981,6 +5057,8 @@ public final class Match {
             case VILLAGE_DEFENSE -> "§7地图: §eVD"; // 地图名在 Match 接线后替换为导入的地图名
             case COLORBLIND_PARTY -> "§7地图: §e彩色地板";
             case DEATHMATCH -> "§7地图: §e平地竞技场"; // 复用 Layout.FFA 的场地
+            case MINECRAFT_PARTY -> "§7地图: §dParty 2 · 分阶段移植";
+            case ISLAND_SIEGE -> "§7地图: §c海岛攻防 · 重建地图";
             case BOAT_RACE -> "§7地图: §b随机冰面赛道 §7(" + (this.boatRaceSession != null
                     ? this.boatRaceSession.trackSummary() : "生成中") + ")";
         };
@@ -5123,6 +5201,7 @@ public final class Match {
 
     private void broadcast(Text message) {
         for (ServerPlayerEntity player : this.players) {
+            if (this.portedSession != null && this.leftEarly.contains(player.getUuid())) continue;
             ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
             if (online != null) {
                 online.sendMessage(message, false);
@@ -5197,6 +5276,52 @@ public final class Match {
     /** 亦可赛艇运行时（非竞速模式返回 null）。 */
     public BoatRaceSession boatRaceSession() {
         return this.boatRaceSession;
+    }
+
+    public PortedGameSession portedSession() {
+        return this.portedSession;
+    }
+
+    /** 保护移植场地的静态目标和原图；爆炸不允许破坏原图机制承载的方块。 */
+    public boolean ownsPortedPosition(BlockPos pos) {
+        if (this.portedSession == null) return false;
+        BlockPos center = this.template.getCenter(this.regionIndex);
+        int half = ArenaTemplate.REGION_SPACING / 2 - 16;
+        return Math.abs(pos.getX() - center.getX()) <= half
+                && Math.abs(pos.getZ() - center.getZ()) <= half;
+    }
+
+    /** 同时覆盖正常结束、取消与停服路径；结果集合由会话保留给战绩结算。 */
+    private void endPortedSession() {
+        if (this.portedSession == null || this.portedSessionEnded) return;
+        this.portedSessionEnded = true;
+        try {
+            this.portedSession.onEnd();
+        } catch (Exception e) {
+            LOGGER.warn("[PvP] 比赛 #{} 移植玩法收尾出错", this.id, e);
+        }
+    }
+
+    public void onPortedDeath(ServerPlayerEntity player) {
+        if (this.portedSession == null) return;
+        if (this.state == MatchState.ACTIVE) {
+            this.portedSession.onDeath(player);
+        } else {
+            player.setHealth(player.getMaxHealth());
+            player.setFireTicks(0);
+            player.fallDistance = 0;
+        }
+    }
+
+    public void onPortedDisconnect(ServerPlayerEntity player) {
+        if (this.portedSession == null) return;
+        if (this.state != MatchState.COUNTDOWN) this.portedSession.onLeave(player);
+        this.eliminated.add(player.getUuid());
+        for (MatchTeam team : this.teams) team.eliminate(player);
+        // 断线时不进行传送；登录恢复赛前快照，且不重新加入已退出的对局。
+        InventorySnapshot snapshot = this.snapshots.get(player.getUuid());
+        if (snapshot != null) this.manager.pendRestore(player.getUuid(), snapshot);
+        this.leftEarly.add(player.getUuid());
     }
 
     /** 亦可赛艇：重生（MatchManager 兜底转发）——同样按"回位 + 重新发船"处理。 */

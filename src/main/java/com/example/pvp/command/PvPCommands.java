@@ -69,7 +69,7 @@ public final class PvPCommands {
                     "1v1", "2v2", "ffa", "sumo", "skywars",
                     "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar", "tntrun",
                     "heartbeat", "hotpotato", "bedwars", "bedwars2", "villagedefense", "colorblindparty",
-                    "deathmatch", "racing", "boatrace"}, builder);
+                    "deathmatch", "racing", "boatrace", "minecraftparty", "islandsiege"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
@@ -347,6 +347,8 @@ public final class PvPCommands {
                         + "§e/pvp join colorblindparty§r 加入色盲派对（站到「文字的颜色」上）\n"
                         + "§e/pvp join deathmatch -k <套件>§r 加入死斗（5 分钟，人头最多者胜）\n"
                         + "§e/pvp join racing§r 加入亦可赛艇（无需套件，原版船 + 随机冰面赛道竞速）\n"
+                        + "§e/pvp join minecraftparty§r 加入 Minecraft Party 2（移植中：首批 3 个小游戏 Quick Play）\n"
+                        + "§e/pvp join islandsiege§r 加入海岛攻防（无需套件，红队进攻、蓝队防守）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
@@ -368,7 +370,7 @@ public final class PvPCommands {
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
             player.sendMessage(Messages.error("未知模式: " + modeId
-                    + "（可用: 1v1, 2v2, ffa, sumo, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense, colorblindparty, deathmatch, racing）"), false);
+                    + "（可用: 1v1, 2v2, ffa, sumo, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense, colorblindparty, deathmatch, racing, minecraftparty, islandsiege）"), false);
             return 0;
         }
         Kit kit;
@@ -390,6 +392,8 @@ public final class PvPCommands {
             kit = KitManager.colorblindPartyKit(); // 色盲派对空手开局，无套件
         } else if (type.isBoatRace()) {
             kit = KitManager.boatRaceKit(); // 亦可赛艇空手开局，船由玩法统一发放
+        } else if (type.isPortedGame()) {
+            kit = KitManager.portedGameKit(); // 由移植玩法会话发放物品，无需玩家选择套件
         } else if (type.isBedWars()) {
             kit = KitManager.bedWarsKit(); // 起床战争装备由玩法发放
         } else {
@@ -442,6 +446,13 @@ public final class PvPCommands {
                 player.sendMessage(Messages.info("已加入亦可赛艇：凑齐 "
                         + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛；原版船 + 每场随机生成的冰面赛道（"
                         + PvPConfig.INSTANCE.boatRaceLaps + " 圈）"), false);
+            } else if (type.isPortedGame()) {
+                player.sendMessage(Messages.info("已加入" + type.getDisplayName() + "：凑齐 "
+                        + MatchType.PORTED_START_PLAYERS + " 人立即开赛；至少 " + MatchType.PORTED_MIN_PLAYERS
+                        + " 人等待 " + MatchType.PORTED_FILL_SECONDS + " 秒也可开始"), false);
+                if (type == MatchType.MINECRAFT_PARTY) {
+                    player.sendMessage(Messages.info("分阶段移植：首批 3 个小游戏 Quick Play；棋盘与其余子游戏待移植"), false);
+                }
             } else if (type.isBedWars()) {
                 player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")
                         + "）：凑 2 人即开始倒计时，摧毁敌方床获胜"), false);
