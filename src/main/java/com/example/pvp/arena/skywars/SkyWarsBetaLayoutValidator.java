@@ -54,7 +54,7 @@ public final class SkyWarsBetaLayoutValidator {
             checkChests(errors, world, layout.middleIslands().get(i), true, i == 0, theme);
         }
         for (SkyWarsLayout.ExtraChest extra : layout.extraChests()) {
-            if (extra.lootTable() == null) checkChest(errors, world, extra.pos());
+            checkChest(errors, world, extra.pos());
         }
         if (theme != SkyWarsTheme.VILLAGE && layout.middle() != null) {
             BlockPos lower = layout.middle().center().down(SkyWarsBetaMapGenerator.LOWER_LAYER_DROP);
@@ -74,9 +74,12 @@ public final class SkyWarsBetaLayoutValidator {
     }
 
     private static void checkChest(List<String> errors, ArenaWorld world, BlockPos pos) {
-        if (!world.getBlockState(pos).isOf(Blocks.CHEST)
+        if ((!world.getBlockState(pos).isOf(Blocks.CHEST) && !world.getBlockState(pos).isOf(Blocks.TRAPPED_CHEST))
                 || !(world.getBlockEntity(pos) instanceof ChestBlockEntity)) errors.add("战斗箱丢失: " + pos);
         else if (!world.getBlockState(pos.up()).isAir()) errors.add("战斗箱顶部被遮挡: " + pos);
+        else if (world.getBlockEntity(pos) instanceof ChestBlockEntity chest) {
+            if (chest.getLootTable() != null) errors.add("战斗箱残留原版战利品表: " + pos);
+        }
     }
 
     private static void checkFairRoutes(List<String> errors, SkyWarsLayout layout) {

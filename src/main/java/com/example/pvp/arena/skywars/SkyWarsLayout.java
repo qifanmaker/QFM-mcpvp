@@ -1,10 +1,7 @@
 package com.example.pvp.arena.skywars;
 
 import com.example.pvp.config.PvPConfig;
-import net.minecraft.loot.LootTable;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -32,24 +29,8 @@ public final class SkyWarsLayout {
         public List<BlockPos> chests() { return this.chests; }
     }
 
-    /** 生活箱保留原版表；额外战斗箱明确所属档位，不能让中途侧台重复发出生装备。 */
-    public record ExtraChest(BlockPos pos, boolean middle, int handicapIndex,
-                             @Nullable RegistryKey<LootTable> lootTable, SkyWarsLootPolicy.Tier tier) {
-        public ExtraChest(BlockPos pos, boolean middle, int handicapIndex) {
-            this(pos, middle, handicapIndex, null,
-                    middle ? SkyWarsLootPolicy.Tier.CENTER : SkyWarsLootPolicy.Tier.SPAWN);
-        }
-
-        public ExtraChest(BlockPos pos, boolean middle, int handicapIndex,
-                          @Nullable RegistryKey<LootTable> lootTable) {
-            this(pos, middle, handicapIndex, lootTable,
-                    middle ? SkyWarsLootPolicy.Tier.CENTER : SkyWarsLootPolicy.Tier.SPAWN);
-        }
-
-        public ExtraChest(BlockPos pos, SkyWarsLootPolicy.Tier tier, int playerIndex) {
-            this(pos, tier == SkyWarsLootPolicy.Tier.CENTER, playerIndex, null, tier);
-        }
-    }
+    /** 所有附加箱都按空岛档位分配物资；村庄房内和露天箱同属中岛，补货规则一致。 */
+    public record ExtraChest(BlockPos pos, SkyWarsLootPolicy.Tier tier, int handicapIndex) { }
 
     private final List<ExtraChest> extraChests = new ArrayList<>();
     private final BlockPos mapCenter;

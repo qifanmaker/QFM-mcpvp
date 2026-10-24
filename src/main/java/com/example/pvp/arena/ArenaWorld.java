@@ -102,11 +102,12 @@ public class ArenaWorld extends ServerWorld {
     public BlockEntity getBlockEntity(BlockPos pos) {
         MapBuildQueue queue = this.staging;
         if (queue != null && queue.inRegion(pos)) {
+            BlockState state = queue.peek(pos);
             BlockEntity staged = queue.blockEntityAt(pos);
-            if (staged != null) {
+            // 模板标记可能已经替换为普通方块，不能继续返回该坐标旧的拼图/结构方块实体。
+            if (staged != null && state != null && staged.getType().supports(state)) {
                 return staged;
             }
-            BlockState state = queue.peek(pos);
             if (state != null && state.getBlock() instanceof BlockEntityProvider provider) {
                 BlockEntity created = provider.createBlockEntity(pos, state);
                 if (created != null) {

@@ -215,7 +215,11 @@ public final class MapBuildQueue {
             long deadline = System.nanoTime() + budgetMillis * 1_000_000L;
             int batch = 0;
             while (this.blockEntityCursor < this.blockEntities.size()) {
-                this.world.addBlockEntityDirect(this.blockEntities.get(this.blockEntityCursor++));
+                BlockEntity blockEntity = this.blockEntities.get(this.blockEntityCursor++);
+                // 清理模板标记后可能仍有旧实体排在队列中，只挂接最终方块支持的类型。
+                if (blockEntity.getType().supports(this.world.getBlockState(blockEntity.getPos()))) {
+                    this.world.addBlockEntityDirect(blockEntity);
+                }
                 if (++batch >= TIME_CHECK_BATCH && System.nanoTime() >= deadline) {
                     break;
                 }

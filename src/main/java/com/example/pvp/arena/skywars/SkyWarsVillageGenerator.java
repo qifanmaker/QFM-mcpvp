@@ -1,12 +1,18 @@
 package com.example.pvp.arena.skywars;
 
 import com.example.pvp.arena.ArenaWorld;
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.logging.LogUtils;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockEntityProvider;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ChestBlockEntity;
-import net.minecraft.loot.LootTable;
-import net.minecraft.registry.RegistryKey;
+import net.minecraft.block.entity.JigsawBlockEntity;
+import net.minecraft.command.argument.BlockArgumentParser;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.structure.StructurePlacementData;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.structure.StructureTemplateManager;
@@ -17,8 +23,10 @@ import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import net.minecraft.util.math.random.Random;
 
 /**
@@ -26,15 +34,13 @@ import net.minecraft.util.math.random.Random;
  *
  * <p><b>为什么不自己盖房子</b>：直接复用原版村庄的 NBT 结构模板
  * （{@code data/minecraft/structure/village/plains/**}），房子/商店/农田/喷泉都是原版造型；
- * 房子里的箱子自带原版村庄战利品表（{@code chests/village/...}），
- * 也就是"物资箱子就用原版村庄刷的箱子"——不需要我们再塞战利品。
+ * 放置后清理结构/拼图标记，并把所有箱子纳入空岛中岛物资与补货策略。
  *
  * <p><b>布局</b>：中岛被放大成一整座岛（见 {@link SkyWarsLayout}），这里在岛面上铺
- * 广场 + 8 条放射道路 + 3 圈环路，然后沿"两条路之间"的位置成排摆房子，
+ * 广场 + 放射道路，然后沿"两条路之间"的位置成排摆房子，
  * 用包围盒做碰撞检测，保证不互相压住、不压到路、不出岛。密度靠候选点数量保证。
  *
- * <p>箱子会被登记进 {@link SkyWarsLayout#extraChests()}（带原版战利品表），
- * 所以 3 分钟后的「物资刷新」会把它们清空并重新掷原版战利品。
+ * <p>房屋箱和分区散布的露天箱统一登记为 CENTER，不保留原版 LootTable 或 Items。
  */
 public final class SkyWarsVillageGenerator {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -45,7 +51,7 @@ public final class SkyWarsVillageGenerator {
             house("plains_small_house_4"), house("plains_small_house_5"), house("plains_small_house_6"),
             house("plains_small_house_7"), house("plains_small_house_8"),
             // 自带箱子的 7 种房子（原版平原村庄里只有这 7 种带箱）加重权重：
-            // 村庄地图的物资全靠这些箱子，比例太低会没东西开
+            // 保留搜屋收益，露天箱和中央军械箱再补充开放区域的争夺点
             house("plains_small_house_7"), house("plains_medium_house_2"), house("plains_big_house_1"),
             house("plains_cartographer_1"), house("plains_fisher_cottage_1"), house("plains_tannery_1"),
             house("plains_weaponsmith_1"),
@@ -146,8 +152,10 @@ public final class SkyWarsVillageGenerator {
                 houses++;
             }
         }
-        LOGGER.info("[PvP] 村庄地图已生成: 半径 {}，房屋 {} 座，道路 {} 条放射 + {} 圈环路，村庄箱子 {} 个",
-                radius, houses, ROAD_RAYS, RING_ROADS.length, layout.extraChests().size() - chestsBefore);
+        int houseChests = layout.extraChests().size() - chestsBefore;
+        addOutdoorChests(world, layout, center, radius, occupied, seed);
+        LOGGER.info("[PvP] 村庄地图已生成: 半径 {}，房屋 {} 座，道路 {} 条放射 + {} 圈环路，房屋战斗箱 {} 个",
+                radius, houses, ROAD_RAYS, RING_ROADS.length, houseChests);
 
     }
 
@@ -246,9 +254,11 @@ public final class SkyWarsVillageGenerator {
         }
         occupied.add(rect);
 
+        // 原版模板直接放置不会执行完整拼图生成流程，必须先替换标记再处理地基/物资。
+        cleanTemplateMarkers(world, box, rotation);
         // 4) 架空的地基补成圆石（房子自带地基通常 1 层，门廊/台阶会悬空）
         fillGaps(world, box, y);
-        // 5) 收集房子自带的箱子（原版村庄战利品表），登记给"物资刷新"
+        // 5) 所有房屋箱统一交给空岛初始物资与补货策略，包括模板中没有LootTable的空箱。
         collectChests(world, layout, box);
         return true;
     }
@@ -312,20 +322,70 @@ public final class SkyWarsVillageGenerator {
         }
     }
 
-    /** 扫描房子范围内的箱子，把它们的原版战利品表登记给"物资刷新"。 */
-    private static void collectChests(ArenaWorld world, SkyWarsLayout layout, BlockBox box) {
+    /**
+     * 模板自身携带的生成标记不应成为竞技场方块。拼图按final_state恢复真实建筑材料，
+     * 缺失/非法/递归标记均退化为空气，避免保留可见的编辑方块。
+     */
+    private static void cleanTemplateMarkers(ArenaWorld world, BlockBox box, BlockRotation rotation) {
         for (int x = box.getMinX(); x <= box.getMaxX(); x++) {
             for (int z = box.getMinZ(); z <= box.getMaxZ(); z++) {
                 for (int y = box.getMinY(); y <= box.getMaxY(); y++) {
                     BlockPos pos = new BlockPos(x, y, z);
-                    if (!(world.getBlockEntity(pos) instanceof ChestBlockEntity chest)) {
+                    BlockState state = world.getBlockState(pos);
+                    if (state.isOf(Blocks.STRUCTURE_BLOCK)) {
+                        world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                    } else if (state.isOf(Blocks.JIGSAW)) {
+                        BlockState replacement = Blocks.AIR.getDefaultState();
+                        BlockEntity entity = world.getBlockEntity(pos);
+                        String finalState = entity instanceof JigsawBlockEntity jigsaw ? jigsaw.getFinalState() : "";
+                        if (finalState != null && !finalState.isBlank()) {
+                            try {
+                                StringReader reader = new StringReader(finalState);
+                                BlockArgumentParser.BlockResult result = BlockArgumentParser.block(
+                                        world.createCommandRegistryWrapper(RegistryKeys.BLOCK), reader, true);
+                                reader.skipWhitespace();
+                                if (reader.canRead()) throw new IllegalArgumentException("Unexpected final_state suffix");
+                                replacement = result.blockState().rotate(rotation);
+                            } catch (CommandSyntaxException | IllegalArgumentException exception) {
+                                LOGGER.warn("[PvP] 村庄拼图终态无效，已清为空气: {}，{}", pos, finalState);
+                            }
+                        }
+                        if (replacement.isOf(Blocks.JIGSAW) || replacement.isOf(Blocks.STRUCTURE_BLOCK)
+                                || replacement.isOf(Blocks.STRUCTURE_VOID)) replacement = Blocks.AIR.getDefaultState();
+                        world.setBlockState(pos, replacement, Block.NOTIFY_ALL);
+                        if (replacement.getBlock() instanceof BlockEntityProvider provider) {
+                            // staging的原位置仍可能缓存Jigsaw BE；显式登记新类型，不能把旧实体留给最终方块。
+                            BlockEntity replacementEntity = provider.createBlockEntity(pos, replacement);
+                            if (replacementEntity != null) world.addBlockEntity(replacementEntity);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** 扫描所有模板箱，清掉原版延迟战利品表及内容，统一登记空岛中岛预算。 */
+    private static void collectChests(ArenaWorld world, SkyWarsLayout layout, BlockBox box) {
+        Set<BlockPos> registered = new HashSet<>();
+        layout.extraChests().forEach(chest -> registered.add(chest.pos()));
+        for (int x = box.getMinX(); x <= box.getMaxX(); x++) {
+            for (int z = box.getMinZ(); z <= box.getMaxZ(); z++) {
+                for (int y = box.getMinY(); y <= box.getMaxY(); y++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    BlockState state = world.getBlockState(pos);
+                    if ((!state.isOf(Blocks.CHEST) && !state.isOf(Blocks.TRAPPED_CHEST))
+                            || !(world.getBlockEntity(pos) instanceof ChestBlockEntity chest)) {
                         continue;
                     }
-                    RegistryKey<LootTable> table = chest.getLootTable();
-                    if (table == null) {
-                        continue; // 模板里没配战利品表的箱子（极少见）不管
+                    chest.setLootTable(null);
+                    chest.setLootTableSeed(0L);
+                    chest.clear();
+                    chest.markDirty();
+                    // 只清箱盖紧邻的一格，不拆整片屋顶；双箱的两半都各自保留可开启空间。
+                    world.setBlockState(pos.up(), Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                    if (registered.add(pos)) {
+                        layout.addExtraChest(new SkyWarsLayout.ExtraChest(pos, SkyWarsLootPolicy.Tier.CENTER, -1));
                     }
-                    layout.addExtraChest(new SkyWarsLayout.ExtraChest(pos, true, -1, table));
                 }
             }
         }
@@ -354,8 +414,91 @@ public final class SkyWarsVillageGenerator {
             return;
         }
         BlockBox box = template.calculateBoundingBox(data, origin);
+        cleanTemplateMarkers(world, box, rotation);
         if (registerChests) {
             collectChests(world, layout, box);
         }
+    }
+
+    /** 空地箱分区选点，给屋外路线稳定收益，同时保留房门、道路、中央军械箱的通行空间。 */
+    private static void addOutdoorChests(ArenaWorld world, SkyWarsLayout layout, BlockPos center, int radius,
+                                          List<Rect> occupied, int seed) {
+        int target = layout.compact() ? 4 : 8;
+        Random random = Random.create(seed * 0x9E3779B97F4A7C15L ^ 0x3c6ef372fe94f82bL);
+        double phase = random.nextDouble() * Math.PI * 2.0;
+        List<List<BlockPos>> sectors = new ArrayList<>();
+        for (int i = 0; i < target; i++) sectors.add(new ArrayList<>());
+        int limit = radius - ISLAND_MARGIN - 1;
+        for (int dx = -limit; dx <= limit; dx++) {
+            for (int dz = -limit; dz <= limit; dz++) {
+                double distance = Math.hypot(dx, dz);
+                if (distance < PLAZA_RADIUS + 5 || distance > limit) continue;
+                BlockPos pos = center.add(dx, 1, dz);
+                if (!outdoorSiteAvailable(world, layout, center, occupied, pos)) continue;
+                double angle = Math.atan2(dz, dx) - phase;
+                angle = (angle % (Math.PI * 2.0) + Math.PI * 2.0) % (Math.PI * 2.0);
+                int sector = Math.min(target - 1, (int) (angle * target / (Math.PI * 2.0)));
+                sectors.get(sector).add(pos);
+            }
+        }
+        List<BlockPos> placed = new ArrayList<>();
+        List<Integer> emptySectors = new ArrayList<>();
+        for (int i = 0; i < target; i++) {
+            BlockPos selected = chooseOutdoorSite(world, layout, center, occupied, sectors.get(i), random);
+            if (selected == null) emptySectors.add(i);
+            else placeOutdoorChest(world, layout, selected, placed);
+        }
+        // 极少数扇区被大房屋占满时，向邻近扇区找空位；保留所有距离与通行约束。
+        for (int emptySector : emptySectors) {
+            BlockPos selected = null;
+            for (int step = 1; step < target && selected == null; step++) {
+                selected = chooseOutdoorSite(world, layout, center, occupied,
+                        sectors.get((emptySector + step) % target), random);
+            }
+            if (selected != null) placeOutdoorChest(world, layout, selected, placed);
+        }
+        LOGGER.info("[PvP] 村庄露天补给箱: {}/{}，位置 {}", placed.size(), target, placed);
+        if (placed.size() < target) LOGGER.warn("[PvP] 村庄露天箱可用空地不足，保留道路和房门净空: {}/{}", placed.size(), target);
+    }
+
+    private static BlockPos chooseOutdoorSite(ArenaWorld world, SkyWarsLayout layout, BlockPos center,
+                                               List<Rect> occupied, List<BlockPos> candidates, Random random) {
+        while (!candidates.isEmpty()) {
+            BlockPos candidate = candidates.remove(random.nextInt(candidates.size()));
+            if (outdoorSiteAvailable(world, layout, center, occupied, candidate)) return candidate;
+        }
+        return null;
+    }
+
+    private static boolean outdoorSiteAvailable(ArenaWorld world, SkyWarsLayout layout, BlockPos center,
+                                                 List<Rect> occupied, BlockPos pos) {
+        if (tooCloseToRoad(center, pos.getX(), pos.getZ())) return false;
+        Rect point = new Rect(pos.getX(), pos.getZ(), pos.getX(), pos.getZ());
+        for (Rect house : occupied) {
+            if (point.intersects(house, 3)) return false;
+        }
+        for (SkyWarsLayout.ExtraChest chest : layout.extraChests()) {
+            if (Math.hypot(pos.getX() - chest.pos().getX(), pos.getZ() - chest.pos().getZ()) < 4.0) return false;
+        }
+        if (!world.getBlockState(pos).isAir() || !world.getBlockState(pos.up()).isAir()
+                || !world.getBlockState(pos.down()).isSolidBlock(world, pos.down())) return false;
+        // 至少一个相邻落脚位有完整地面与两格净空，保证玩家可以走到箱前开启。
+        for (BlockPos access : List.of(pos.north(), pos.south(), pos.east(), pos.west())) {
+            if (world.getBlockState(access).isAir() && world.getBlockState(access.up()).isAir()
+                    && world.getBlockState(access.down()).isSolidBlock(world, access.down())) return true;
+        }
+        return false;
+    }
+
+    private static void placeOutdoorChest(ArenaWorld world, SkyWarsLayout layout, BlockPos pos, List<BlockPos> placed) {
+        world.setBlockState(pos, Blocks.CHEST.getDefaultState(), Block.NOTIFY_ALL);
+        if (world.getBlockEntity(pos) instanceof ChestBlockEntity chest) {
+            chest.setLootTable(null);
+            chest.setLootTableSeed(0L);
+            chest.clear();
+            chest.markDirty();
+        }
+        layout.addExtraChest(new SkyWarsLayout.ExtraChest(pos, SkyWarsLootPolicy.Tier.CENTER, -1));
+        placed.add(pos);
     }
 }

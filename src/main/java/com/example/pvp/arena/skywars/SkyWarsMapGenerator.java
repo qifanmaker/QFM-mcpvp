@@ -357,16 +357,7 @@ public final class SkyWarsMapGenerator {
                     theme, centerChests, stats, visited);
         }
         for (SkyWarsLayout.ExtraChest extra : layout.extraChests()) {
-            if (extra.lootTable() != null) {
-                // 原版村庄生活箱不参与战斗预算，也不与军械箱重复计数。
-                if (refill && visited.add(extra.pos())
-                        && world.getBlockEntity(extra.pos()) instanceof ChestBlockEntity chest) {
-                    stats[0]++;
-                    if (!chest.isEmpty()) stats[1]++;
-                    chest.clear();
-                    chest.setLootTable(extra.lootTable(), world.getRandom().nextLong());
-                }
-            } else if (extra.tier() == SkyWarsLootPolicy.Tier.CENTER) {
+            if (extra.tier() == SkyWarsLootPolicy.Tier.CENTER) {
                 collectChest(world, extra.pos(), centerChests, stats, visited);
             }
         }
@@ -382,7 +373,7 @@ public final class SkyWarsMapGenerator {
             List<ChestBlockEntity> chests = new ArrayList<>();
             collectIslandChests(world, islands.get(i), false, false, theme, chests, stats, visited);
             for (SkyWarsLayout.ExtraChest extra : layout.extraChests()) {
-                if (extra.lootTable() == null && extra.tier() == tier && extra.handicapIndex() == i) {
+                if (extra.tier() == tier && extra.handicapIndex() == i) {
                     collectChest(world, extra.pos(), chests, stats, visited);
                 }
             }
@@ -403,6 +394,9 @@ public final class SkyWarsMapGenerator {
                                      int[] stats, java.util.Set<BlockPos> visited) {
         if (!visited.add(pos) || !(world.getBlockEntity(pos) instanceof ChestBlockEntity chest)) return;
         stats[0]++;
+        // 先解除模板的延迟战利品，避免读取/清空箱子时重新生成原版村庄物资。
+        chest.setLootTable(null);
+        chest.setLootTableSeed(0L);
         if (!chest.isEmpty()) stats[1]++;
         chest.clear();
         chests.add(chest);

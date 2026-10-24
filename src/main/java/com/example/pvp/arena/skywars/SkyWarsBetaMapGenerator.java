@@ -100,7 +100,7 @@ public final class SkyWarsBetaMapGenerator {
 
     private static void addVillageArmories(ArenaWorld world, SkyWarsLayout layout, Block block) {
         BlockPos center = layout.middle().center();
-        // 固定八个军械箱摆在中心广场边缘；房屋生活箱仍保持原版战利品表。
+        // 固定八个军械箱摆在中心广场边缘，与房屋和露天箱统一使用中岛物资。
         for (int i = 0; i < 8; i++) {
             BlockPos floor = offset(center, i * Math.PI / 4.0, 7, 0);
             buildPlatform(world, floor, 1, block, 0);
