@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * 雪球命中实体：沿雪球飞行方向给目标击退（有攻击效果但不掉血），对局内生效。
- * 直接施加速度（takeKnockback 的方向约定相反），参照粘液球击退实现。
+ * 通过原版击退入口计算速度，并显式同步给受击玩家本人。
  */
 @Mixin(SnowballEntity.class)
 public abstract class SnowballEntityMixin {
@@ -45,9 +45,10 @@ public abstract class SnowballEntityMixin {
         if (len < 0.001) {
             return;
         }
-        // 使用原版击退入口，确保 velocityModified 被设置并向客户端同步；
         // takeKnockback 的方向参数是“推力来源”，所以传入飞行方向的反向。
         victim.takeKnockback(1.2, -vel.x / len, -vel.z / len);
         victim.addVelocity(0.0, 0.3, 0.0);
+        // takeKnockback 只设置 velocityDirty；零伤害雪球不会替我们设置本人同步标记。
+        victim.velocityModified = true;
     }
 }
