@@ -199,12 +199,14 @@ public final class MatchManager {
     public void tick() {
         this.restoreJoinedPlayers();
         for (Match match : List.copyOf(this.matches)) {
-            if (match.getState() != MatchState.ENDED && match.allPlayersOffline()) {
+            boolean settlingPortedMatch = match.portedSession() != null
+                    && (match.getState() == MatchState.CELEBRATING || match.portedSession().hasFinalResult());
+            if (!settlingPortedMatch && match.getState() != MatchState.ENDED && match.allPlayersOffline()) {
                 match.cancelMatch("所有玩家离线");
                 continue;
             }
             // 全员主动离场（/hub、弃权、主城自愈）→ 空场立刻结束，别占着区域与并发名额等超时
-            if (match.getState() != MatchState.ENDED && match.allPlayersLeft()) {
+            if (!settlingPortedMatch && match.getState() != MatchState.ENDED && match.allPlayersLeft()) {
                 LOGGER.info("[PvP] 比赛 {} 全员已离场，直接结束（不再占着区域与并发名额等超时）",
                         match.getType().getId());
                 match.cancelMatch("所有玩家已离场");
@@ -490,6 +492,10 @@ public final class MatchManager {
                     || players.size() > PvPConfig.INSTANCE.deathmatchMaxPlayers) {
                 return false;
             }
+        } else if (type.isPortedGame()) {
+            if (players.size() < MatchType.PORTED_MIN_PLAYERS || players.size() > MatchType.PORTED_MAX_PLAYERS) {
+                return false;
+            }
         } else if (type.isBoatRace()) {
             if (players.size() < PvPConfig.INSTANCE.boatRaceMinPlayers
                     || players.size() > PvPConfig.INSTANCE.boatRaceMaxPlayers) {
@@ -565,7 +571,8 @@ public final class MatchManager {
         }
         this.matches.add(match);
         match.tick(); // 立即进入倒计时第一帧
-        return true;
+        // 新玩法首帧铺图可能自行取消对局；这时让队列保留玩家并恢复离队物品，不能报告开赛成功。
+        return !type.isPortedGame() || match.getState() != MatchState.ENDED;
     }
 
     public Match getMatchFor(ServerPlayerEntity player) {
@@ -585,6 +592,18 @@ public final class MatchManager {
 
     public List<Match> getMatches() {
         return List.copyOf(this.matches);
+    }
+
+    /** 装饰流体在等待清场的 5 秒内也必须保持静态，否则退出后才会向裁剪外扩散。 */
+    public boolean isPartyScenePosition(BlockPos pos) {
+        for (Match match : this.matches) {
+            if (match.getType() == MatchType.MINECRAFT_PARTY && match.ownsPortedPosition(pos)) return true;
+        }
+        for (PendingFinish pending : this.pendingFinishes) {
+            Match match = pending.match();
+            if (match.getType() == MatchType.MINECRAFT_PARTY && match.ownsPortedPosition(pos)) return true;
+        }
+        return false;
     }
 
     public boolean isInMatch(UUID uuid) {
@@ -727,6 +746,10 @@ public final class MatchManager {
     public void onPlayerDeath(ServerPlayerEntity player) {
         Match match = this.getMatchFor(player);
         if (match != null) {
+            if (match.portedSession() != null) {
+                match.onPortedDeath(player);
+                return;
+            }
             if (match.getType().isBridge()) {
                 return; // 战桥由 ALLOW_DEATH 拦截死亡，这里不做淘汰
             }
@@ -758,7 +781,9 @@ public final class MatchManager {
     public void onPlayerRespawn(ServerPlayerEntity oldPlayer, ServerPlayerEntity newPlayer, boolean alive) {
         Match match = this.getMatchFor(newPlayer.getUuid());
         if (match != null && match.getState() == MatchState.ACTIVE) {
-            if (match.getType().isBridge()) {
+            if (match.portedSession() != null) {
+                match.onPortedDeath(newPlayer);
+            } else if (match.getType().isBridge()) {
                 match.bridgeRespawn(newPlayer);
             } else if (match.getType() == MatchType.DEATHMATCH) {
                 // 死斗没有人出局：走原版重生（例如中途重连）也要送回场上，
@@ -792,7 +817,11 @@ public final class MatchManager {
         Match match = this.getMatchFor(player);
         if (match != null) {
             if (match.getState() == MatchState.COUNTDOWN) {
+                // 断线者只登记恢复，cancelMatch 仅恢复仍在线的其余玩家。
+                if (match.portedSession() != null) match.onPortedDisconnect(player);
                 match.cancelMatch(player.getGameProfile().getName() + " 中途退出");
+            } else if (match.portedSession() != null) {
+                match.onPortedDisconnect(player);
             } else if (match.getType() == MatchType.DEATHMATCH) {
                 // 死斗没有"淘汰"这回事：掉线只清掉待复活/助攻记录，重进照常参战
                 match.onDeathmatchDisconnect(player);
@@ -881,6 +910,8 @@ public final class MatchManager {
             // 亦可赛艇：区域边长必须满足 size/2 + 16 <= REGION_SPACING/2 = 192（实体清扫盒不串场），
             // 且要容得下 RaceTrackValidator.MAX_BOUNDING_RADIUS 的赛道外沿
             case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceSize;
+            case ISLAND_SIEGE -> 160;
+            case MINECRAFT_PARTY -> 176;
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO -> ArenaTemplate.Layout.DUEL_1V1;
@@ -900,13 +931,15 @@ public final class MatchManager {
             // 的 FFA 分支都直接可用，两个文件零改动。
             case DEATHMATCH -> ArenaTemplate.Layout.FFA;
             case BOAT_RACE -> ArenaTemplate.Layout.BOAT_RACE;
+            // 地形全部由移植会话生成；FFA 仅提供模板中心，无通用铺图/清场。
+            case MINECRAFT_PARTY, ISLAND_SIEGE -> ArenaTemplate.Layout.FFA;
         };
         // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战/村庄保卫战/色盲派对无围墙；其地图本身由各自生成器铺
         boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
                 && type != MatchType.LUCKY_PILLAR && type != MatchType.TNT_RUN
                 && type != MatchType.HEARTBEAT && type != MatchType.HOT_POTATO
                 && !type.isBedWars() && type != MatchType.VILLAGE_DEFENSE
-                && type != MatchType.COLORBLIND_PARTY && !type.isBoatRace();
+                && type != MatchType.COLORBLIND_PARTY && !type.isBoatRace() && !type.isPortedGame();
         return new ArenaTemplate(layout, size, PvPConfig.INSTANCE.getFloorBlock(), PvPConfig.INSTANCE.getWallBlock(), hasWalls);
     }
 
@@ -938,6 +971,8 @@ public final class MatchManager {
                     } else if (match.getType() == MatchType.SKYWARS) {
                         // 高下落速度跳过救援带时，淘汰前再尝试一次；失败不会消耗图腾。
                         if (!match.tryTotemSave(player, true)) match.eliminate(player, EliminationCause.VOID);
+                    } else if (match.portedSession() != null) {
+                        match.onPortedDeath(player);
                     } else if (match.getType().isBridge()) {
                         match.bridgeRespawn(player); // 战桥：掉出虚空直接原地重生（兜底）
                     } else if (match.getType() == MatchType.HEARTBEAT) {

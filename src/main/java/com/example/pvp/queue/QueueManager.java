@@ -62,6 +62,10 @@ public final class QueueManager {
     private Integer boatRaceCountdownTicks;
     private Integer boatRaceFillTicks;
 
+    /** 两个移植玩法分别等待填人；独立记录，防止一个模式开赛重置另一个模式的等待。 */
+    private final Map<MatchType, Integer> portedGameFillTicks = new EnumMap<>(MatchType.class);
+    private final Map<MatchType, Integer> portedGameRetryTicks = new EnumMap<>(MatchType.class);
+
     /** 玩家选的亦可赛艇圈数（3/5/7/10）；没选过就用配置默认值。 */
     private final java.util.Map<java.util.UUID, Integer> boatRaceLapsChoice = new java.util.HashMap<>();
 
@@ -109,6 +113,13 @@ public final class QueueManager {
     public boolean join(ServerPlayerEntity player, MatchType type, Kit kit, SkyWarsMapVariant skyWarsVariant) {
         if (this.contains(player.getUuid())) {
             return false;
+        }
+        // 两个移植玩法自行控制物品，所有入口统一占位套件，避免命令或重排带入自选装备。
+        if (type.isPortedGame()) {
+            kit = KitManager.portedGameKit();
+            if (kit == null) {
+                return false;
+            }
         }
         this.entries.add(new QueueEntry(player, type, kit, this.server.getTicks(), skyWarsVariant));
         PvpGuiManager.giveQueueItem(player); // 快捷栏第一格放「离开排队」红石
@@ -202,6 +213,8 @@ public final class QueueManager {
         this.tickColorblindParty(matchManager);
         this.tickDeathmatch(matchManager);
         this.tickBoatRace(matchManager);
+        this.tickPortedGame(matchManager, MatchType.MINECRAFT_PARTY);
+        this.tickPortedGame(matchManager, MatchType.ISLAND_SIEGE);
         this.tickBedWars(matchManager);
         this.tickInstantMatches(matchManager);
     }
@@ -1130,6 +1143,94 @@ public final class QueueManager {
         }
     }
 
+    /** 移植玩法：4 人立即建场；2~3 人等待 20 秒，每局至多 10 人。 */
+    private void tickPortedGame(MatchManager matchManager, MatchType type) {
+        int count = this.countQueued(type);
+        if (count < MatchType.PORTED_MIN_PLAYERS) {
+            this.portedGameFillTicks.remove(type);
+            this.portedGameRetryTicks.remove(type);
+            return;
+        }
+
+        int remaining = this.portedGameFillTicks.getOrDefault(type, MatchType.PORTED_FILL_SECONDS * 20);
+        if (count < MatchType.PORTED_START_PLAYERS && remaining > 0) {
+            if (remaining % 100 == 0) {
+                this.broadcastPortedGame(matchManager, type, Messages.info(
+                        type.getDisplayName() + " 当前 " + count + "/" + MatchType.PORTED_START_PLAYERS
+                                + " 人，" + (remaining / 20) + " 秒后按当前人数开赛（满 "
+                                + MatchType.PORTED_START_PLAYERS + " 人立即开始）"));
+            }
+            this.portedGameFillTicks.put(type, --remaining);
+            if (remaining > 0) {
+                return;
+            }
+        }
+
+        // 场地已满时保留队列并节流重试，避免每 tick 重复申请竞技场。
+        int retryTicks = this.portedGameRetryTicks.getOrDefault(type, 0);
+        if (retryTicks > 0) {
+            this.portedGameRetryTicks.put(type, retryTicks - 1);
+            return;
+        }
+        if (!this.startPortedGameMatch(matchManager, type)) {
+            this.portedGameRetryTicks.put(type, 20);
+        }
+    }
+
+    private boolean startPortedGameMatch(MatchManager matchManager, MatchType type) {
+        Kit kit = KitManager.portedGameKit();
+        if (kit == null) {
+            return false;
+        }
+        List<ServerPlayerEntity> players = new ArrayList<>();
+        List<QueueEntry> selected = new ArrayList<>();
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != type) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online == null || matchManager.isInMatch(online.getUuid())) {
+                continue;
+            }
+            players.add(online);
+            selected.add(entry);
+            if (players.size() >= MatchType.PORTED_MAX_PLAYERS) {
+                break;
+            }
+        }
+        if (players.size() < MatchType.PORTED_MIN_PLAYERS) {
+            return false;
+        }
+        // 海岛攻防按名单前后半分队，须打乱已选中的同一批玩家，避免先入队者固定为红方。
+        Collections.shuffle(players);
+        if (!matchManager.startMatch(players, type, kit)) {
+            // Match 构造前会移除离队红石；构造或首帧铺图失败后仍在队列，需恢复离队入口。
+            for (QueueEntry entry : selected) {
+                ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+                if (this.entries.contains(entry) && online != null && !matchManager.isInMatch(online.getUuid())) {
+                    PvpGuiManager.giveQueueItem(online);
+                }
+            }
+            return false;
+        }
+        this.entries.removeAll(selected);
+        this.portedGameFillTicks.remove(type);
+        this.portedGameRetryTicks.remove(type);
+        return true;
+    }
+
+    private void broadcastPortedGame(MatchManager matchManager, MatchType type, Text message) {
+        for (QueueEntry entry : this.entries) {
+            if (entry.getType() != type) {
+                continue;
+            }
+            ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
+            if (online != null) {
+                online.sendMessage(message, false);
+            }
+        }
+    }
+
     /** 起床战争队列：凑 2 人即开始倒计时，倒计时结束按当前人数开赛（按人数动态分队）。 */
     private void tickBedWars(MatchManager matchManager) {
         long count = this.countBedWars();
@@ -1225,6 +1326,7 @@ public final class QueueManager {
                     || entry.getType() == MatchType.COLORBLIND_PARTY
                     || entry.getType() == MatchType.DEATHMATCH
                     || entry.getType().isBoatRace()
+                    || entry.getType().isPortedGame()
                     || entry.getType().isBedWars()) {
                 continue;
             }
@@ -1299,6 +1401,16 @@ public final class QueueManager {
             return false;
         }
         MatchType type = entry.getType();
+
+        // 独立处理移植玩法：只跳过本模式等待，且只在真正建场成功时回报成功。
+        if (type.isPortedGame()) {
+            if (this.startPortedGameMatch(matchManager, type)) {
+                return true;
+            }
+            player.sendMessage(Messages.warn("当前无法开始" + type.getDisplayName()
+                    + "：需要至少 " + MatchType.PORTED_MIN_PLAYERS + " 名在线排队玩家和可用场地，已保留队列"), false);
+            return false;
+        }
 
         // 自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋 / 床战：直接以当前队列所有人开赛
         if (type == MatchType.FFA || type == MatchType.SKYWARS || type == MatchType.LUCKY_PILLAR

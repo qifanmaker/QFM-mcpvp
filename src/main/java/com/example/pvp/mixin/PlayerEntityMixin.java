@@ -93,6 +93,7 @@ public abstract class PlayerEntityMixin {
         }
         if (match.getType() == MatchType.SKYWARS) return; // 空岛在有效伤害之后处理，拒绝的高频攻击不额外击退。
         if (target instanceof LivingEntity victim && victim != self) {
+            if (!com.example.pvp.match.PortedGameEvents.allowsExtraKnockback(sp, victim)) return;
             double dx = victim.getX() - self.getX(); // 指向目标（远离自己）
             double dz = victim.getZ() - self.getZ();
             double d = Math.sqrt(dx * dx + dz * dz);

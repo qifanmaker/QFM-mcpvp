@@ -262,9 +262,11 @@ public final class PvpGuiManager {
 
         ItemStack games = makeButton(Items.FIREWORK_ROCKET, "§d§l趣味小游戏",
                 "幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋",
+                "Minecraft Party 2（移植中） / 海岛攻防",
                 "点击选择小游戏");
         this.applyQueueIndicator(games, player, PvPMod.QUEUE.countQueued(
-                MatchType.LUCKY_PILLAR, MatchType.TNT_RUN, MatchType.HEARTBEAT, MatchType.HOT_POTATO));
+                MatchType.LUCKY_PILLAR, MatchType.TNT_RUN, MatchType.HEARTBEAT, MatchType.HOT_POTATO,
+                MatchType.MINECRAFT_PARTY, MatchType.ISLAND_SIEGE));
         inv.setStack(13, games);
 
         ItemStack bedwars = makeButton(Items.RED_BED, "§c§l起床战争",
@@ -410,7 +412,7 @@ public final class PvpGuiManager {
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
-    /** 趣味小游戏分类页：四个无套件小游戏。 */
+    /** 趣味小游戏分类页：无需选择装备套件的独立玩法。 */
     private void openGamesCategory(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.GAMES_CATEGORY;
@@ -479,6 +481,22 @@ public final class PvpGuiManager {
                         + PvPConfig.INSTANCE.boatRaceMaxTrackLength + " 格长，"
                         + PvPConfig.INSTANCE.boatRaceLaps + " 圈定胜负",
                 "按顺序穿过 Checkpoint，掉出赛道自动回位，点击直接加入"));
+        // 明确分阶段移植范围，避免入口名称让玩家误以为整张原版地图已经全部上线。
+        inv.setStack(17, queueButton(Items.FIREWORK_STAR, "§dMinecraft Party 2（移植中）",
+                player, MatchType.MINECRAFT_PARTY,
+                MatchType.PORTED_MIN_PLAYERS + "~" + MatchType.PORTED_MAX_PLAYERS + " 人，凑齐 "
+                        + MatchType.PORTED_START_PLAYERS + " 人立即开赛",
+                "人数不足 " + MatchType.PORTED_START_PLAYERS + " 人时等待 " + MatchType.PORTED_FILL_SECONDS + " 秒",
+                "分阶段移植：首批 3 个小游戏 Quick Play",
+                "Spleef / Tile Capture / Red Light Green Light",
+                "棋盘与其余子游戏待移植，点击直接加入"));
+        inv.setStack(18, queueButton(Items.RED_BANNER, "§c海岛攻防", player, MatchType.ISLAND_SIEGE,
+                MatchType.PORTED_MIN_PLAYERS + "~" + MatchType.PORTED_MAX_PLAYERS + " 人，凑齐 "
+                        + MatchType.PORTED_START_PLAYERS + " 人立即开赛",
+                "人数不足 " + MatchType.PORTED_START_PLAYERS + " 人时等待 " + MatchType.PORTED_FILL_SECONDS + " 秒",
+                "红队进攻、蓝队防守，先建防线再攻岛",
+                "进攻方完成三项目标中的两项获胜",
+                "装备由玩法统一发放，点击直接加入"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
@@ -953,6 +971,8 @@ public final class PvpGuiManager {
             case 13 -> MatchType.VILLAGE_DEFENSE;
             case 15 -> MatchType.COLORBLIND_PARTY;
             case 16 -> MatchType.BOAT_RACE;
+            case 17 -> MatchType.MINECRAFT_PARTY;
+            case 18 -> MatchType.ISLAND_SIEGE;
             default -> null;
         };
         if (type == null) {
@@ -965,6 +985,7 @@ public final class PvpGuiManager {
             case VILLAGE_DEFENSE -> KitManager.villageDefenseKit();
             case COLORBLIND_PARTY -> KitManager.colorblindPartyKit();
             case BOAT_RACE -> KitManager.boatRaceKit();
+            case MINECRAFT_PARTY, ISLAND_SIEGE -> KitManager.portedGameKit();
             default -> KitManager.hotPotatoKit();
         };
         this.joinQueue(player, type, kit);
@@ -1124,6 +1145,13 @@ public final class PvpGuiManager {
                 player.sendMessage(Messages.info("已加入亦可赛艇：凑齐 "
                         + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛；原版船 + 随机冰面赛道，跑 "
                         + PvPConfig.INSTANCE.boatRaceLaps + " 圈"), false);
+            } else if (type.isPortedGame()) {
+                player.sendMessage(Messages.info("已加入" + type.getDisplayName() + "：凑齐 "
+                        + MatchType.PORTED_START_PLAYERS + " 人立即开赛；至少 " + MatchType.PORTED_MIN_PLAYERS
+                        + " 人等待 " + MatchType.PORTED_FILL_SECONDS + " 秒也可开始"), false);
+                if (type == MatchType.MINECRAFT_PARTY) {
+                    player.sendMessage(Messages.info("分阶段移植：首批 3 个小游戏 Quick Play；棋盘与其余子游戏待移植"), false);
+                }
             } else if (type.isBedWars()) {
                 player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")
                         + "）：凑 2 人即开始倒计时，摧毁敌方床获胜"), false);

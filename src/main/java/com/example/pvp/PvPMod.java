@@ -193,6 +193,7 @@ public final class PvPMod implements ModInitializer {
         StatsStore.INSTANCE.load();
         KitManager.reload();
         PvpGuiManager.init();
+        com.example.pvp.match.PortedGameEvents.register();
 
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SERVER = server;
@@ -600,7 +601,9 @@ public final class PvPMod implements ModInitializer {
                     if (source.getAttacker() instanceof ServerPlayerEntity attacker) {
                         match.recordSkywarsCombat(attacker, sp);
                     }
-                    if (match.getType().isBridge()) {
+                    if (match.portedSession() != null) {
+                        match.onPortedDeath(sp);
+                    } else if (match.getType().isBridge()) {
                         match.onBridgeDeath(sp);
                     } else if (match.getType().isBedWars()) {
                         // 起床战争：床活 → 延迟重生；床死 → 淘汰

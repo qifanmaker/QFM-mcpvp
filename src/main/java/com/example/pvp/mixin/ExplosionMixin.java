@@ -11,6 +11,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.explosion.Explosion;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -21,16 +23,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(Explosion.class)
 public abstract class ExplosionMixin {
+    @Shadow @Final private World world;
+
     @Inject(method = "affectWorld", at = @At("HEAD"))
     private void pvp$dropTntRunBlocks(boolean createFire, CallbackInfo ci) {
         Explosion self = (Explosion) (Object) this;
-        World world = self.getEntity() != null ? self.getEntity().getWorld() : null;
-        if (world == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) {
+        World world = this.world;
+        if (world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) {
             return;
         }
         MatchManager manager = PvPMod.MATCH;
         if (manager == null) {
             return;
+        }
+        // 移植地图的目标/原版小游戏地形只能由本场会话修改，不能被邻场爆炸拆掉。
+        var portedMatches = manager.getMatches().stream().filter(match -> match.portedSession() != null).toList();
+        if (!portedMatches.isEmpty()) {
+            self.getAffectedBlocks().removeIf(pos -> portedMatches.stream().anyMatch(match -> match.ownsPortedPosition(pos)));
         }
         for (BlockPos pos : self.getAffectedBlocks()) {
             if (world.getBlockState(pos).isAir()) {

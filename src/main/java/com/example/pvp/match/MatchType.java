@@ -30,7 +30,16 @@ public enum MatchType {
      * <p>id 用 {@code racing}（对应 {@code /pvp join racing}）；{@code boatrace} / {@code boat_race}
      * 作为别名由 {@link #byId(String)} 归一化后接受。玩家可见的名称一律是「亦可赛艇」。
      */
-    BOAT_RACE("racing", "亦可赛艇");
+    BOAT_RACE("racing", "亦可赛艇"),
+    /** 两个外部地图玩法在 1.21.1 内逐步移植，由独立会话管理装备、回合与胜负。 */
+    MINECRAFT_PARTY("minecraftparty", "Minecraft Party 2（移植中）"),
+    ISLAND_SIEGE("islandsiege", "海岛攻防");
+
+    /** 移植玩法先统一匹配规则，避免为新入口改写服务器已有配置。 */
+    public static final int PORTED_MIN_PLAYERS = 2;
+    public static final int PORTED_START_PLAYERS = 4;
+    public static final int PORTED_MAX_PLAYERS = 10;
+    public static final int PORTED_FILL_SECONDS = 20;
 
     private final String id;
     private final String displayName;
@@ -64,6 +73,7 @@ public enum MatchType {
             case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindMinPlayers;
             case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchMinPlayers;
             case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceMinPlayers;
+            case MINECRAFT_PARTY, ISLAND_SIEGE -> PORTED_MIN_PLAYERS;
         };
     }
 
@@ -92,6 +102,11 @@ public enum MatchType {
         return this == BOAT_RACE;
     }
 
+    /** 移植玩法直接排队，装备和胜负由玩法会话控制，不使用自选套件或通用淘汰规则。 */
+    public boolean isPortedGame() {
+        return this == MINECRAFT_PARTY || this == ISLAND_SIEGE;
+    }
+
     /** 是否"最后存活者获胜"的 FFA 淘汰类玩法（自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 烫手山芋 / 色盲派对）。 */
     public boolean isLastManStanding() {
         return this == FFA || this == SKYWARS || this == LUCKY_PILLAR || this == TNT_RUN || this == HOT_POTATO
@@ -106,7 +121,8 @@ public enum MatchType {
      * 但互伤必须放行，所以单独列在这里。
      */
     public boolean allowsPlayerDamage() {
-        return (isLastManStanding() && this != COLORBLIND_PARTY) || this == DEATHMATCH;
+        return (isLastManStanding() && this != COLORBLIND_PARTY) || this == DEATHMATCH
+                || this == ISLAND_SIEGE;
     }
 
     /**
