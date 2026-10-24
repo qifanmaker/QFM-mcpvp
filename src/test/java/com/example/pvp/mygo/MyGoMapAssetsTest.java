@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 final class MyGoMapAssetsTest {
     private static JsonObject map;
     private static final Map<String, String> blocks = new HashMap<>();
+    private static final Map<String, JsonObject> states = new HashMap<>();
 
     @BeforeAll static void read() throws Exception {
         try (InputStream input = MyGoMapAssetsTest.class.getResourceAsStream("/pvp/mygo/maps/dust2.json.gz")) {
@@ -32,6 +33,8 @@ final class MyGoMapAssetsTest {
         JsonArray palette = map.getAsJsonArray("palette");
         for (var entry : map.getAsJsonArray("blocks")) {
             JsonArray cell = entry.getAsJsonArray();
+            states.put(key(cell.get(0).getAsInt(), cell.get(1).getAsInt(), cell.get(2).getAsInt()),
+                    palette.get(cell.get(3).getAsInt()).getAsJsonObject());
             assertNull(blocks.put(key(cell.get(0).getAsInt(), cell.get(1).getAsInt(), cell.get(2).getAsInt()),
                     palette.get(cell.get(3).getAsInt()).getAsJsonObject().get("Name").getAsString()), "Duplicate coordinate");
         }
@@ -81,6 +84,40 @@ final class MyGoMapAssetsTest {
         assertStanding(position(map.getAsJsonObject("testAnchors").getAsJsonArray("raised")));
     }
 
+    @Test void tacticalStartsAndPlantAreasMatchTheMapInsteadOfShortAAndUpperTunnels() {
+        for (var spawn : map.getAsJsonObject("spawns").getAsJsonArray("T")) {
+            int[] pos = position(spawn.getAsJsonObject().getAsJsonArray("pos"));
+            assertEquals(-54, pos[0], "T starts on the western T platform, not short A");
+            assertEquals(5, pos[1]);
+            assertTrue(pos[2] >= -18 && pos[2] <= -6);
+        }
+        for (var spawn : map.getAsJsonObject("spawns").getAsJsonArray("CT")) {
+            int[] pos = position(spawn.getAsJsonObject().getAsJsonArray("pos"));
+            assertEquals(-2, pos[1], "CT starts on the low bridge road, not upper tunnels");
+            assertEquals(-3, pos[2]);
+            assertTrue(pos[0] >= 36 && pos[0] <= 48);
+        }
+        int[] a = position(map.getAsJsonArray("sites").get(0).getAsJsonObject().getAsJsonArray("pos"));
+        assertEquals("minecraft:red_concrete", blocks.get(key(a[0], a[1] - 1, a[2])),
+                "A must be on the original red plant marking");
+        assertArrayEquals(new int[]{60, 2, -44}, position(map.getAsJsonArray("sites").get(1)
+                .getAsJsonObject().getAsJsonArray("pos")), "B default plant is in front of the boxes, not on the back platform");
+    }
+
+    @Test void allMapTerrainAndRooftopHeadroomAreLegalWithoutInvisibleDeathColumns() {
+        assertFalse(map.has("outsideGround"), "Reachable floors must not have a separate forbidden-column mask");
+        JsonObject play = map.getAsJsonObject("playBounds"), geometry = map.getAsJsonObject("bounds");
+        int[] min = position(geometry.getAsJsonArray("min")), max = position(geometry.getAsJsonArray("max"));
+        assertTrue(contains(play, min));
+        assertTrue(contains(play, max));
+        assertTrue(contains(play, new int[]{max[0], max[1] + 3, max[2]}), "Allow standing and jumping on the highest roof");
+        for (String anchor : new String[]{"formerForbiddenGround", "rooftop"}) {
+            int[] pos = position(map.getAsJsonObject("testAnchors").getAsJsonArray(anchor));
+            assertTrue(contains(play, pos));
+            assertStanding(pos);
+        }
+    }
+
     @Test void mapAndDeathRoomRemainInsideTheShared384BlockRegion() {
         JsonObject bounds = map.getAsJsonObject("bounds");
         for (int axis : new int[]{0, 2}) {
@@ -109,7 +146,10 @@ final class MyGoMapAssetsTest {
         assertFalse(blocks.containsKey(key(pos[0], pos[1] + 1, pos[2])), "Head obstructed");
         String floor = blocks.get(key(pos[0], pos[1] - 1, pos[2]));
         assertNotNull(floor, "No floor");
-        assertFalse(floor.contains("slab") || floor.contains("stairs") || floor.contains("wall") || floor.contains("trapdoor"), floor);
+        // B 默认箱前使用上半台阶；其上表面完整，不能与下半台阶一概当成悬空。
+        if (floor.endsWith("_slab")) assertTrue(Set.of("top", "double").contains(states.get(key(pos[0], pos[1] - 1, pos[2]))
+                .getAsJsonObject("Properties").get("type").getAsString()), floor);
+        else assertFalse(floor.contains("stairs") || floor.contains("wall") || floor.contains("trapdoor"), floor);
     }
 
     private static int[] position(JsonArray pos) { return new int[]{pos.get(0).getAsInt(), pos.get(1).getAsInt(), pos.get(2).getAsInt()}; }

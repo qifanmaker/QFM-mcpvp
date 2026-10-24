@@ -5,8 +5,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
-import it.unimi.dsi.fastutil.longs.LongSets;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.registry.Registries;
@@ -75,8 +73,6 @@ public final class MyGoMapBlueprint {
     private final String name;
     private final Bounds bounds;
     private final Bounds playBounds;
-    private final int outsideMaxY;
-    private final LongSet outsideColumns;
     private final List<Cell> cells;
     private final List<Spawn> attackerSpawns;
     private final List<Spawn> defenderSpawns;
@@ -86,7 +82,7 @@ public final class MyGoMapBlueprint {
     private final BlockPos spectator;
     private final Map<String, BlockPos> testAnchors;
 
-    private MyGoMapBlueprint(String id, String name, Bounds bounds, Bounds playBounds, int outsideMaxY, LongSet outsideColumns, List<Cell> cells,
+    private MyGoMapBlueprint(String id, String name, Bounds bounds, Bounds playBounds, List<Cell> cells,
                              List<Spawn> attackerSpawns, List<Spawn> defenderSpawns,
                              Bounds attackerBuyZone, Bounds defenderBuyZone, List<Site> sites,
                              BlockPos spectator, Map<String, BlockPos> testAnchors) {
@@ -94,8 +90,6 @@ public final class MyGoMapBlueprint {
         this.name = name;
         this.bounds = bounds;
         this.playBounds = playBounds;
-        this.outsideMaxY = outsideMaxY;
-        this.outsideColumns = LongSets.unmodifiable(new LongOpenHashSet(outsideColumns));
         this.cells = List.copyOf(cells);
         this.attackerSpawns = List.copyOf(attackerSpawns);
         this.defenderSpawns = List.copyOf(defenderSpawns);
@@ -129,24 +123,10 @@ public final class MyGoMapBlueprint {
         Bounds playBounds = bounds(root.getAsJsonObject("playBounds"));
         validateExtent(bounds, GEOMETRY_HALF_EXTENT);
         validateExtent(playBounds, GEOMETRY_HALF_EXTENT);
-        if (playBounds.min().getX() < bounds.min().getX() || playBounds.max().getX() > bounds.max().getX()
-                || playBounds.min().getZ() < bounds.min().getZ() || playBounds.max().getZ() > bounds.max().getZ()) {
-            throw new IOException("MyGO playable area extends outside map geometry");
-        }
-        // 原下载图仅含建筑；裸石外圈可绕过所有枪线，按经过路线审计的低层列封边。
-        JsonObject outside = root.getAsJsonObject("outsideGround");
-        int outsideMaxY = integer(outside.get("maxY"));
-        if (outsideMaxY < playBounds.min().getY() || outsideMaxY > playBounds.max().getY())
-            throw new IOException("Invalid MyGO outside ground height");
-        LongSet outsideColumns = new LongOpenHashSet();
-        for (JsonElement entry : outside.getAsJsonArray("columns")) {
-            JsonArray coordinates = entry.getAsJsonArray();
-            if (coordinates.size() != 2) throw new IOException("Invalid MyGO outside column");
-            int x = integer(coordinates.get(0)), z = integer(coordinates.get(1));
-            if (!playBounds.contains(new BlockPos(x, outsideMaxY, z))
-                    || !outsideColumns.add(BlockPos.asLong(x, 0, z)))
-                throw new IOException("Duplicate or out-of-bounds MyGO outside column");
-        }
+        // 旧版低层黑名单与窄高度框会把可步行的地面、台阶和屋顶判为出界。
+        // 整张建筑及其跳跃净空必须合法；这里只保留隔离场次和虚空救援的外框。
+        if (!playBounds.contains(bounds) || playBounds.max().getY() < bounds.max().getY() + 3)
+            throw new IOException("MyGO playable area must include all geometry and rooftop headroom");
         List<BlockState> palette = palette(root.getAsJsonArray("palette"));
         JsonArray encodedCells = root.getAsJsonArray("blocks");
         if (encodedCells.isEmpty() || encodedCells.size() > MAX_CELLS) throw new IOException("Invalid MyGO block count");
@@ -195,7 +175,7 @@ public final class MyGoMapBlueprint {
                 testAnchors.put(entry.getKey(), pos);
             }
         }
-        return new MyGoMapBlueprint(id, name, bounds, playBounds, outsideMaxY, outsideColumns, cells, attackerSpawns, defenderSpawns,
+        return new MyGoMapBlueprint(id, name, bounds, playBounds, cells, attackerSpawns, defenderSpawns,
                 attackerBuyZone, defenderBuyZone, sites, spectator, testAnchors);
     }
 
@@ -272,8 +252,7 @@ public final class MyGoMapBlueprint {
     public Bounds bounds() { return this.bounds; }
     public Bounds playBounds() { return this.playBounds; }
     public boolean isPlayable(BlockPos pos) {
-        return this.playBounds.contains(pos) && !(pos.getY() <= this.outsideMaxY
-                && this.outsideColumns.contains(BlockPos.asLong(pos.getX(), 0, pos.getZ())));
+        return this.playBounds.contains(pos);
     }
     public List<Cell> cells() { return this.cells; }
     public List<Spawn> spawns(boolean attackers) { return attackers ? this.attackerSpawns : this.defenderSpawns; }

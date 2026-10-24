@@ -100,6 +100,7 @@ public final class MyGoSession implements PortedGameSession {
         final Map<MyGoUtilities.Type, Integer> grenades = new EnumMap<>(MyGoUtilities.Type.class);
         double speed = Double.NaN;
         Vec3d last = Vec3d.ZERO;
+        Vec3d lastSafe;
         ItemStack oldHead = ItemStack.EMPTY;
         Fighter(UUID id, int team) { this.id = id; this.team = team; }
         Gun gun(int slot) { return slot == 0 ? this.primary : slot == 1 ? this.pistol : null; }
@@ -236,8 +237,8 @@ public final class MyGoSession implements PortedGameSession {
             float displayHealth = (float) Math.max(.01, player.getMaxHealth() * fighter.hp / 100);
             if (Math.abs(player.getHealth() - displayHealth) > .001) player.setHealth(displayHealth);
             if (player.getWorld() != this.match.arenaWorld() || !this.map.inBounds(player.getBlockPos())) {
-                if (this.phase == Phase.LIVE) kill(player, null, "离开战场");
-                else teleportHome(player);
+                // 能到达的地图地形均合法；掉出完整地图或误入其他世界只救援，不制造环境阵亡。
+                recoverPosition(player, fighter);
                 continue;
             }
             if (this.phase == Phase.BUY && !this.map.inBuyZone(player.getBlockPos(), attackers(fighter))) teleportHome(player);
@@ -246,6 +247,9 @@ public final class MyGoSession implements PortedGameSession {
             boolean moving = player.getPos().squaredDistanceTo(fighter.last) > .0004;
             if (moving || player.isSprinting()) fighter.stoppedAt = this.ticks;
             fighter.last = player.getPos();
+            if (player.isOnGround() && this.match.arenaWorld().isSpaceEmpty(player, player.getBoundingBox())
+                    && this.match.arenaWorld().getBlockCollisions(player, player.getBoundingBox().offset(0, -.05, 0)).iterator().hasNext())
+                fighter.lastSafe = player.getPos();
             Gun selectedGun = fighter.gun(selected);
             if (fighter.scoped && (!combatPhase() || selectedGun == null
                     || selectedGun.type.scopeLevels() == 0 || fighter.scopeLevel > selectedGun.type.scopeLevels())) {
@@ -507,15 +511,17 @@ public final class MyGoSession implements PortedGameSession {
         if (f == null) return ActionResult.PASS;
         if (hand != Hand.MAIN_HAND || !f.alive || this.ended) return ActionResult.FAIL;
         int slot = player.getInventory().selectedSlot;
-        if (slot == 8) { openShop(player); return ActionResult.SUCCESS; }
-        if (slot == 5) { beginChannel(player, f); return ActionResult.SUCCESS; }
+        // SUCCESS 会向本人回送挥手动画，原版客户端又回发挥手包，曾导致右键先开一枪。
+        // 自定义右键动作使用 CONSUME：处理交互但不要求原版播放攻击用的挥手动画。
+        if (slot == 8) { openShop(player); return ActionResult.CONSUME; }
+        if (slot == 5) { beginChannel(player, f); return ActionResult.CONSUME; }
         for (MyGoUtilities.Type type : MyGoUtilities.Type.values()) if (slot == type.slot) {
             int count = f.grenades.getOrDefault(type, 0);
             if (combatPhase() && count > 0 && this.ticks >= f.throwReady) {
                 f.grenades.put(type, count - 1); f.throwReady = this.ticks + 10;
                 this.utilities.launch(player, type, this.ticks); syncEquipment(player, f);
             }
-            return ActionResult.SUCCESS;
+            return ActionResult.CONSUME;
         }
         Gun gun = f.gun(slot);
         if (gun != null) {
@@ -531,7 +537,7 @@ public final class MyGoSession implements PortedGameSession {
                     updateHead(player, f); updateSpeed(player, f);
                 }
             }
-            return ActionResult.SUCCESS;
+            return ActionResult.CONSUME;
         }
         return ActionResult.FAIL;
     }
@@ -781,7 +787,14 @@ public final class MyGoSession implements PortedGameSession {
         return result;
     }
     @Override public boolean hasFinalResult() { return this.finalResult; }
-    @Override public void onDeath(ServerPlayerEntity player) { if (!this.ended) kill(player, null, "环境异常"); }
+    @Override public void onDeath(ServerPlayerEntity player) {
+        if (this.ended) return;
+        Fighter f = fighter(player);
+        // 全局虚空兜底可能先于会话 tick；同样救援，不能绕回原来的环境阵亡路径。
+        if (f != null && f.alive && (player.getWorld() != this.match.arenaWorld() || !this.map.inBounds(player.getBlockPos())))
+            recoverPosition(player, f);
+        else kill(player, null, "环境异常");
+    }
     @Override public void onLeave(ServerPlayerEntity player) { remove(player.getUuid(), player); }
     private void remove(UUID id, ServerPlayerEntity player) {
         if (this.ended) return;
@@ -801,6 +814,7 @@ public final class MyGoSession implements PortedGameSession {
     @Override public void onEnd() {
         if (this.ended) return;
         this.ended = true; this.channel = null;
+        this.map.closeDecorations();
         for (Fighter f : this.fighters.values()) {
             f.cancel(); ServerPlayerEntity p = this.match.onlinePlayer(f.id);
             if (p != null && this.active.contains(f.id)) { p.closeHandledScreen(); restoreHead(p, f); removeSpeed(p, f); }
@@ -938,7 +952,17 @@ public final class MyGoSession implements PortedGameSession {
     private void teleportHome(ServerPlayerEntity p) {
         Fighter f = fighter(p); int index = 0;
         for (Fighter each : this.fighters.values()) { if (each.id.equals(f.id)) break; if (each.team == f.team) index++; }
-        teleport(p, this.map.spawn(attackers(f), index), this.map.spawnYaw(attackers(f), index)); f.last = p.getPos();
+        teleport(p, this.map.spawn(attackers(f), index), this.map.spawnYaw(attackers(f), index));
+        f.last = p.getPos(); f.lastSafe = p.getPos();
+    }
+    private void recoverPosition(ServerPlayerEntity p, Fighter f) {
+        if (this.channel != null && this.channel.player().equals(f.id)) cancelChannel();
+        if (f.lastSafe == null || !this.map.inBounds(BlockPos.ofFloored(f.lastSafe))) teleportHome(p);
+        else {
+            p.teleport(this.match.arenaWorld(), f.lastSafe.x, f.lastSafe.y, f.lastSafe.z, p.getYaw(), p.getPitch());
+            p.setVelocity(Vec3d.ZERO); p.fallDistance = 0; f.last = p.getPos();
+        }
+        actionBar(p, "§e已返回最近的安全落脚点。");
     }
     private void teleport(ServerPlayerEntity p, BlockPos pos, float yaw) { p.teleport(this.match.arenaWorld(), pos.getX() + .5, pos.getY(), pos.getZ() + .5, yaw, 0); p.setVelocity(Vec3d.ZERO); p.fallDistance = 0; }
     private static boolean near(Entity p, BlockPos pos, double radius) { return pos != null && p.squaredDistanceTo(pos.getX() + .5, pos.getY(), pos.getZ() + .5) <= radius * radius; }

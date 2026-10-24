@@ -236,6 +236,8 @@ public final class PvPMod implements ModInitializer {
         // 实体被加载进世界时清掉残留在存档里的血量标签（上次没正常关服留下的）。
         // 不能在 SERVER_STARTED 时扫世界：那一刻区块刚准备好，实体还没进实体管理器，扫不到任何东西。
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            // MyGO 装饰也会跨区块卸载持久化，不能仅清理最初生成时保存的对象引用。
+            com.example.pvp.mygo.MyGoArena.handleEntityLoad(entity);
             HealthTagManager manager = HealthTagManager.get();
             if (manager != null) {
                 manager.handleEntityLoad(entity);

@@ -986,6 +986,45 @@ async function csgoHalftime() {
     // Keep the original CT team alive for fifteen wins, so kit, grenade, armor
     // and primary really survive until halftime instead of disappearing on death.
     const winners = originalCt, losers = originalT, leader = winners[0], winningTeam = opening[leader].team;
+    const roundShooter = winners[1];
+    // /kill calls LivingEntity.damage(genericKill), which still passes Fabric
+    // ALLOW_DAMAGE and is rejected by MyGO's virtual-health policy. The second
+    // winner instead uses the real default pistol, keeping the leader's money
+    // and equipment assertions independent of kill rewards. Surviving pistols
+    // receive their normal round-start ammo refill; no money/health debug hook.
+    const eliminateLosers = async live => {
+      const finishFrom = chats.length;
+      const decidingScore = `${winningTeam === 0 ? 16 : 0}:${winningTeam === 1 ? 16 : 0}`;
+      const ended = () => live.round === 16 && (chats.slice(finishFrom).some(entry => entry.message.includes('回合结束：')
+        && entry.message.includes(decidingScore)) || ids.every(id => bots[id].testWorldName !== 'pvp:arena'));
+      await select(roundShooter, 1);
+      await csgoFastTeleport(roundShooter, live.range);
+      const armed = await csgoFastStatus(roundShooter);
+      check(`round ${live.round} shooter has its side's normally refilled pistol`, armed.gun === (live.round <= 15 ? 'USP_S' : 'GLOCK')
+        && armed.ammo === (live.round <= 15 ? 12 : 20), armed, 'USP-S 12 or Glock 20; normal round refill');
+      for (const victim of losers) {
+        await csgoFastTeleport(victim, {...live.range, x: live.range.x + 6});
+        let state = await csgoFastStatus(victim), shots = 0, matchFinished = false;
+        while (state.alive && shots < 10) {
+          await csgoLookAt(roundShooter, bots[victim].entity.position.offset(0, .9, 0));
+          bots[roundShooter]._client.write('arm_animation', {hand: 0});
+          await sleep(35);
+          shots++;
+          // A sixteenth win can restore every player before the following
+          // status command is handled. Preserve the real match-ending evidence
+          // rather than requesting a status from a session that no longer exists.
+          if (ended()) { matchFinished = true; break; }
+          try { state = await csgoFastStatus(victim); }
+          catch (error) {
+            if (!ended()) throw error;
+            matchFinished = true;
+            break;
+          }
+        }
+        check(`round ${live.round} ${victim} is eliminated by genuine pistol fire`, !state.alive && state.hp === 0 || matchFinished,
+          {victim, shooter: roundShooter, shots, state, matchFinished}, 'virtual HP reaches zero, or deciding victory immediately ends the match');
+      }
+    };
     await chat(leader, '/pvp mygo buy kit', 30);
     await chat(leader, '/pvp mygo buy flash', 30);
     check('winning CT carries a bought kit and flash before accelerated rounds', bots[leader].inventory.items().some(item => item.name === 'shears')
@@ -1003,7 +1042,9 @@ async function csgoHalftime() {
       }
       const live = await csgoFastState(leader, value => value.phase === 'LIVE' && value.round === round, 7000, `round ${round} LIVE`);
       check(`round ${round} remains in the original half before settlement`, live.side === 'CT' && live.team === winningTeam, live, 'original CT side through round 15');
-      for (const id of losers) await csgoFastTeleport(id, {...live.range, x: live.range.x + 500});
+      // Boundary exits now rescue players; use actual gun damage instead of
+      // relying on out-of-bounds death or a generic /kill damage bypass.
+      await eliminateLosers(live);
       const post = await csgoFastState(leader, value => value.phase === 'POST' && value.round === round, 2500, `round ${round} single settlement`);
       if (round === 15) {
         // Slow down before the end of POST so the full half-reset state can be
@@ -1040,7 +1081,9 @@ async function csgoHalftime() {
     const finalLive = await csgoFastState(leader, value => value.phase === 'LIVE' && value.round === 16, 7000, 'sixteenth round LIVE');
     check('former CT winners now play T in the final round', finalLive.side === 'T', finalLive, 'T after halftime');
     const finishAt = chats.length;
-    for (const id of losers) await csgoFastTeleport(id, {...finalLive.range, x: finalLive.range.x + 500});
+    // At halftime the same shooter now carries the T default Glock. Its real
+    // shots must finish the deciding round through the same damage pipeline.
+    await eliminateLosers(finalLive);
     // Dimension/pack removal arrives before the following inventory packet;
     // wait for the whole restoration instead of inspecting a half-read stream.
     await waitUntil(() => ids.every(id => bots[id].testWorldName === lobby[id] && !packs[id]
@@ -1061,6 +1104,194 @@ async function csgoHalftime() {
   } finally {
     await chat('A', '/tick rate 20', 100);
     emit('csgoTestTickRate', {rate: 20, reason: 'finally restore isolated server default'});
+  }
+}
+
+// Reason: the original client echoes a self-directed swing animation as a new
+// C2S swing. Mineflayer does not, so earlier scope probes missed right-click fire.
+// Reproduce that exact feedback path, and keep real left clicks outside any
+// timing-based suppression. Raw block-use packets deliberately avoid
+// Mineflayer.activateBlock(), which unconditionally swings even at plain stone.
+async function inputRegression() {
+  const ids = Object.keys(bots), echoListeners = {}, selfAnimations = [];
+  let fixture, originalFixture;
+  const writeSwing = id => bots[id]._client.write('arm_animation', {hand: 0});
+  const blockUse = (id, position) => bots[id]._client.write('block_place', {
+    location: position, direction: 1, hand: 0, cursorX: .5, cursorY: .5, cursorZ: .5,
+    insideBlock: false, sequence: 0
+  });
+  const setFixture = async state => chat('A', `/execute in pvp:arena run setblock ${fixture.x} ${fixture.y} ${fixture.z} ${state}`, 150);
+  try {
+    await waitUntil(() => ids.every(id => bots[id].entity), 30000, 'input regression four clients');
+    check('input regression uses four genuine 1.21.1 clients', ids.length === 4
+      && ids.every(id => bots[id].version === '1.21.1'), ids, 'ABCD');
+    for (const id of ids) {
+      echoListeners[id] = packet => {
+        if (packet.entityId !== bots[id].entity?.id || ![0, 3].includes(packet.animation)) return;
+        const entry = {id, packet, at: Date.now()};
+        selfAnimations.push(entry); emit('vanillaSelfSwingEcho', entry);
+        bots[id]._client.write('arm_animation', {hand: packet.animation === 3 ? 1 : 0});
+      };
+      bots[id]._client.on('animation', echoListeners[id]);
+      await chat(id, '/hub', 70);
+    }
+    await sleep(6500);
+    const packAt = chats.length;
+    for (const id of ids) await chat(id, '/pvp join mygo', 150);
+    await waitUntil(() => ids.every(id => packs[id] && chats.slice(packAt).some(entry => entry.id === id
+      && entry.message.includes('MyGO 资源包加载成功'))), 25000, 'input resource pack server acknowledgements');
+    for (const id of ids) await chat(id, '/pvp join mygo', 80);
+    await chat('A', '/pvp start', 80);
+    await waitUntil(() => ids.every(id => bots[id].inventory.items().some(item => item.name === 'iron_pickaxe')),
+      30000, 'input round one loadouts');
+    for (const id of ids) await select(id, 1);
+    const opening = Object.fromEntries(await Promise.all(ids.map(async id => [id, await status(id)])));
+    const defenders = ids.filter(id => opening[id].side === 'CT');
+    check('normal pistol round starts with balanced sides and $800', defenders.length === 2
+      && ids.every(id => opening[id].cash === 800 && opening[id].alive), opening, 'two CT; four players with $800');
+    const gunner = defenders[0], target = defenders[1];
+    await chat('A', '/tick rate 200', 30);
+    emit('inputTestTickRate', {rate: 200, reason: 'natural first-round timeout funds AUG'});
+    await csgoFastState(gunner, state => state.round === 2 && state.phase === 'BUY', 22000, 'natural CT timeout victory');
+    await chat('A', '/tick rate 20', 30);
+    emit('inputTestTickRate', {rate: 20, reason: 'normal-speed input verification'});
+    const funded = await status(gunner);
+    check('natural CT timeout victory funds $4050 without injected money', funded.round === 2 && funded.phase === 'BUY'
+      && funded.cash === 4050, funded, '$800 plus $3250');
+    await chat(gunner, '/pvp mygo buy aug', 150); await select(gunner, 0);
+    const bought = await status(gunner);
+    check('AUG purchase is charged by the normal economy', bought.gun === 'AUG' && bought.cash === 750
+      && bought.ammo === 30, bought, '$4050 - $3300; AUG 30');
+    await waitPhase(gunner, 'LIVE', 22000);
+    const range = (await status(gunner)).range;
+    await teleport(gunner, range);
+    await teleport(target, {...range, x: range.x + 2});
+    // One reversible in-world fixture supplies a reachable solid wall. All
+    // coordinates derive from the map's existing test anchor, not old spawns.
+    fixture = {x: range.x, y: range.y, z: range.z + 2};
+    await waitUntil(() => bots[gunner].blockAt(new Vec3(fixture.x, fixture.y, fixture.z)) !== null,
+      5000, 'input test fixture chunk');
+    const previous = bots[gunner].blockAt(new Vec3(fixture.x, fixture.y, fixture.z));
+    const props = Object.entries(previous.getProperties()).map(([key, value]) => `${key}=${value}`).join(',');
+    originalFixture = `minecraft:${previous.name}${props ? `[${props}]` : ''}`;
+    await setFixture('minecraft:stone');
+    const fixturePoint = new Vec3(fixture.x + .5, fixture.y + .5, fixture.z + .5);
+    const useEntity = id => {
+      bots[id]._client.write('use_entity', {target: bots[target].entity.id, mouse: 2, hand: 0,
+        x: 0, y: 1, z: 0, sneaking: false});
+      bots[id]._client.write('use_entity', {target: bots[target].entity.id, mouse: 0, hand: 0, sneaking: false});
+    };
+    const rightPaths = [
+      {name: 'air', aim: () => csgoLook(gunner, 0, -Math.PI / 2), use: () => bots[gunner].activateItem()},
+      {name: 'stone wall', aim: () => csgoLookAt(gunner, fixturePoint), use: () => blockUse(gunner, fixture)},
+      {name: 'player entity', aim: () => csgoLookAt(gunner, bots[target].entity.position.offset(0, 1, 0)), use: () => useEntity(gunner)}
+    ];
+    for (const path of rightPaths) {
+      await path.aim();
+      let state = await status(gunner);
+      if (state.scopeLevel !== 0) { await csgoScopeClick(gunner); state = await status(gunner); }
+      await sleep(350);
+      const animationsAt = selfAnimations.length;
+      path.use(); await sleep(220);
+      const scoped = await status(gunner);
+      check(`right click at ${path.name} opens the scope without consuming ammo`, scoped.scopeLevel === 1
+        && scoped.scoped && scoped.ammo === state.ammo && scoped.hp === 100, {before: state, after: scoped}, 'scope 1, same ammo, 100 HP');
+      check(`right click at ${path.name} does not send a self-swing feedback animation`, selfAnimations.length === animationsAt,
+        selfAnimations.slice(animationsAt), 'no self animation; original-client echo would otherwise fire');
+      await sleep(350); path.use(); await sleep(180);
+      const closed = await status(gunner);
+      check(`right click at ${path.name} also closes the scope without consuming ammo`, closed.scopeLevel === 0
+        && closed.ammo === state.ammo, closed, 'scope 0; unchanged ammo');
+      // Same ordered connection, no delay between the use and actual attack.
+      // This would expose a broad "ignore swings after right click" workaround.
+      await sleep(350); path.use(); writeSwing(gunner); await sleep(220);
+      const immediate = await status(gunner);
+      check(`a left click immediately after right click at ${path.name} fires exactly once`, immediate.scopeLevel === 1
+        && immediate.ammo === state.ammo - 1 && immediate.hp === 100,
+        {before: state, after: immediate}, 'scope opens; one bullet; no input suppression');
+      await csgoScopeClick(gunner);
+    }
+    const attackPaths = [
+      {name: 'air', aim: () => csgoLook(gunner, 0, -Math.PI / 2), attack: () => writeSwing(gunner)},
+      {name: 'player entity', aim: () => csgoLookAt(gunner, bots[target].entity.position.offset(0, 1, 0)), attack: () => {
+        bots[gunner]._client.write('use_entity', {target: bots[target].entity.id, mouse: 1, sneaking: false});
+        writeSwing(gunner);
+      }},
+      {name: 'stone block', aim: () => csgoLookAt(gunner, fixturePoint), attack: () => {
+        bots[gunner]._client.write('block_dig', {status: 0, location: fixture, face: 1, sequence: 0});
+        writeSwing(gunner);
+      }}
+    ];
+    for (const path of attackPaths) {
+      await path.aim(); await sleep(180);
+      const before = await status(gunner);
+      path.attack(); await sleep(180);
+      const after = await status(gunner);
+      check(`left click at ${path.name} consumes exactly one bullet`, after.ammo === before.ammo - 1
+        && after.hp === 100 && after.alive, {before, after}, 'one bullet; shooter alive');
+    }
+    // These original block classes always predict one swing, regardless of
+    // open/powered state. It must be consumed once; a real following left click
+    // on the same ordered connection must still fire with no time delay.
+    const predictedUseBoundaries = [];
+    for (const [name, block] of [['wooden door', 'minecraft:oak_door[half=lower,facing=north,open=false]'],
+      ['copper door', 'minecraft:copper_door[half=lower,facing=north,open=false]'],
+      ['wooden trapdoor', 'minecraft:oak_trapdoor[half=bottom,facing=north,open=false]'],
+      ['copper trapdoor', 'minecraft:copper_trapdoor[half=bottom,facing=north,open=false]'],
+      ['wooden fence gate', 'minecraft:oak_fence_gate[facing=north,open=false]'],
+      ['lever', 'minecraft:lever[face=floor,facing=north,powered=false]']]) {
+      await setFixture(block); await csgoLookAt(gunner, fixturePoint);
+      let ready = await status(gunner);
+      if (ready.scopeLevel !== 0) await csgoScopeClick(gunner);
+      const before = await status(gunner); await sleep(350);
+      blockUse(gunner, fixture); writeSwing(gunner); await sleep(200);
+      const after = await status(gunner);
+      const result = {name, beforeAmmo: before.ammo, afterAmmo: after.ammo, scopeLevel: after.scopeLevel,
+        predictedSwingConsumesAmmo: before.ammo !== after.ammo,
+        note: 'One client-predicted use swing must be consumed without blocking the next genuine attack.'};
+      predictedUseBoundaries.push(result); emit('predictedUseBoundary', result);
+      check(`right click on ${name} consumes its predicted swing without firing`, after.scopeLevel === 1
+        && after.ammo === before.ammo, {before, after}, 'scope 1; unchanged ammunition');
+      await sleep(350);
+      blockUse(gunner, fixture); writeSwing(gunner); writeSwing(gunner); await sleep(200);
+      const nextAttack = await status(gunner);
+      check(`a real left click immediately after ${name} use fires exactly once`, nextAttack.scopeLevel === 0
+        && nextAttack.ammo === before.ammo - 1, {before, after: nextAttack}, 'one predicted swing ignored; one real swing fires');
+    }
+    await setFixture('minecraft:oak_trapdoor[half=bottom,facing=north,open=false]');
+    for (const [name, clear] of [
+      ['fallback item-use', () => bots[gunner].activateItem()],
+      ['explicit entity attack', () => bots[gunner]._client.write('use_entity', {target: bots[target].entity.id, mouse: 1, sneaking: false})],
+      ['explicit START_DESTROY_BLOCK', () => bots[gunner]._client.write('block_dig', {status: 0, location: fixture, face: 1, sequence: 0})]
+    ]) {
+      const before = await status(gunner); await sleep(350);
+      blockUse(gunner, fixture); clear(); writeSwing(gunner); await sleep(180);
+      const after = await status(gunner);
+      check(`${name} clears an unconsumed block prediction before a genuine attack`, after.ammo === before.ammo - 1,
+        {before, after}, 'one genuine bullet; no stale block token');
+    }
+    // Powered buttons return CONSUME without a client swing. Their mutable
+    // client/server state can differ, so they are deliberately not tokenized.
+    // Preserve the legal next attack instead of guessing a suppression window.
+    await setFixture('minecraft:stone_button[face=floor,facing=north,powered=true]');
+    const buttonBefore = await status(gunner); await sleep(350);
+    blockUse(gunner, fixture); writeSwing(gunner); await sleep(180);
+    const buttonAfter = await status(gunner);
+    check('a non-swinging powered button use cannot suppress the following left click', buttonAfter.ammo === buttonBefore.ammo - 1,
+      {before: buttonBefore, after: buttonAfter}, 'next genuine left click fires');
+    const summary = {passed: assertions.filter(row => row.pass).length, failed: assertions.filter(row => !row.pass).length,
+      selfAnimationEchoes: selfAnimations.length, predictedUseBoundaries,
+      unclassifiedPrediction: 'Buttons depend on mutable client powered state; no token is guessed.',
+      fundedByNormalEconomy: true, renderingVerified: false};
+    emit('inputRegressionComplete', summary);
+    return summary;
+  } finally {
+    await chat('A', '/tick rate 20', 50);
+    if (fixture && originalFixture) await setFixture(originalFixture);
+    for (const id of ids) {
+      if (echoListeners[id]) bots[id]._client.removeListener('animation', echoListeners[id]);
+      await chat(id, '/hub', 100);
+    }
   }
 }
 
@@ -1086,6 +1317,7 @@ async function execute(command) {
     case 'twoPlayerAuto': return twoPlayerAuto();
     case 'csgo': return csgo();
     case 'csgoHalftime': return csgoHalftime();
+    case 'inputRegression': return inputRegression();
     case 'packMode': packMode[id] = command.value; return packMode[id];
     case 'packProcess': if (!packRequests[id]) throw new Error('No pack requested'); await handlePack(bot, packRequests[id]); return;
     case 'packReply': packStatus(bot, { uuid: command.uuid || packRequests[id]?.uuid }, command.result); return;

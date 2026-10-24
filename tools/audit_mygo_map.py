@@ -3,8 +3,8 @@
 
 Why: changing imported geometry or layout must not silently trap a spawn, bury
 a bomb site, or disconnect either team from a site. This reproducible check
-reads the same compressed blueprint shipped in the Mod, including its low
-outside-ground exclusions and stabilized gravity blocks.
+reads the same compressed blueprint shipped in the Mod. Every imported floor
+and roof is legal; hidden outside-ground exclusion columns are forbidden.
 
 Run from any directory:
     python3 /path/to/pvp/tools/audit_mygo_map.py
@@ -108,25 +108,13 @@ class Blueprint:
             if pos in self.cells or not contains(self.geometry, pos):
                 raise ValueError("Duplicate or out-of-bounds block position")
             self.cells[pos] = self.palette[index]
-        outside = data.get("outsideGround", {"maxY": -1000, "columns": []})
-        self.outside_max_y = outside["maxY"]
-        if type(self.outside_max_y) is not int:
-            raise ValueError("outsideGround.maxY must be an integer")
-        self.outside = set()
-        for column in outside["columns"]:
-            if not isinstance(column, list) or len(column) != 2 or any(type(n) is not int for n in column):
-                raise ValueError("An outside-ground column requires integer x and z")
-            self.outside.add(tuple(column))
         self.air = {"Name": "minecraft:air"}
 
     def state(self, x, y, z):
         return self.cells.get((x, y, z), self.air)
 
-    def blocked(self, pos):
-        return pos[1] <= self.outside_max_y and (pos[0], pos[2]) in self.outside
-
     def playable(self, pos):
-        return contains(self.area, pos) and not self.blocked(pos)
+        return contains(self.area, pos)
 
     def can_stand(self, pos, full=False):
         x, y, z = pos
@@ -170,6 +158,14 @@ class Blueprint:
 def audit(data):
     blueprint = Blueprint(data)
     errors, spawns, sites = [], [], []
+    if "outsideGround" in data:
+        errors.append("Hidden forbidden columns must not invalidate reachable terrain")
+    if not all(contains(blueprint.area, pos) for pos in blueprint.geometry):
+        errors.append("The playable region must include the entire imported map")
+    roof = list(blueprint.geometry[1])
+    roof[1] += 3
+    if not contains(blueprint.area, roof):
+        errors.append("The highest roof must have standing and jumping headroom")
     for side in ("T", "CT"):
         encoded_spawns = data["spawns"][side]
         if len(encoded_spawns) != 5:
@@ -198,7 +194,7 @@ def audit(data):
               "method": "offline approximate collision grid; client traversal still required",
               "coordinates": "relative to arena center", "maxJump": 1, "maxDrop": 3,
               "spawnChecks": len(spawns), "siteChecks": len(sites),
-              "outsideGroundColumns": len(blueprint.outside), "routes": []}
+              "entireMapPlayable": True, "routes": []}
     if not errors:
         nodes = blueprint.walk_nodes()
         report["walkableNodes"] = len(nodes)
@@ -209,12 +205,8 @@ def audit(data):
                 if path is None:
                     errors.append(f"{label} cannot reach site {site}")
                     continue
-                hits = sum(blueprint.blocked(pos) for pos in path)
                 report["routes"].append({"from": label, "to": site, "steps": len(path) - 1,
-                                          "height": [min(pos[1] for pos in path), max(pos[1] for pos in path)],
-                                          "outsideGroundHits": hits})
-                if hits:
-                    errors.append(f"{label} to {site} crosses excluded outside ground")
+                                          "height": [min(pos[1] for pos in path), max(pos[1] for pos in path)]})
     if errors:
         report.update(status="fail", errors=errors)
     return report

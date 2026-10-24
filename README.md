@@ -130,6 +130,7 @@
 - **投掷物**：现有 HE $300（第 4 格，最多 1）、闪光 $200（第 5 格，最多 2）、烟雾 $300（第 7 格，最多 1）保留 Minecraft 适配。右键投掷、1.5 秒引信；HE 有掩体与护甲减伤，闪光按距离/朝向，烟幕持续 12 秒且子弹可穿过。未使用道具随存活者保留，死亡和换边清空。
 - **HUD 与公平**：快捷栏上方加粗金色金钱，显示 HP、残甲、K/D、弹药及换弹进度。100 虚拟 HP，枪械不能挖图或造成原版工具近战伤害；腿部 0.75 倍，头部按枪械倍率，护甲独立计算。当前友伤关闭，友军不挡弹，未实现墙体穿透、完整部位碰撞盒与服务器历史位置回溯。正常结束、退赛及断线恢复赛前快照；仍不支持本场中途重连，阵亡后在封闭室等待下一回合。
 - **地图**：使用 [LesRaisins 的 Dust II Minecraft 复刻](https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-dust-ii)，作者 LeComte / LesRaisins Studio，发布者 xjqsh。地图只导入静态建筑，双方各 5 个出生/朝向、购买区和 A/B 双包点独立配置；开始前检查实际净空和地板，错误则取消并恢复快照。原图仅允许保留版权信息的非商业使用；完整声明在 Mod 内 `pvp/mygo/maps/NOTICE.txt`。来源、坐标与重现工具见 `tools/assets/mygo-dust2/`、`tools/extract_mygo_map.py`、`tools/audit_mygo_map.py`。
+- **地图布局与安全**：T 从匪家高地出发，CT 从中路桥下低层出发；A 在原图红色下包标记，B 在默认箱体前方，购买区随出生区域同步。全图地面、台阶及屋顶均合法，不再按隐藏坐标判“离开战场”阵亡；掉出地图或误入其他世界时返回最近安全落脚点，保留 HP、装备与回合状态。坐标和地形核对记录见 `tools/assets/mygo-dust2/layout-notes.md`。
 - **战绩**：`/pvp mygo stats` 保存至 `config/pvp/mygo/stats.json`，不影响其他模式隐藏分。OP `/pvp mygo status` 可检查本人枪械、镜位、购买时限、护甲、经济档位、回合与包点。
 
 资源包的 34 枪轮廓、材质、开火/换弹姿态及声音为本项目原创 MIT 资源，见 ZIP 内 `MYGO_ASSETS_LICENSE.txt` 与 `source.json`，不包含 Valve 游戏模型或贴图。旧 Weapon Pack / CS4M 参考的历史来源与许可仍保留在仓库。物品贴图均放在 `textures/item/mygo/`，使用原版图集与 CustomModelData，无需 OptiFine。

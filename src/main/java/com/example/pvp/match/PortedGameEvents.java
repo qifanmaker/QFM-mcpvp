@@ -70,8 +70,8 @@ public final class PortedGameEvents {
                 return TypedActionResult.fail(stack);
             }
             ActionResult result = match.portedSession().useItem(sp, hand);
-            return result == ActionResult.FAIL ? TypedActionResult.fail(stack)
-                    : result.isAccepted() ? TypedActionResult.success(stack) : TypedActionResult.pass(stack);
+            // 保留 CONSUME 等原始结果，不能将无挥手的交互重新包装成 SUCCESS。
+            return new TypedActionResult<>(result, stack);
         });
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (!canAccessPosition(player, world, hit.getBlockPos())) return ActionResult.FAIL;

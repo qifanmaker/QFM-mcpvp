@@ -5,10 +5,17 @@ import com.example.pvp.arena.ArenaWorld;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.ButtonBlock;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.decoration.DisplayEntity;
 import net.minecraft.util.math.BlockPos;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * 原版 Dust II 存档的静态方块蓝图；出生、朝向、购买区和包点使用同一份相对坐标。
@@ -16,8 +23,12 @@ import java.util.List;
  * 因此边界和掉落支撑均随真实地图读取；只导入建筑，不运行原存档的命令或实体。
  */
 public final class MyGoArena {
+    private static final String DECORATION_TAG = "pvp_mygo_decoration:";
+    private static final Map<String, MyGoArena> DECORATION_OWNERS = new HashMap<>();
     private final BlockPos center;
     private final MyGoMapBlueprint blueprint;
+    private final String decorationOwner = DECORATION_TAG + UUID.randomUUID();
+    private final Map<UUID, DisplayEntity.BlockDisplayEntity> decorations = new HashMap<>();
 
     public MyGoArena(ArenaTemplate template, int regionIndex) {
         this.center = template.getCenter(regionIndex).down();
@@ -62,8 +73,21 @@ public final class MyGoArena {
     }
 
     public void generate(ArenaWorld arena) {
-        for (MyGoMapBlueprint.Cell cell : this.blueprint.cells())
-            arena.setBlockState(world(cell.pos()), cell.state(), 3);
+        DECORATION_OWNERS.put(this.decorationOwner, this);
+        for (MyGoMapBlueprint.Cell cell : this.blueprint.cells()) {
+            BlockPos pos = world(cell.pos());
+            // 按钮会在客户端预测 powered 并挥手，服务端无法可靠区分其挥手与左键。
+            // 原图按钮均为无碰撞装饰：保留相同 block_display 外观，移除可交互方块，
+            // 不改变通路碰撞，也不需要客户端 Mod 或靠时间窗吞掉合法射击。
+            if (cell.state().getBlock() instanceof ButtonBlock) {
+                arena.setBlockState(pos, Blocks.AIR.getDefaultState(), 3);
+                DisplayEntity.BlockDisplayEntity display = new DisplayEntity.BlockDisplayEntity(EntityType.BLOCK_DISPLAY, arena);
+                display.setPosition(pos.getX(), pos.getY(), pos.getZ());
+                display.setBlockState(cell.state()); display.setInvulnerable(true); display.setNoGravity(true);
+                display.addCommandTag(this.decorationOwner);
+                arena.spawnEntity(display); this.decorations.put(display.getUuid(), display);
+            } else arena.setBlockState(pos, cell.state(), 3);
+        }
         // 阵亡等待室独立于原图，不开放自由飞行或敌方视野。
         BlockPos room = spectator();
         for (int x = -3; x <= 3; x++) for (int y = -1; y <= 4; y++) for (int z = -3; z <= 3; z++) {
@@ -93,6 +117,7 @@ public final class MyGoArena {
     }
 
     public void clear(ArenaWorld arena) {
+        closeDecorations();
         // 原图流体/重力方块在提取时固定；按蓝图清理，无需每场重复保存十几万个坐标。
         for (MyGoMapBlueprint.Cell cell : this.blueprint.cells())
             arena.setBlockState(world(cell.pos()), Blocks.AIR.getDefaultState(), 3);
@@ -103,4 +128,22 @@ public final class MyGoArena {
 
     private BlockPos local(BlockPos pos) { return pos.subtract(this.center); }
     private BlockPos world(BlockPos pos) { return this.center.add(pos); }
+
+    /** 区块重载后是新的实体对象；按 UUID 更新引用，旧场次的存档实体则在加载时丢弃。 */
+    public static void handleEntityLoad(Entity entity) {
+        if (!(entity instanceof DisplayEntity.BlockDisplayEntity display)) return;
+        for (String tag : entity.getCommandTags()) if (tag.startsWith(DECORATION_TAG)) {
+            MyGoArena owner = DECORATION_OWNERS.get(tag);
+            if (owner == null) display.discard();
+            else owner.decorations.put(display.getUuid(), display);
+            return;
+        }
+    }
+
+    /** 结算时先注销所有权；未加载区块里的旧对象会在之后重载时由上面的钩子清理。 */
+    public void closeDecorations() {
+        DECORATION_OWNERS.remove(this.decorationOwner);
+        for (DisplayEntity.BlockDisplayEntity decoration : this.decorations.values()) decoration.discard();
+        this.decorations.clear();
+    }
 }
