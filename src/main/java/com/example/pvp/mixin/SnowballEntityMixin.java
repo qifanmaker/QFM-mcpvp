@@ -39,14 +39,14 @@ public abstract class SnowballEntityMixin {
             return;
         }
         if (!com.example.pvp.match.PortedGameEvents.allowsExtraKnockback(caster, victim)) return;
-        // 沿雪球飞行方向击退（水平 1.2，竖直 0.3）
+        // 原水平强度 1.2 会推开数格；与鱼竿统一降到平地约半格的轻击退。
         Vec3d vel = snowball.getVelocity();
         double len = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
         if (len < 0.001) {
             return;
         }
         // takeKnockback 的方向参数是“推力来源”，所以传入飞行方向的反向。
-        victim.takeKnockback(1.2, -vel.x / len, -vel.z / len);
+        victim.takeKnockback(0.18, -vel.x / len, -vel.z / len);
         victim.addVelocity(0.0, 0.3, 0.0);
         // takeKnockback 只设置 velocityDirty；零伤害雪球不会替我们设置本人同步标记。
         victim.velocityModified = true;

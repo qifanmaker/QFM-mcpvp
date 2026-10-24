@@ -54,7 +54,8 @@ public abstract class FishingBobberEntityMixin {
         if (d < 0.01) {
             return;
         }
-        victim.takeKnockback(1.2, -dx / d, -dz / d);
+        // 与雪球保持同档，避免命中一次就把平地目标推开数格。
+        victim.takeKnockback(0.18, -dx / d, -dz / d);
         victim.addVelocity(0.0, 0.3, 0.0);
         victim.velocityModified = true;
         this.pvp$knockbackHook = true;
