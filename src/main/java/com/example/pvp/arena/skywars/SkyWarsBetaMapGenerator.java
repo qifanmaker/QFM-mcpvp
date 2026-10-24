@@ -92,7 +92,7 @@ public final class SkyWarsBetaMapGenerator {
         return offset;
     }
 
-    /** 放空箱、保留开启净空；最后统一按整岛预算填充。 */
+    /** 放空箱、保留开启净空；最后统一按空岛物资表填充。 */
     private static void placeExtraChest(ArenaWorld world, SkyWarsLayout layout, BlockPos pos,
                                         SkyWarsLootPolicy.Tier tier, int playerIndex) {
         world.setBlockState(pos, Blocks.CHEST.getDefaultState(), 3);

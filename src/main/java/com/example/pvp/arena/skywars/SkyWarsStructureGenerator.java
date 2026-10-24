@@ -20,7 +20,7 @@ import java.util.Set;
  * 真正改变中央拓扑的五种结构。外圈沿用布局的公平主路，中央箱数沿用原箱数加两只分层箱，
  * 解决不同地图仅换材质、换装饰而战斗路线始终相同的问题。
  *
- * <p>每种结构在最终圈内保留落脚面及双向上下通路；生成器只放空箱，物资和补货仍由统一预算处理。
+ * <p>每种结构在最终圈内保留落脚面及双向上下通路；生成器只放空箱，物资和补货仍由统一物资表处理。
  */
 public final class SkyWarsStructureGenerator {
     private static final Logger LOGGER = LogUtils.getLogger();

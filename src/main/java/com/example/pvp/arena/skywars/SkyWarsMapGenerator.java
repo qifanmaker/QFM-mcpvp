@@ -340,8 +340,8 @@ public final class SkyWarsMapGenerator {
     }
 
     /**
-     * 地形全部完成后再按整岛填箱，附加侧台不会额外复制一套保底装备。
-     * 初次和补货共用布局持有的神器配额，刷新不能重新抽取整局稀有物品。
+     * 地形完成后按实际箱位填充旧版物资表，初次与补货均逐箱独立抽取。
+     * 继续覆盖侧台、自定义结构和村庄箱，并解除模板的原版延迟战利品。
      */
     static int[] populateChests(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
                                List<ServerPlayerEntity> players, boolean refill) {

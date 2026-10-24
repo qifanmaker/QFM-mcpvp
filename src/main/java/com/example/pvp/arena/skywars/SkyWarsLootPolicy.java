@@ -1,71 +1,69 @@
 package com.example.pvp.arena.skywars;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Random;
 
 /**
- * 一局空岛的物资预算。原先按箱子抽神器会让箱子越多的地图越容易产出多把秒人斧，
- * 所以资格只在创建对局时抽一次，且同一份策略会一直保留到补货结束。
- * 数量、附魔分布和补偿计算不依赖 Minecraft，便于独立抽样核对。
+ * 空岛物资共用的随机源及旧版每箱抽取规则。
+ * 按要求恢复每箱独立抽取，开局和补货不再受整局神器配额限制。
  */
 public final class SkyWarsLootPolicy {
     public enum Tier {
         SPAWN, TRANSIT, CENTER
     }
 
+    public enum RareDrop {
+        NONE, AXE, TOTEM, ELYTRA, ENCHANTED_GOLDEN_APPLE
+    }
+
     private final Random random;
-    private final boolean rareAxeEligible;
-    private boolean rareAxeIssued;
 
     public SkyWarsLootPolicy(int seed) {
         this.random = new Random(seed * 0x9E3779B97F4A7C15L ^ 0x6A09E667F3BCC909L);
-        this.rareAxeEligible = this.random.nextInt(100) < 12;
     }
 
     Random random() {
         return this.random;
     }
 
-    /** 仅初次填充中心箱时领取，补货及重复调用均不能额外生成。 */
-    public boolean claimRareAxe(boolean refill) {
-        if (refill || !this.rareAxeEligible || this.rareAxeIssued) {
-            return false;
-        }
-        this.rareAxeIssued = true;
-        return true;
+    /** 旧表每箱额外抽取的物品组数，外圈保底装备和方块另计。 */
+    public static int randomStackCount(Random random, Tier tier) {
+        return tier == Tier.CENTER ? 5 + random.nextInt(3) : 4 + random.nextInt(2);
     }
 
-    /** 出生岛总预算，箱子数量仅影响分散位置。 */
-    public static int spawnBlockCount(Random random) {
-        return 48 + random.nextInt(17);
-    }
-
-    /** 所有等级均保留；外圈偏向低级，中岛偏向高级。 */
-    public static int bowPower(Random random, Tier tier) {
+    /** 每只箱子独立抽取，补货再次调用即可；同一次抽取只会命中一种稀有物品。 */
+    public static RareDrop rareDrop(Random random, Tier tier) {
         int roll = random.nextInt(100);
         if (tier == Tier.CENTER) {
-            return roll < 15 ? 1 : roll < 45 ? 2 : roll < 80 ? 3 : 4;
+            return switch (roll) {
+                case 0 -> RareDrop.ELYTRA;
+                case 1 -> RareDrop.ENCHANTED_GOLDEN_APPLE;
+                case 2 -> RareDrop.TOTEM;
+                default -> RareDrop.NONE;
+            };
         }
-        return roll < 65 ? 1 : roll < 90 ? 2 : roll < 98 ? 3 : 4;
+        return switch (roll) {
+            case 0 -> RareDrop.AXE;
+            case 1 -> RareDrop.TOTEM;
+            default -> RareDrop.NONE;
+        };
     }
 
-    /** 同分得到同样待遇；只给明显落后于本局中位数的玩家少量基础消耗品。 */
+    /** 弓触发附魔后，力量I～IV恢复为等概率。 */
+    public static int bowPower(Random random) {
+        return 1 + random.nextInt(4);
+    }
+
+    /** 恢复原规则：最低分2档，三人以上局次低分1档；同分时按原玩家顺序。 */
     public static int[] supportLevels(double[] ratings) {
         int[] result = new int[ratings.length];
-        double[] sorted = Arrays.stream(ratings).filter(Double::isFinite).sorted().toArray();
-        if (sorted.length < 2) {
-            return result;
-        }
-        double median = sorted[sorted.length / 2];
-        if (sorted.length % 2 == 0) {
-            median = (median + sorted[sorted.length / 2 - 1]) / 2.0;
-        }
-        for (int i = 0; i < ratings.length; i++) {
-            if (Double.isFinite(ratings[i])) {
-                double gap = median - ratings[i];
-                result[i] = gap >= 300.0 ? 2 : gap >= 150.0 ? 1 : 0;
-            }
-        }
+        if (ratings.length == 0) return result;
+        Integer[] order = new Integer[ratings.length];
+        for (int i = 0; i < ratings.length; i++) order[i] = i;
+        Arrays.sort(order, Comparator.comparingDouble(index -> ratings[index]));
+        result[order[0]] = 2;
+        if (ratings.length > 2) result[order[1]] = 1;
         return result;
     }
 }

@@ -14,6 +14,7 @@ import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.item.ArmorItem;
 import net.minecraft.item.AxeItem;
+import net.minecraft.item.BowItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -36,8 +37,8 @@ import java.util.Random;
 import java.util.function.BiFunction;
 
 /**
- * 空岛战争按整岛预算生成物资：出生保底、中途补给、中岛升级。
- * 原先每箱三件装备会掩盖开局职业差异，因此箱子数量只改变出生物资的分散位置。
+ * 按要求恢复平衡调整前的每箱随机物资表，开局和补货使用相同规则。
+ * 恢复旧物品种类、权重、数量与附魔，同时继续使用实际箱位和专用道具标记。
  * 附魔注册表在服务器启动后注入（与 KitManager 相同）。
  */
 public final class SkyWarsLoot {
@@ -62,173 +63,124 @@ public final class SkyWarsLoot {
     private static final Item[] CHAINMAIL_PIECES = {
             Items.CHAINMAIL_HELMET, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_LEGGINGS, Items.CHAINMAIL_BOOTS
     };
+    private static final Item[] GOLD_PIECES = {
+            Items.GOLDEN_HELMET, Items.GOLDEN_CHESTPLATE, Items.GOLDEN_LEGGINGS, Items.GOLDEN_BOOTS
+    };
     private static final Item[] DIAMOND_PIECES = {
             Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS
     };
 
-    /** 出生岛保底以外的少量工具、远程和消耗品，不再反复发放护甲。 */
+    /** 出生岛箱子战利品：以铁装为主，偶见钻石装，必带桥接方块与基础物资。 */
     private static final List<LootEntry> SPAWN_TABLE = List.of(
-            new LootEntry(9, (r, c) -> bow(r, SkyWarsLootPolicy.Tier.SPAWN)),
+            new LootEntry(18, (r, c) -> weapon(Items.IRON_SWORD, r, c)),
+            new LootEntry(10, (r, c) -> weapon(Items.IRON_AXE, r, c)),
+            new LootEntry(6, (r, c) -> bow(r, c)),
             new LootEntry(6, (r, c) -> crossbow(r, c)),
-            new LootEntry(8, (r, c) -> stack(Items.GOLDEN_APPLE, 1)),
-            new LootEntry(3, (r, c) -> stack(Items.ENDER_PEARL, 1)),
-            new LootEntry(6, (r, c) -> stack(Items.WATER_BUCKET, 1)),
+            new LootEntry(10, (r, c) -> arrow(8 + r.nextInt(9))),
+            new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
+            new LootEntry(6, (r, c) -> diamondAxe(r)), // 钻石斧：耐久 1/5，锋利 I~III
+            new LootEntry(5, (r, c) -> diamondTool(r, c)), // 普通钻石工具：镐/铲/锄
+            new LootEntry(32, (r, c) -> armor(r, c, false)),
+            new LootEntry(10, (r, c) -> armor(r, c, true)),
+            new LootEntry(8, (r, c) -> goldenArmor(r)),
+            new LootEntry(8, (r, c) -> food(r)),
+            new LootEntry(12, (r, c) -> stack(Items.GOLDEN_APPLE, 1 + r.nextInt(2))),
+            new LootEntry(5, (r, c) -> stack(Items.ENDER_PEARL, 1 + r.nextInt(2))),
+            new LootEntry(3, (r, c) -> stack(Items.WATER_BUCKET, 1)),
             new LootEntry(3, (r, c) -> stack(Items.LAVA_BUCKET, 1)),
             new LootEntry(6, (r, c) -> stack(Items.TNT, 1 + r.nextInt(2))),
-            new LootEntry(6, (r, c) -> stack(Items.FIRE_CHARGE, 1 + r.nextInt(2))),
-            new LootEntry(7, (r, c) -> stack(Items.COBWEB, 2)),
-            new LootEntry(4, (r, c) -> stack(Items.WIND_CHARGE, 1)),
+            new LootEntry(6, (r, c) -> stack(Items.FIRE_CHARGE, 2 + r.nextInt(3))),
+            new LootEntry(7, (r, c) -> stack(Items.COBWEB, 2 + r.nextInt(3))),
+            new LootEntry(4, (r, c) -> stack(Items.WIND_CHARGE, 1 + r.nextInt(2))),
             new LootEntry(8, (r, c) -> randomPotion(r, false)),
-            new LootEntry(7, (r, c) -> stack(Items.FISHING_ROD, 1)),
-            new LootEntry(3, (r, c) -> trackingCompass()),
-            new LootEntry(12, (r, c) -> stack(Items.SNOWBALL, 8)),
-            new LootEntry(0.2, (r, c) -> slimeBall()),
-            new LootEntry(5, (r, c) -> stack(Items.IRON_PICKAXE, 1))
+            // 铁砧(配经验瓶附魔)、经验瓶、钓鱼竿(命中击退)、追踪罗盘、雪球、专用击退球、铁质杂项
+            new LootEntry(7, (r, c) -> stack(Items.EXPERIENCE_BOTTLE, 8 + r.nextInt(9))),
+            new LootEntry(5, (r, c) -> stack(Items.FISHING_ROD, 1)),
+            new LootEntry(5, (r, c) -> trackingCompass()),
+            new LootEntry(6, (r, c) -> stack(Items.SNOWBALL, 16)),
+            new LootEntry(0.2, (r, c) -> slimeBall()), // 专用击退球（刷新率极低，每次只出 1 个）
+            new LootEntry(3, (r, c) -> stack(Items.ANVIL, 1)),
+            new LootEntry(8, (r, c) -> goldenAxe(r)),
+            new LootEntry(6, (r, c) -> junkIron(r)),
+            new LootEntry(16, (r, c) -> bridgeBlocks(r)) // 搭桥方块：刷新率上调
     );
 
-    /** 外圈补货与中途岛只补消耗品，避免每轮重新刷满套装备。 */
-    private static final List<LootEntry> SUPPLY_TABLE = List.of(
-            new LootEntry(12, (r, c) -> stack(Items.SNOWBALL, 8)),
-            new LootEntry(10, (r, c) -> arrow(8)),
-            new LootEntry(8, (r, c) -> stack(Items.GOLDEN_APPLE, 1)),
-            new LootEntry(6, (r, c) -> stack(Items.ENDER_PEARL, 1)),
-            new LootEntry(6, (r, c) -> stack(Items.WATER_BUCKET, 1)),
-            new LootEntry(6, (r, c) -> stack(Items.FIRE_CHARGE, 1 + r.nextInt(2))),
-            new LootEntry(5, (r, c) -> stack(Items.WIND_CHARGE, 1 + r.nextInt(2))),
-            new LootEntry(6, (r, c) -> stack(Items.COBWEB, 2)),
-            new LootEntry(5, (r, c) -> stack(Items.TNT, 1)),
-            new LootEntry(8, (r, c) -> randomPotion(r, false))
-    );
-
-    /** 中岛每箱保底的一件进阶装备。 */
-    private static final List<LootEntry> CENTER_GEAR = List.of(
-            new LootEntry(24, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
-            new LootEntry(10, (r, c) -> diamondAxe(r)),
-            new LootEntry(42, (r, c) -> armor(r, c, true)),
-            new LootEntry(15, (r, c) -> bow(r, SkyWarsLootPolicy.Tier.CENTER)),
-            new LootEntry(4, (r, c) -> weapon(Items.MACE, r, c)),
-            new LootEntry(5, (r, c) -> spear())
-    );
-
-    /** 中岛额外一件物资，与每箱的装备及恢复/机动保底配合。 */
+    /** 中间主岛箱子战利品：以钻石装为主，金苹果/末影珍珠更常见。 */
     private static final List<LootEntry> MIDDLE_TABLE = List.of(
-            new LootEntry(4, (r, c) -> diamondTool(r, c)),
+            new LootEntry(14, (r, c) -> weapon(Items.DIAMOND_SWORD, r, c)),
+            new LootEntry(6, (r, c) -> weapon(Items.DIAMOND_AXE, r, c)),
+            new LootEntry(8, (r, c) -> diamondAxe(r)), // 钻石斧：耐久 1/5，锋利 I~III
+            new LootEntry(6, (r, c) -> diamondTool(r, c)), // 普通钻石工具：镐/铲/锄
+            new LootEntry(8, (r, c) -> bow(r, c)),
             new LootEntry(8, (r, c) -> crossbow(r, c)),
-            new LootEntry(12, (r, c) -> arrow(12 + r.nextInt(13))),
-            new LootEntry(15, (r, c) -> stack(Items.GOLDEN_APPLE, 1 + r.nextInt(2))),
-            new LootEntry(8, (r, c) -> stack(Items.ENDER_PEARL, 1)),
+            new LootEntry(12, (r, c) -> arrow(12 + r.nextInt(20))),
+            new LootEntry(30, (r, c) -> armor(r, c, true)),
+            new LootEntry(10, (r, c) -> armor(r, c, false)),
+            new LootEntry(8, (r, c) -> goldenArmor(r)),
+            new LootEntry(15, (r, c) -> stack(Items.GOLDEN_APPLE, 2 + r.nextInt(3))),
+            new LootEntry(8, (r, c) -> stack(Items.ENDER_PEARL, 2 + r.nextInt(3))),
             new LootEntry(6, (r, c) -> food(r)),
-            new LootEntry(4, (r, c) -> stack(Items.WATER_BUCKET, 1)),
-            new LootEntry(10, (r, c) -> stack(Items.COBBLESTONE, 16)),
+            new LootEntry(2, (r, c) -> stack(Items.WATER_BUCKET, 1)),
+            new LootEntry(2, (r, c) -> stack(Items.LAVA_BUCKET, 1)),
+            new LootEntry(10, (r, c) -> bridgeBlocks(r)), // 搭桥方块：刷新率上调
             new LootEntry(6, (r, c) -> stack(Items.TNT, 2 + r.nextInt(2))),
+            new LootEntry(8, (r, c) -> weapon(Items.MACE, r, c)),
+            new LootEntry(8, (r, c) -> spear()), // 长矛：与重锤同刷新率（同刷中间岛）
             new LootEntry(6, (r, c) -> stack(Items.WIND_CHARGE, 2 + r.nextInt(3))),
-            new LootEntry(6, (r, c) -> stack(Items.FIRE_CHARGE, 2 + r.nextInt(2))),
-            new LootEntry(7, (r, c) -> stack(Items.COBWEB, 2 + r.nextInt(2))),
+            new LootEntry(6, (r, c) -> stack(Items.FIRE_CHARGE, 3 + r.nextInt(3))),
+            new LootEntry(7, (r, c) -> stack(Items.COBWEB, 3 + r.nextInt(4))),
             new LootEntry(10, (r, c) -> randomPotion(r, true)),
-            new LootEntry(5, (r, c) -> stack(Items.EXPERIENCE_BOTTLE, 8 + r.nextInt(9))),
+            new LootEntry(8, (r, c) -> stack(Items.EXPERIENCE_BOTTLE, 12 + r.nextInt(13))),
             new LootEntry(6, (r, c) -> trackingCompass()),
             new LootEntry(6, (r, c) -> stack(Items.SNOWBALL, 16)),
-            new LootEntry(0.2, (r, c) -> slimeBall()),
-            new LootEntry(3, (r, c) -> stack(Items.ANVIL, 1)),
+            new LootEntry(0.2, (r, c) -> slimeBall()), // 专用击退球（刷新率极低，不刷普通球）
+            new LootEntry(4, (r, c) -> stack(Items.ANVIL, 1)),
             new LootEntry(6, (r, c) -> goldenAxe(r))
     );
 
-    /**
-     * 填充同一岛的全部箱子（包含侧台），保证出生岛预算不随箱子数量增长。
-     * 中岛可以合并为一个箱组，每箱至少一件装备和一件恢复/机动物品。
-     */
+    /** 同组箱子逐箱按旧表独立抽取；补货也恢复装备和稀有物品的正常抽取。 */
     public static void populateIsland(List<ChestBlockEntity> chests, SkyWarsLootPolicy.Tier tier,
                                        int handicap, boolean refill, SkyWarsLootPolicy policy) {
         List<ChestBlockEntity> available = new ArrayList<>(new LinkedHashSet<>(chests));
         available.removeIf(chest -> chest == null);
-        if (available.isEmpty()) {
-            return;
-        }
         Random random = policy.random();
-        Collections.shuffle(available, random);
-        if (tier == SkyWarsLootPolicy.Tier.CENTER) {
-            int axeChest = policy.claimRareAxe(refill) ? random.nextInt(available.size()) : -1;
-            for (int i = 0; i < available.size(); i++) {
-                List<ItemStack> drops = new ArrayList<>();
-                addWithSupplies(drops, roll(CENTER_GEAR, random, 60));
-                drops.add(centerSupport(random));
-                addWithSupplies(drops, roll(MIDDLE_TABLE, random, 50));
-                rollMiddleUltraRare(random, drops);
-                if (i == axeChest) {
-                    drops.add(makeMiaoRenAxe());
-                }
-                fillChest(available.get(i), drops, random);
-            }
-            return;
-        }
-
-        List<ItemStack> drops = new ArrayList<>();
-        if (tier == SkyWarsLootPolicy.Tier.SPAWN && !refill) {
-            drops.add(weapon(random.nextInt(100) < 30 ? Items.IRON_SWORD : Items.STONE_SWORD, random, 20));
-            List<Integer> pieces = new ArrayList<>(List.of(0, 1, 2, 3));
-            Collections.shuffle(pieces, random);
-            for (int i = 0; i < 2; i++) {
-                boolean chain = random.nextBoolean();
-                ItemStack armor = stack((chain ? CHAINMAIL_PIECES : IRON_PIECES)[pieces.get(i)], 1);
-                enchantArmor(armor, random, 20, chain);
-                drops.add(armor);
-            }
-            int blockCount = SkyWarsLootPolicy.spawnBlockCount(random);
-            for (int i = 0; i < 4; i++) {
-                drops.add(stack(i % 2 == 0 ? Items.OAK_PLANKS : Items.COBBLESTONE,
-                        blockCount / 4 + (i < blockCount % 4 ? 1 : 0)));
-            }
-            drops.add(stack(Items.COOKED_BEEF, 8));
-            int support = Math.max(0, Math.min(2, handicap));
-            if (support > 0) {
-                drops.add(stack(Items.COBBLESTONE, 8 * support));
-                drops.add(stack(Items.COOKED_BEEF, 2 * support));
-            }
-            for (int i = 0; i < 3; i++) {
-                addWithSupplies(drops, roll(SPAWN_TABLE, random, 30));
-            }
-        } else {
-            drops.add(stack(Items.COBBLESTONE, tier == SkyWarsLootPolicy.Tier.TRANSIT ? 24 : 16));
-            drops.add(stack(Items.COOKED_BEEF, 4));
-            if (tier == SkyWarsLootPolicy.Tier.TRANSIT) {
-                drops.add(stack(Items.SNOWBALL, 8));
-                drops.add(stack(random.nextBoolean() ? Items.ENDER_PEARL : Items.WATER_BUCKET, 1));
-            }
-            for (int i = 0; i < 3; i++) {
-                drops.add(roll(SUPPLY_TABLE, random, 0));
-            }
-        }
-
-        Collections.shuffle(drops, random);
         for (int i = 0; i < available.size(); i++) {
-            List<ItemStack> share = new ArrayList<>();
-            for (int j = i; j < drops.size(); j += available.size()) {
-                share.add(drops.get(j));
+            List<ItemStack> drops = legacyDrops(random, tier, handicap);
+            fillChest(available.get(i), drops, random);
+        }
+    }
+
+    private static List<ItemStack> legacyDrops(Random random, SkyWarsLootPolicy.Tier tier, int handicap) {
+        boolean middle = tier == SkyWarsLootPolicy.Tier.CENTER;
+        List<ItemStack> drops = new ArrayList<>();
+        int stackCount = SkyWarsLootPolicy.randomStackCount(random, tier);
+        int enchantBonus = handicap * 10;
+        if (!middle) {
+            drops.add(bridgeBlocks(random));
+            drops.add(bridgeBlocks(random));
+            for (int i = 0; i < 3; i++) {
+                if ((handicap > 0 && random.nextInt(100) < handicap * 16)
+                        || random.nextInt(100) < 10) {
+                    drops.add(random.nextBoolean()
+                            ? weapon(Items.DIAMOND_SWORD, random, 30 + enchantBonus)
+                            : armor(random, 30 + enchantBonus, true));
+                } else {
+                    drops.add(ironEquipment(random, 30 + enchantBonus));
+                }
             }
-            fillChest(available.get(i), share, random);
         }
-    }
-
-    /** 弓弩配箭、重锤配风弹，避免抢到装备却无法使用其主要玩法。 */
-    private static void addWithSupplies(List<ItemStack> drops, ItemStack item) {
-        if (item.isEmpty()) {
-            return;
+        for (int i = 0; i < stackCount; i++) {
+            ItemStack item = roll(middle ? MIDDLE_TABLE : SPAWN_TABLE, random,
+                    (middle ? 50 : 30) + enchantBonus);
+            if (!item.isEmpty()) drops.add(item);
         }
-        drops.add(item);
-        if (item.isOf(Items.BOW) || item.isOf(Items.CROSSBOW)) {
-            drops.add(arrow(12));
-        } else if (item.isOf(Items.MACE)) {
-            drops.add(stack(Items.WIND_CHARGE, 2));
+        addRareDrop(random, drops, tier);
+        if (!middle && handicap > 0) {
+            int compensation = random.nextInt(400);
+            if (compensation == 0) drops.add(makeMiaoRenAxe());
+            else if (compensation == 1) drops.add(new ItemStack(Items.TOTEM_OF_UNDYING));
         }
-    }
-
-    private static ItemStack centerSupport(Random random) {
-        return switch (random.nextInt(4)) {
-            case 0 -> stack(Items.ENDER_PEARL, 1);
-            case 1 -> stack(Items.WIND_CHARGE, 2);
-            case 2 -> stack(Items.GOLDEN_APPLE, 1);
-            default -> potionStack(Items.SPLASH_POTION, Potions.HEALING);
-        };
+        return drops;
     }
 
     private static void fillChest(ChestBlockEntity chest, List<ItemStack> drops, Random random) {
@@ -267,6 +219,26 @@ public final class SkyWarsLoot {
         return stack;
     }
 
+    /** 一件随机铁质/锁链装备：护甲（60%，铁/锁链各半）/ 铁剑·铁斧（40%），带附魔概率。适当偏向防具。 */
+    private static ItemStack ironEquipment(Random random, int enchantChance) {
+        if (random.nextInt(10) < 6) {
+            boolean chain = random.nextBoolean(); // 锁链与铁套刷新几率相同
+            Item[] pieces = chain ? CHAINMAIL_PIECES : IRON_PIECES;
+            ItemStack stack = new ItemStack(pieces[random.nextInt(pieces.length)]);
+            enchantArmor(stack, random, enchantChance, chain);
+            return stack;
+        }
+        return weapon(random.nextBoolean() ? Items.IRON_SWORD : Items.IRON_AXE, random, enchantChance);
+    }
+
+    /** 铁质杂项：铲子/锄头/镐/斧——大多用处不大，少量会附魔。 */
+    private static ItemStack junkIron(Random random) {
+        Item[] junk = {Items.IRON_SHOVEL, Items.IRON_HOE, Items.IRON_PICKAXE, Items.IRON_AXE};
+        ItemStack stack = new ItemStack(junk[random.nextInt(junk.length)]);
+        maybeEnchant(stack, random, 25);
+        return stack;
+    }
+
     /**
      * 金斧（中等概率）：普通 / 锋利 I / II / III / VII（VII 约 1/10，稀有）。
      * 金斧耐久低——高锋利是伤高但易碎的"玻璃大炮"。
@@ -289,6 +261,13 @@ public final class SkyWarsLoot {
         if (level > 0) {
             applyEnchant(stack, Enchantments.SHARPNESS, level);
         }
+        return stack;
+    }
+
+    /** 金质护甲：固定保护 II/III，刻意不附耐久，作为轻量高附魔装备。 */
+    private static ItemStack goldenArmor(Random random) {
+        ItemStack stack = new ItemStack(GOLD_PIECES[random.nextInt(GOLD_PIECES.length)]);
+        applyEnchant(stack, Enchantments.PROTECTION, 2 + random.nextInt(2));
         return stack;
     }
 
@@ -323,15 +302,15 @@ public final class SkyWarsLoot {
         return stack;
     }
 
-    /** 力量 I～IV 按区域加权；冲击与火矢互斥，防止高力量、冲击 II、火矢同时出现。 */
-    private static ItemStack bow(Random random, SkyWarsLootPolicy.Tier tier) {
+    /** 弓：力量随附魔概率走；在此基础上低概率叠加冲击 II / 火矢（各 10%，与力量相互独立）。 */
+    private static ItemStack bow(Random random, int enchantChance) {
         ItemStack stack = new ItemStack(Items.BOW);
-        applyEnchant(stack, Enchantments.POWER, SkyWarsLootPolicy.bowPower(random, tier));
-        int special = random.nextInt(100);
-        if (special < 10) {
-            applyEnchant(stack, Enchantments.PUNCH, tier == SkyWarsLootPolicy.Tier.CENTER ? 2 : 1);
-        } else if (special < 20) {
-            applyEnchant(stack, Enchantments.FLAME, 1);
+        maybeEnchant(stack, random, enchantChance);
+        if (random.nextInt(100) < 10) {
+            applyEnchant(stack, Enchantments.PUNCH, 2); // 冲击 II：低概率词缀
+        }
+        if (random.nextInt(100) < 10) {
+            applyEnchant(stack, Enchantments.FLAME, 1); // 火矢：低概率词缀
         }
         return stack;
     }
@@ -392,6 +371,13 @@ public final class SkyWarsLoot {
                 : stack(Items.BREAD, 4 + random.nextInt(5));
     }
 
+    /** 桥接方块：橡木木板 / 圆石 5~12 的小叠（分散放置，不再一整大组）。 */
+    private static ItemStack bridgeBlocks(Random random) {
+        return random.nextBoolean()
+                ? stack(Items.OAK_PLANKS, 5 + random.nextInt(8))
+                : stack(Items.COBBLESTONE, 5 + random.nextInt(8));
+    }
+
     private static ItemStack arrow(int count) {
         return stack(Items.ARROW, count);
     }
@@ -438,6 +424,8 @@ public final class SkyWarsLoot {
             if (random.nextInt(100) < 25) {
                 applyEnchant(stack, Enchantments.KNOCKBACK, 1); // 击退最高 1 级
             }
+        } else if (stack.getItem() instanceof BowItem) {
+            applyEnchant(stack, Enchantments.POWER, SkyWarsLootPolicy.bowPower(random));
         } else if (stack.getItem() instanceof ArmorItem) {
             applyEnchant(stack, Enchantments.PROTECTION, level);
             if (random.nextInt(100) < 20) {
@@ -472,23 +460,23 @@ public final class SkyWarsLoot {
         return stack;
     }
 
-    /** 中岛每箱极稀有（各约 1%）：鞘翅+3 烟花火箭、附魔金苹果、不死图腾。 */
-    private static void rollMiddleUltraRare(Random random, List<ItemStack> drops) {
-        int roll = random.nextInt(100);
-        if (roll < 1) {
-            // 鞘翅 + 3 根烟花火箭：可以飞掠全图
-            drops.add(new ItemStack(Items.ELYTRA));
-            drops.add(stack(Items.FIREWORK_ROCKET, 3));
-        } else if (roll < 2) {
-            drops.add(new ItemStack(Items.ENCHANTED_GOLDEN_APPLE));
-        } else if (roll < 3) {
-            drops.add(new ItemStack(Items.TOTEM_OF_UNDYING));
+    /** 恢复每箱的独立稀有抽取：外圈秒人斧/图腾各1%，中岛三种稀有物品各1%。 */
+    private static void addRareDrop(Random random, List<ItemStack> drops, SkyWarsLootPolicy.Tier tier) {
+        switch (SkyWarsLootPolicy.rareDrop(random, tier)) {
+            case AXE -> drops.add(makeMiaoRenAxe());
+            case TOTEM -> drops.add(new ItemStack(Items.TOTEM_OF_UNDYING));
+            case ELYTRA -> {
+                drops.add(new ItemStack(Items.ELYTRA));
+                drops.add(stack(Items.FIREWORK_ROCKET, 3));
+            }
+            case ENCHANTED_GOLDEN_APPLE -> drops.add(new ItemStack(Items.ENCHANTED_GOLDEN_APPLE));
+            case NONE -> { }
         }
     }
 
     /**
-     * 仅补出生岛基础消耗品；同分玩家待遇相同，取消原有钻装、附魔与神器概率加成。
-     * 落后本局中位数 150/300 分分别补 1/2 档，每档 8 方块和 2 食物。
+     * 恢复原来的相对弱势补偿：隐藏分最低者2档，三人以上局次低者1档。
+     * 作用于出生岛和中途岛的装备升级、附魔及额外稀有抽取，开局与补货相同。
      * 返回与 players 等长的数组（同索引即同玩家）。
      */
     public static int[] handicapForMatch(List<ServerPlayerEntity> players) {
