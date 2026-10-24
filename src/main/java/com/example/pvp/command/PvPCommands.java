@@ -185,10 +185,14 @@ public final class PvPCommands {
                                         .then(CommandManager.literal("all")
                                                 .executes(ctx -> debugSkywarsAllThemes(ctx))))
                                 .then(CommandManager.literal("skywarsbeta")
-                                        .executes(ctx -> debugSkywarsBeta(ctx, 9000))
+                                        .executes(ctx -> debugSkywarsBeta(ctx, 9000, 8))
                                         .then(CommandManager.argument("seed", StringArgumentType.word())
                                                 .executes(ctx -> debugSkywarsBeta(ctx,
-                                                        parseIntSafe(ctx, "seed", 9000)))))
+                                                        parseIntSafe(ctx, "seed", 9000), 8))
+                                                .then(CommandManager.argument("players", com.mojang.brigadier.arguments.IntegerArgumentType.integer(2, 8))
+                                                        .executes(ctx -> debugSkywarsBeta(ctx,
+                                                                parseIntSafe(ctx, "seed", 9000),
+                                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "players"))))))
                                 .then(CommandManager.literal("bridge")
                                         .executes(ctx -> debugBridge(ctx, 2))
                                         .then(CommandManager.argument("team", StringArgumentType.word())
@@ -1274,7 +1278,7 @@ public final class PvPCommands {
     }
 
     /** 调试：保留旧 Beta 命令入口，按指定 seed 查看已正式启用的立体空岛地图。 */
-    private static int debugSkywarsBeta(CommandContext<ServerCommandSource> ctx, int seed)
+    private static int debugSkywarsBeta(CommandContext<ServerCommandSource> ctx, int seed, int playerCount)
             throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         ArenaWorldManager arenaManager = PvPMod.MATCH == null ? null : PvPMod.MATCH.getArenaManager();
@@ -1291,10 +1295,9 @@ public final class PvPCommands {
         int cleanupRadius = Math.min(ArenaTemplate.REGION_SPACING / 2 - 1,
                 Math.max(SkyWarsLayout.computeMaxRadius(), size));
         SkyWarsMapGenerator.clearIslands(arena, region, cleanupRadius);
-        SkyWarsLayout layout = SkyWarsBetaMapGenerator.generate(arena, region, seed, 8, List.of(), null);
+        SkyWarsLayout layout = SkyWarsBetaMapGenerator.generate(arena, region, seed, playerCount, List.of(), null);
         SkyWarsTheme theme = SkyWarsTheme.pick(seed);
-        int style = new java.util.Random(layout.styleSeed()).nextInt(6);
-        player.sendMessage(Messages.info("测试空岛正式地图已生成（seed " + seed + "，风格 " + style
+        player.sendMessage(Messages.info("测试空岛正式地图已生成（seed " + seed + "，结构 " + layout.mapStyle().getDisplayName()
                 + "，主题 " + theme.name() + "，出生岛 " + layout.spawnIslands().size() + " 座）"), false);
         player.teleport(arena, center.getX() + 0.5, center.getY() + 28, center.getZ() + 0.5, 0, 90);
         arenaManager.addVisitor(player, 300);

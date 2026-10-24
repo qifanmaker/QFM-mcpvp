@@ -33,6 +33,8 @@ public final class SkyWarsLayout {
     public record ExtraChest(BlockPos pos, SkyWarsLootPolicy.Tier tier, int handicapIndex) { }
 
     private final List<ExtraChest> extraChests = new ArrayList<>();
+    /** 新结构生成后登记实际中央箱位，替代经典圆盘预先计算的占位坐标。 */
+    private final List<BlockPos> centralStructureChests = new ArrayList<>();
     private final BlockPos mapCenter;
     private final int maxRadius;
     private final List<Island> spawnIslands;
@@ -42,11 +44,12 @@ public final class SkyWarsLayout {
     private final int middleVariant;
     private final boolean compact;
     private final long styleSeed;
+    private final SkyWarsMapStyle mapStyle;
     private final SkyWarsLootPolicy lootPolicy;
 
     private SkyWarsLayout(BlockPos mapCenter, int maxRadius, List<Island> spawnIslands,
                           List<Island> midIslands, List<Island> middleIslands, List<BlockPos> spawns,
-                          int middleVariant, boolean compact, long styleSeed, int seed) {
+                          int middleVariant, boolean compact, long styleSeed, SkyWarsMapStyle mapStyle, int seed) {
         this.mapCenter = mapCenter;
         this.maxRadius = maxRadius;
         this.spawnIslands = List.copyOf(spawnIslands);
@@ -56,11 +59,21 @@ public final class SkyWarsLayout {
         this.middleVariant = middleVariant;
         this.compact = compact;
         this.styleSeed = styleSeed;
+        this.mapStyle = mapStyle;
         this.lootPolicy = new SkyWarsLootPolicy(seed);
     }
 
     public List<ExtraChest> extraChests() { return this.extraChests; }
     public void addExtraChest(ExtraChest chest) { this.extraChests.add(chest); }
+    public List<BlockPos> centralStructureChests() { return List.copyOf(this.centralStructureChests); }
+    public void setCentralStructureChests(List<BlockPos> chests) {
+        this.centralStructureChests.clear();
+        Set<BlockPos> seen = new HashSet<>();
+        for (BlockPos pos : chests) {
+            BlockPos immutable = pos.toImmutable();
+            if (seen.add(immutable)) this.centralStructureChests.add(immutable);
+        }
+    }
     public BlockPos mapCenter() { return this.mapCenter; }
     public int maxRadius() { return this.maxRadius; }
     public List<Island> spawnIslands() { return this.spawnIslands; }
@@ -71,6 +84,7 @@ public final class SkyWarsLayout {
     public int middleVariant() { return this.middleVariant; }
     public boolean compact() { return this.compact; }
     public long styleSeed() { return this.styleSeed; }
+    public SkyWarsMapStyle mapStyle() { return this.mapStyle; }
     public SkyWarsLootPolicy lootPolicy() { return this.lootPolicy; }
 
     /** 上下层都有实心落脚面，末地/地狱也能安全缩到中央决战区域。 */
@@ -90,6 +104,7 @@ public final class SkyWarsLayout {
         boolean compact = count <= 4;
         Random topology = new Random(mixSeed(seed, 0x48a7d31bL));
         long styleSeed = mixSeed(seed, 0x61c88647L);
+        SkyWarsMapStyle mapStyle = SkyWarsMapStyle.pick(seed, SkyWarsTheme.pick(seed));
         int variant = topology.nextInt(3);
         double rotation = topology.nextDouble() * Math.PI * 2.0;
         int spawnRadius = Math.max(4, Math.min(8, cfg.skywarsIslandRadius));
@@ -120,26 +135,27 @@ public final class SkyWarsLayout {
         }
 
         List<Island> middleIslands = new ArrayList<>();
-        if (SkyWarsTheme.pick(seed) == SkyWarsTheme.VILLAGE) {
-            // 房屋保留生活物资；村庄生成之后另加固定 PvP 军械箱。
+        if (mapStyle == SkyWarsMapStyle.VILLAGE) {
+            // 村庄房内箱与露天军械箱统一使用中岛物资，生成后登记实际箱位。
             middleIslands.add(buildIsland(topology, mapCenter, extent, 0, 0));
         } else {
-            int centralRadius = compact ? 12 : 16;
-            int satelliteRadius = compact ? 5 : 7;
+            int centralRadius = mapStyle.centralRadius(compact);
+            int satelliteRadius = mapStyle.satelliteRadius(compact);
             int satelliteDistance = extent - satelliteRadius;
             int centerChests = Math.max(2, cfg.skywarsMiddleChests - count);
             middleIslands.add(buildIsland(topology, mapCenter, centralRadius, centerChests, rotation));
             for (int i = 0; i < count; i++) {
                 double angle = rotation + i * Math.PI * 2.0 / count;
                 middleIslands.add(buildIsland(new Random(chestSeed ^ 0x31faL),
-                        offset(mapCenter, angle, satelliteDistance, variant - 1), satelliteRadius, 1, angle));
+                        offset(mapCenter, angle, satelliteDistance, mapStyle.satelliteHeight(variant)),
+                        satelliteRadius, 1, angle));
             }
-            if (variant != 0) {
+            if (mapStyle.hasBranchIslands(variant)) {
                 // 支路没有额外物资，提供绕行/掩体；每个扇区都得到同样一座。
                 for (int i = 0; i < count; i++) {
                     double angle = rotation + (i + 0.5) * Math.PI * 2.0 / count;
                     middleIslands.add(buildIsland(topology,
-                            offset(mapCenter, angle, satelliteDistance, variant == 1 ? -3 : 3),
+                            offset(mapCenter, angle, satelliteDistance, mapStyle.branchHeight(variant)),
                             3, 0, angle));
                 }
             }
@@ -149,7 +165,7 @@ public final class SkyWarsLayout {
         int maxRadius = Math.max(spawnDistance + spawnRadius + 9,
                 transitDistance + transitRadius + 10) + MAX_RADIUS_MARGIN;
         return new SkyWarsLayout(mapCenter, maxRadius, spawnIslands, midIslands, middleIslands,
-                spawns, variant, compact, styleSeed, seed);
+                spawns, variant, compact, styleSeed, mapStyle, seed);
     }
 
     private static int middleExtent(PvPConfig cfg, boolean compact) {

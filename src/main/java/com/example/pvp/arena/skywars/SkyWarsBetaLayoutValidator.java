@@ -1,9 +1,11 @@
 package com.example.pvp.arena.skywars;
 
 import com.example.pvp.arena.ArenaWorld;
+import com.example.pvp.match.SkyWarsRescue;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,12 +53,16 @@ public final class SkyWarsBetaLayoutValidator {
         for (SkyWarsLayout.Island island : layout.spawnIslands()) checkChests(errors, world, island, false, false, theme);
         for (SkyWarsLayout.Island island : layout.midIslands()) checkChests(errors, world, island, false, false, theme);
         for (int i = 0; i < layout.middleIslands().size(); i++) {
+            if (i == 0 && layout.mapStyle().usesCustomStructure()) continue;
             checkChests(errors, world, layout.middleIslands().get(i), true, i == 0, theme);
+        }
+        if (layout.mapStyle().usesCustomStructure()) {
+            checkStructure(errors, world, layout);
         }
         for (SkyWarsLayout.ExtraChest extra : layout.extraChests()) {
             checkChest(errors, world, extra.pos());
         }
-        if (theme != SkyWarsTheme.VILLAGE && layout.middle() != null) {
+        if (layout.mapStyle() == SkyWarsMapStyle.TERRACES && layout.middle() != null) {
             BlockPos lower = layout.middle().center().down(SkyWarsBetaMapGenerator.LOWER_LAYER_DROP);
             if (world.getBlockState(lower).isAir()) errors.add("下层缺少中央安全地板");
             for (int dy = 1; dy <= 3; dy++) {
@@ -64,6 +70,45 @@ public final class SkyWarsBetaLayoutValidator {
             }
         }
         return List.copyOf(errors);
+    }
+
+    /** 每种中央结构都记录真实箱位；箱子要有支撑、可接近，最终圈也必须留下落脚面。 */
+    private static void checkStructure(List<String> errors, ArenaWorld world, SkyWarsLayout layout) {
+        if (layout.centralStructureChests().size() != layout.middle().chests().size() + 2) {
+            errors.add("中央结构箱子预算不一致: " + layout.centralStructureChests().size());
+        }
+        for (BlockPos pos : layout.centralStructureChests()) {
+            checkChest(errors, world, pos);
+            if (!world.getBlockState(pos.down()).isSideSolidFullSquare(world, pos.down(), Direction.UP)) {
+                errors.add("中央结构箱子缺少支撑: " + pos);
+            }
+            boolean accessible = false;
+            for (int dx = -1; dx <= 1 && !accessible; dx++) {
+                for (int dz = -1; dz <= 1 && !accessible; dz++) {
+                    if (dx == 0 && dz == 0) continue;
+                    for (int dy = -2; dy <= 0; dy++) {
+                        if (SkyWarsRescue.safeLanding(world, pos.add(dx, dy, dz))) {
+                            accessible = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!accessible) errors.add("中央结构箱子没有可接近的落脚位: " + pos);
+        }
+        boolean safeFinalArea = false;
+        BlockPos center = layout.mapCenter();
+        for (int dx = -3; dx <= 3 && !safeFinalArea; dx++) {
+            for (int dz = -3; dz <= 3 && !safeFinalArea; dz++) {
+                for (int dy = -14; dy <= 24; dy++) {
+                    if (SkyWarsRescue.safeLanding(world, center.add(dx, dy, dz))) {
+                        safeFinalArea = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!safeFinalArea) errors.add("中央决战区缺少安全落脚面");
     }
 
     private static void checkChests(List<String> errors, ArenaWorld world, SkyWarsLayout.Island island,

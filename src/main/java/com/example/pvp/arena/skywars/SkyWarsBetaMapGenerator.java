@@ -60,6 +60,8 @@ public final class SkyWarsBetaMapGenerator {
         if (middle != null) {
             if (theme == SkyWarsTheme.VILLAGE) {
                 addVillageArmories(world, layout, structure);
+            } else if (layout.mapStyle().usesCustomStructure()) {
+                SkyWarsStructureGenerator.generate(world, layout, theme);
             } else {
                 buildCentralCore(world, layout, middle, style, structure, accent, theme);
             }
@@ -69,8 +71,8 @@ public final class SkyWarsBetaMapGenerator {
         if (!generatedErrors.isEmpty()) {
             LOGGER.warn("空岛地形校验出现问题（seed={}）: {}", seed, String.join("；", generatedErrors));
         }
-        LOGGER.info("生成空岛地图: seed={}, style={}, theme={}, compact={}, radius={}, 主路={}, 附加箱子={}",
-                seed, style, theme.name(), layout.compact(), layout.maxRadius(),
+        LOGGER.info("生成空岛地图: seed={}, structure={}, style={}, theme={}, compact={}, radius={}, 主路={}, 附加箱子={}",
+                seed, layout.mapStyle().name(), style, theme.name(), layout.compact(), layout.maxRadius(),
                 layout.spawnIslands().size(), layout.extraChests().size());
         return layout;
     }
@@ -127,9 +129,10 @@ public final class SkyWarsBetaMapGenerator {
                 }
             }
         }
-        // 两条相反方向的三格宽坡道，不需要搭方块就能上下；挖开的通道留三格净空。
-        buildBridge(world, center.add(0, 0, radius), lower.add(0, 0, 3), structure, 1, true);
-        buildBridge(world, center.add(0, 0, -radius), lower.add(0, 0, -3), structure, 1, true);
+        // 入口放在最终圈内，错开两条走廊；跨过岛心留足水平距离，缩圈后仍能上下。
+        int approach = layout.suggestedFinalRadius() - 2;
+        buildBridge(world, center.add(4, 0, approach), lower.add(4, 0, -3), structure, 1, true);
+        buildBridge(world, center.add(-4, 0, -approach), lower.add(-4, 0, 3), structure, 1, true);
         placeExtraChest(world, layout, lower.add(3, 1, 3), SkyWarsLootPolicy.Tier.CENTER, -1);
 
         // 可拆的侧墙提供近战掩体，矿工可以直接开洞穿过；南北主通路始终开放。
@@ -148,10 +151,11 @@ public final class SkyWarsBetaMapGenerator {
                 ? SkyWarsMapGenerator.secondLayerRadius(middle, true, true, theme) : 6 + style % 2;
         BlockPos upper = center.up(upperY);
         if (theme != SkyWarsTheme.OVERWORLD) buildPlatform(world, upper, upperRadius, structure, 1);
-        // 上下层坡道分置东西/南北，交叉时不会互相封死。
-        buildBridge(world, center.add(radius, 0, 0), upper.add(1, 0, 0), structure, 1, true);
-        buildBridge(world, center.add(-radius, 0, 0), upper.add(-1, 0, 0), structure, 1, true);
-        placeExtraChest(world, layout, upper.add(3, 1, 3), SkyWarsLootPolicy.Tier.CENTER, -1);
+        // 两条上行走廊分置岛心两侧，和下层通道保留高度间隔，入口不随最终圈消失。
+        buildBridge(world, center.add(approach, 0, 4), upper.add(-4, 0, 4), structure, 1, true);
+        buildBridge(world, center.add(-approach, 0, -4), upper.add(4, 0, -4), structure, 1, true);
+        // 避开 z=±4 的坡道净空；原箱位(3,3)下方会被坡道挖穿，留下悬空箱。
+        placeExtraChest(world, layout, upper.add(3, 1, 0), SkyWarsLootPolicy.Tier.CENTER, -1);
         if (style >= 3) {
             // 半高围挡提供远程掩护，同时保留两端进攻面和中央空地。
             for (int sign : new int[]{-1, 1}) {

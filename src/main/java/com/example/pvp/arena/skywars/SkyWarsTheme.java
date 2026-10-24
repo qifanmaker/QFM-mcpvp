@@ -18,7 +18,7 @@ public enum SkyWarsTheme {
     END("末地"),
     /**
      * 村庄：玩家岛/中途岛是普通主世界材质；中间主岛放大成一整座村庄
-     * （原版村庄房屋模板 + 道路，箱子用原版村庄战利品表，见 {@link SkyWarsVillageGenerator}）。
+     * （原版村庄房屋模板 + 道路，全部箱子统一空岛物资，见 {@link SkyWarsVillageGenerator}）。
      */
     VILLAGE("村庄");
 

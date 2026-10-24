@@ -110,6 +110,8 @@ public final class SkyWarsMapGenerator {
         // 中岛群：中央主岛（END 主题才空心环）+ 卫星岛（实心），各带障碍物
         List<SkyWarsLayout.Island> middleIslands = layout.middleIslands();
         for (int i = 0; i < middleIslands.size(); i++) {
+            // 新结构自己建中央地形和箱位，不能先叠上旧圆盘、核心液体、树与上层平台。
+            if (i == 0 && layout.mapStyle().usesCustomStructure()) continue;
             buildIsland(world, middleIslands.get(i), true, theme, i == 0, layout.styleSeed() ^ (0x783aL + i));
         }
 
@@ -118,9 +120,10 @@ public final class SkyWarsMapGenerator {
             SkyWarsVillageGenerator.build(world, layout, theme, seed);
         }
 
-        LOGGER.info("[PvP] 空岛战争地图已生成: {} 个出生岛 + {} 个中途岛 + 中间主岛({} 箱)，主题：{}，中岛变体：{}，中岛核心：{}",
+        LOGGER.info("[PvP] 空岛战争基础岛群已生成: {} 个出生岛 + {} 个中途岛 + 中间主岛({} 箱)，主题：{}，中岛变体：{}，中岛核心：{}",
                 spawnIslands.size(), midIslands.size(), layout.middle().chests().size(),
-                theme.getDisplayName(), layout.middleVariant(), coreDesc(theme));
+                theme.getDisplayName(), layout.middleVariant(),
+                layout.mapStyle().usesCustomStructure() ? layout.mapStyle().getDisplayName() : coreDesc(theme));
         return layout;
     }
 
@@ -353,8 +356,12 @@ public final class SkyWarsMapGenerator {
 
         List<ChestBlockEntity> centerChests = new ArrayList<>();
         for (int i = 0; i < layout.middleIslands().size(); i++) {
+            if (i == 0 && layout.mapStyle().usesCustomStructure()) continue;
             collectIslandChests(world, layout.middleIslands().get(i), true, i == 0,
                     theme, centerChests, stats, visited);
+        }
+        for (BlockPos pos : layout.centralStructureChests()) {
+            collectChest(world, pos, centerChests, stats, visited);
         }
         for (SkyWarsLayout.ExtraChest extra : layout.extraChests()) {
             if (extra.tier() == SkyWarsLootPolicy.Tier.CENTER) {

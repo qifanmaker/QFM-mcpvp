@@ -46,7 +46,7 @@ public final class SkyWarsMetrics {
         if (data != null) data.put(counter, (int) data.getOrDefault(counter, 0) + 1);
     }
 
-    public void finish(int id, int seed, String theme, int elapsedTicks, boolean timedOut, Set<UUID> winners) {
+    public void finish(int id, int seed, String theme, String structure, int elapsedTicks, boolean timedOut, Set<UUID> winners) {
         if (this.finished || this.players.isEmpty()) return;
         this.finished = true;
         this.players.forEach((uuid, data) -> data.put("won", winners.contains(uuid)));
@@ -55,6 +55,7 @@ public final class SkyWarsMetrics {
         report.put("match", id);
         report.put("seed", seed);
         report.put("theme", theme);
+        report.put("structure", structure);
         report.put("durationSeconds", elapsedTicks / 20.0);
         report.put("firstCombatSeconds", this.firstCombatTick < 0 ? null : this.firstCombatTick / 20.0);
         report.put("timedOut", timedOut);

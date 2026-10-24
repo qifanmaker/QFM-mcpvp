@@ -3448,7 +3448,8 @@ public final class Match {
     private void startCelebration(MatchTeam winnerTeam) {
         Set<UUID> winners = this.computeWinners();
         if (this.type == MatchType.SKYWARS) {
-            this.skywarsMetrics.finish(this.id, this.skywarsSeed, this.skywarsTheme.name(), this.activeElapsedTicks(),
+            this.skywarsMetrics.finish(this.id, this.skywarsSeed, this.skywarsTheme.name(),
+                    this.skywarsLayout.mapStyle().name(), this.activeElapsedTicks(),
                     this.activeElapsedTicks() >= PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20, winners);
         }
         this.announceResult(winners);
@@ -4465,7 +4466,7 @@ public final class Match {
                     + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜！（1.8 低版本战斗）"));
         } else if (skywars) {
             String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
-            String variantName = "§d立体地图";
+            String variantName = "§d" + this.skywarsLayout.mapStyle().getDisplayName();
             this.broadcast(Messages.info("空岛战争开始！" + variantName + "，主题：§e" + themeName
                     + "§r。搜刮空岛，成为最后幸存者！（1.8 低版本战斗）"));
         } else if (luckyPillar) {
@@ -5042,7 +5043,8 @@ public final class Match {
     /** 地图行：各模式当前地图/主题/场地信息。 */
     private String mapLine() {
         return switch (this.type) {
-            case SKYWARS -> "§7地图: §e" + (this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界");
+            case SKYWARS -> "§7地图: §e" + (this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界")
+                    + "·" + (this.skywarsLayout != null ? this.skywarsLayout.mapStyle().getDisplayName() : "随机");
             case LUCKY_PILLAR -> "§7地图: §e" + (this.luckyPillarLayout != null
                     ? this.luckyPillarLayout.platformStyle().getDisplayName() : "随机");
             case HEARTBEAT -> "§7地图: §e" + (this.heartbeatLayout != null

@@ -6,6 +6,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -72,12 +74,124 @@ class SkyWarsLayoutTest {
                 assertEquals(first.maxRadius(), repeated.maxRadius());
                 assertEquals(first.middleVariant(), repeated.middleVariant());
                 assertEquals(first.styleSeed(), repeated.styleSeed());
+                assertEquals(first.mapStyle(), repeated.mapStyle());
                 variants.add(first.middleVariant());
                 styles.add(new Random(first.styleSeed()).nextInt(6));
             }
             assertEquals(3, variants.size(), theme.name());
             assertEquals(6, styles.size(), theme.name());
         }
+    }
+
+    @Test
+    void eachMaterialThemeCanDrawEveryStructureWithoutLockingToTopologyOrPlayerCount() {
+        Set<SkyWarsMapStyle> expected = EnumSet.allOf(SkyWarsMapStyle.class);
+        expected.remove(SkyWarsMapStyle.VILLAGE);
+        for (SkyWarsTheme theme : SkyWarsTheme.values()) {
+            EnumMap<SkyWarsMapStyle, Integer> frequencies = new EnumMap<>(SkyWarsMapStyle.class);
+            Set<String> styleTopologyPairs = new HashSet<>();
+            for (int sample = 0; sample < 1200; sample++) {
+                int seed = sample * SkyWarsTheme.values().length + theme.ordinal();
+                SkyWarsLayout small = SkyWarsLayout.compute(CENTER, seed, 2);
+                SkyWarsLayout large = SkyWarsLayout.compute(CENTER, seed, 8);
+                assertEquals(small.mapStyle(), large.mapStyle(), "人数只改变尺度，不重新抽结构");
+                assertEquals(SkyWarsMapStyle.pick(seed, theme), large.mapStyle());
+                frequencies.merge(large.mapStyle(), 1, Integer::sum);
+                styleTopologyPairs.add(large.mapStyle().name() + ":" + large.middleVariant());
+            }
+            if (theme == SkyWarsTheme.VILLAGE) {
+                assertEquals(Set.of(SkyWarsMapStyle.VILLAGE), frequencies.keySet());
+            } else {
+                assertEquals(expected, frequencies.keySet(), theme.name());
+                // 独立抽签应覆盖6结构×3拓扑，而不是材质/拓扑把地图锁成固定搭配。
+                assertEquals(18, styleTopologyPairs.size(), theme.name());
+                for (int frequency : frequencies.values()) {
+                    assertTrue(frequency >= 120 && frequency <= 280,
+                            theme + "结构抽样明显偏斜: " + frequencies);
+                }
+            }
+        }
+    }
+
+    @Test
+    void structuresChangeCentralGeometryButPreserveEveryPlayersApproachAndLootBudget() {
+        Set<SkyWarsMapStyle> covered = EnumSet.noneOf(SkyWarsMapStyle.class);
+        Set<String> compactProfiles = new HashSet<>();
+        for (int seed = 0; seed < 300; seed++) {
+            if (SkyWarsTheme.pick(seed) == SkyWarsTheme.VILLAGE) continue;
+            for (int players : new int[]{2, 4, 5, 8}) {
+                SkyWarsLayout layout = SkyWarsLayout.compute(CENTER, seed, players);
+                SkyWarsMapStyle style = layout.mapStyle();
+                covered.add(style);
+                SkyWarsLayout.Island first = layout.middleIslands().get(1);
+                double smallestGap = Double.POSITIVE_INFINITY;
+                double largestGap = Double.NEGATIVE_INFINITY;
+                for (int i = 0; i < players; i++) {
+                    SkyWarsLayout.Island satellite = layout.middleIslands().get(i + 1);
+                    SkyWarsLayout.Island transit = layout.midIslands().get(i);
+                    assertEquals(first.radius(), satellite.radius(), style.name());
+                    assertEquals(first.center().getY(), satellite.center().getY(), style.name());
+                    assertEquals(first.chests().size(), satellite.chests().size(), style.name());
+                    double gap = distance(transit.center(), satellite.center())
+                            - transit.radius() - satellite.radius();
+                    double targetGap = layout.compact() ? 6 : 8;
+                    assertTrue(Math.abs(gap - targetGap) <= 1.5, style + "入口间距=" + gap);
+                    smallestGap = Math.min(smallestGap, gap);
+                    largestGap = Math.max(largestGap, gap);
+                }
+                assertTrue(largestGap - smallestGap <= 3.0, "各方向只允许方块取整误差: " + style);
+                int chests = layout.middleIslands().stream().mapToInt(island -> island.chests().size()).sum();
+                assertEquals(Math.min(16, Math.max(2, PvPConfig.INSTANCE.skywarsMiddleChests - players)) + players,
+                        chests, "结构和无奖励支路不能增加物资: " + style);
+                if (layout.compact()) {
+                    compactProfiles.add(style.centralRadius(true) + ":" + first.radius() + ":"
+                            + style.satelliteHeight(0) + ":" + style.branchHeight(0));
+                }
+            }
+        }
+        assertEquals(6, covered.size());
+        assertEquals(6, compactProfiles.size(), "六种结构必须有不同的几何轮廓");
+    }
+
+    @Test
+    void customStructureClearingDoesNotReachSatelliteIslandsEvenWithExtremeConfiguration() {
+        Set<SkyWarsMapStyle> covered = EnumSet.noneOf(SkyWarsMapStyle.class);
+        for (int configuredRadius : new int[]{1, 80, 200}) {
+            PvPConfig.INSTANCE.skywarsMiddleRadius = configuredRadius;
+            for (int seed = -120; seed < 120; seed++) {
+                for (int players : new int[]{2, 4, 5, 8}) {
+                    SkyWarsLayout layout = SkyWarsLayout.compute(CENTER, seed, players);
+                    if (!layout.mapStyle().usesCustomStructure()) continue;
+                    covered.add(layout.mapStyle());
+                    int clearingRadius = layout.middle().radius() + 3;
+                    for (int i = 1; i < layout.middleIslands().size(); i++) {
+                        SkyWarsLayout.Island island = layout.middleIslands().get(i);
+                        assertTrue(distance(layout.middle().center(), island.center()) - island.radius() > clearingRadius,
+                                "中央清区侵入卫星/支路: seed=" + seed + ", style=" + layout.mapStyle());
+                    }
+                    assertFootprint(layout, "seed=" + seed + ", style=" + layout.mapStyle());
+                }
+            }
+        }
+        assertEquals(5, covered.size());
+    }
+
+    @Test
+    void generatedCentralChestPositionsReplaceOldRegistrationsAndCannotBeMutatedByCallers() {
+        SkyWarsLayout layout = SkyWarsLayout.compute(CENTER, 0, 4);
+        BlockPos.Mutable mutable = new BlockPos.Mutable(470, 104, 85);
+        BlockPos first = mutable.toImmutable();
+        BlockPos second = first.add(3, 2, 0);
+        layout.setCentralStructureChests(List.of(mutable, first, second));
+        mutable.set(0, 0, 0);
+        List<BlockPos> stored = layout.centralStructureChests();
+        assertEquals(List.of(first, second), stored);
+        assertThrows(UnsupportedOperationException.class, () -> stored.add(BlockPos.ORIGIN));
+        layout.setCentralStructureChests(List.of(CENTER.up()));
+        assertEquals(List.of(CENTER.up()), layout.centralStructureChests());
+        assertEquals(List.of(first, second), stored, "旧快照不能随重登记变化");
+        layout.setCentralStructureChests(List.of());
+        assertTrue(layout.centralStructureChests().isEmpty());
     }
 
     @Test
