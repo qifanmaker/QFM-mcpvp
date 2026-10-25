@@ -363,3 +363,57 @@ CT 购买区调整到 `(90,10,49)`～`(100,14,70)`，前两格面向中门/B，�
 `b8095784dcce9808cb5835539496668510ce110a63ca4c37404c3be03ccece1f`。
 新版地图 SHA-256 `a0df8b4f9ea070c9e7496134488061b73d75fd8a338862c2bde774e8246d839c`。
 资源包不变，替换服务器 Mod 后重启才会加载新出生配置。
+
+## 2026-10-25 原版 CS:GO 伤害核对
+
+修改原因：静态枪械属性已经接近原版，但运行时未区分腹部，且小数 HP/护甲一直保留到下一枪，
+会改变击杀门槛和残甲效果。先审查 `MyGoWeapon`、`MyGoRules`、`MyGoSession.fire` 和现有回归，
+再独立核对 legacy CS:GO 的分发数据（不是 CS2 武器定义）：
+
+- [items_game.txt 固定快照](https://github.com/SteamTracking/GameTracking-CS2/blob/e63fc7fdb8dfb4f1873f0db214c0cc16613d5beb/csgo/scripts/items/items_game.txt)，
+  6,562,804 bytes，SHA-256 `469cf0ef8a2c53503f0845b60d3c0dc576625dfbbfb9aff885ee8282b45beaec`；
+  递归解析 prefab 后，34 把枪的伤害、爆头倍率、armor ratio、range modifier、弹丸数、射程共 204 项与现有数据一致。
+  独立报告 `build/mygo-damage-data-audit.json`，事实表更新来源说明，武器记录没有修改。
+- [国服官方基础资料](https://www.csgo.com.cn/tips/miscellaneous/20161220/198787.shtml)说明最终生命伤害舍弃小数，
+  距离取眼睛到实际命中点；[原版伤害说明](https://steamcommunity.com/sharedfiles/filedetails/?id=274953650)列出部位倍率和护甲公式。
+- [3kliksphilip 的原版 CS:GO 护甲实验](https://youtu.be/n5xdMo6kj00)在 6:21–7:10 验证生命伤害向下取整、
+  护甲消耗向上取整，在 1:08–1:28 说明头盔与防弹衣共用护甲耐久。
+
+实现：头部使用各枪自己的倍率，胸/臂 1、腹 1.25、腿 .75；腿不减伤、头盔只保护头部。
+按实际射线距离指数衰减，再处理护甲和甲不足的余伤，最终结算整数生命/护甲；甲归零同步清除头盔。
+HE 与刀经过同一整数生命结算，避免遗留小数 HP。商店展示部位倍率和保留两位小数的穿甲百分比。
+
+Minecraft 命中盒按当前姿态高度分区：`.38` 以下腿、`.38–.55` 腹、`.55–.75` 胸/臂、`.75` 以上头；
+这只是 Minecraft 适配，不等于 Valve 动画命中盒。霰弹同枪弹丸保留中间精度，合计后取整；
+此选择有 [Valve 公开 Source SDK](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/baseentity_shared.cpp)
+合并弹丸伤害的实现依据，但尚未取得 CS:GO 分支专属的逐弹丸取整实测证据，不能据此声称百分之百引擎等价。
+当前也仍未实现穿墙/人体穿透与历史位置回溯。
+
+启动验证另发现已有 `40e2ac1` 的末影珍珠减伤注入匹配不到调用点。
+核对 1.21.1 字节码，`EnderPearlEntity.onCollision` 的实际 owner 是 `Entity.damage`，
+故把错误的 `LivingEntity.damage` 注入目标修正为 `Entity.damage`，保留 `amount * .5F`。
+初次失败日志留在 `build/mygo-csgo-damage-server-console.log`。第二次启动因资源包端口 25586
+与用户测试服冲突而停止，记录在 `build/mygo-csgo-damage-final-console.log`；最终验证改用 25588 / 25589。
+用户的 25586 测试服保持运行。
+
+最终 `./gradlew build` 成功，81 项单测、0 失败，日志 `build/mygo-csgo-damage-build.log`。
+实服快照在 `build/mygo-csgo-damage-release/`，Fabric 1.21.1 / Loader 0.16.14 / Java 21，
+使用四名 1.21.1 协议客户端执行 `damageRegression`，四回合现金全部由正常胜负获得。
+58 项伤害/弹药/护甲/资源包检查全部通过，含潜行腹部；近距离 Glock 胸 13、腹 17、腿 21，
+AK 戴甲胸 27、腹 34、腿 26；M4A4 戴盔爆头后剩 8 HP，AK 近距离戴盔爆头击杀，
+AWP 打腿 86 留 14 HP 且不耗甲，满血胸部一枪击杀。上述数值包含各自实际射线距离衰减。
+最终原始记录 `protocol-results.jsonl`，控制台 `build/mygo-csgo-damage-release-console.log`。
+
+首轮末尾 AWP 胸部断言失败的原因是旧 14 HP 靶人仍站在新靶人的射线上，实际被旧靶人挡弹；
+移开旧靶人后完整重跑 58 项通过，首次记录保留为 `first-attempt-results.jsonl`。
+附加珍珠检查最初在大厅执行，受到大厅无敌保护；转入普通剑战并去掉护甲后，原始生命包在
+`2026-10-25T06:27:59.466Z` 明确从 20 变为 17.5，证明实际落点伤害由 5 减为 2.5。
+晚 1 秒的快照断言观察到和平难度回血后的 18.5，因此该附加晚快照断言仍保留为失败，
+验证报告按首次实际伤害包判定，不将它改写成成功，也不混入 58 项伤害回归的通过数。
+
+实服没有 Java ERROR/异常堆栈；Mineflayer 配方解析及跨传送移动告警仍是工具限制，
+不能视为真实客户端画面验收。25588/25589 已正常停服保存，25586 未重启。
+构建输出与本次实服类/资源快照逐文件一致；资源包 SHA-1 仍为
+`d191135ce9ed995f22564ee916ce4237beed01f1`，不需重新上传。
+交付 `dist/pvp-1.0.0-mygo-csgo-damage.jar`，1,711,774 bytes，SHA-256
+`0e8d2a0a989a5faba91c81d6e3a5fcdcd6dbca6c57a94c8d7f4b4e387b0a3bb9`。

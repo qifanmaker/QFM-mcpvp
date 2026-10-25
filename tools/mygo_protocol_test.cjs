@@ -918,6 +918,148 @@ async function csgo() {
   return {opening, ...summary};
 }
 
+// Reason: metadata tests cannot prove the real raycast selects stomach/legs,
+// truncates final bullet damage or preserves AK/M4/AWP lethal thresholds.
+// These are actual left-click packets against full server sessions. Money is
+// earned through ordinary rounds; vanilla /tick only shortens idle deadlines.
+async function damageRegression() {
+  const ids = Object.keys(bots), startAssertions = assertions.length;
+  await waitUntil(() => ids.every(id => bots[id].entity), 30000, 'damage clients');
+  check('damage regression has four isolated 1.21.1 clients', ids.length === 4
+    && ids.every(id => bots[id].version === '1.21.1'), ids, 'four players');
+  let rateChanged = false;
+  const rate = async value => { await chat('A', `/tick rate ${value}`, 80); rateChanged = value !== 20; };
+  const freezeToLive = async id => {
+    await rate(200);
+    await csgoFastState(id, state => state.phase === 'LIVE', 6000, 'damage round unfreeze');
+    await rate(20);
+  };
+  const nextBuy = async id => {
+    await rate(200);
+    await csgoFastState(id, state => state.phase === 'BUY', 16000, 'next damage round');
+    await rate(20);
+  };
+  const shoot = async (shooter, target, height, expectedLoss, name, expectedArmorLoss = 0) => {
+    const before = await status(target), gunBefore = await status(shooter);
+    // More than two weapon cycles has elapsed before every rifle input, so the
+    // pure-server automatic-input inference cannot add another bullet here.
+    await sleep(650);
+    await csgoLookAt(shooter, bots[target].entity.position.offset(0, height, 0));
+    await trigger(shooter, 1, 200);
+    const after = await status(target), gunAfter = await status(shooter);
+    check(`${name}: exact health damage`, after.hp === Math.max(0, before.hp - expectedLoss),
+      {before, after, expectedLoss}, `HP ${Math.max(0, before.hp - expectedLoss)}`);
+    check(`${name}: one actual bullet`, gunAfter.ammo === gunBefore.ammo - 1,
+      {before: gunBefore.ammo, after: gunAfter.ammo}, 'one bullet consumed');
+    if (after.alive) check(`${name}: exact armor damage`, after.armor === Math.max(0, before.armor - expectedArmorLoss),
+      {before: before.armor, after: after.armor}, `${expectedArmorLoss} armor lost`);
+    return after;
+  };
+  const setupPair = async (shooter, target, range) => {
+    await teleport(shooter, range);
+    await teleport(target, {...range, x: range.x + 2});
+    await sleep(250);
+  };
+  try {
+    for (const id of ids) await chat(id, '/hub', 80);
+    await sleep(6500);
+    const readyAt = chats.length;
+    for (const id of ids) await chat(id, '/pvp join mygo', 120);
+    await waitUntil(() => ids.every(id => packs[id] && chats.slice(readyAt).some(entry => entry.id === id
+      && entry.message.includes('MyGO 资源包加载成功'))), 25000, 'damage resource packs');
+    for (const id of ids) await chat(id, '/pvp join mygo', 80);
+    await chat('A', '/pvp start', 100);
+    await waitUntil(() => ids.every(id => bots[id].inventory.items().some(item => item.name === 'iron_pickaxe')),
+      30000, 'damage starting loadouts');
+    const opening = Object.fromEntries(await Promise.all(ids.map(async id => [id, await status(id)])));
+    const ts = ids.filter(id => opening[id].side === 'T'), cts = ids.filter(id => opening[id].side === 'CT');
+    check('damage match is balanced and funded normally', ts.length === 2 && cts.length === 2
+      && Object.values(opening).every(state => state.cash === 800 && state.hp === 100), opening, '$800; 100 HP; 2v2');
+    const [tGun, tTarget] = ts, [ctTarget, ctGun] = cts, range = opening[tGun].range;
+    await chat(ctTarget, '/pvp mygo buy vest', 100);
+    await select(tGun, 1); await select(ctGun, 1);
+    await freezeToLive(tGun);
+    await setupPair(tGun, ctTarget, range);
+    // At a two-block origin separation the near hitbox is 1.7 blocks away;
+    // tiny angle/spread differences stay safely within each integer interval.
+    await shoot(tGun, ctTarget, .4, 21, 'Glock armored legs');
+    await shoot(tGun, ctTarget, 1.1, 13, 'Glock armored chest', 8);
+    await shoot(tGun, ctTarget, .85, 17, 'Glock armored stomach', 10);
+    await shoot(tGun, ctTarget, 1.6, 117, 'Glock head without helmet');
+    await setupPair(ctGun, tTarget, range);
+    await shoot(ctGun, tTarget, 1.1, 34, 'USP-S unarmored chest');
+    await shoot(ctGun, tTarget, .4, 25, 'USP-S unarmored legs');
+    bots[tTarget].setControlState('sneak', true); await sleep(250);
+    // Near-face y~.617 is a standing leg but a crouched stomach: this proves
+    // hit regions follow the actual pose-sized bounding box.
+    await shoot(ctGun, tTarget, .44, 43, 'USP-S crouched unarmored stomach');
+    bots[tTarget].setControlState('sneak', false);
+    await setupPair(ctGun, tGun, range);
+    await shoot(ctGun, tGun, 1.6, 138, 'USP-S unarmored head');
+
+    // A normal CT elimination funds AK/M4 and helmets. No product money/HP hooks.
+    await nextBuy(tGun);
+    await chat(tGun, '/pvp mygo buy ak47', 100);
+    await chat(tTarget, '/pvp mygo buy helmet', 100);
+    await chat(ctGun, '/pvp mygo buy m4a4', 100);
+    await chat(ctGun, '/pvp mygo buy helmet', 100);
+    await chat(ctTarget, '/pvp mygo buy helmet', 100);
+    await select(tGun, 0); await select(ctGun, 0);
+    const equipment = await Promise.all(ids.map(id => status(id)));
+    check('round income funds AK-47, M4A4 and helmeted targets', equipment.some(state => state.gun === 'AK47')
+      && equipment.some(state => state.gun === 'M4A4')
+      && (await status(tTarget)).helmet && (await status(ctGun)).helmet && (await status(ctTarget)).helmet,
+      equipment, 'real purchased rifles and helmets');
+    await freezeToLive(tGun);
+    await setupPair(ctGun, tTarget, range);
+    const m4Target = await shoot(ctGun, tTarget, 1.6, 92, 'M4A4 helmeted head', 20);
+    check('M4A4 cannot one-shot a helmet', m4Target.alive && m4Target.hp === 8, m4Target, '8 HP alive');
+    await setupPair(tGun, ctGun, range);
+    const akTarget = await shoot(tGun, ctGun, 1.6, 111, 'AK-47 helmeted head');
+    check('AK-47 one-shots a helmet at close range', !akTarget.alive, akTarget, 'dead');
+    await setupPair(tGun, ctTarget, range);
+    await shoot(tGun, ctTarget, 1.1, 27, 'AK-47 armored chest', 5);
+    await shoot(tGun, ctTarget, .85, 34, 'AK-47 armored stomach', 6);
+    await shoot(tGun, ctTarget, .4, 26, 'AK-47 armored legs');
+    await shoot(tGun, ctTarget, 1.6, 111, 'AK-47 finishes helmeted opponent');
+    await nextBuy(tGun);
+    // Third-round timeout supplies the losing CT economy with enough cash for
+    // AWP; both teams retain their real weapons/armor according to game rules.
+    await freezeToLive(tGun);
+    await nextBuy(tGun);
+    await chat(ctTarget, '/pvp mygo buy awp', 120); await select(ctTarget, 0);
+    check('normal four-round economy funds AWP', (await status(ctTarget)).gun === 'AWP',
+      await status(ctTarget), 'AWP 5/30');
+    await freezeToLive(tGun);
+    await setupPair(ctTarget, tTarget, range);
+    await csgoScopeClick(ctTarget); await sleep(500);
+    const armorBeforeAwpLeg = (await status(tTarget)).armor;
+    const awpLeg = await shoot(ctTarget, tTarget, .4, 86, 'AWP armored legs');
+    check('AWP leg shot survives and ignores kevlar', awpLeg.alive && awpLeg.hp === 14 && awpLeg.armor === armorBeforeAwpLeg,
+      awpLeg, `14 HP; unchanged ${armorBeforeAwpLeg} armor`);
+    // The previous leg-shot target remains alive at 14 HP. Move it off the
+    // firing lane before placing a different enemy in the same test position.
+    await teleport(tTarget, {...range, z: range.z + 4});
+    await setupPair(ctTarget, tGun, range);
+    // Bolt-cycle auto-rescope is allowed to finish before the chest shot.
+    await sleep(1600);
+    const awpChest = await shoot(ctTarget, tGun, 1.1, 114, 'AWP unarmored chest');
+    check('AWP chest shot kills a full-health opponent', !awpChest.alive, awpChest, 'dead');
+    const results = assertions.slice(startAssertions);
+    const summary = {passed: results.filter(result => result.pass).length,
+      failed: results.filter(result => !result.pass).length, rounds: 4, fundedByNormalEconomy: true,
+      renderingVerified: false};
+    emit('damageRegressionComplete', summary);
+    return summary;
+  } finally {
+    if (rateChanged) await rate(20);
+    for (const id of ids) if (bots[id]._client.state === 'play') {
+      bots[id].setControlState('sneak', false);
+      await chat(id, '/hub', 100);
+    }
+  }
+}
+
 // Vanilla /tick is used only on the isolated test server. Rate changes are
 // restored even when an assertion fails; no product-only money or round hooks.
 async function csgoFastStatus(id) {
@@ -1318,6 +1460,7 @@ async function execute(command) {
     case 'csgo': return csgo();
     case 'csgoHalftime': return csgoHalftime();
     case 'inputRegression': return inputRegression();
+    case 'damageRegression': return damageRegression();
     case 'packMode': packMode[id] = command.value; return packMode[id];
     case 'packProcess': if (!packRequests[id]) throw new Error('No pack requested'); await handlePack(bot, packRequests[id]); return;
     case 'packReply': packStatus(bot, { uuid: command.uuid || packRequests[id]?.uuid }, command.result); return;

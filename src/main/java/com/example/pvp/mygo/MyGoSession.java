@@ -364,7 +364,7 @@ public final class MyGoSession implements PortedGameSession {
         if (!player.isOnGround()) spread += gun.type.pistol() ? 1.2 : gun.type.smg() ? 2.5 : gun.type.sniper() ? 7 : 4;
         if (player.isSprinting()) spread += gun.type.pistol() ? .7 : gun.type.smg() ? 1.4 : gun.type.sniper() ? 4 : 2.2;
         gun.heat = Math.min(1.6, gun.heat + .13); gun.lastShot = this.ticks; gun.sequence++;
-        Map<ServerPlayerEntity, Double> hits = new LinkedHashMap<>();
+        Map<ServerPlayerEntity, MyGoRules.Damage> hits = new LinkedHashMap<>();
         Set<UUID> headshots = new LinkedHashSet<>();
         for (int pellet = 0; pellet < gun.type.pellets(); pellet++) {
             Vec3d from = player.getEyePos();
@@ -396,11 +396,13 @@ public final class MyGoSession implements PortedGameSession {
             if (victim != null) {
                 Box box = victim.getBoundingBox();
                 double fraction = (hitPoint.y - box.minY) / box.getLengthY();
-                MyGoRules.Part part = fraction >= .75 ? MyGoRules.Part.HEAD : fraction <= .38 ? MyGoRules.Part.LEGS : MyGoRules.Part.BODY;
+                MyGoRules.Part part = MyGoRules.hitPart(fraction);
                 Fighter target = fighter(victim);
-                MyGoRules.Damage hit = MyGoRules.damageWithArmor(gun.type, Math.sqrt(nearest), part, target.armor, target.helmet);
-                consumeArmor(target, hit.armor());
-                hits.merge(victim, hit.health(), Double::sum);
+                MyGoRules.Damage previous = hits.getOrDefault(victim, new MyGoRules.Damage(0, 0));
+                // 一枪先累加弹丸并跟踪剩余护甲，最后统一取整；逐弹丸取整会改变霰弹枪伤害。
+                MyGoRules.Damage hit = MyGoRules.damageWithArmor(gun.type, Math.sqrt(nearest), part,
+                        Math.max(0, target.armor - previous.armor()), target.helmet);
+                hits.put(victim, new MyGoRules.Damage(previous.health() + hit.health(), previous.armor() + hit.armor()));
                 if (part == MyGoRules.Part.HEAD) headshots.add(victim.getUuid());
             } else if (block.getType() != net.minecraft.util.hit.HitResult.Type.MISS) {
                 this.match.arenaWorld().spawnParticles(ParticleTypes.SMOKE, end.x, end.y, end.z, 2, .03, .03, .03, .01);
@@ -411,11 +413,13 @@ public final class MyGoSession implements PortedGameSession {
         this.match.arenaWorld().spawnParticles(ParticleTypes.FLAME, muzzle.x, muzzle.y, muzzle.z, 1, .01, .01, .01, .005);
         for (var hit : hits.entrySet()) {
             boolean headshot = headshots.contains(hit.getKey().getUuid());
-            damage(hit.getKey(), player, hit.getValue(), gun.type.label + (headshot ? " 爆头" : ""), gun.type.killReward);
+            MyGoRules.Damage resolved = MyGoRules.roundBulletDamage(hit.getValue());
+            consumeArmor(fighter(hit.getKey()), resolved.armor());
+            damage(hit.getKey(), player, resolved.health(), gun.type.label + (headshot ? " 爆头" : ""), gun.type.killReward);
             sound(player, headshot ? "headshot" : "hit", .55F);
             f.feedbackUntil = this.ticks + 8;
             actionBar(player, (headshot ? "§6✦ 爆头 " : "§a✦ 命中 ")
-                    + String.format(Locale.ROOT, "%.1f", hit.getValue()));
+                    + String.format(Locale.ROOT, "%.0f", resolved.health()));
         }
         // 开枪只旋转视角，不能使用会改写玩家坐标及待确认传送位置的 requestTeleport。
         // 旧版把后坐力当传送执行，曾将玩家移出竞技场并触发“离开战场”阵亡。
@@ -443,9 +447,12 @@ public final class MyGoSession implements PortedGameSession {
         damage(victim, attacker, amount, reason, 300);
     }
     private void consumeArmor(Fighter f, double used) {
-        f.armor = Math.max(0, f.armor - used); f.vest = f.armor > 0;
+        f.armor = Math.max(0, Math.floor(f.armor - used)); f.vest = f.armor > 0;
+        if (!f.vest) f.helmet = false;
     }
     private void damage(ServerPlayerEntity victim, ServerPlayerEntity attacker, double amount, String reason, int killReward) {
+        // CS:GO 的生命伤害为整数；HE/刀也经过此处，防止它们留下影响下一枪击杀的小数 HP。
+        amount = Math.floor(amount);
         Fighter f = fighter(victim);
         if (f == null || !f.alive || !combatPhase() || amount <= 0) return;
         Fighter source = attacker == null ? null : fighter(attacker);
@@ -731,7 +738,9 @@ public final class MyGoSession implements PortedGameSession {
                 icon.set(DataComponentTypes.CUSTOM_NAME, Text.literal((allowed ? "§e" : "§c") + weapon.label + " · $" + weapon.price));
                 icon.set(DataComponentTypes.LORE, new LoreComponent(List.of(
                         Text.literal("§7" + weapon.category() + " · " + weapon.magazine + " 发 · 换弹 " + weapon.reloadTicks / 20.0 + " 秒"),
-                        Text.literal("§7基础伤害 " + weapon.damage + (weapon.pellets() > 1 ? " × " + weapon.pellets() : "") + " · 穿甲 " + (int) (weapon.penetration * 100) + "%"),
+                        Text.literal("§7基础伤害 " + weapon.damage + (weapon.pellets() > 1 ? " × " + weapon.pellets() : "")
+                                + " · 穿甲 " + String.format(Locale.ROOT, "%.2f%%", weapon.penetration * 100)),
+                        Text.literal("§7部位倍率：头 " + weapon.headshotMultiplier + " · 胸 1 · 腹 1.25 · 腿 0.75"),
                         Text.literal(!allowed ? "§c本阵营不可购买" : "§a点击购买 · 击杀奖励 $" + weapon.killReward))));
                 this.inventory.setStack(slot, icon); this.products.put(slot, weapon.name().toLowerCase(Locale.ROOT));
             }

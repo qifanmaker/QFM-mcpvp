@@ -1,12 +1,16 @@
 {
-  "basis": "Counter-Strike: Global Offensive, final pre-CS2 balance; public shipped item attributes with later Valve patch overrides.",
+  "basis": "Counter-Strike: Global Offensive, final pre-CS2 damage balance; independently checked against the shipped legacy CS:GO item attributes retained in the e63fc7f snapshot.",
   "sources": [
+    "https://raw.githubusercontent.com/SteamTracking/GameTracking-CS2/e63fc7fdb8dfb4f1873f0db214c0cc16613d5beb/csgo/scripts/items/items_game.txt",
+    "https://raw.githubusercontent.com/SteamTracking/GameTracking-CS2/e63fc7fdb8dfb4f1873f0db214c0cc16613d5beb/csgo/steam.inf",
     "https://raw.githubusercontent.com/SteamTracking/GameTracking-CS2/a894465/csgo/scripts/items/items_game.txt",
     "https://blog.counter-strike.net/2022/06/38542/",
     "https://blog.counter-strike.net/2022/11/40472/"
   ],
   "notes": [
     "Values are resolved through prefab inheritance, not outdated weapon script defaults.",
+    "Independent 2026-10-25 audit: all 34 weapons match the e63fc7f shipped damage, headshot multiplier, armor ratio, range modifier, bullets and range attributes (204 comparisons, zero differences).",
+    "Audit source items_game.txt: 6562804 bytes, SHA-256 469cf0ef8a2c53503f0845b60d3c0dc576625dfbbfb9aff885ee8282b45beaec; legacy CS:GO steam.inf reports PatchVersion 1.38.7.9 and VersionDate Jun 05 2023.",
     "M4A1-S magazine/reserve updated by 2022-06-15; AWP magazine and M4A1-S range modifier updated by 2022-11-18.",
     "Reload animation timings and Minecraft spread/recoil adaptations are intentionally not claimed as item attributes."
   ],

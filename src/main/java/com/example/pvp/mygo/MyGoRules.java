@@ -21,7 +21,7 @@ public final class MyGoRules {
     public static final int MAX_MONEY = 16000;
     public static final int START_LOSS_LEVEL = 1;
 
-    public enum Part { HEAD, BODY, LEGS }
+    public enum Part { HEAD, BODY, STOMACH, LEGS }
     public enum Outcome { ATTACKERS, DEFENDERS }
     public enum WinCause {
         ELIMINATION, TIMEOUT, BOMB_EXPLODED, BOMB_DEFUSED
@@ -31,14 +31,34 @@ public final class MyGoRules {
     private MyGoRules() { }
 
     public static double damage(MyGoWeapon gun, double distance, Part part, boolean vest, boolean helmet) {
-        return damageWithArmor(gun, distance, part, vest ? 100 : 0, helmet).health();
+        return roundBulletDamage(damageWithArmor(gun, distance, part, vest ? 100 : 0, helmet)).health();
     }
 
-    /** 护甲伤害比例与护甲消耗独立计算；甲耗尽后剩余伤害继续扣血，不提供无限减伤。 */
+    /**
+     * 原版腹部为 1.25 倍，胸/臂为 1 倍，腿为 .75 倍；不能把整个躯干当成胸部。
+     * 此处保留中间精度，霰弹同一枪的弹丸累加后才进入整数生命/护甲结算。
+     */
     public static Damage damageWithArmor(MyGoWeapon gun, double distance, Part part, double armor, boolean helmet) {
         double raw = gun.damage * gun.distanceMultiplier(distance)
-                * (part == Part.HEAD ? gun.headshotMultiplier : part == Part.LEGS ? .75 : 1);
-        return protect(raw, gun.penetration, armor, part == Part.HEAD ? helmet : part == Part.BODY);
+                * switch (part) {
+                    case HEAD -> gun.headshotMultiplier;
+                    case STOMACH -> 1.25;
+                    case LEGS -> .75;
+                    case BODY -> 1;
+                };
+        return protect(raw, gun.penetration, armor, part == Part.HEAD ? helmet : part != Part.LEGS);
+    }
+
+    /** Minecraft 碰撞盒分区随站立/潜行高度缩放；胸和胳膊使用相同伤害倍率。 */
+    public static Part hitPart(double heightFraction) {
+        if (heightFraction >= .75) return Part.HEAD;
+        if (heightFraction <= .38) return Part.LEGS;
+        return heightFraction < .55 ? Part.STOMACH : Part.BODY;
+    }
+
+    /** CS:GO 舍弃最终生命伤害的小数，整数护甲则扣掉向上取整的消耗。 */
+    public static Damage roundBulletDamage(Damage damage) {
+        return new Damage(Math.floor(damage.health()), Math.ceil(damage.armor()));
     }
 
     public static Damage protect(double raw, double healthRatio, double armor, boolean protectedPart) {

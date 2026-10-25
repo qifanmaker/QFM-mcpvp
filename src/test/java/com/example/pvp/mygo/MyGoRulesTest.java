@@ -6,12 +6,51 @@ import static org.junit.jupiter.api.Assertions.*;
 /** 经典经济必须覆盖首轮败补、胜后降档、半场边界、残甲和安拆压线，不能仅验证常量本身。 */
 final class MyGoRulesTest {
     @Test void helmetsPreserveAkAndM4OneShotThresholdsAndLegsIgnoreArmor() {
-        assertEquals(111.6, MyGoRules.damage(MyGoWeapon.AK47, 0, MyGoRules.Part.HEAD, true, true), 1e-9);
-        assertEquals(92.4, MyGoRules.damage(MyGoWeapon.M4A4, 0, MyGoRules.Part.HEAD, true, true), 1e-9);
-        assertEquals(112.125, MyGoRules.damage(MyGoWeapon.AWP, 0, MyGoRules.Part.BODY, true, true), 1e-9);
-        assertEquals(86.25, MyGoRules.damage(MyGoWeapon.AWP, 0, MyGoRules.Part.LEGS, true, true), 1e-9);
-        assertEquals(86.25, MyGoRules.damage(MyGoWeapon.AWP, 0, MyGoRules.Part.LEGS, false, false), 1e-9);
-        assertEquals(38 * 3.475 * .7, MyGoRules.damage(MyGoWeapon.M4A1S, 0, MyGoRules.Part.HEAD, true, true), 1e-9);
+        assertEquals(111, MyGoRules.damage(MyGoWeapon.AK47, 0, MyGoRules.Part.HEAD, true, true));
+        assertEquals(92, MyGoRules.damage(MyGoWeapon.M4A4, 0, MyGoRules.Part.HEAD, true, true));
+        assertEquals(112, MyGoRules.damage(MyGoWeapon.AWP, 0, MyGoRules.Part.BODY, true, true));
+        assertEquals(86, MyGoRules.damage(MyGoWeapon.AWP, 0, MyGoRules.Part.LEGS, true, true));
+        assertEquals(86, MyGoRules.damage(MyGoWeapon.AWP, 0, MyGoRules.Part.LEGS, false, false));
+        assertEquals(92, MyGoRules.damage(MyGoWeapon.M4A1S, 0, MyGoRules.Part.HEAD, true, true));
+    }
+
+    @Test void stomachHasItsOwnMultiplierAndIsProtectedByTheVest() {
+        assertEquals(45, MyGoRules.damage(MyGoWeapon.AK47, 0, MyGoRules.Part.STOMACH, false, false));
+        assertEquals(34, MyGoRules.damage(MyGoWeapon.AK47, 0, MyGoRules.Part.STOMACH, true, false));
+        assertEquals(41, MyGoRules.damage(MyGoWeapon.M4A4, 0, MyGoRules.Part.STOMACH, false, false));
+        assertEquals(28, MyGoRules.damage(MyGoWeapon.M4A4, 0, MyGoRules.Part.STOMACH, true, true));
+        assertEquals(140, MyGoRules.damage(MyGoWeapon.AWP, 0, MyGoRules.Part.STOMACH, true, true));
+    }
+
+    @Test void hitRegionsIncludeTheBellyForBothStandingAndCrouchedBounds() {
+        for (double height : new double[]{1.8, 1.5}) {
+            assertEquals(MyGoRules.Part.LEGS, MyGoRules.hitPart((height * .25) / height));
+            assertEquals(MyGoRules.Part.STOMACH, MyGoRules.hitPart((height * .47) / height));
+            assertEquals(MyGoRules.Part.BODY, MyGoRules.hitPart((height * .65) / height));
+            assertEquals(MyGoRules.Part.HEAD, MyGoRules.hitPart((height * .9) / height));
+        }
+        assertEquals(MyGoRules.Part.LEGS, MyGoRules.hitPart(.38));
+        assertEquals(MyGoRules.Part.BODY, MyGoRules.hitPart(.55));
+        assertEquals(MyGoRules.Part.HEAD, MyGoRules.hitPart(.75));
+    }
+
+    @Test void bulletHealthRoundsDownButArmorLossRoundsUpAfterRangeAndHitgroup() {
+        var ak = MyGoRules.roundBulletDamage(MyGoRules.damageWithArmor(MyGoWeapon.AK47, 0, MyGoRules.Part.BODY, 100, true));
+        assertEquals(new MyGoRules.Damage(27, 5), ak);
+        var glock = MyGoRules.roundBulletDamage(MyGoRules.damageWithArmor(MyGoWeapon.GLOCK,
+                4000 / MyGoWeapon.SOURCE_UNITS_PER_BLOCK, MyGoRules.Part.BODY, 100, true));
+        assertEquals(new MyGoRules.Damage(3, 3), glock);
+        assertEquals(33, MyGoRules.damage(MyGoWeapon.AK47,
+                700 / MyGoWeapon.SOURCE_UNITS_PER_BLOCK, MyGoRules.Part.STOMACH, true, true));
+    }
+
+    @Test void fractionalPelletsKeepIntermediatePrecisionAndExhaustArmorBeforeRounding() {
+        var first = MyGoRules.damageWithArmor(MyGoWeapon.NOVA, 0, MyGoRules.Part.BODY, 7, true);
+        var second = MyGoRules.damageWithArmor(MyGoWeapon.NOVA, 0, MyGoRules.Part.BODY, 7 - first.armor(), true);
+        assertEquals(new MyGoRules.Damage(38, 7), MyGoRules.roundBulletDamage(
+                new MyGoRules.Damage(first.health() + second.health(), first.armor() + second.armor())));
+        // 1.8 + 1.8 必须先累加为 3.6 再取 3，不能两次取整而变成 2。
+        assertEquals(new MyGoRules.Damage(3, 1), MyGoRules.roundBulletDamage(new MyGoRules.Damage(1.8 + 1.8, .4 + .4)));
     }
 
     @Test void armorIsConsumedAndLowArmorCannotGrantAnInfiniteReduction() {
