@@ -137,12 +137,12 @@
 
 资源包的 34 枪轮廓、材质、开火/换弹姿态及声音为本项目原创 MIT 资源，新增脚步/投掷环境音也是原创单声道合成；见 ZIP 内 `MYGO_ASSETS_LICENSE.txt` 与 `MYGO_ASSETS_source.json`，不包含 Valve 游戏模型、贴图或原版声音。[Valve 公开政策](https://store.steampowered.com/video_policy)不允许拆出游戏资产单独分发，因此没有从网络音效包复制原声。已有合法音源可通过生成器的 `--authorized-audio-dir` 与 `--audio-license-file` 导入，生成器校验单声道 OGG 并记录来源声明。旧 Weapon Pack / CS4M 参考的历史来源与许可仍保留在仓库。物品贴图均放在 `textures/item/mygo/`，使用原版图集与 CustomModelData，无需 OptiFine。
 
-默认下载地址为 `https://qfmaker.com/upload/files/lf192hqd.zip`。资源包仍随 Mod 打包并导出至 `config/pvp/mygo/`，客户端直接访问下载站。配置版本 5 自动迁移上一版默认 uxv5wsbc 以及更旧配置中的默认 wmcvlnck / 5df4ab7h / zevadwr3 地址，保留自定义地址和显式本地 HTTP。更换托管地址时必须上传导出的同一 ZIP；修改后重启。
+默认下载地址为 `https://qfmaker.com/upload/files/nyiz2u77.zip`。资源包仍随 Mod 打包并导出至 `config/pvp/mygo/`，客户端直接访问下载站。配置版本 6 会迁移旧默认 lf192hqd、uxv5wsbc 以及更旧配置中的 wmcvlnck / 5df4ab7h / zevadwr3 地址，保留自定义地址和显式本地 HTTP。更换托管地址时必须上传导出的同一 ZIP；修改后重启。
 
 ```json
 {
-  "configVersion": 5,
-  "packUrl": "https://qfmaker.com/upload/files/lf192hqd.zip",
+  "configVersion": 6,
+  "packUrl": "https://qfmaker.com/upload/files/nyiz2u77.zip",
   "bindAddress": "0.0.0.0",
   "httpPort": 25566,
   "advertisedHost": "",
