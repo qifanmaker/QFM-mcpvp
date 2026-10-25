@@ -41,7 +41,8 @@ import java.util.function.Consumer;
  * 所有状态在服务器线程管理，退包仅指定 MyGO UUID，不影响服务器已有的其他资源包。
  */
 public final class MyGoResourcePack {
-    static final String DEFAULT_PACK_URL = "https://qfmaker.com/upload/files/uxv5wsbc.zip";
+    static final String DEFAULT_PACK_URL = "https://qfmaker.com/upload/files/lf192hqd.zip";
+    private static final String CLASSIC_PACK_URL = "https://qfmaker.com/upload/files/uxv5wsbc.zip";
     private static final String TEXTURE_FIX_PACK_URL = "https://qfmaker.com/upload/files/zevadwr3.zip";
     private static final String PREVIOUS_PACK_URL = "https://qfmaker.com/upload/files/5df4ab7h.zip";
     private static final String ORIGINAL_PACK_URL = "https://qfmaker.com/upload/files/wmcvlnck.zip";
@@ -305,13 +306,15 @@ public final class MyGoResourcePack {
         int loadTimeoutSeconds = 120;
 
         boolean migrate() {
-            if (configVersion >= 4) return false;
-            // 新版34枪与旧资源模型编号不同，升级已知旧默认CDN；显式本地HTTP和自定义CDN仍保留。
-            if ((configVersion < 1 && packUrl.isBlank()) || PREVIOUS_PACK_URL.equals(packUrl)
-                    || ORIGINAL_PACK_URL.equals(packUrl) || TEXTURE_FIX_PACK_URL.equals(packUrl)) {
+            if (configVersion >= 5) return false;
+            // 新脚步/投掷音效需要新版 ZIP，旧34枪默认地址必须与内置 SHA-1 一起升级。
+            // 显式本地 HTTP、自定义 CDN 以及第4版起自行指定的历史资源地址继续保留。
+            if ((configVersion < 1 && packUrl.isBlank()) || CLASSIC_PACK_URL.equals(packUrl)
+                    || configVersion < 4 && (PREVIOUS_PACK_URL.equals(packUrl)
+                    || ORIGINAL_PACK_URL.equals(packUrl) || TEXTURE_FIX_PACK_URL.equals(packUrl))) {
                 packUrl = DEFAULT_PACK_URL;
             }
-            configVersion = 4;
+            configVersion = 5;
             return true;
         }
 

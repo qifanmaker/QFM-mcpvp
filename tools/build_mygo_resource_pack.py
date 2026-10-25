@@ -4,12 +4,13 @@
 The original PUBG-themed imports do not match the CS:GO arsenal. All 34 gun
 silhouettes, materials, poses, utilities, scope and synthetic sounds are now
 authored here under this repository's MIT license; no Valve game assets are
-redistributed. Requires Python 3 and ffmpeg.
+redistributed. Requires Python 3 and ffmpeg (also ffprobe for optional licensed audio overrides).
 Run from any directory. The committed ZIP is the runtime input, so server builds
 do not require Python or ffmpeg. ZIP timestamps are fixed for reproducible SHA-1.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import math
@@ -32,6 +33,35 @@ GUN_NAMES = ("glock usp_s p2000 p250 fiveseven tec9 cz75 duals deagle revolver "
 # 71006 is the knife and 71010 the scope icon. Keep this sequence aligned with
 # MyGoWeapon; selectors and all animation offsets are checked against the enum.
 GUN_MODELS = dict(zip(GUN_NAMES, (value for value in range(71001, 71037) if value not in (71006, 71010))))
+
+# Reason: Minecraft's locally predicted block steps would overlap the server's
+# positional MyGO footsteps. Audit against 1.21.1 sounds.json, asset SHA-1
+# 09eab141cce7550f9a74c65db0e9abbb342cf50f; silence only movement events while
+# this optional pack is active, leaving block hits/breaks/placements untouched.
+VANILLA_STEP_MATERIALS = ("amethyst_block amethyst_cluster ancient_debris anvil azalea azalea_leaves "
+    "bamboo bamboo_wood bamboo_wood_hanging_sign basalt big_dripleaf bone_block calcite candle cave_vines "
+    "chain cherry_leaves cherry_sapling cherry_wood cherry_wood_hanging_sign chiseled_bookshelf cobweb copper "
+    "copper_bulb copper_grate coral_block decorated_pot deepslate deepslate_bricks deepslate_tiles dripstone_block "
+    "flowering_azalea froglight frogspawn fungus gilded_blackstone glass grass gravel hanging_roots hanging_sign "
+    "heavy_core honey_block ladder lantern lodestone mangrove_roots metal moss moss_carpet mud mud_bricks "
+    "muddy_mangrove_roots nether_bricks nether_gold_ore nether_ore nether_sprouts nether_wood "
+    "nether_wood_hanging_sign netherite_block netherrack nylium packed_mud pink_petals pointed_dripstone "
+    "polished_deepslate polished_tuff powder_snow rooted_dirt roots sand scaffolding sculk sculk_catalyst "
+    "sculk_sensor sculk_shrieker sculk_vein shroomlight slime_block small_dripleaf snow soul_sand soul_soil "
+    "spawner sponge spore_blossom stem stone suspicious_gravel suspicious_sand trial_spawner tuff tuff_bricks "
+    "vault vine wart_block weeping_vines wet_grass wet_sponge wood wool").split()
+SURFACES = ("stone", "metal", "wood", "dirt", "water")
+ENVIRONMENT_EVENTS = {
+    **{"step." + surface: (4, .23 if surface != "metal" else .29, 16) for surface in SURFACES},
+    **{"land." + surface: (2, .39 if surface != "metal" else .48, 20) for surface in SURFACES},
+    "grenade.pin": (1, .24, 12),
+    "grenade.bounce.hard": (3, .18, 24),
+    "grenade.bounce.metal": (3, .28, 24),
+    "grenade.bounce.soft": (3, .17, 20),
+    "smoke.end": (1, .8, 24),
+    "jump": (2, .16, 12),
+    "equip": (2, .23, 12),
+}
 
 
 def write_json(path: str, data: dict) -> None:
@@ -452,6 +482,108 @@ def normalize_ogg_serial(path: Path, serial: int):
     path.write_bytes(data)
 
 
+def movement_and_utility_samples(name: str, duration: float, seed: int, rate: int = 22050):
+    """Original boot/gear/material Foley, never sampled from another game's audio.
+
+    Layers use short heel/toe transients, filtered grit and damped material
+    resonances. Distinct deterministic variants avoid repeating one identical
+    footstep, and mono preserves Minecraft's positional panning/attenuation.
+    """
+    rng = random.Random(seed)
+    slow = smooth = 0.0
+    variant = rng.uniform(.93, 1.07)
+    result = []
+    for i in range(round(duration * rate)):
+        t = i / rate
+        noise = rng.uniform(-1, 1)
+        slow = slow * .88 + noise * .12
+        smooth = smooth * .35 + noise * .65
+        grit = smooth - slow
+        attack = 1 - math.exp(-t * 2800)
+        if name.startswith(("step.", "land.")):
+            kind, surface = name.split(".")
+            landing = kind == "land"
+            impact = math.exp(-t * (31 if landing else 47))
+            toe_time = .046 if surface == "water" else .027
+            toe = math.exp(-(t - toe_time) * 65) if t >= toe_time else 0
+            frequency = {"stone": 102, "metal": 122, "wood": 155, "dirt": 82, "water": 78}[surface] * variant
+            body = math.sin(2 * math.pi * (frequency * t - 24 * t * t))
+            value = (.44 * body + .36 * grit) * impact + .21 * grit * toe
+            value += slow * math.exp(-t * 17) * .14  # short cloth/sole scuff
+            if surface == "metal":
+                value += sum(.10 * math.sin(2 * math.pi * f * variant * t)
+                             * math.exp(-t * d) for f, d in [(710, 16), (1190, 22), (1780, 31)])
+            elif surface == "wood":
+                value += sum(.13 * math.sin(2 * math.pi * f * variant * t)
+                             * math.exp(-t * d) for f, d in [(230, 27), (470, 33), (820, 42)])
+            elif surface == "dirt":
+                value = .75 * value + .55 * slow * math.exp(-t * 23)
+                value += .19 * grit * math.exp(-((t - .055) / .045) ** 2)
+            elif surface == "water":
+                value = .4 * value + .65 * slow * math.exp(-t * 15)
+                value += .22 * grit * math.exp(-((t - .045) / .035) ** 2)
+                value += .08 * math.sin(2 * math.pi * (900 * t + 600 * t * t)) * math.exp(-t * 20)
+            if landing:
+                value = value * 1.2 + .24 * math.sin(2 * math.pi * 58 * t) * math.exp(-t * 18)
+                value += .16 * grit * math.exp(-((t - .10) / .045) ** 2)
+        elif name == "grenade.pin":
+            value = 0.0
+            for start, amount in [(0, .55), (.065, .35), (.14, .2)]:
+                if t >= start:
+                    age = t - start
+                    value += amount * (grit + .45 * math.sin(2 * math.pi * 1560 * age)) * math.exp(-age * 95)
+            value += .10 * smooth * math.exp(-((t - .05) / .035) ** 2)
+        elif name.startswith("grenade.bounce."):
+            material = name.rsplit(".", 1)[1]
+            value = (.45 * grit + .40 * math.sin(2 * math.pi * 245 * variant * t)) * math.exp(-t * 62)
+            if material == "metal":
+                value += .19 * math.sin(2 * math.pi * 1420 * variant * t) * math.exp(-t * 20)
+                value += .10 * math.sin(2 * math.pi * 2350 * variant * t) * math.exp(-t * 30)
+            elif material == "soft":
+                value = .42 * value + .60 * slow * math.exp(-t * 39)
+        elif name == "throw":
+            value = .55 * grit * math.exp(-((t - .055) / .035) ** 2)
+            value += .20 * slow * math.exp(-t * 20)
+        elif name == "explode":
+            value = .75 * slow * math.exp(-t * 3.8) + .33 * grit * math.exp(-t * 24)
+            value += .5 * math.sin(2 * math.pi * (52 * t - 7 * t * t)) * math.exp(-t * 6)
+            value += .11 * smooth * math.exp(-((t - .105) / .07) ** 2)
+        elif name == "flash":
+            value = .65 * grit * math.exp(-t * 45) + .24 * slow * math.exp(-t * 15)
+            value += .14 * math.sin(2 * math.pi * 3100 * t) * math.exp(-t * 8)
+        elif name in ("smoke", "smoke.end"):
+            ending = name.endswith(".end")
+            envelope = math.sin(min(1, t / .06) * math.pi / 2) * (1 - t / duration) ** (1.1 if ending else .6)
+            value = (.38 * grit + .35 * slow) * envelope
+            if not ending:
+                value += .24 * grit * math.exp(-t * 50)
+        elif name in ("jump", "equip"):
+            value = .27 * grit * math.exp(-((t - .04) / .035) ** 2)
+            value += .18 * slow * math.exp(-t * 17)
+            if name == "equip":
+                for start in [.018, .09, .17]:
+                    if t >= start:
+                        age = t - start
+                        value += .19 * (grit + .45 * math.sin(2 * math.pi * 1180 * age)) * math.exp(-age * 85)
+        else:
+            raise ValueError("Unknown Foley recipe: " + name)
+        fade = min(1, max(0, (duration - t) / .015))
+        result.append(struct.pack("<h", int(max(-.98, min(.98, value * attack * fade)) * 30000)))
+    return b"".join(result)
+
+
+def encode_original_audio(wav_path: Path, output: Path, samples: bytes, serial: int, rate: int = 22050):
+    with wave.open(str(wav_path), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(rate)
+        wav.writeframes(samples)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(wav_path),
+                    "-map_metadata", "-1", "-c:a", "libvorbis", "-q:a", "3", str(output)], check=True)
+    normalize_ogg_serial(output, serial)
+
+
 def build_sounds():
     if shutil.which("ffmpeg") is None:
         raise SystemExit("ffmpeg is required to encode original OGG sounds")
@@ -482,19 +614,59 @@ def build_sounds():
                         value += previous * math.exp(-t * 1.8) * 0.65
                 samples.append(struct.pack("<h", int(max(-1, min(1, value)) * 30000)))
             wav_path = Path(temp) / (name + ".wav")
-            with wave.open(str(wav_path), "wb") as wav:
-                wav.setnchannels(1)
-                wav.setsampwidth(2)
-                wav.setframerate(rate)
-                wav.writeframes(b"".join(samples))
+            audio = movement_and_utility_samples(name, duration, 1300 + index) if name in {
+                "throw", "explode", "flash", "smoke"} else b"".join(samples)
             output = STAGING / f"assets/pvp/sounds/mygo/{name}.ogg"
-            output.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(wav_path),
-                            "-map_metadata", "-1", "-c:a", "libvorbis", "-q:a", "3", str(output)], check=True)
-            normalize_ogg_serial(output, 71001 + index)
+            encode_original_audio(wav_path, output, audio, 71001 + index)
             sound_json["mygo." + name] = {"sounds": [{"name": "pvp:mygo/" + name,
                                                        "attenuation_distance": 40 if name in ("ak47", "awp", "explode") else 24}]}
+        for index, (name, (variants, duration, distance)) in enumerate(ENVIRONMENT_EVENTS.items()):
+            choices = []
+            for variant in range(variants):
+                filename = name.replace(".", "/") + "_" + str(variant + 1)
+                audio = movement_and_utility_samples(name, duration, 1900 + index * 8 + variant)
+                encode_original_audio(Path(temp) / "foley.wav", STAGING / f"assets/pvp/sounds/mygo/{filename}.ogg",
+                                      audio, 74001 + index * 8 + variant)
+                choices.append({"name": "pvp:mygo/" + filename, "attenuation_distance": distance})
+            sound_json["mygo." + name] = {"sounds": choices}
     write_json("assets/pvp/sounds.json", sound_json)
+    muted = {"block." + material + ".step" for material in VANILLA_STEP_MATERIALS}
+    muted.update("entity." + kind + "." + action for kind in ("player", "generic")
+                 for action in ("swim", "splash", "small_fall", "big_fall"))
+    muted.add("entity.player.splash.high_speed")
+    write_json("assets/minecraft/sounds.json", {name: {"replace": True, "sounds": []} for name in sorted(muted)})
+
+
+def authorized_audio_overrides(directory: Path | None, license_file: Path | None) -> list[str]:
+    """Optional local input for audio the operator already has rights to distribute.
+
+    Paths are relative to assets/pvp/sounds/mygo (e.g. glock.ogg or
+    step/stone_1.ogg); no asset is downloaded or extracted from another game.
+    A supplied license/attribution file is included verbatim with the pack.
+    """
+    if directory is None:
+        return []
+    if not directory.is_dir() or license_file is None or not license_file.is_file():
+        raise SystemExit("--authorized-audio-dir requires a directory and --audio-license-file containing redistribution terms/credits")
+    sounds = json.loads((STAGING / "assets/pvp/sounds.json").read_text())
+    imported = []
+    for event in sounds.values():
+        for sound in event["sounds"]:
+            relative = sound["name"].removeprefix("pvp:mygo/") + ".ogg"
+            source = directory / relative
+            if not source.is_file():
+                continue
+            info = json.loads(subprocess.check_output(["ffprobe", "-v", "error", "-select_streams", "a:0",
+                "-show_entries", "stream=codec_name,channels,sample_rate", "-of", "json", str(source)]))
+            stream = info.get("streams", [{}])[0]
+            if stream.get("codec_name") != "vorbis" or stream.get("channels") != 1 or int(stream.get("sample_rate", 0)) not in (22050, 44100, 48000):
+                raise SystemExit("Positional imported audio must be mono Ogg Vorbis: " + str(source))
+            shutil.copyfile(source, STAGING / "assets/pvp/sounds/mygo" / relative)
+            imported.append(relative)
+    if not imported:
+        raise SystemExit("No recognized .ogg files found in --authorized-audio-dir")
+    shutil.copyfile(license_file, STAGING / "MYGO_IMPORTED_AUDIO_LICENSE.txt")
+    return sorted(imported)
 
 
 def preview():
@@ -532,19 +704,35 @@ def preview():
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--authorized-audio-dir", type=Path,
+                        help="Optional already-licensed mono OGGs, relative to sounds/mygo; never downloads game assets")
+    parser.add_argument("--audio-license-file", type=Path,
+                        help="Redistribution license and attribution text for the optional audio overrides")
+    args = parser.parse_args()
+    if args.audio_license_file and not args.authorized_audio_dir:
+        parser.error("--audio-license-file requires --authorized-audio-dir")
     if STAGING.exists():
         shutil.rmtree(STAGING)
     STAGING.mkdir(parents=True)
     write_json("pack.mcmeta", {"pack": {"pack_format": 34,
-               "description": "MyGO CS:GO Arsenal | 34 original MIT gun models, utilities and scope | 1.21.1"}})
+               "description": "MyGO CS-style Arsenal | 34 guns, utilities, surface footsteps and scope | 1.21.1"}})
     build_visuals()
     build_sounds()
+    imported_audio = authorized_audio_overrides(args.authorized_audio_dir, args.audio_license_file)
     shutil.copyfile(ROOT / "LICENSE", STAGING / "MYGO_ASSETS_LICENSE.txt")
     write_json("MYGO_ASSETS_source.json", {
-        "license": "MIT", "author": "qifan_maker", "kind": "original procedural assets",
-        "generator": "tools/build_mygo_resource_pack.py", "valve_assets_included": False,
+        "license": "MIT", "author": "qifan_maker", "kind": "original procedural assets with separately licensed audio overrides" if imported_audio else "original procedural assets",
+        "generator": "tools/build_mygo_resource_pack.py", "valve_assets_included": None if imported_audio else False,
         "weapons": [{"name": name, "model": model, "sound": "mygo." + name} for name, model in GUN_MODELS.items()],
         "materials": list(MATERIALS), "poses": ["base", "fire", "reload"],
+        "audio": {"generated_license": "MIT", "style": "original synthesized boot, material and utility Foley",
+                  "events": ["mygo." + name for name in [*SOUNDS, *ENVIRONMENT_EVENTS]],
+                  "surface_groups": list(SURFACES), "step_variants_per_surface": 4, "landing_variants_per_surface": 2,
+                  "operator_supplied_files": imported_audio,
+                  "operator_supplied_license": "MYGO_IMPORTED_AUDIO_LICENSE.txt" if imported_audio else None,
+                  "valve_audio_policy": "https://store.steampowered.com/video_policy",
+                  "rights_note": "No original Valve sound assets are downloaded or redistributed by the default generator. Optional overrides require the operator's own redistribution rights."},
     })
     OUTPUT.mkdir(parents=True, exist_ok=True)
     destination = OUTPUT / "mygo-pack.zip"
@@ -556,7 +744,11 @@ def main():
                 archive.writestr(info, source.read_bytes())
     sha1 = hashlib.sha1(destination.read_bytes()).hexdigest()
     (OUTPUT / "mygo-pack.sha1").write_text(sha1 + "\n")
+    delivery = ROOT / "dist/mygo-csgo-utilities-sound-resource-pack.zip"
+    delivery.parent.mkdir(exist_ok=True)
+    shutil.copyfile(destination, delivery)
     print(f"Created {destination} ({destination.stat().st_size:,} bytes), SHA-1 {sha1}")
+    print(f"Manual-upload copy: {delivery}")
     preview()
 
 

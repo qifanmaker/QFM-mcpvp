@@ -17,7 +17,7 @@ const port = Number(process.env.MYGO_TEST_PORT || 25575);
 if (port === 25565 || !path.basename(runDir).includes('mygo')) throw new Error('Use an isolated MyGO test directory and port.');
 fs.mkdirSync(runDir, { recursive: true });
 const logfile = path.join(runDir, 'protocol-results.jsonl');
-const bots = {}, packMode = {}, packs = {}, packRequests = {}, assertions = [], chats = [], healthEvents = [], recoils = {}, abilities = {}, hud = [];
+const bots = {}, packMode = {}, packs = {}, packRequests = {}, assertions = [], chats = [], healthEvents = [], recoils = {}, abilities = {}, hud = [], soundEvents = [], effectEvents = [];
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const stringify = value => JSON.stringify(value, (_, entry) => typeof entry === 'bigint' ? entry.toString() : entry);
 function emit(event, detail = {}) {
@@ -90,6 +90,12 @@ function connect(id) {
   let authoritativePosition;
   const originalWrite = bot._client.write.bind(bot._client);
   bot._client.write = (name, packet) => {
+    // Footstep probes opt into ordinary client physics/position replies. Keep
+    // the last position current before returning to stationary protocol cases.
+    if (bot.testAllowMovement && (name === 'position' || name === 'position_look')) {
+      authoritativePosition = new Vec3(packet.x, packet.y, packet.z);
+      return originalWrite(name, packet);
+    }
     if (authoritativePosition && (name === 'position' || name === 'position_look')) {
       if (bot.entity) { bot.entity.position.set(authoritativePosition.x, authoritativePosition.y, authoritativePosition.z); bot.entity.onGround = true; }
       // No walking is part of these scenarios. Acknowledge teleports through
@@ -132,6 +138,17 @@ function connect(id) {
   bot._client.on('remove_resource_pack', packet => { delete packs[id]; emit('packRemoved', { id, ...packet }); });
   bot._client.on('system_chat', packet => { if (packet.isActionBar) { const row = {id,raw:stringify(packet.content),at:Date.now()}; hud.push(row); emit('actionBar',row); } });
   bot._client.on('abilities', packet => { abilities[id] = packet; emit('abilities', {id, packet}); });
+  bot._client.on('sound_effect', packet => {
+    const name = packet.sound?.data?.soundName || bot.registry.sounds?.[packet.sound?.soundId]?.name || '';
+    const row = {id, name, packet, at: Date.now()};
+    soundEvents.push(row);
+    if (name.startsWith('pvp:mygo.')) emit('mygoSound', row);
+  });
+  bot._client.on('entity_effect', packet => {
+    const row = {id, packet, at: Date.now()};
+    effectEvents.push(row);
+    if (packet.entityId === bot.entity?.id) emit('selfEffect', row);
+  });
   bot._client.on('entity_equipment', packet => {
     if (packet.entityId === bot.entity?.id) emit('selfEquipment', { id, ...packet });
   });
@@ -156,9 +173,12 @@ async function status(id) {
 }
 function parseStatusMessage(message) {
   const state = Object.fromEntries([...message.matchAll(/([A-Za-z]+)=([^ ]+)/g)].map(match => [match[1], match[2]]));
-  for (const key of ['round', 'remainingTicks', 'team', 'hp', 'cash', 'ammo', 'reserve', 'kills', 'activeGrenades', 'smokes', 'moveSpeed', 'walkSpeed', 'scopeLevel', 'scopeFov', 'buyTicks', 'lossLevel', 'armor']) state[key] = Number(state[key]);
+  // Java's EnumMap includes spaces after commas; retain the whole loadout.
+  state.grenades = message.match(/\bgrenades=(\{[^}]*\})/)?.[1] || state.grenades;
+  for (const key of ['round', 'remainingTicks', 'team', 'hp', 'cash', 'ammo', 'reserve', 'kills', 'activeGrenades', 'smokes', 'moveSpeed', 'walkSpeed', 'scopeLevel', 'scopeFov', 'buyTicks', 'lossLevel', 'armor', 'throwTick', 'stepSounds']) if (key in state) state[key] = Number(state[key]);
   for (const key of ['alive', 'vest', 'helmet', 'bombPlanted', 'scoped', 'awZoom', 'usingItem']) if (key in state) state[key] = state[key] === 'true';
-  for (const key of ['range', 'spawn', 'waiting']) {
+  for (const key of ['range', 'spawn', 'waiting', 'throwVelocity', 'throwOrigin']) {
+    if (!state[key] || !state[key].includes(',')) continue;
     const [x,y,z] = state[key].split(',').map(Number);
     state[key] = {x,y,z};
   }
@@ -1060,6 +1080,240 @@ async function damageRegression() {
   }
 }
 
+// Reason: throwing strength, silent movement and positional audio require
+// actual input/physics packets; a resource ZIP or constants test cannot prove
+// them. Use ordinary round income and a temporary platform above all map blocks.
+async function utilitiesRegression() {
+  const ids = Object.keys(bots), startAssertions = assertions.length;
+  await waitUntil(() => ids.every(id => bots[id].entity), 30000, 'utility clients');
+  check('utilities use four isolated 1.21.1 clients', ids.length === 4
+    && ids.every(id => bots[id].version === '1.21.1'), ids, 'four clients');
+  let platform, lane, rateChanged = false;
+  const rate = async value => { await chat('A', `/tick rate ${value}`, 80); rateChanged = value !== 20; };
+  const grenadeCount = (state, type) => Number(state.grenades.match(new RegExp(`${type}=(\\d+)`))?.[1] || 0);
+  const namedSounds = (id, since, name) => soundEvents.filter(row => row.id === id && row.at >= since && row.name === name);
+  const fill = async (a, b, state) => chat('A', `/execute in pvp:arena run fill ${a.x} ${a.y} ${a.z} ${b.x} ${b.y} ${b.z} ${state}`, 180);
+  const horizontal = vector => Math.hypot(vector.x, vector.z);
+  const throwUtility = async (id, type, slot, strong, point) => {
+    await select(id, slot);
+    await csgoLook(id, Math.PI, point ?? 0);
+    const before = await status(id), at = Date.now();
+    const displays = new Set(Object.values(bots[id].entities).filter(entity => entity.name === 'item_display').map(entity => entity.id));
+    if (strong) bots[id]._client.write('arm_animation', {hand: 0});
+    else bots[id].activateItem();
+    await waitUntil(() => Object.values(bots[id].entities).some(entity => entity.name === 'item_display' && !displays.has(entity.id)),
+      2500, `${type} flying display`);
+    const after = await status(id);
+    check(`${strong ? 'left' : 'right'} click consumes exactly one ${type}`, grenadeCount(after, type) === grenadeCount(before, type) - 1,
+      {before: before.grenades, after: after.grenades}, 'one grenade removed');
+    check(`${strong ? 'left' : 'right'} click records ${strong ? 'STRONG' : 'WEAK'} throw`, after.throwMode === (strong ? 'STRONG' : 'WEAK')
+      && after.throwType === type && after.activeGrenades === 1, after, 'correct mode; one active grenade');
+    check(`${type} switches back to a gun after throwing`, bots[id].quickBarSlot === 0 || bots[id].quickBarSlot === 1,
+      {slot: bots[id].quickBarSlot, held: itemInfo(bots[id].heldItem)}, 'primary or pistol selected');
+    return {at, before, after};
+  };
+  const waitFuse = async (id, at, label) => {
+    await sleep(Math.max(0, at + 950 - Date.now()));
+    const early = await status(id);
+    check(`${label} has not detonated before its 1.5 second fuse`, early.activeGrenades === 1,
+      early, 'one grenade still flying');
+    await sleep(Math.max(0, at + 1850 - Date.now()));
+    const done = await status(id);
+    check(`${label} detonates after its 1.5 second fuse`, done.activeGrenades === 0,
+      done, 'no flying grenade');
+  };
+  const walk = async (id, duration, sneak = false, sprint = false) => {
+    const bot = bots[id];
+    bot.testAllowMovement = true; bot.physicsEnabled = true;
+    bot.setControlState('sneak', sneak); bot.setControlState('sprint', sprint);
+    await csgoLook(id, -Math.PI / 2, 0);
+    await sleep(180);
+    const before = bot.entity.position.clone();
+    bot.setControlState('forward', true);
+    await sleep(duration);
+    bot.clearControlStates();
+    await sleep(180);
+    const after = bot.entity.position.clone();
+    bot.physicsEnabled = false; bot.testAllowMovement = false;
+    return {before, after, distance: Math.hypot(after.x - before.x, after.z - before.z)};
+  };
+  try {
+    for (const id of ids) await chat(id, '/hub', 80);
+    await sleep(6500);
+    const packAt = chats.length;
+    for (const id of ids) await chat(id, '/pvp join mygo', 130);
+    await waitUntil(() => ids.every(id => packs[id] && chats.slice(packAt).some(row => row.id === id
+      && row.message.includes('MyGO 资源包加载成功'))), 30000, 'utility pack acknowledgements');
+    for (const id of ids) await chat(id, '/pvp join mygo', 80);
+    await chat('A', '/pvp start', 100);
+    await waitUntil(() => ids.every(id => bots[id].inventory.items().some(item => item.name === 'iron_pickaxe')),
+      30000, 'utility opening loadouts');
+    const opening = Object.fromEntries(await Promise.all(ids.map(async id => [id, await status(id)])));
+    const cts = ids.filter(id => opening[id].side === 'CT'), ts = ids.filter(id => opening[id].side === 'T');
+    check('utility funding starts with balanced $800 pistol round', cts.length === 2 && ts.length === 2
+      && Object.values(opening).every(state => state.cash === 800 && state.hp === 100), opening, '2v2 and $800');
+    const [grenadier, friend] = cts, [target, away] = ts;
+    await rate(200);
+    await csgoFastState(grenadier, state => state.round === 2 && state.phase === 'BUY', 22000, 'natural timeout funds utilities');
+    await rate(20);
+    const funded = await status(grenadier);
+    check('natural CT timeout victory funds utilities without injected money', funded.cash === 4050, funded, '$800 + $3250');
+    for (const product of ['he', 'flash', 'flash', 'smoke', 'vest']) await chat(grenadier, `/pvp mygo buy ${product}`, 90);
+    for (const product of ['he', 'vest']) await chat(friend, `/pvp mygo buy ${product}`, 90);
+    await chat(target, '/pvp mygo buy vest', 90);
+    const equipped = await status(grenadier);
+    check('four-grenade loadout contains HE, two flashes and one smoke', equipped.grenades === '{HE=1, FLASH=2, SMOKE=1}'
+      && equipped.cash === 2400 && equipped.armor === 100, equipped, '$1000 grenades + $650 vest');
+    for (const product of ['flash', 'he', 'smoke']) await chat(grenadier, `/pvp mygo buy ${product}`, 70);
+    const rejected = await status(grenadier);
+    check('grenade carry caps reject extras without charging cash', rejected.grenades === equipped.grenades && rejected.cash === equipped.cash,
+      rejected, 'unchanged loadout and cash');
+    await select(grenadier, 4); bots[grenadier].activateItem(); await sleep(120);
+    check('freeze phase cannot consume or throw a purchased grenade', grenadeCount(await status(grenadier), 'FLASH') === 2
+      && (await status(grenadier)).activeGrenades === 0, await status(grenadier), 'two flashes; zero projectiles');
+    await rate(200); await csgoFastState(grenadier, state => state.phase === 'LIVE', 6000, 'utility unfreeze'); await rate(20);
+    const range = (await status(grenadier)).range;
+    // The imported Dust II geometry ends at range.y +27. This floor at +28
+    // only replaces air and keeps player feet (+29) inside the play bounds.
+    platform = {a: {x: range.x - 4, y: range.y + 28, z: range.z - 4}, b: {x: range.x + 15, y: range.y + 28, z: range.z + 12}};
+    const origin = {x: range.x, y: range.y + 29, z: range.z};
+    for (const id of ids) await teleport(id, origin);
+    await waitUntil(() => bots[grenadier].blockAt(new Vec3(platform.a.x, platform.a.y, platform.a.z)) !== null,
+      5000, 'high utility platform chunk');
+    check('temporary platform starts above original map geometry', [platform.a, platform.b, {x: range.x, y: platform.a.y, z: range.z}]
+      .every(point => bots[grenadier].blockAt(new Vec3(point.x, point.y, point.z))?.name === 'air'), platform, 'air at platform corners and center');
+    await fill(platform.a, platform.b, 'minecraft:stone');
+    await teleport(grenadier, origin); await teleport(friend, {...origin, x: origin.x - 2});
+    await teleport(target, {...origin, x: origin.x + 3}); await teleport(away, {...origin, x: origin.x + 6});
+    const heTarget = await status(target), heOwner = await status(grenadier), heFriend = await status(friend);
+    const he = await throwUtility(grenadier, 'HE', 3, false, -1.35);
+    await waitFuse(grenadier, he.at, 'HE');
+    const heAfter = await status(target), ownerAfter = await status(grenadier), friendAfter = await status(friend);
+    check('HE hurts an armored enemy without destroying blocks', heAfter.hp < heTarget.hp && heAfter.hp > 0
+      && heAfter.armor < heTarget.armor && bots[grenadier].blockAt(new Vec3(origin.x, platform.a.y, origin.z))?.name === 'stone',
+      {before: heTarget, after: heAfter}, 'enemy HP/armor reduced; floor intact');
+    check('HE damages its owner but does not damage a teammate', ownerAfter.hp < heOwner.hp && ownerAfter.alive && friendAfter.hp === heFriend.hp,
+      {ownerBefore: heOwner.hp, ownerAfter: ownerAfter.hp, friendBefore: heFriend.hp, friendAfter: friendAfter.hp}, 'self damage; no team damage');
+
+    // A full-height wall lies between the weak HE and the same enemy target.
+    const wallA = {x: origin.x + 1, y: origin.y, z: origin.z - 3}, wallB = {x: origin.x + 1, y: origin.y + 4, z: origin.z + 6};
+    await fill(wallA, wallB, 'minecraft:stone');
+    await teleport(friend, origin); await teleport(grenadier, {...origin, x: origin.x - 3});
+    const coveredBefore = await status(target);
+    const coveredHe = await throwUtility(friend, 'HE', 3, false, -1.35);
+    await waitFuse(friend, coveredHe.at, 'covered HE');
+    check('solid cover blocks HE damage to the enemy', (await status(target)).hp === coveredBefore.hp,
+      {before: coveredBefore.hp, after: (await status(target)).hp}, 'same HP behind cover');
+    await fill(wallA, wallB, 'minecraft:air');
+
+    await teleport(grenadier, origin); await teleport(friend, {...origin, x: origin.x - 3});
+    await teleport(target, {...origin, x: origin.x + 2, z: origin.z + 2}); await teleport(away, {...origin, x: origin.x - 2, z: origin.z + 2});
+    const weak = await throwUtility(grenadier, 'FLASH', 4, false, 0);
+    // A hold/repeated-use packet occurs after auto-selection, and must not
+    // silently spend the second flash. Real left-click uses the gun meanwhile.
+    bots[grenadier].activateItem(); await sleep(80);
+    const held = await status(grenadier);
+    check('held right-click cannot automatically throw the second flash', grenadeCount(held, 'FLASH') === 1,
+      held, 'one flash remains');
+    const flying = Object.values(bots[grenadier].entities).find(entity => entity.name === 'item_display');
+    const flashPoint = flying?.position.clone() || new Vec3(origin.x + .5, origin.y + .5, origin.z + 3.5);
+    await csgoLookAt(target, flashPoint);
+    await csgoLookAt(away, bots[away].entity.position.scaled(2).minus(flashPoint));
+    await waitFuse(grenadier, weak.at, 'weak flash');
+    const durations = id => effectEvents.filter(row => row.id === id && row.at >= weak.at
+      && row.packet.entityId === bots[id].entity.id).map(row => row.packet.duration || 0);
+    const facingDuration = Math.max(0, ...durations(target)), awayDuration = Math.max(0, ...durations(away));
+    check('flash affects a visible opponent and facing it lasts longer', facingDuration > awayDuration && facingDuration > 0,
+      {facingDuration, awayDuration}, 'facing duration greater than facing away');
+    const strong = await throwUtility(grenadier, 'FLASH', 4, true, 0);
+    check('left high throw is faster and starts higher than right low throw', horizontal(strong.after.throwVelocity) > horizontal(weak.after.throwVelocity) * 2
+      && strong.after.throwVelocity.y > weak.after.throwVelocity.y && strong.after.throwOrigin.y > weak.after.throwOrigin.y,
+      {strong: strong.after, weak: weak.after}, 'stronger forward/upward velocity; higher release point');
+    await waitFuse(grenadier, strong.at, 'strong flash');
+    check('both flash inputs leave no extra grenade', grenadeCount(await status(grenadier), 'FLASH') === 0,
+      await status(grenadier), 'zero flashes');
+
+    const smoke = await throwUtility(grenadier, 'SMOKE', 6, false, -1.35);
+    const smoky = await csgoState(grenadier, state => state.smokes === 1, 16000, 'settled smoke cloud');
+    const smokeAt = Date.now();
+    check('smoke waits for rest and creates client-visible screens', smoky.activeGrenades === 0
+      && Object.values(bots[grenadier].entities).filter(entity => entity.name === 'item_display').length >= 5,
+      {smoky, elapsedMs: smokeAt - smoke.at}, 'one smoke cloud and at least five display screens');
+    await sleep(16500);
+    check('smoke remains active before eighteen seconds', (await status(grenadier)).smokes === 1,
+      {elapsedMs: Date.now() - smokeAt, state: await status(grenadier)}, 'smoke still active');
+    await sleep(2200);
+    check('smoke expires after eighteen seconds', (await status(grenadier)).smokes === 0,
+      {elapsedMs: Date.now() - smokeAt, state: await status(grenadier)}, 'smoke expired');
+    check('throw, blast, bounce and smoke sound cues reach nearby players',
+      ['pvp:mygo.throw', 'pvp:mygo.explode', 'pvp:mygo.flash', 'pvp:mygo.smoke', 'pvp:mygo.smoke.end']
+        .every(name => namedSounds(grenadier, he.at, name).length > 0)
+      && soundEvents.some(row => row.id === grenadier && row.at >= he.at && row.name.startsWith('pvp:mygo.grenade.bounce.')),
+      soundEvents.filter(row => row.id === grenadier && row.at >= he.at).map(row => row.name), 'grenade sound set received');
+
+    lane = {a: {x: origin.x - 1, y: platform.a.y, z: origin.z - 1}, b: {x: origin.x + 11, y: platform.a.y, z: origin.z + 1}};
+    for (const [block, surface] of [['minecraft:stone', 'stone'], ['minecraft:iron_block', 'metal'], ['minecraft:oak_planks', 'wood']]) {
+      await fill(lane.a, lane.b, block);
+      await teleport(grenadier, origin); await teleport(friend, {...origin, z: origin.z + 3});
+      const before = await status(grenadier), at = Date.now();
+      const movement = await walk(grenadier, 1500);
+      const after = await status(grenadier);
+      check(`${surface} walking uses real movement and emits positional footsteps`, movement.distance > 2
+        && after.stepSounds > before.stepSounds && after.lastStepSurface === surface
+        && namedSounds(friend, at, `pvp:mygo.step.${surface}`).length > 0,
+        {movement, before: before.stepSounds, after: after.stepSounds, surface: after.lastStepSurface}, 'moved over two blocks; observer heard surface steps');
+    }
+    await fill(lane.a, lane.b, 'minecraft:stone'); await teleport(grenadier, origin);
+    const quietBefore = await status(grenadier), quietAt = Date.now();
+    const sneaking = await walk(grenadier, 1500, true);
+    const quietAfter = await status(grenadier);
+    check('crouch movement is silent without freezing the player', sneaking.distance > .3
+      && quietAfter.stepSounds === quietBefore.stepSounds
+      && soundEvents.every(row => row.id !== friend || row.at < quietAt || !row.name.startsWith('pvp:mygo.step.')),
+      {sneaking, before: quietBefore.stepSounds, after: quietAfter.stepSounds}, 'real crouch movement; no positional footsteps');
+    await teleport(grenadier, origin);
+    const standing = await status(grenadier), standingAt = Date.now();
+    await sleep(1100);
+    check('standing still produces no footstep packets', (await status(grenadier)).stepSounds === standing.stepSounds
+      && soundEvents.every(row => row.id !== friend || row.at < standingAt || !row.name.startsWith('pvp:mygo.step.')),
+      await status(grenadier), 'no movement; no footstep');
+    bots[grenadier].testAllowMovement = true; bots[grenadier].physicsEnabled = true;
+    const jumpAt = Date.now();
+    bots[grenadier].setControlState('jump', true); await sleep(150); bots[grenadier].setControlState('jump', false);
+    await sleep(1500); bots[grenadier].physicsEnabled = false; bots[grenadier].testAllowMovement = false;
+    check('jump and landing cues are positional and audible to another player', namedSounds(friend, jumpAt, 'pvp:mygo.jump').length > 0
+      && namedSounds(friend, jumpAt, 'pvp:mygo.land.stone').length > 0,
+      soundEvents.filter(row => row.id === friend && row.at >= jumpAt).map(row => row.name), 'jump plus stone landing');
+    // Climbing has little horizontal displacement, so a ground-only step
+    // detector would remain silent even after the pack mutes vanilla ladders.
+    await fill({x: origin.x + 5, y: origin.y, z: origin.z},
+      {x: origin.x + 5, y: origin.y + 3, z: origin.z}, 'minecraft:stone');
+    await fill({x: origin.x + 4, y: origin.y, z: origin.z},
+      {x: origin.x + 4, y: origin.y + 3, z: origin.z}, 'minecraft:ladder[facing=west,waterlogged=false]');
+    await teleport(grenadier, {...origin, x: origin.x + 4});
+    const climbBefore = await status(grenadier), climbAt = Date.now();
+    const climbing = await walk(grenadier, 1200);
+    const climbAfter = await status(grenadier);
+    check('real ladder climbing emits wooden footsteps to an observer', climbing.after.y - climbing.before.y > 1
+      && climbAfter.stepSounds > climbBefore.stepSounds
+      && namedSounds(friend, climbAt, 'pvp:mygo.step.wood').length > 0,
+      {climbing, before: climbBefore.stepSounds, after: climbAfter.stepSounds}, 'rose over one block; observer heard wooden steps');
+    const results = assertions.slice(startAssertions);
+    const summary = {passed: results.filter(row => row.pass).length, failed: results.filter(row => !row.pass).length,
+      fundedByNormalEconomy: true, realMovementReplies: true, renderingVerified: false};
+    emit('utilitiesRegressionComplete', summary);
+    return summary;
+  } finally {
+    if (rateChanged) await rate(20);
+    for (const id of ids) {
+      bots[id].clearControlStates(); bots[id].physicsEnabled = false; bots[id].testAllowMovement = false;
+      if (bots[id]._client.state === 'play') await chat(id, '/hub', 80);
+    }
+    if (platform && bots.A._client.state === 'play') await fill(platform.a,
+      {...platform.b, y: platform.b.y + 5}, 'minecraft:air');
+  }
+}
+
 // Vanilla /tick is used only on the isolated test server. Rate changes are
 // restored even when an assertion fails; no product-only money or round hooks.
 async function csgoFastStatus(id) {
@@ -1461,6 +1715,7 @@ async function execute(command) {
     case 'csgoHalftime': return csgoHalftime();
     case 'inputRegression': return inputRegression();
     case 'damageRegression': return damageRegression();
+    case 'utilitiesRegression': return utilitiesRegression();
     case 'packMode': packMode[id] = command.value; return packMode[id];
     case 'packProcess': if (!packRequests[id]) throw new Error('No pack requested'); await handlePack(bot, packRequests[id]); return;
     case 'packReply': packStatus(bot, { uuid: command.uuid || packRequests[id]?.uuid }, command.result); return;

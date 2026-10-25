@@ -95,6 +95,9 @@ public final class MyGoSession implements PortedGameSession {
         final MyGoScope scopeView = new MyGoScope();
         Gun primary, pistol;
         int selected = -1, aimSince, stoppedAt, knifeReady, throwReady, feedbackUntil;
+        final MyGoFootsteps footsteps = new MyGoFootsteps();
+        int stepSounds;
+        String lastStepCue = "NONE", lastStepSurface = "none";
         int scopeUseTick = -20;
         int kills, deaths, roundKills, objectiveScore;
         double roundDamage;
@@ -147,9 +150,10 @@ public final class MyGoSession implements PortedGameSession {
                 () -> participants().stream().filter(p -> fighter(p).alive).toList(), (victim, owner, amount) -> {
             Fighter target = fighter(victim), source = fighter(owner);
             if (target == null || source == null || target.team == source.team && victim != owner) return;
+            double limit = target.armor > 0 ? 57 : 98;
             MyGoRules.Damage hit = MyGoRules.protect(amount, .5, target.armor, true);
             consumeArmor(target, hit.armor());
-            damage(victim, this.active.contains(source.id) ? owner : null, hit.health(), "破片手雷");
+            damage(victim, this.active.contains(source.id) ? owner : null, Math.min(limit, hit.health()), "破片手雷");
         });
         int half = match.players().size() / 2;
         for (int i = 0; i < match.players().size(); i++) {
@@ -172,6 +176,7 @@ public final class MyGoSession implements PortedGameSession {
             player.sendMessage(Text.literal("§6MyGO 经典爆破 · 先赢 16 回合，第 15 回合换边，15:15 平局。"), false);
             player.sendMessage(Text.literal("§e左键点射 · 瞄具枪右键切换倍率/关镜 · F 换弹 · Q 丢枪/C4 · 购买器右键商店。"), false);
             player.sendMessage(Text.literal("§7CS:GO 军械库 34 种枪械 · T 默认 Glock-18 / CT 默认 USP-S · 仅瞄具枪支持开镜。"), false);
+            player.sendMessage(Text.literal("§e投掷物：左键大力高抛，右键小力低抛，投出后自动切回武器。潜行/低速移动静音。"), false);
             player.sendMessage(Text.literal("§7携 C4 到包点，选择第 6 格，潜行右键安装；防守方同样操作拆包。阵亡后在封闭室等待下一回合。"), false);
         }
         String invalidSpawn = this.map.validateSpawns(this.match.arenaWorld());
@@ -226,6 +231,7 @@ public final class MyGoSession implements PortedGameSession {
             player.fallDistance = 0;
             if (this.ticks % 20 == 0) player.getHungerManager().setFoodLevel(20);
             if (!fighter.alive) {
+                fighter.footsteps.reset();
                 if (player.getWorld() != this.match.arenaWorld() || player.squaredDistanceTo(Vec3d.ofCenter(this.map.spectator())) > 16)
                     teleport(player, this.map.spectator(), 0);
                 if (this.ticks % 40 == 0) actionBar(player, "§7阵亡，等待下一回合 · 队友：" +
@@ -248,6 +254,8 @@ public final class MyGoSession implements PortedGameSession {
             boolean moving = player.getPos().squaredDistanceTo(fighter.last) > .0004;
             if (moving || player.isSprinting()) fighter.stoppedAt = this.ticks;
             fighter.last = player.getPos();
+            if (combatPhase()) tickMovementSounds(player, fighter);
+            else fighter.footsteps.reset();
             if (player.isOnGround() && this.match.arenaWorld().isSpaceEmpty(player, player.getBoundingBox())
                     && this.match.arenaWorld().getBlockCollisions(player, player.getBoundingBox().offset(0, -.05, 0)).iterator().hasNext())
                 fighter.lastSafe = player.getPos();
@@ -286,6 +294,7 @@ public final class MyGoSession implements PortedGameSession {
             if (f.pistol == null) f.pistol = new Gun(MyGoWeapon.defaultPistol(attackers(f)));
             f.alive = true; f.hp = 100; f.roundKills = 0; f.roundDamage = 0; f.objectiveScore = 0; f.pistol.refill(); if (f.primary != null) f.primary.refill();
             f.scoped = false; f.scopeLevel = 0; f.resumeScopeLevel = 0; f.resumeScopeAt = 0; f.scopeView.reset(player); f.selected = -1; f.aimSince = this.ticks; f.stoppedAt = this.ticks;
+            f.throwReady = 0; f.stepSounds = 0; f.lastStepCue = "NONE"; f.lastStepSurface = "none";
             player.closeHandledScreen(); player.changeGameMode(GameMode.ADVENTURE); player.clearStatusEffects();
             player.setHealth(player.getMaxHealth()); player.setVelocity(Vec3d.ZERO);
             player.getInventory().clear(); player.getInventory().selectedSlot = f.primary == null ? 1 : 0;
@@ -509,10 +518,11 @@ public final class MyGoSession implements PortedGameSession {
         f.scopeUseTick = this.ticks - 6;
         updateHead(player, f);
         syncEquipment(player, f);
+        if (f.alive && combatPhase()) soundAt(player.getBlockPos(), "equip", .45F);
         if (this.channel != null && this.channel.player().equals(f.id)) cancelChannel();
     }
 
-    /** 左键的唯一枪械入口：实体攻击／挖掘回调只阻止原版行为，不重复发射。 */
+    /** 左键的唯一武器入口：投掷物高抛与枪械开火都只在挥手包处理一次。 */
     public void onAttackInput(ServerPlayerEntity player, Hand hand) {
         Fighter f = fighter(player);
         if (f == null || !f.alive || this.ended || hand != Hand.MAIN_HAND
@@ -525,7 +535,22 @@ public final class MyGoSession implements PortedGameSession {
             if (repeated && gun.type.automatic())
                 gun.autoArmed = true;
             trigger(player, f, gun);
+        } else {
+            for (MyGoUtilities.Type type : MyGoUtilities.Type.values())
+                if (player.getInventory().selectedSlot == type.slot) throwGrenade(player, f, type, MyGoUtilities.ThrowMode.STRONG);
         }
+    }
+
+    /** 两种抛法共用库存/冷却，投出后切枪，避免按住右键把第二颗闪光也自动丢掉。 */
+    private void throwGrenade(ServerPlayerEntity player, Fighter f, MyGoUtilities.Type type, MyGoUtilities.ThrowMode mode) {
+        int count = f.grenades.getOrDefault(type, 0);
+        if (!combatPhase() || !f.alive || this.ticks < f.throwReady || count <= 0
+                || this.channel != null && this.channel.player().equals(f.id)) return;
+        f.grenades.put(type, count - 1); f.throwReady = this.ticks + 20;
+        this.utilities.launch(player, type, mode, this.ticks);
+        player.getInventory().selectedSlot = f.primary != null ? 0 : f.pistol != null ? 1 : 2;
+        player.networkHandler.sendPacket(new UpdateSelectedSlotS2CPacket(player.getInventory().selectedSlot));
+        onSelectedSlotChanged(player); syncEquipment(player, f);
     }
 
     public ActionResult attack(ServerPlayerEntity player, Entity entity) {
@@ -549,11 +574,7 @@ public final class MyGoSession implements PortedGameSession {
         if (slot == 8) { openShop(player); return ActionResult.CONSUME; }
         if (slot == 5) { beginChannel(player, f); return ActionResult.CONSUME; }
         for (MyGoUtilities.Type type : MyGoUtilities.Type.values()) if (slot == type.slot) {
-            int count = f.grenades.getOrDefault(type, 0);
-            if (combatPhase() && count > 0 && this.ticks >= f.throwReady) {
-                f.grenades.put(type, count - 1); f.throwReady = this.ticks + 10;
-                this.utilities.launch(player, type, this.ticks); syncEquipment(player, f);
-            }
+            throwGrenade(player, f, type, MyGoUtilities.ThrowMode.WEAK);
             return ActionResult.CONSUME;
         }
         Gun gun = f.gun(slot);
@@ -674,6 +695,7 @@ public final class MyGoSession implements PortedGameSession {
             if (!type.availableTo(attackers(f))) { actionBar(player, "§c本阵营不可购买 " + type.label + "，可拾取敌方掉落枪械。"); return false; }
             cost = type.price;
         } else if (utility != null) {
+            if (f.grenades.values().stream().mapToInt(Integer::intValue).sum() >= 4) { actionBar(player, "§e最多携带 4 颗投掷物。"); return false; }
             if (f.grenades.getOrDefault(utility, 0) >= utility.maximum) { actionBar(player, "§e已达到该投掷物携带上限。"); return false; }
             cost = utility.price;
         } else if ("vest".equals(key)) {
@@ -752,7 +774,8 @@ public final class MyGoSession implements PortedGameSession {
                 int slot = 48 + utility.ordinal(); ItemStack icon = utility.stack(1);
                 icon.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§e" + utility.label + " · $" + utility.price));
                 icon.set(DataComponentTypes.LORE, new LoreComponent(List.of(Text.literal("§7携带 " + f.grenades.getOrDefault(utility, 0) + "/" + utility.maximum + " · 热键 " + (utility.slot + 1)),
-                        Text.literal(utility == MyGoUtilities.Type.SMOKE ? "§7烟幕持续 12 秒，子弹可穿过" : utility == MyGoUtilities.Type.FLASH ? "§7背对闪光、掩体遮挡可降低效果" : "§7范围伤害，护甲与掩体可减伤"))));
+                        Text.literal("§7左键大力高抛 · 右键小力低抛"),
+                        Text.literal(utility == MyGoUtilities.Type.SMOKE ? "§7落稳起烟，持续 18 秒，子弹可穿过" : utility == MyGoUtilities.Type.FLASH ? "§7背对闪光、掩体遮挡可降低效果（含队友/自己）" : "§7范围伤害，护甲与掩体可减伤"))));
                 this.inventory.setStack(slot, icon); this.products.put(slot, utility.name().toLowerCase(Locale.ROOT));
             }
             this.inventory.setStack(52, named(Items.PAPER, "§7左键点射 · 瞄具枪右键倍率/关镜 · F 换弹 · Q 丢枪"));
@@ -876,6 +899,7 @@ public final class MyGoSession implements PortedGameSession {
 
     public String debugState(ServerPlayerEntity player) {
         Fighter f = fighter(player); Gun gun = f == null ? null : f.gun(player.getInventory().selectedSlot);
+        MyGoUtilities.LaunchInfo launch = this.utilities.lastLaunch(player.getUuid());
         return "MyGO round=" + this.round + " phase=" + this.phase + " remainingTicks=" + Math.max(0, this.deadline - this.ticks)
                 + " score=" + this.scores[0] + ":" + this.scores[1] + " team=" + (f == null ? -1 : f.team)
                 + " side=" + (f != null && attackers(f) ? "T" : "CT") + " alive=" + (f != null && f.alive)
@@ -891,6 +915,12 @@ public final class MyGoSession implements PortedGameSession {
                 + " reserve=" + (gun == null ? 0 : gun.reserve) + " vest=" + (f != null && f.vest)
                 + " kills=" + (f == null ? 0 : f.kills) + " grenades=" + (f == null ? "none" : f.grenades)
                 + " activeGrenades=" + this.utilities.activeGrenades() + " smokes=" + this.utilities.activeSmokes()
+                + " throwMode=" + (launch == null ? "NONE" : launch.mode()) + " throwType=" + (launch == null ? "none" : launch.type())
+                + " throwOrigin=" + vector(launch == null ? Vec3d.ZERO : launch.origin())
+                + " throwVelocity=" + vector(launch == null ? Vec3d.ZERO : launch.velocity())
+                + " throwTick=" + (launch == null ? -1 : launch.tick())
+                + " stepSounds=" + (f == null ? 0 : f.stepSounds) + " lastStepCue=" + (f == null ? "NONE" : f.lastStepCue)
+                + " lastStepSurface=" + (f == null ? "none" : f.lastStepSurface)
                 + " helmet=" + (f != null && f.helmet) + " bombPlanted=" + this.bombPlanted
                 + " map=" + this.map.id() + " range=" + compact(this.map.testAnchor("range"))
                 + " waiting=" + compact(this.map.spectator())
@@ -899,6 +929,7 @@ public final class MyGoSession implements PortedGameSession {
     }
 
     private static String compact(BlockPos pos) { return pos.getX() + "," + pos.getY() + "," + pos.getZ(); }
+    private static String vector(Vec3d pos) { return String.format(Locale.ROOT, "%.5f,%.5f,%.5f", pos.x, pos.y, pos.z); }
 
     private void syncEquipment(ServerPlayerEntity p, Fighter f) {
         if (!f.alive || this.ended) return;
@@ -994,8 +1025,10 @@ public final class MyGoSession implements PortedGameSession {
         for (Fighter each : this.fighters.values()) { if (each.id.equals(f.id)) break; if (each.team == f.team) index++; }
         teleport(p, this.map.spawn(attackers(f), index), this.map.spawnYaw(attackers(f), index));
         f.last = p.getPos(); f.lastSafe = p.getPos();
+        f.footsteps.reset();
     }
     private void recoverPosition(ServerPlayerEntity p, Fighter f) {
+        f.footsteps.reset();
         if (this.channel != null && this.channel.player().equals(f.id)) cancelChannel();
         if (f.lastSafe == null || !this.map.inBounds(BlockPos.ofFloored(f.lastSafe))) teleportHome(p);
         else {
@@ -1003,6 +1036,36 @@ public final class MyGoSession implements PortedGameSession {
             p.setVelocity(Vec3d.ZERO); p.fallDistance = 0; f.last = p.getPos();
         }
         actionBar(p, "§e已返回最近的安全落脚点。");
+    }
+    /** 资源包屏蔽原版脚步后，只由本场实际位移发出具有位置和材质的声源。 */
+    private void tickMovementSounds(ServerPlayerEntity player, Fighter f) {
+        MyGoFootsteps.Cue cue = f.footsteps.update(this.ticks, player.getX(), player.getY(), player.getZ(),
+                player.isOnGround(), player.isSneaking(), player.isSprinting(), player.isTouchingWater(), player.isClimbing());
+        if (cue == MyGoFootsteps.Cue.NONE) return;
+        String surface = footstepSurface(player);
+        String key = switch (cue) {
+            case STEP -> "step." + surface;
+            case LAND -> "land." + surface;
+            case JUMP -> "jump";
+            case NONE -> throw new IllegalStateException("No footstep cue");
+        };
+        if (cue == MyGoFootsteps.Cue.STEP) f.stepSounds++;
+        f.lastStepCue = cue.name(); f.lastStepSurface = surface;
+        float volume = cue == MyGoFootsteps.Cue.JUMP ? .55F : player.isSprinting() ? 1 : .8F;
+        this.match.arenaWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvent.of(Identifier.of("pvp", "mygo." + key)), SoundCategory.PLAYERS, volume, 1);
+    }
+    private String footstepSurface(ServerPlayerEntity player) {
+        if (player.isTouchingWater()) return "water";
+        if (player.isClimbing()) return "wood";
+        String sound = this.match.arenaWorld().getBlockState(BlockPos.ofFloored(player.getX(), player.getY() - .12, player.getZ()))
+                .getSoundGroup().getStepSound().getId().getPath();
+        if (sound.contains("metal") || sound.contains("copper") || sound.contains("chain") || sound.contains("anvil")
+                || sound.contains("netherite")) return "metal";
+        if (sound.contains("wood") || sound.contains("bamboo") || sound.contains("scaffolding") || sound.contains("ladder")) return "wood";
+        if (sound.contains("grass") || sound.contains("gravel") || sound.contains("sand") || sound.contains("snow")
+                || sound.contains("mud") || sound.contains("moss") || sound.contains("wool")) return "dirt";
+        return "stone";
     }
     private void teleport(ServerPlayerEntity p, BlockPos pos, float yaw) { p.teleport(this.match.arenaWorld(), pos.getX() + .5, pos.getY(), pos.getZ() + .5, yaw, 0); p.setVelocity(Vec3d.ZERO); p.fallDistance = 0; }
     private static boolean near(Entity p, BlockPos pos, double radius) { return pos != null && p.squaredDistanceTo(pos.getX() + .5, pos.getY(), pos.getZ() + .5) <= radius * radius; }

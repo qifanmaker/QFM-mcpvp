@@ -11,6 +11,8 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -152,7 +154,12 @@ final class MyGoResourcePackAssetsTest {
         assertTrue(new String(FILES.get("MYGO_ASSETS_LICENSE.txt"), StandardCharsets.UTF_8).contains("MIT License"));
         JsonObject source = json("MYGO_ASSETS_source.json");
         assertEquals("MIT", source.get("license").getAsString());
-        assertFalse(source.get("valve_assets_included").getAsBoolean());
+        if (source.getAsJsonObject("audio").getAsJsonArray("operator_supplied_files").isEmpty())
+            assertFalse(source.get("valve_assets_included").getAsBoolean());
+        else {
+            assertTrue(source.get("valve_assets_included").isJsonNull(), "Imported content ownership must not be falsely claimed");
+            assertTrue(FILES.containsKey("MYGO_IMPORTED_AUDIO_LICENSE.txt"));
+        }
         Set<String> names = new HashSet<>();
         for (var entry : source.getAsJsonArray("weapons")) {
             JsonObject gun = entry.getAsJsonObject();
@@ -178,6 +185,74 @@ final class MyGoResourcePackAssetsTest {
             assertNotNull(audio);
             assertTrue(audio.length > 1000, "Audio cannot be a placeholder");
             assertEquals("OggS", new String(audio, 0, 4, StandardCharsets.US_ASCII));
+            assertMonoVorbis(audio);
         }
+    }
+
+    @Test
+    void footstepsAndUtilityFoleyHaveMaterialVariantsAndPositionalMonoAudio() {
+        JsonObject sounds = json("assets/pvp/sounds.json");
+        for (String surface : new String[]{"stone", "metal", "wood", "dirt", "water"}) {
+            for (String movement : new String[]{"step", "land"}) {
+                JsonArray variants = sounds.getAsJsonObject("mygo." + movement + "." + surface).getAsJsonArray("sounds");
+                assertEquals(movement.equals("step") ? 4 : 2, variants.size());
+                for (var variant : variants) {
+                    JsonObject sound = variant.getAsJsonObject();
+                    assertEquals(movement.equals("step") ? 16 : 20, sound.get("attenuation_distance").getAsInt());
+                    assertSoundReference(sound);
+                }
+            }
+        }
+        for (String event : new String[]{"grenade.pin", "grenade.bounce.hard", "grenade.bounce.metal",
+                "grenade.bounce.soft", "smoke.end", "jump", "equip"}) {
+            for (var sound : sounds.getAsJsonObject("mygo." + event).getAsJsonArray("sounds"))
+                assertSoundReference(sound.getAsJsonObject());
+        }
+        JsonObject provenance = json("MYGO_ASSETS_source.json").getAsJsonObject("audio");
+        assertEquals("MIT", provenance.get("generated_license").getAsString());
+        if (!provenance.getAsJsonArray("operator_supplied_files").isEmpty())
+            assertTrue(FILES.containsKey(provenance.get("operator_supplied_license").getAsString()), "Audio overrides require their included license/credits");
+    }
+
+    @Test
+    void vanillaMovementSoundsAreMutedWithoutSilencingOtherInteractions() {
+        JsonObject muted = json("assets/minecraft/sounds.json");
+        for (String event : new String[]{"block.stone.step", "block.wood.step", "block.metal.step", "block.sand.step",
+                "entity.player.swim", "entity.player.splash", "entity.player.splash.high_speed",
+                "entity.player.small_fall", "entity.player.big_fall", "entity.generic.small_fall"}) {
+            assertTrue(muted.has(event), event);
+        }
+        for (var event : muted.entrySet()) {
+            String name = event.getKey();
+            assertTrue(name.startsWith("block.") && name.endsWith(".step")
+                    || name.matches("entity\\.(player|generic)\\.(swim|splash|small_fall|big_fall)")
+                    || name.equals("entity.player.splash.high_speed"), "Unexpected muted event: " + name);
+            assertTrue(event.getValue().getAsJsonObject().get("replace").getAsBoolean());
+            assertEquals(0, event.getValue().getAsJsonObject().getAsJsonArray("sounds").size());
+        }
+        assertFalse(muted.has("block.stone.break"));
+        assertFalse(muted.has("block.stone.hit"));
+        assertFalse(muted.has("block.stone.place"));
+        assertFalse(muted.has("entity.zombie.step"));
+    }
+
+    private static void assertSoundReference(JsonObject sound) {
+        String location = sound.get("name").getAsString();
+        assertTrue(location.startsWith("pvp:"));
+        byte[] audio = FILES.get("assets/pvp/sounds/" + location.substring(4) + ".ogg");
+        assertNotNull(audio, "Missing sound: " + location);
+        assertTrue(audio.length > 1000);
+        assertMonoVorbis(audio);
+    }
+
+    private static void assertMonoVorbis(byte[] audio) {
+        // Vorbis identification packet follows the first Ogg page lacing table.
+        assertEquals("OggS", new String(audio, 0, 4, StandardCharsets.US_ASCII));
+        int identification = 27 + Byte.toUnsignedInt(audio[26]);
+        assertEquals(1, audio[identification]);
+        assertEquals("vorbis", new String(audio, identification + 1, 6, StandardCharsets.US_ASCII));
+        assertEquals(1, audio[identification + 11], "Stereo samples break positional game audio");
+        int rate = ByteBuffer.wrap(audio, identification + 12, 4).order(ByteOrder.LITTLE_ENDIAN).getInt();
+        assertTrue(rate == 22050 || rate == 44100 || rate == 48000, "Unsupported positional sample rate: " + rate);
     }
 }

@@ -417,3 +417,61 @@ AWP 打腿 86 留 14 HP 且不耗甲，满血胸部一枪击杀。上述数值�
 `d191135ce9ed995f22564ee916ce4237beed01f1`，不需重新上传。
 交付 `dist/pvp-1.0.0-mygo-csgo-damage.jar`，1,711,774 bytes，SHA-256
 `0e8d2a0a989a5faba91c81d6e3a5fcdcd6dbca6c57a94c8d7f4b4e387b0a3bb9`。
+
+## 2026-10-25 CS 风格投掷物与定位音效
+
+修改原因：旧投掷物只有右键一种固定速度，烟弹在半空也定时起烟且只有 12 秒，
+玩家脚步仍由原版方块声决定，无法提供 CS 风格的高/低抛、静步和材质声音。
+先审查 `MyGoSession` 输入与库存、`MyGoUtilities`、资源包生成器、声音事件和配置迁移。
+
+实现与范围：
+
+- 左键大力高抛、右键小力低抛；共用库存和 20 tick 冷却，投出后自动切回主枪/副枪/刀。
+  右键继续按住不会消耗第二颗闪光。最多携带 HE 1、闪光 2、烟雾 1，合计 4。
+- [Valve 的 2014 低抛更新](https://blog.counter-strike.net/2014/02/9585/)证实主/副键强弱投掷；
+  legacy `items_game.txt` 的三类投掷物 `throw velocity=750` 换算到一格一米、20 tick/s。
+  强抛约 `.857 block/tick`、弱抛约 `.257`，重力约 `.02032 block/tick²`；玩家实际位移参与动量，
+  传送跳变不继承。出手点先扫掠墙面，飞行用子步扫掠/多次碰撞剩余时间，避免贴墙穿透和卡角。
+- HE/闪光 30 tick 引信；HE 高斯型距离衰减、射线遮挡、护甲和 98/57 上限，保留友伤关闭/自伤有效。
+  闪光按距离、视线遮挡与朝向影响自己、队友和敌人。烟弹引信后仍须落稳 4 tick 才起烟，
+  烟幕 360 tick（18 秒），掉进虚空飞行超过 20 秒只清除，不凭空起烟。
+  这些物理、HE 曲线、状态效果闪光和烟幕卡片是明确的 Minecraft 适配，未宣称复刻 Source 每帧行为、
+  完整白屏淡出或耳鸣混音；纯服务端操作为点击即抛，未移植原版按住拔栓/松键抛出和双键中等力度。
+- 实际位移驱动脚步：普通步距 1.2 格、最短 7 tick，疾跑 6 tick；地面速度低于 `.11 block/tick` 或潜行静音。
+  五类石地/金属/木板/软地/水声，水中水平移动和梯子/藤蔓竖直攀爬单独取样，起跳、落地、切枪都有定位音。
+  传送、救援、冻结和回合开始重置采样，避免假脚步/假落地。
+
+音源与资源包：
+
+- [Valve 公开政策](https://store.steampowered.com/video_policy)不支持把游戏资产拆出后单独分发，
+  因此没有将网上提取的原声装入 ZIP；默认新音效全部是本项目原创 MIT 合成。
+  生成器新增 `--authorized-audio-dir` / `--audio-license-file`，可导入管理员已有再分发权的
+  单声道 OGG，保留授权/署名文件，不下载或提取 Valve 文件。
+- 61 个声音事件、89 个单声道 Vorbis OGG；每种地面 4 个脚步变体、2 个落地变体；
+  拔栓、3 类反弹、烟雾消散、起跳与切枪补齐。两个连续构建字节一致，全部 OGG 经 ffprobe/ffmpeg 解码检查，
+  136 个原枪械模型/姿态/枪声文件字节不变。报告 `build/mygo-audio-pack-verification.json`。
+- 资源包加载期间替换 110 个原版移动声音，避免客户端自预测与服务端脚步叠音；
+  方块破坏/放置/击打和生物声不静音。入队等待时移动声也安静，退包后恢复。
+- 新 ZIP `dist/mygo-csgo-utilities-sound-resource-pack.zip`，474,141 bytes，SHA-1
+  `18a10f62921da47d16ffd66e2ed4c203e12b4f8d`；用户手动上传至
+  `https://qfmaker.com/upload/files/lf192hqd.zip`，真实 HTTPS 下载后与内置 ZIP 逐字节一致。
+  配置版本升为 5，旧默认 uxv5wsbc 自动升级；自定义 CDN 和显式本机 HTTP 保留。
+
+首轮隔离实服 `build/mygo-utilities-sound-final/` 已通过 55 项检查：真实 HTTPS 下载/加载门禁、
+正常回合经济购雷、携带限制/冻结拒绝、左右键力度与出手高度、自动切枪、HE 自伤/友伤/护甲/掩体、
+1.5 秒引信、闪光正背面时长、落稳烟幕及 18 秒消散、实际 W 移动三类材质声音、潜行/站立静音、起跳落地。
+随后审查发现原版梯子步音已屏蔽，而水平步距没有覆盖爬梯；补上竖直攀爬取样与木质脚步，并增加单测/实服梯子用例。
+最终构建 `build/mygo-utilities-sound-build-final.log`，93 项单测、0 失败。
+
+最终快照 `build/mygo-utilities-sound-release/` 在 25588 启动，`--classic-cdn-config` 从真实版本 4 / uxv5wsbc
+迁移至版本 5 / lf192hqd；四名客户端全部经 HTTPS 下载新 ZIP、校验 SHA-1/CRC/JSON 并确认加载后入队。
+`utilitiesRegression` 最终 **56 项通过、0 失败，无需重试**。新增梯子用例实际上升 2.58 格，
+脚步计数 `12 → 15`，另一玩家收到木质定位步音；其余投掷物、烟幕、移动与静音用例再次全部通过。
+原始协议记录 `build/mygo-utilities-sound-release/protocol-results.jsonl`，
+控制台 `build/mygo-utilities-sound-release-console.log`，无服务器 Java ERROR/异常堆栈。
+Mineflayer 配方解析和传送移动告警仍为工具限制；协议包和解码检查不能代替人工耳听/客户端渲染验收。
+运行类/资源快照与最终构建输出逐文件一致；机器人已退出，25588 正常保存停服，原 25586 本地测试服没有重启。
+
+交付 `dist/pvp-1.0.0-mygo-csgo-utilities-sound.jar`，1,918,265 bytes，SHA-256
+`c29466aeea11b73667b5c21029383eb685664d286fea1855879a84492e1ad5a9`。
+资源 ZIP 已由用户上传并核验，安装新版 JAR 后完整重启即可自动使用新地址；无需再次上传同一资源包。

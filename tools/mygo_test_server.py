@@ -30,8 +30,10 @@ def main() -> None:
                         help="Verify a version-2 server migrates the previous broken texture-pack CDN.")
     parser.add_argument("--texture-fix-cdn-config", action="store_true",
                         help="Verify version-3 texture-fix CDN migrates to the 34-gun CS:GO pack.")
+    parser.add_argument("--classic-cdn-config", action="store_true",
+                        help="Verify version-4 gun CDN migrates to the matching utility/footstep audio pack.")
     args = parser.parse_args()
-    if sum((args.legacy_config, args.previous_cdn_config, args.texture_fix_cdn_config)) > 1:
+    if sum((args.legacy_config, args.previous_cdn_config, args.texture_fix_cdn_config, args.classic_cdn_config)) > 1:
         parser.error("Choose one legacy resource-pack fixture")
     root = Path(__file__).resolve().parents[1]
     run_dir = (args.run_dir or root / "build/mygo-server-test").resolve()
@@ -121,7 +123,9 @@ def main() -> None:
     }
     # Ordinary protocol checks explicitly keep the local HTTP fixture. The
     # legacy fixture deliberately omits the version to exercise public-URL migration.
-    if args.texture_fix_cdn_config:
+    if args.classic_cdn_config:
+        pack_settings.update(configVersion=4, packUrl="https://qfmaker.com/upload/files/uxv5wsbc.zip")
+    elif args.texture_fix_cdn_config:
         pack_settings.update(configVersion=3, packUrl="https://qfmaker.com/upload/files/zevadwr3.zip")
     elif args.previous_cdn_config:
         # The texture fix must reach already-upgraded live servers, not only fresh configs.
