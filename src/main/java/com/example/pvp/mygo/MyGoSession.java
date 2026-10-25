@@ -665,7 +665,6 @@ public final class MyGoSession implements PortedGameSession {
         int cost;
         if (type != null) {
             if (!type.availableTo(attackers(f))) { actionBar(player, "§c本阵营不可购买 " + type.label + "，可拾取敌方掉落枪械。"); return false; }
-            if (!type.pistol() && f.primary != null) { actionBar(player, "§e已有主枪，请先按 Q 丢下再购买。"); return false; }
             cost = type.price;
         } else if (utility != null) {
             if (f.grenades.getOrDefault(utility, 0) >= utility.maximum) { actionBar(player, "§e已达到该投掷物携带上限。"); return false; }
@@ -682,8 +681,14 @@ public final class MyGoSession implements PortedGameSession {
         f.cash -= cost;
         if (type != null) {
             if (player.getInventory().selectedSlot == (type.pistol() ? 1 : 0)) closeScope(player, f);
-            if (type.pistol()) { if (f.pistol != null) dropGun(f.pistol, player.getBlockPos()); f.pistol = new Gun(type); }
-            else f.primary = new Gun(type);
+            // Reason: 购买同一槽位的新枪不应静默覆盖旧枪；先生成可拾取掉落，保留旧枪及其剩余弹药。
+            if (type.pistol()) {
+                if (f.pistol != null) dropGun(f.pistol, player.getBlockPos());
+                f.pistol = new Gun(type);
+            } else {
+                if (f.primary != null) dropGun(f.primary, player.getBlockPos());
+                f.primary = new Gun(type);
+            }
         }
         else if (utility != null) f.grenades.merge(utility, 1, Integer::sum);
         else if ("vest".equals(key)) { f.armor = 100; f.vest = true; }
