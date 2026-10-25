@@ -108,6 +108,10 @@ public abstract class MyGoInputMixin {
         this.pvp$clearPrediction();
         MyGoSession session = MyGoCommands.session(handler.player);
         if (session == null) return;
+        if (session.handleSyntheticAction(handler.player, packet)) {
+            ci.cancel();
+            return;
+        }
         switch (packet.getAction()) {
             case ABORT_DESTROY_BLOCK, STOP_DESTROY_BLOCK -> session.onAttackRelease(handler.player);
             case SWAP_ITEM_WITH_OFFHAND -> {

@@ -8,6 +8,8 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.component.type.DyedColorComponent;
 import net.minecraft.component.type.LoreComponent;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
@@ -25,6 +27,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
+import net.minecraft.network.packet.s2c.play.BlockUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.UpdateSelectedSlotS2CPacket;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
 import net.minecraft.particle.ParticleTypes;
@@ -132,6 +135,7 @@ public final class MyGoSession implements PortedGameSession {
     }
     private record GroundEquipment(MyGoUtilities.Type grenade, boolean kit, BlockPos pos, int pickupAt,
                                    ArmorStandEntity marker) { }
+    private record SyntheticHold(BlockPos pos, BlockState actual) { }
     private record Channel(UUID player, BlockPos target, Vec3d origin, int completeAt, boolean planting) { }
 
     private final Match match;
@@ -141,6 +145,7 @@ public final class MyGoSession implements PortedGameSession {
     private final List<BlockPos> initialSpawns = new ArrayList<>();
     private final List<GroundGun> groundGuns = new ArrayList<>();
     private final List<GroundEquipment> groundEquipment = new ArrayList<>();
+    private final Map<UUID, SyntheticHold> syntheticHolds = new HashMap<>();
     private final List<ArmorStandEntity> labels = new ArrayList<>();
     private final Map<UUID, Entity> ownedEntities = new HashMap<>();
     private final Random random;
@@ -262,6 +267,7 @@ public final class MyGoSession implements PortedGameSession {
             player.fallDistance = 0;
             if (this.ticks % 20 == 0) player.getHungerManager().setFoodLevel(20);
             if (!fighter.alive) {
+                clearSyntheticHold(player);
                 fighter.footsteps.reset();
                 tickSpectator(player, fighter);
                 if (this.ticks % 40 == 0) actionBar(player, "§7阵亡，等待下一回合 · 队友：" +
@@ -291,6 +297,10 @@ public final class MyGoSession implements PortedGameSession {
                     && this.match.arenaWorld().getBlockCollisions(player, player.getBoundingBox().offset(0, -.05, 0)).iterator().hasNext())
                 fighter.lastSafe = player.getPos();
             Gun selectedGun = fighter.gun(selected);
+            SyntheticHold synthetic = this.syntheticHolds.get(player.getUuid());
+            if (synthetic != null && (selectedGun == null || !selectedGun.type.automatic()
+                    || player.squaredDistanceTo(Vec3d.ofCenter(synthetic.pos())) < 4))
+                clearSyntheticHold(player);
             if (selectedGun != null) {
                 double maxSpeed = selectedGun.type.profile().maxSpeed(alternateMode(fighter, selectedGun))
                         / (100 / 2.54) / 20;
@@ -530,6 +540,7 @@ public final class MyGoSession implements PortedGameSession {
     private void kill(ServerPlayerEntity victim, ServerPlayerEntity attacker, String reason, int killReward) {
         Fighter f = fighter(victim);
         if (f == null || !f.alive) return;
+        clearSyntheticHold(victim);
         MyGoUtilities.Type droppedGrenade = MyGoRoundEquipment.deathGrenade(f.grenades, victim.getInventory().selectedSlot);
         if (droppedGrenade != null) dropEquipment(droppedGrenade, false, victim.getBlockPos());
         if (f.kit) dropEquipment(null, true, victim.getBlockPos());
@@ -569,6 +580,7 @@ public final class MyGoSession implements PortedGameSession {
     public void onSelectedSlotChanged(ServerPlayerEntity player) {
         Fighter f = fighter(player);
         if (f == null || this.ended || player.getInventory().selectedSlot == f.selected) return;
+        clearSyntheticHold(player);
         f.cancel();
         f.selected = player.getInventory().selectedSlot;
         Gun equipped = f.gun(f.selected);
@@ -601,6 +613,7 @@ public final class MyGoSession implements PortedGameSession {
             if (repeated && gun.type.automatic())
                 gun.autoArmed = true;
             trigger(player, f, gun);
+            if (gun.type.automatic()) armSyntheticHold(player, f, gun);
         } else {
             for (MyGoUtilities.Type type : MyGoUtilities.Type.values())
                 if (player.getInventory().selectedSlot == type.slot) throwGrenade(player, f, type, MyGoUtilities.ThrowMode.STRONG);
@@ -613,6 +626,49 @@ public final class MyGoSession implements PortedGameSession {
         if (f == null) return;
         Gun gun = f.gun(player.getInventory().selectedSlot);
         if (gun != null) { gun.inputLease.clear(); gun.autoArmed = false; }
+        clearSyntheticHold(player);
+    }
+
+    /**
+     * Vanilla 1.21.1 repeats left-click input only while its crosshair is on a
+     * block. A client-only barrier gives an automatic weapon that same native
+     * path when the player is aiming air/an entity; the server never changes
+     * its world and treats the corresponding dig packets as input only.
+     */
+    private void armSyntheticHold(ServerPlayerEntity player, Fighter fighter, Gun gun) {
+        if (this.syntheticHolds.containsKey(player.getUuid()) || !combatPhase() || !fighter.alive) return;
+        Vec3d from = player.getEyePos();
+        Vec3d direction = player.getRotationVec(1).normalize();
+        Vec3d end = from.add(direction.multiply(8));
+        BlockHitResult block = this.match.arenaWorld().raycast(new RaycastContext(from, end,
+                RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, player));
+        if (block.getType() != net.minecraft.util.hit.HitResult.Type.MISS) return;
+        double distance = 6;
+        for (ServerPlayerEntity candidate : participants()) {
+            if (candidate == player || candidate.getWorld() != this.match.arenaWorld()) continue;
+            Optional<Vec3d> hit = candidate.getBoundingBox().raycast(from, end);
+            if (hit.isPresent()) distance = Math.min(distance, Math.max(1.0, from.distanceTo(hit.get()) - .35));
+        }
+        BlockPos pos = BlockPos.ofFloored(from.add(direction.multiply(distance)));
+        BlockState actual = this.match.arenaWorld().getBlockState(pos);
+        if (!actual.isAir()) return;
+        this.syntheticHolds.put(player.getUuid(), new SyntheticHold(pos, actual));
+        player.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, Blocks.BARRIER.getDefaultState()));
+    }
+
+    /** Returns true when the packet belongs to the client-only synthetic block. */
+    public boolean handleSyntheticAction(ServerPlayerEntity player, net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket packet) {
+        SyntheticHold hold = this.syntheticHolds.get(player.getUuid());
+        if (hold == null || !hold.pos().equals(packet.getPos())) return false;
+        if (packet.getAction() == net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket.Action.ABORT_DESTROY_BLOCK
+                || packet.getAction() == net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK)
+            clearSyntheticHold(player);
+        return true;
+    }
+
+    private void clearSyntheticHold(ServerPlayerEntity player) {
+        SyntheticHold hold = this.syntheticHolds.remove(player.getUuid());
+        if (hold != null) player.networkHandler.sendPacket(new BlockUpdateS2CPacket(hold.pos(), hold.actual()));
     }
 
     /** 两种抛法共用库存/冷却，投出后切枪，避免按住右键把第二颗闪光也自动丢掉。 */
@@ -655,6 +711,7 @@ public final class MyGoSession implements PortedGameSession {
         if (gun != null) {
             // Right-click scope/mode changes must never inherit an automatic-fire lease.
             gun.inputLease.clear(); gun.autoArmed = false;
+            clearSyntheticHold(player);
             if (combatPhase() && gun.type.scopeLevels() > 0) {
                 // 原版按住右键每 4 tick 重复使用；同次实体／方块／物品交互也可能有多个包。
                 // 连续输入仅延长去抖窗口，松开后再次点按才切换，避免镜框不停闪烁。
@@ -1008,6 +1065,7 @@ public final class MyGoSession implements PortedGameSession {
     private void remove(UUID id, ServerPlayerEntity player) {
         if (this.ended) return;
         if (!this.active.remove(id)) return;
+        if (player != null) clearSyntheticHold(player);
         Fighter f = this.fighters.get(id); f.cancel();
         if (id.equals(this.bombCarrier)) dropBomb(player == null ? this.map.center().up() : player.getBlockPos());
         if (this.channel != null && this.channel.player().equals(id)) cancelChannel();
@@ -1026,6 +1084,7 @@ public final class MyGoSession implements PortedGameSession {
         this.map.closeDecorations();
         for (Fighter f : this.fighters.values()) {
             f.cancel(); ServerPlayerEntity p = this.match.onlinePlayer(f.id);
+            if (p != null) clearSyntheticHold(p);
             if (p != null && this.active.contains(f.id)) { p.closeHandledScreen(); restoreHead(p, f); removeSpeed(p, f); }
         }
         this.timer.clearPlayers(); clearRoundEntities();
