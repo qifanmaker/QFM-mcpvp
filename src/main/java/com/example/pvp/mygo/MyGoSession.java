@@ -671,22 +671,27 @@ public final class MyGoSession implements PortedGameSession {
             // fall back to its one-shot entity attack path while moving.
             pos = reachableAir(from, direction, Math.max(.8, entityDistance - .35));
         } else if (blockDistance <= SYNTHETIC_HOLD_REACH + .75) {
-            // Replace the client-visible target too. Otherwise Adventure mode
-            // can finish breaking the map block and send STOP_DESTROY_BLOCK.
-            // A distant wall itself is outside vanilla reach, so put the fake
-            // block on the same ray at a reachable air position in front of it.
-            pos = block.getBlockPos();
+            // Never cover a real map block. Put the fake block in the air cell
+            // immediately before a reachable wall instead.
+            pos = reachableAir(from, direction, blockDistance - .25);
         } else {
             pos = reachableAir(from, direction, SYNTHETIC_HOLD_REACH);
         }
-        if (pos == null) return;
+        if (pos == null) {
+            if (this.syntheticHolds.containsKey(player.getUuid())) clearSyntheticHold(player);
+            return;
+        }
+        BlockState actual = this.match.arenaWorld().getBlockState(pos);
+        if (!actual.isAir()) {
+            if (this.syntheticHolds.containsKey(player.getUuid())) clearSyntheticHold(player);
+            return;
+        }
         SyntheticHold existing = this.syntheticHolds.get(player.getUuid());
         if (existing != null && existing.pos().equals(pos)) return;
         if (existing != null) {
             player.networkHandler.sendPacket(new BlockUpdateS2CPacket(existing.pos(), existing.actual()));
             this.syntheticHolds.remove(player.getUuid());
         }
-        BlockState actual = this.match.arenaWorld().getBlockState(pos);
         this.syntheticHolds.put(player.getUuid(), new SyntheticHold(pos, actual));
         player.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, Blocks.BARRIER.getDefaultState()));
     }
