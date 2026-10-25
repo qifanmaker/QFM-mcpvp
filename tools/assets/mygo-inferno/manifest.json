@@ -85,9 +85,9 @@
     "Static block states only; no entities, block entity NBT, player data, datapacks or source resource packs.",
     "Runtime layout coordinates are relative to the source origin; Y coordinates remain at source scale."
   ],
-  "layoutSha256": "d51ee05e4924681b59250e5b4f32c9ca710d5c4b08587ba17638c0709082babe",
-  "geometrySha256": "178970e40a3b5b16a6eff1fc753b269b65e7e7ff708250e84252488fa25b63ed",
-  "geometryBytes": 326411,
+  "layoutSha256": "41d9fad5c1944018e9d6b7372e3bb33127df28ef4c388081988e2fbe7f18e198",
+  "geometrySha256": "d2643d619ebd806b02ae035681835df69cebee190656e500e64b04db2f32f8d3",
+  "geometryBytes": 326400,
   "minecraftSourcesSha256": "9780274ba8ca382aa1071c480fef6c78207d965cdcf4c788bbb51f9d38d73cfa",
   "pointReference": {
     "source": "Valve depot radar_info mirrored by MurkyYT/cs2-map-icons",
