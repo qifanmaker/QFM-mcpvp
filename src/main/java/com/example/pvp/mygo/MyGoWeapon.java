@@ -111,7 +111,29 @@ public enum MyGoWeapon {
     public String soundKey() { return name().toLowerCase(Locale.ROOT); }
     public static MyGoWeapon defaultPistol(boolean attackers) { return attackers ? GLOCK : USP_S; }
 
-    public double spread() { return shotgun() ? (this == SAWEDOFF ? 5.5 : 3.8) : sniper() ? 5.5 : smg() ? .8 : .55; }
+    /**
+     * Minecraft 用角度散布；不再让同一类别的所有武器共享一个数值。
+     * 手枪首发最稳定，冲锋枪/步枪按 CS:GO 的定位逐级增加，霰弹枪保留明显散布。
+     */
+    public double spread() {
+        return switch (this) {
+            case USP_S, P2000, GLOCK -> .16;
+            case P250, FIVESEVEN, TEC9, DUALS -> .24;
+            case CZ75 -> .3;
+            case DEAGLE, REVOLVER -> .38;
+            case MAC10, MP9, MP7, MP5SD -> .62;
+            case UMP45, BIZON -> .7;
+            case P90 -> .78;
+            case GALIL, FAMAS, M4A1S -> .38;
+            case AK47, M4A4, AUG, SG553 -> .32;
+            case G3SG1, SCAR20 -> .48;
+            case SSG08, AWP -> 5.5;
+            case NOVA, XM1014 -> 3.8;
+            case MAG7 -> 3.3;
+            case SAWEDOFF -> 5.5;
+            case M249, NEGEV -> .72;
+        };
+    }
     public double recoil() {
         return sniper() ? (this == AWP ? 2.4 : 1.8) : shotgun() ? 2.2
                 : this == DEAGLE || this == REVOLVER ? 1.8 : smg() ? .3 : pistol() ? .5 : .65;

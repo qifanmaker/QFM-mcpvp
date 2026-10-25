@@ -101,6 +101,14 @@ final class MyGoArsenalTest {
             assertEquals(gun == MyGoWeapon.AWP || gun == MyGoWeapon.SSG08, gun.unzoomAfterShot(), gun.name());
     }
 
+    @Test void weaponSpreadIsDistinctAndPistolsStayStableWhileMoving() {
+        assertTrue(MyGoWeapon.GLOCK.spread() < MyGoWeapon.MP9.spread());
+        assertTrue(MyGoWeapon.MP9.spread() < MyGoWeapon.AK47.spread() + .4);
+        assertTrue(MyGoWeapon.AWP.spread() > MyGoWeapon.AK47.spread());
+        assertTrue(MyGoWeapon.SAWEDOFF.spread() > MyGoWeapon.AK47.spread());
+        assertTrue(MyGoWeapon.DEAGLE.spread() > MyGoWeapon.GLOCK.spread());
+    }
+
     @Test void originalRangeFalloffUsesSourceUnitsWithoutCuttingOffDustTwoLongSightlines() {
         double metersPer500SourceUnits = 500 / MyGoWeapon.SOURCE_UNITS_PER_BLOCK;
         for (MyGoWeapon gun : MyGoWeapon.values()) {

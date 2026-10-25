@@ -341,9 +341,11 @@ public final class MyGoSession implements PortedGameSession {
         if (elapsed > 12) gun.sequence = 0;
         double spread = gun.type.spread() + gun.heat;
         if (f.scoped) spread *= gun.type.sniper() && this.ticks - f.aimSince >= 8 ? .008 : .35;
-        if (this.ticks - f.stoppedAt < 3) spread *= gun.type.smg() ? 2.5 : 5;
-        if (!player.isOnGround()) spread += 7;
-        if (player.isSprinting()) spread += 5;
+        // Reason: 旧逻辑把“刚停下”和移动都按统一的大倍数处理，导致手枪移动射击
+        // 远不如 CS:GO 稳定；同时所有枪共用基础散布，武器手感无法区分。
+        if (this.ticks - f.stoppedAt < 3) spread *= gun.type.pistol() ? 1.15 : gun.type.smg() ? 1.8 : gun.type.sniper() ? 3.2 : 2.2;
+        if (!player.isOnGround()) spread += gun.type.pistol() ? 1.2 : gun.type.smg() ? 2.5 : gun.type.sniper() ? 7 : 4;
+        if (player.isSprinting()) spread += gun.type.pistol() ? .7 : gun.type.smg() ? 1.4 : gun.type.sniper() ? 4 : 2.2;
         gun.heat = Math.min(1.6, gun.heat + .13); gun.lastShot = this.ticks; gun.sequence++;
         Map<ServerPlayerEntity, Double> hits = new LinkedHashMap<>();
         Set<UUID> headshots = new LinkedHashSet<>();
