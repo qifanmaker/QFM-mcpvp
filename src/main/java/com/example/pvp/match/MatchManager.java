@@ -511,8 +511,8 @@ public final class MatchManager {
                 return false;
             }
         } else if (type == MatchType.MYGO) {
-            // 正常匹配最低两人，同场双方始终等员；与队列读取同一最低人数。
-            if (players.size() < type.requiredPlayers() || players.size() > 10 || players.size() % 2 != 0
+            // 正常匹配最低两人；奇数人数由 MyGO 按一人差平衡分队。
+            if (players.size() < type.requiredPlayers() || players.size() > 10
                     || players.stream().anyMatch(p -> !com.example.pvp.mygo.MyGoResourcePack.isReady(p))) {
                 return false;
             }

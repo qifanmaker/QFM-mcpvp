@@ -367,7 +367,7 @@ public final class PvPCommands {
                         + "§e/pvp join deathmatch -k <套件>§r 加入死斗（5 分钟，人头最多者胜）\n"
                         + "§e/pvp join racing§r 加入亦可赛艇（无需套件，原版船 + 随机冰面赛道竞速）\n"
                         + "§e/pvp join mygo§r 加入 MyGO 枪战爆破（先加载资源包，再次加入）\n"
-                        + "§e/pvp mygo [shop|buy <商品>|map <dust2|mirage|inferno>|reload|stats]§r 枪战商店、选图、换弹与独立战绩\n"
+                        + "§e/pvp mygo [shop|buy <商品>|team <t|ct|auto>|map <dust2|mirage|inferno>|reload|stats]§r 枪战商店、选队、选图、换弹与独立战绩\n"
                         + "§e/pvp join minecraftparty§r 加入 Minecraft Party 2（移植中：首批 3 个小游戏 Quick Play）\n"
                         + "§e/pvp join islandsiege§r 加入海岛攻防（无需套件，红队进攻、蓝队防守）\n"
                         + "§e/pvp leave§r 离开队列\n"
@@ -468,8 +468,8 @@ public final class PvPCommands {
                         + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛；原版船 + 每场随机生成的冰面赛道（"
                         + PvPConfig.INSTANCE.boatRaceLaps + " 圈）"), false);
             } else if (type == MatchType.MYGO) {
-                player.sendMessage(Messages.info("已加入 MyGO：十人立即开局，至少两人等待 60 秒等员开局；"
-                        + "左键点射、瞄具枪右键切倍率/关镜、F 换弹、/pvp mygo 打开购买菜单"), false);
+                player.sendMessage(Messages.info("已加入 MyGO：2~10 人均可开局，奇数人数两队相差一人；"
+                        + "可用 /pvp mygo team <t|ct|auto> 选择队伍，左键点射、瞄具枪右键切倍率/关镜、F 换弹"), false);
             } else if (type.isPortedGame()) {
                 player.sendMessage(Messages.info("已加入" + type.getDisplayName() + "：凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛；至少 " + MatchType.PORTED_MIN_PLAYERS

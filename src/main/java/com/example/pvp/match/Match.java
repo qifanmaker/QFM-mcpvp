@@ -605,9 +605,10 @@ public final class Match {
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));
         } else if (type == MatchType.DUEL_2V2 || type == MatchType.BRIDGE_2V2 || type == MatchType.BRIDGE_TEAM
                 || type == MatchType.ISLAND_SIEGE || type == MatchType.MYGO) {
-            // 战桥 2v2 / 混战：总人数/2 平均分两队（队列已随机洗牌）
-            teams.add(new MatchTeam("红队", Formatting.RED, players.subList(0, players.size() / 2)));
-            teams.add(new MatchTeam("蓝队", Formatting.BLUE, players.subList(players.size() / 2, players.size())));
+            // MyGO 奇数人数由 T 多一人；其它两队模式仍要求调用方传入合法人数。
+            int firstTeamSize = type == MatchType.MYGO ? (players.size() + 1) / 2 : players.size() / 2;
+            teams.add(new MatchTeam("红队", Formatting.RED, players.subList(0, firstTeamSize)));
+            teams.add(new MatchTeam("蓝队", Formatting.BLUE, players.subList(firstTeamSize, players.size())));
         } else if (type == MatchType.BRIDGE_1V1V1V1) {
             teams.add(new MatchTeam("红队", Formatting.RED, List.of(players.get(0))));
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));

@@ -76,7 +76,7 @@ public enum MatchType {
             case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchMinPlayers;
             case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceMinPlayers;
             case MINECRAFT_PARTY, ISLAND_SIEGE -> PORTED_MIN_PLAYERS;
-            case MYGO -> 2; // MyGO 允许 1v1 自动匹配，与队列及建场检查共用最低人数。
+            case MYGO -> 2; // MyGO 最少两人；奇数人数按一人差平衡分队。
         };
     }
 

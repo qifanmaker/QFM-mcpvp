@@ -2,6 +2,8 @@ package com.example.pvp.mygo;
 
 import com.example.pvp.PvPMod;
 import com.example.pvp.match.Match;
+import com.example.pvp.queue.MyGoTeamPreference;
+import com.example.pvp.queue.QueueEntry;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.command.CommandSource;
@@ -55,6 +57,13 @@ public final class MyGoCommands {
                                                 return 0;
                                             }
                                         })))
+                        .then(CommandManager.literal("team")
+                                .then(CommandManager.argument("choice", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> CommandSource.suggestMatching(
+                                                java.util.Arrays.stream(MyGoTeamPreference.values())
+                                                        .map(MyGoTeamPreference::id).toList(), builder))
+                                        .executes(ctx -> chooseTeam(ctx.getSource().getPlayerOrThrow(),
+                                                StringArgumentType.getString(ctx, "choice")))))
                         .then(CommandManager.literal("stats").executes(ctx -> {
                             ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
                             player.sendMessage(Text.literal(MyGoStats.describe(player.getUuid())), false);
@@ -96,6 +105,22 @@ public final class MyGoCommands {
         MyGoSession session = requireSession(player);
         if (session == null) return 0;
         session.openShop(player);
+        return 1;
+    }
+
+    private static int chooseTeam(ServerPlayerEntity player, String rawChoice) {
+        QueueEntry entry = PvPMod.QUEUE == null ? null : PvPMod.QUEUE.getEntry(player);
+        if (entry == null || entry.getType() != com.example.pvp.match.MatchType.MYGO) {
+            player.sendMessage(Text.literal("§e请先加入 MyGO 队列，再选择 T、CT 或自动平衡。"), false);
+            return 0;
+        }
+        MyGoTeamPreference preference = MyGoTeamPreference.parse(rawChoice);
+        if (preference == null) {
+            player.sendMessage(Text.literal("§c队伍选项无效，可用：t、ct、auto。"), false);
+            return 0;
+        }
+        PvPMod.QUEUE.setMyGoTeam(player.getUuid(), preference);
+        player.sendMessage(Text.literal("§aMyGO 队伍偏好已设置为：§f" + preference.displayName()), false);
         return 1;
     }
 

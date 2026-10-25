@@ -14,6 +14,7 @@ public final class QueueEntry {
     private final Kit kit;
     private final long queuedAtTick;
     private final SkyWarsMapVariant skyWarsVariant;
+    private MyGoTeamPreference myGoTeamPreference = MyGoTeamPreference.AUTO;
 
     public QueueEntry(ServerPlayerEntity player, MatchType type, Kit kit, long queuedAtTick) {
         this(player, type, kit, queuedAtTick, SkyWarsMapVariant.CLASSIC);
@@ -46,5 +47,13 @@ public final class QueueEntry {
 
     public SkyWarsMapVariant getSkyWarsVariant() {
         return this.skyWarsVariant;
+    }
+
+    public MyGoTeamPreference getMyGoTeamPreference() {
+        return this.myGoTeamPreference;
+    }
+
+    public void setMyGoTeamPreference(MyGoTeamPreference preference) {
+        this.myGoTeamPreference = preference == null ? MyGoTeamPreference.AUTO : preference;
     }
 }

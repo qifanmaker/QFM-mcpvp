@@ -195,13 +195,16 @@ public final class MyGoSession implements PortedGameSession {
             damage(victim, this.active.contains(source.id) ? owner : null, applied,
                     kind == MyGoUtilities.DamageKind.FIRE ? "燃烧伤害" : "手雷撞击");
         });
-        int half = match.players().size() / 2;
+        int attackers = (match.players().size() + 1) / 2;
+        int attackerSpawnIndex = 0;
+        int defenderSpawnIndex = 0;
         for (int i = 0; i < match.players().size(); i++) {
             ServerPlayerEntity player = match.players().get(i);
-            int team = i < half ? 0 : 1;
+            int team = i < attackers ? 0 : 1;
             this.fighters.put(player.getUuid(), new Fighter(player.getUuid(), team));
             this.active.add(player.getUuid());
-            this.initialSpawns.add(this.map.spawn(team == 0, i % Math.max(1, half)));
+            int spawnIndex = team == 0 ? attackerSpawnIndex++ : defenderSpawnIndex++;
+            this.initialSpawns.add(this.map.spawn(team == 0, spawnIndex));
         }
     }
 
@@ -215,6 +218,7 @@ public final class MyGoSession implements PortedGameSession {
             Fighter fighter = fighter(player);
             fighter.oldHead = player.getEquippedStack(EquipmentSlot.HEAD).copy();
             this.timer.addPlayer(player);
+            player.sendMessage(Text.literal("§e本场队伍：" + (fighter.team == 0 ? "§cT 进攻方" : "§9CT 防守方")), false);
             player.sendMessage(Text.literal("§6MyGO 经典爆破 · 先赢 16 回合，第 15 回合换边，15:15 平局。"), false);
             player.sendMessage(Text.literal("§e左键点射 · 瞄具枪右键切换倍率/关镜 · F 换弹 · Q 丢枪/C4 · 购买器右键商店。"), false);
             player.sendMessage(Text.literal("§7CS:GO 军械库 34 种枪械 · T 默认 Glock-18 / CT 默认 USP-S · 仅瞄具枪支持开镜。"), false);
@@ -1219,8 +1223,17 @@ public final class MyGoSession implements PortedGameSession {
                 + " helmet=" + (f != null && f.helmet) + " bombPlanted=" + this.bombPlanted
                 + " map=" + this.map.id() + " range=" + compact(this.map.testAnchor("range"))
                 + " waiting=" + compact(this.map.spectator())
-                + " spawn=" + compact(this.map.spawn(f != null && attackers(f), 0))
+                + " spawn=" + compact(initialSpawn(player))
                 + " bombCarrier=" + this.bombCarrier + " bomb=" + this.bombPosition + " sites=" + this.map.sites();
+    }
+
+    private BlockPos initialSpawn(ServerPlayerEntity player) {
+        List<ServerPlayerEntity> players = this.match.players();
+        for (int i = 0; i < players.size() && i < this.initialSpawns.size(); i++) {
+            if (players.get(i).getUuid().equals(player.getUuid())) return this.initialSpawns.get(i);
+        }
+        Fighter fighter = fighter(player);
+        return this.map.spawn(fighter != null && attackers(fighter), 0);
     }
 
     private static String compact(BlockPos pos) { return pos.getX() + "," + pos.getY() + "," + pos.getZ(); }
