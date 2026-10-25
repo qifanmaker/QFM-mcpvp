@@ -77,6 +77,8 @@ import java.util.UUID;
 public final class MyGoSession implements PortedGameSession {
     private enum Phase { BUY, LIVE, POST, FINISHED }
     private static final Identifier SPEED_ID = Identifier.of("pvp", "mygo_speed");
+    // Keep the client-only target inside vanilla Adventure block reach.
+    private static final double SYNTHETIC_HOLD_REACH = 3.0;
     // Vanilla teleport IDs are non-negative. This camera-only packet must not
     // acknowledge or replace an outstanding world/round teleport on the server.
     private static final int RECOIL_CONFIRM_ID = -1;
@@ -652,22 +654,37 @@ public final class MyGoSession implements PortedGameSession {
         if (block.getType() != net.minecraft.util.hit.HitResult.Type.MISS) {
             // Replace the client-visible target too. Otherwise Adventure mode
             // can finish breaking the map block and send STOP_DESTROY_BLOCK.
-            pos = block.getBlockPos();
+            // A distant wall itself is outside vanilla reach, so put the fake
+            // block on the same ray at a reachable air position in front of it.
+            double hitDistance = from.distanceTo(block.getPos());
+            pos = hitDistance <= SYNTHETIC_HOLD_REACH + .75
+                    ? block.getBlockPos() : reachableAir(from, direction, SYNTHETIC_HOLD_REACH);
         } else {
-            double distance = 6;
+            double distance = SYNTHETIC_HOLD_REACH;
             for (ServerPlayerEntity candidate : participants()) {
                 if (candidate == player || candidate.getWorld() != this.match.arenaWorld()) continue;
                 Optional<Vec3d> hit = candidate.getBoundingBox().raycast(from, end);
                 if (hit.isPresent()) distance = Math.min(distance, Math.max(1.0, from.distanceTo(hit.get()) - .35));
             }
-            pos = BlockPos.ofFloored(from.add(direction.multiply(distance)));
+            pos = reachableAir(from, direction, distance);
         }
+        if (pos == null) return;
         BlockState actual = this.match.arenaWorld().getBlockState(pos);
         this.syntheticHolds.put(player.getUuid(), new SyntheticHold(pos, actual));
         // Reason: the first click must start the automatic state immediately;
         // the bounded lease still expires unless vanilla sends another swing.
         gun.autoArmed = true;
         player.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, Blocks.BARRIER.getDefaultState()));
+    }
+
+    /** Find an air cell close enough for vanilla block-breaking reach. */
+    private BlockPos reachableAir(Vec3d from, Vec3d direction, double distance) {
+        double max = Math.min(SYNTHETIC_HOLD_REACH, distance);
+        for (double current = max; current >= 1.25; current -= .25) {
+            BlockPos candidate = BlockPos.ofFloored(from.add(direction.multiply(current)));
+            if (this.match.arenaWorld().getBlockState(candidate).isAir()) return candidate;
+        }
+        return null;
     }
 
     /** Returns true when the packet belongs to the client-only synthetic block. */
