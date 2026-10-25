@@ -305,12 +305,11 @@ public final class MyGoSession implements PortedGameSession {
             if (synthetic != null && (selectedGun == null || !selectedGun.type.automatic()))
                 clearSyntheticHold(player);
             synthetic = this.syntheticHolds.get(player.getUuid());
-            if (synthetic != null && selectedGun != null && selectedGun.type.automatic()) {
+            if (synthetic != null && selectedGun != null && selectedGun.type.automatic() && selectedGun.autoArmed) {
                 // Reason: vanilla has an initial attack cooldown before it can
                 // repeat the fake-block swing. Keep the server lease alive only
-                // while that client-side hold is represented by the fake block.
+                // after a repeat packet confirms the client-side hold.
                 selectedGun.inputLease.refresh(this.ticks);
-                selectedGun.autoArmed = true;
             }
             if (selectedGun != null) {
                 double maxSpeed = selectedGun.type.profile().maxSpeed(alternateMode(fighter, selectedGun))
@@ -672,8 +671,6 @@ public final class MyGoSession implements PortedGameSession {
         }
         BlockState actual = this.match.arenaWorld().getBlockState(pos);
         this.syntheticHolds.put(player.getUuid(), new SyntheticHold(pos, actual));
-        gun.inputLease.refresh(this.ticks);
-        gun.autoArmed = true;
         player.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, Blocks.BARRIER.getDefaultState()));
     }
 
@@ -681,6 +678,16 @@ public final class MyGoSession implements PortedGameSession {
     public boolean handleSyntheticAction(ServerPlayerEntity player, net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket packet) {
         SyntheticHold hold = this.syntheticHolds.get(player.getUuid());
         if (hold == null || !hold.pos().equals(packet.getPos())) return false;
+        if (packet.getAction() == net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket.Action.START_DESTROY_BLOCK) {
+            Fighter f = fighter(player);
+            Gun gun = f == null ? null : f.gun(player.getInventory().selectedSlot);
+            if (gun != null && gun.type.automatic()) {
+                // A START for the client-only barrier proves that the button is
+                // still held; only then may the server keep the lease alive.
+                gun.autoArmed = true;
+                gun.inputLease.refresh(this.ticks);
+            }
+        }
         if (packet.getAction() == net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket.Action.ABORT_DESTROY_BLOCK
                 || packet.getAction() == net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK)
             onAttackRelease(player);
@@ -689,6 +696,13 @@ public final class MyGoSession implements PortedGameSession {
 
     private void clearSyntheticHold(ServerPlayerEntity player) {
         SyntheticHold hold = this.syntheticHolds.remove(player.getUuid());
+        Fighter f = fighter(player);
+        if (f != null) {
+            for (Gun gun : new Gun[]{f.primary, f.pistol}) if (gun != null) {
+                gun.inputLease.clear();
+                gun.autoArmed = false;
+            }
+        }
         if (hold != null) player.networkHandler.sendPacket(new BlockUpdateS2CPacket(hold.pos(), hold.actual()));
     }
 
