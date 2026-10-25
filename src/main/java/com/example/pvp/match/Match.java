@@ -861,41 +861,6 @@ public final class Match {
             default -> {
             }
         }
-
-        this.tickGhosts();
-    }
-
-    /** 幽灵被动行为兜底：靠近掉落物时弹开。 */
-    private void tickGhosts() {
-        ArenaWorld arena = this.manager.getArenaManager().getWorld();
-        if (arena == null) {
-            return;
-        }
-        for (ServerPlayerEntity player : this.players) {
-            if (!this.eliminated.contains(player.getUuid())) {
-                continue;
-            }
-            ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
-            if (online == null || online.getWorld() != arena) {
-                continue;
-            }
-            // 附近有掉落物 → 弹开
-            // 注意：getEntitiesByClass 内部遍历可能因实体变动抛 ConcurrentModificationException，先复制结果
-            List<ItemEntity> nearbyItems = new ArrayList<>(arena.getEntitiesByClass(ItemEntity.class,
-                    online.getBoundingBox().expand(1.0), e -> true));
-            if (!nearbyItems.isEmpty()) {
-                this.knockGhostAway(online);
-            }
-        }
-    }
-
-    /** 把幽灵向上弹开 3 格（配合飞行能力脱离掉落物范围）。 */
-    private void knockGhostAway(ServerPlayerEntity ghost) {
-        ArenaWorld arena = this.manager.getArenaManager().getWorld();
-        if (arena == null) {
-            return;
-        }
-        ghost.teleport(arena, ghost.getX(), ghost.getY() + 3.0, ghost.getZ(), ghost.getYaw(), ghost.getPitch());
     }
 
     /** 胜利庆祝倒计时，结束后结算。 */
