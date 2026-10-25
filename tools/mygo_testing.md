@@ -491,5 +491,6 @@ Mirage 和 Inferno 的初始 T/CT/A/B 相对位置按 Valve 游戏文件提取�
 [Mirage radar_info](https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_mirage.txt)、
 [Inferno radar_info](https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_inferno.txt)。
 根据用户提供的 Mirage Minecraft 俯视标注图，Mirage 最终点位以红色手绘中心为准，并吸附到可站立方块：
-T=(5,-71)、A=(43,-25)、B=(-17,19)、CT=(29,28)；Inferno 仍使用其对应参考图方向。
+T=(5,-71)、A=(43,-25)、B=(-17,19)、CT=(29,28)。Inferno 的 T/CT 出生点保持原校验结果，
+并按用户提供的 Inferno 俯视标注图将包点调整为 A=(-55,-41)、B=(10,50)。
 两张地图再用服务端出生点校验和离线路线审计确认可站立、可到达。
