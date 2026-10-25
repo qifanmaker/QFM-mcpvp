@@ -76,12 +76,13 @@ public final class MyGoSession implements PortedGameSession {
 
     private static final class Gun {
         final MyGoWeapon type;
-        int ammo, reserve, ready, reloadAt, lastShot, sequence;
+        int ammo, reserve, ready, reloadAt, lastShot, sequence, lastInput = -1000;
+        boolean autoArmed;
         double heat;
         final List<Integer> shots = new ArrayList<>();
         Gun(MyGoWeapon type) { this.type = type; refill(); }
         void refill() { this.ammo = this.type.magazine; this.reserve = this.type.reserve; this.heat = 0; cancel(); }
-        void cancel() { this.shots.clear(); this.reloadAt = 0; }
+        void cancel() { this.shots.clear(); this.reloadAt = 0; this.lastInput = -1000; this.autoArmed = false; }
     }
     private static final class Fighter {
         final UUID id;
@@ -306,6 +307,11 @@ public final class MyGoSession implements PortedGameSession {
 
     private void tickGun(ServerPlayerEntity player, Fighter f, Gun gun) {
         if (gun == null) return;
+        if (gun.autoArmed && this.ticks - gun.lastInput <= autoInputGrace(gun.type)
+                && gun.ready <= this.ticks && gun.reloadAt == 0 && gun.ammo > 0)
+            trigger(player, f, gun);
+        else if (gun.autoArmed && this.ticks - gun.lastInput > autoInputGrace(gun.type))
+            gun.autoArmed = false;
         if (f.resumeScopeLevel > 0 && this.ticks >= f.resumeScopeAt) {
             int level = f.resumeScopeLevel; f.resumeScopeLevel = 0;
             if (combatPhase() && gun.type.unzoomAfterShot() && gun.ammo > 0 && gun.reloadAt == 0) {
@@ -331,6 +337,10 @@ public final class MyGoSession implements PortedGameSession {
         gun.ready = this.ticks + gun.type.cycleTicks;
         for (int offset : gun.type.burstOffsets()) gun.shots.add(this.ticks + offset);
         tickGun(player, f, gun);
+    }
+
+    private static int autoInputGrace(MyGoWeapon type) {
+        return Math.max(2, type.cycleTicks * 2);
     }
 
     /** Shooting cadence/movement spread and camera kick follow the server-side CS4M approach. */
@@ -494,7 +504,14 @@ public final class MyGoSession implements PortedGameSession {
         if (f == null || !f.alive || this.ended || hand != Hand.MAIN_HAND
                 || this.match.getState() != MatchState.ACTIVE) return;
         Gun gun = f.gun(player.getInventory().selectedSlot);
-        if (gun != null) trigger(player, f, gun);
+        if (gun != null) {
+            boolean repeated = gun.lastInput >= 0 && this.ticks - gun.lastInput <= autoInputGrace(gun.type);
+            gun.lastInput = this.ticks;
+            // 只有自动武器收到连续挥手包后才进入服务端连射；单击不会被猜成按住。
+            if (repeated && gun.type.automatic())
+                gun.autoArmed = true;
+            trigger(player, f, gun);
+        }
     }
 
     public ActionResult attack(ServerPlayerEntity player, Entity entity) {

@@ -103,6 +103,7 @@ public enum MyGoWeapon {
     public boolean sniper() { return this.group == Group.SNIPER; }
     public boolean unzoomAfterShot() { return this == AWP || this == SSG08; }
     public boolean smg() { return this.group == Group.SMG; }
+    public boolean automatic() { return this.group == Group.SMG || this.group == Group.RIFLE || this.group == Group.MACHINE_GUN; }
     public boolean shotgun() { return this.group == Group.SHOTGUN; }
     public int pellets() { return this.pelletCount; }
     public int scopeLevels() { return this.scopeFovs.length; }
