@@ -100,6 +100,14 @@ final class MyGoScopeTest {
             assertThrows(IllegalArgumentException.class, () -> MyGoScope.clientWalkSpeed(.065, fov));
     }
 
+    @Test
+    void scopeSensitivityFallsWithTheConfiguredZoomFov() {
+        assertEquals(.5F, MyGoScope.sensitivityFactor(45), 1e-6F);
+        assertEquals(10F / 90F, MyGoScope.sensitivityFactor(10), 1e-6F);
+        assertThrows(IllegalArgumentException.class, () -> MyGoScope.sensitivityFactor(6));
+        assertThrows(IllegalArgumentException.class, () -> MyGoScope.sensitivityFactor(91));
+    }
+
     private static final class ClientFixture implements AutoCloseable {
         private final MinecraftClient previous;
         private final HeadlessPlayer player;

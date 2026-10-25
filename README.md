@@ -121,7 +121,7 @@
 
 - **入口与匹配**：指南针主菜单 → 空岛战争右侧的 MyGO，或 `/pvp join mygo`。首次选择下载资源包，加载成功后再次选择入队。保留本服 2～10 人（1v1～5v5）等员适配：满 10 人立即开局，至少 2 人等待 60 秒。奇数队列保留最后一人。OP `/pvp start` 可提前开局；少于 4 人不计正式战绩。
 - **时限**：冻结 15 秒，解冻后仍可在本方购买区购买 20 秒；作战 115 秒。安装 C4 为 3.2 秒，安装后独立计时 40 秒；无拆包器拆除 10 秒，有拆包器 5 秒。回合结束保留 7 秒活动、拾枪和交战窗口。第 16 回合双方换边并重置装备、金钱与败补起始档。
-- **操作**：持枪左键开火，F 换弹，Q 丢主枪/副枪/C4，数字键切枪；瞄具枪右键循环切换镜位后关镜。手持投掷物时，左键大力高抛、右键小力低抛，投出自动切回主枪/副枪，防止按住右键继续扔第二颗。第 6 格 C4/拆包工具在包点潜行右键开始，松潜行、移动或切枪取消。第 9 格购买器右键打开军械库，也可用 `/pvp mygo`、`/pvp mygo buy <商品>`、`/pvp mygo reload`。`/hub` 退赛；`/pvp leave` 退出排队。
+- **操作**：持枪左键开火，F 换弹，Q 丢主枪/副枪/C4，数字键切枪；瞄具枪右键循环切换镜位后关镜，开镜灵敏度按当前 FOV 比例降低，退镜恢复。手持投掷物时，左键大力高抛、右键小力低抛，投出自动切回主枪/副枪，防止按住右键继续扔第二颗。第 6 格 C4/拆包工具在包点潜行右键开始，松潜行、移动或切枪取消。第 9 格购买器右键打开军械库，也可用 `/pvp mygo`、`/pvp mygo buy <商品>`、`/pvp mygo reload`。`/hub` 退赛；`/pvp leave` 退出排队。
 - **34 把枪**：Glock-18、USP-S、P2000、P250、Five-SeveN、Tec-9、CZ75-Auto、Dual Berettas、Desert Eagle、R8；MAC-10、MP9、MP7、MP5-SD、UMP-45、P90、PP-Bizon；Galil AR、FAMAS、AK-47、M4A4、M4A1-S、AUG、SG 553；SSG 08、AWP、G3SG1、SCAR-20；Nova、XM1014、MAG-7、Sawed-Off；M249、Negev。T 默认 Glock-18，CT 默认 USP-S。商店支持独立更换副枪，阵营限制也约束手枪、经济步枪和自动狙；敌方掉落枪仍可拾取。
 - **参数与来源**：价格、弹匣/后备、伤害、穿甲比例、距离衰减、射击周期、弹丸数、击杀奖励与镜位来自 Valve 公开游戏数据，并合入 2022 年 AWP 五发和 M4A1-S 20/80、远距衰减更新；来源及解析属性见 `src/test/resources/mygo/csgo-weapon-facts.json`。一格按一米换算 Source 射程，射击周期使用小数 tick 累计，避免高射速枪被统一取整降速。枪械散布、恢复、移动误差、Negev 收束、材质穿透和延迟回溯已接入原始操控属性，但碰撞形状、随机种子和相机反馈仍是 Minecraft 适配。自动枪首次左键后，服务端向该玩家发送不可见的客户端临时方块，让原版客户端进入持续挖掘输入路径；方块只存在于客户端，松开左键的 ABORT/STOP 包会立即释放，服务器世界不改。实际瞄准方块时直接使用原版持续挖掘包。
 - **开镜**：AK/M4、手枪、冲锋枪等不再开镜或获得开镜精度加成；AUG、SG 553 一级，AWP/SSG 08/G3SG1/SCAR-20 两级。AWP/SSG 08 开火会退镜拉栓，射击周期结束后恢复原镜位；切枪或换弹取消恢复。南瓜提供统一镜框，能力包仅调客户端 FOV 基准，真实权限和移速不变；AWP 镜位为 40°/10°，其余镜位按武器数据。以基础 FOV 70、视野效果 100% 为校准点，其他客户端设置会影响效果，不能宣称与 Source 投影逐像素一致。原版客户端真实 FOV 方法与包编解码测试见 `MyGoScopeTest`，实现说明见 `tools/mygo_scope_testing.md`。
@@ -137,12 +137,12 @@
 
 资源包的 34 枪轮廓、材质、开火/换弹姿态及声音为本项目原创 MIT 资源，新增脚步/投掷环境音也是原创单声道合成；见 ZIP 内 `MYGO_ASSETS_LICENSE.txt` 与 `MYGO_ASSETS_source.json`，不包含 Valve 游戏模型、贴图或原版声音。[Valve 公开政策](https://store.steampowered.com/video_policy)不允许拆出游戏资产单独分发，因此没有从网络音效包复制原声。已有合法音源可通过生成器的 `--authorized-audio-dir` 与 `--audio-license-file` 导入，生成器校验单声道 OGG 并记录来源声明。旧 Weapon Pack / CS4M 参考的历史来源与许可仍保留在仓库。物品贴图均放在 `textures/item/mygo/`，使用原版图集与 CustomModelData，无需 OptiFine。
 
-默认下载地址为 `https://qfmaker.com/upload/files/nyiz2u77.zip`。资源包仍随 Mod 打包并导出至 `config/pvp/mygo/`，客户端直接访问下载站。配置版本 6 会迁移旧默认 lf192hqd、uxv5wsbc 以及更旧配置中的 wmcvlnck / 5df4ab7h / zevadwr3 地址，保留自定义地址和显式本地 HTTP。更换托管地址时必须上传导出的同一 ZIP；修改后重启。
+默认下载地址为 `https://qfmaker.com/upload/files/4wnvtb9z.zip`。资源包仍随 Mod 打包并导出至 `config/pvp/mygo/`，客户端直接访问下载站。配置版本 7 会把旧默认 nyiz2u77、lf192hqd、uxv5wsbc 以及更旧配置中的 wmcvlnck / 5df4ab7h / zevadwr3 地址迁移到新包，保留自定义地址和显式本地 HTTP。更换托管地址时必须上传导出的同一 ZIP；修改后重启。
 
 ```json
 {
-  "configVersion": 6,
-  "packUrl": "https://qfmaker.com/upload/files/nyiz2u77.zip",
+  "configVersion": 7,
+  "packUrl": "https://qfmaker.com/upload/files/4wnvtb9z.zip",
   "bindAddress": "0.0.0.0",
   "httpPort": 25566,
   "advertisedHost": "",
