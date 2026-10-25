@@ -490,6 +490,5 @@ Mineflayer 配方解析和传送移动告警仍为工具限制；协议包和解
 Mirage 和 Inferno 的 T/CT/A/B 相对位置按 Valve 游戏文件提取的 radar_info 对照：
 [Mirage radar_info](https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_mirage.txt)、
 [Inferno radar_info](https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_inferno.txt)。
-Mirage 的 Minecraft 裁剪存档与雷达图纵轴相反，使用 `z_norm = 1 - radar_y`；
-Inferno 存档方向与雷达图一致，使用 `z_norm = radar_y`。再用服务端出生点校验
+Mirage 与 Inferno 的 Minecraft 裁剪存档方向都与参考图一致，使用 `z_norm = radar_y`。再用服务端出生点校验
 和离线路线审计确认可站立、可到达。

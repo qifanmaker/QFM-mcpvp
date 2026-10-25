@@ -78,14 +78,14 @@
     "Static block states only; no entities, block entity NBT, player data, datapacks or source resource packs.",
     "Runtime layout coordinates are relative to the source origin; Y coordinates remain at source scale."
   ],
-  "layoutSha256": "7909c32e7f267b80af4feb6a9145c3c3a5fe51a015976fe64b37c6c356388b1d",
-  "geometrySha256": "056cd0ec0793d76710423ef6fd481fa9ab2590a9e726f8450d349b99a7265ed8",
+  "layoutSha256": "ca3944f27c3ee98422ba0e7853e3f7d08386c06b0012ef048cb04026065ea25e",
+  "geometrySha256": "3b559ebf065a611775aa7bcf45ce2633e44e2895965725875f7c2b4bfa166763",
   "geometryBytes": 284694,
   "minecraftSourcesSha256": "9780274ba8ca382aa1071c480fef6c78207d965cdcf4c788bbb51f9d38d73cfa",
   "pointReference": {
     "source": "Valve depot radar_info mirrored by MurkyYT/cs2-map-icons",
     "url": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_mirage.txt",
     "normalizedCoordinates": "T/CT/A/B positions were mapped from the official radar overview into the cropped Minecraft source bounds.",
-    "axisTransform": "z_norm = 1 - radar_y"
+    "axisTransform": "z_norm = radar_y"
   }
 }
