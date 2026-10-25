@@ -8,6 +8,7 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.component.type.DyedColorComponent;
 import net.minecraft.component.type.LoreComponent;
+import net.minecraft.item.BlockPredicatesChecker;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
@@ -47,6 +48,9 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.predicate.BlockPredicate;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.RaycastContext;
 
@@ -298,9 +302,16 @@ public final class MyGoSession implements PortedGameSession {
                 fighter.lastSafe = player.getPos();
             Gun selectedGun = fighter.gun(selected);
             SyntheticHold synthetic = this.syntheticHolds.get(player.getUuid());
-            if (synthetic != null && (selectedGun == null || !selectedGun.type.automatic()
-                    || player.squaredDistanceTo(Vec3d.ofCenter(synthetic.pos())) < 4))
+            if (synthetic != null && (selectedGun == null || !selectedGun.type.automatic()))
                 clearSyntheticHold(player);
+            synthetic = this.syntheticHolds.get(player.getUuid());
+            if (synthetic != null && selectedGun != null && selectedGun.type.automatic()) {
+                // Reason: vanilla has an initial attack cooldown before it can
+                // repeat the fake-block swing. Keep the server lease alive only
+                // while that client-side hold is represented by the fake block.
+                selectedGun.inputLease.refresh(this.ticks);
+                selectedGun.autoArmed = true;
+            }
             if (selectedGun != null) {
                 double maxSpeed = selectedGun.type.profile().maxSpeed(alternateMode(fighter, selectedGun))
                         / (100 / 2.54) / 20;
@@ -406,7 +417,10 @@ public final class MyGoSession implements PortedGameSession {
         double[] offsets = gun.type.burstTickOffsets(gun.burstMode);
         gun.burstShotsPending = gun.burstMode ? offsets.length : 0;
         for (double offset : offsets) gun.shots.add(this.ticks + offset);
-        tickGun(player, f, gun);
+        // Reason: automatic hold ticks call trigger from tickGun. Re-entering
+        // tickGun here would recurse forever once the synthetic hold is alive;
+        // the caller's existing shot queue drain handles the due shot.
+        if (!gun.autoArmed) tickGun(player, f, gun);
     }
 
     private static int autoInputGrace(MyGoWeapon type) {
@@ -642,17 +656,24 @@ public final class MyGoSession implements PortedGameSession {
         Vec3d end = from.add(direction.multiply(8));
         BlockHitResult block = this.match.arenaWorld().raycast(new RaycastContext(from, end,
                 RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, player));
-        if (block.getType() != net.minecraft.util.hit.HitResult.Type.MISS) return;
-        double distance = 6;
-        for (ServerPlayerEntity candidate : participants()) {
-            if (candidate == player || candidate.getWorld() != this.match.arenaWorld()) continue;
-            Optional<Vec3d> hit = candidate.getBoundingBox().raycast(from, end);
-            if (hit.isPresent()) distance = Math.min(distance, Math.max(1.0, from.distanceTo(hit.get()) - .35));
+        BlockPos pos;
+        if (block.getType() != net.minecraft.util.hit.HitResult.Type.MISS) {
+            // Replace the client-visible target too. Otherwise Adventure mode
+            // can finish breaking the map block and send STOP_DESTROY_BLOCK.
+            pos = block.getBlockPos();
+        } else {
+            double distance = 6;
+            for (ServerPlayerEntity candidate : participants()) {
+                if (candidate == player || candidate.getWorld() != this.match.arenaWorld()) continue;
+                Optional<Vec3d> hit = candidate.getBoundingBox().raycast(from, end);
+                if (hit.isPresent()) distance = Math.min(distance, Math.max(1.0, from.distanceTo(hit.get()) - .35));
+            }
+            pos = BlockPos.ofFloored(from.add(direction.multiply(distance)));
         }
-        BlockPos pos = BlockPos.ofFloored(from.add(direction.multiply(distance)));
         BlockState actual = this.match.arenaWorld().getBlockState(pos);
-        if (!actual.isAir()) return;
         this.syntheticHolds.put(player.getUuid(), new SyntheticHold(pos, actual));
+        gun.inputLease.refresh(this.ticks);
+        gun.autoArmed = true;
         player.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, Blocks.BARRIER.getDefaultState()));
     }
 
@@ -662,7 +683,7 @@ public final class MyGoSession implements PortedGameSession {
         if (hold == null || !hold.pos().equals(packet.getPos())) return false;
         if (packet.getAction() == net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket.Action.ABORT_DESTROY_BLOCK
                 || packet.getAction() == net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK)
-            clearSyntheticHold(player);
+            onAttackRelease(player);
         return true;
     }
 
@@ -1162,7 +1183,15 @@ public final class MyGoSession implements PortedGameSession {
     }
     private ItemStack gunStack(Gun gun) {
         int pose = gun.reloadAt > this.ticks ? 200 : gun.lastShot > 0 && this.ticks < gun.lastShot + 2 ? 100 : 0;
-        return model(Items.IRON_PICKAXE, gun.type.model + pose, "§f" + gun.type.label + " §7[" + gun.ammo + "/" + gun.reserve + "]");
+        ItemStack stack = model(Items.IRON_PICKAXE, gun.type.model + pose, "§f" + gun.type.label + " §7[" + gun.ammo + "/" + gun.reserve + "]");
+        // Adventure clients refuse to start block breaking unless the held item
+        // explicitly allows the target. The server swaps the target to a
+        // client-only barrier so vanilla can provide reliable held-input packets.
+        stack.set(DataComponentTypes.CAN_BREAK, new BlockPredicatesChecker(
+                List.of(new BlockPredicate(
+                        Optional.of(RegistryEntryList.of(Registries.BLOCK.getEntry(Blocks.BARRIER))),
+                        Optional.empty(), Optional.empty())), false));
+        return stack;
     }
     private static ItemStack model(Item item, int model, String name) {
         ItemStack stack = named(item, name); stack.set(DataComponentTypes.CUSTOM_MODEL_DATA, new CustomModelDataComponent(model)); return stack;
