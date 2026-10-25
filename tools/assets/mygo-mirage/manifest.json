@@ -85,6 +85,7 @@
   "pointReference": {
     "source": "Valve depot radar_info mirrored by MurkyYT/cs2-map-icons",
     "url": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_mirage.txt",
-    "normalizedCoordinates": "T/CT/A/B positions were mapped from the official radar overview into the cropped Minecraft source bounds."
+    "normalizedCoordinates": "T/CT/A/B positions were mapped from the official radar overview into the cropped Minecraft source bounds.",
+    "axisTransform": "z_norm = 1 - radar_y"
   }
 }
