@@ -304,13 +304,6 @@ public final class MyGoSession implements PortedGameSession {
             SyntheticHold synthetic = this.syntheticHolds.get(player.getUuid());
             if (synthetic != null && (selectedGun == null || !selectedGun.type.automatic()))
                 clearSyntheticHold(player);
-            synthetic = this.syntheticHolds.get(player.getUuid());
-            if (synthetic != null && selectedGun != null && selectedGun.type.automatic() && selectedGun.autoArmed) {
-                // Reason: vanilla has an initial attack cooldown before it can
-                // repeat the fake-block swing. Keep the server lease alive only
-                // after a repeat packet confirms the client-side hold.
-                selectedGun.inputLease.refresh(this.ticks);
-            }
             if (selectedGun != null) {
                 double maxSpeed = selectedGun.type.profile().maxSpeed(alternateMode(fighter, selectedGun))
                         / (100 / 2.54) / 20;
@@ -671,6 +664,9 @@ public final class MyGoSession implements PortedGameSession {
         }
         BlockState actual = this.match.arenaWorld().getBlockState(pos);
         this.syntheticHolds.put(player.getUuid(), new SyntheticHold(pos, actual));
+        // Reason: the first click must start the automatic state immediately;
+        // the bounded lease still expires unless vanilla sends another swing.
+        gun.autoArmed = true;
         player.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, Blocks.BARRIER.getDefaultState()));
     }
 
