@@ -134,9 +134,7 @@ public abstract class PlayerEntityMixin {
         double dz = victim.getZ() - player.getZ();
         double length = Math.hypot(dx, dz);
         if (length > 0.001) {
-            // 击退球：水平击退翻倍，垂直击退降为原来的三分之一；
-            // original.call 已经成功造成伤害，因此保留原版受击动画与受击反馈。
-            victim.addVelocity(dx / length * 1.2, 0.04, dz / length * 1.2);
+            victim.addVelocity(dx / length * 0.6, 0.12, dz / length * 0.6);
             victim.velocityModified = true;
         }
         return accepted;
