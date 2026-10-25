@@ -51,12 +51,6 @@ public final class MyGoScope {
         return value;
     }
 
-    /** Mouse-look scale used by the server camera bridge while scoped. */
-    static float sensitivityFactor(int targetFov) {
-        if (targetFov < 7 || targetFov > 90) throw new IllegalArgumentException("Unsupported scope FOV");
-        return Math.max(.1F, targetFov / 90.0F);
-    }
-
     static PlayerAbilitiesS2CPacket packet(PlayerAbilities original, float walkSpeed) {
         PlayerAbilities view = new PlayerAbilities();
         view.invulnerable = original.invulnerable;

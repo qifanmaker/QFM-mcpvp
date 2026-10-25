@@ -47,7 +47,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.predicate.BlockPredicate;
 import net.minecraft.world.GameMode;
@@ -108,8 +107,6 @@ public final class MyGoSession implements PortedGameSession {
         boolean alive, vest, helmet, kit, scoped;
         boolean awZoom;
         int scopeLevel, resumeScopeLevel, resumeScopeAt, scopeReadyAt;
-        float scopeLastYaw, scopeLastPitch;
-        boolean scopeSensitivityReady;
         final MyGoScope scopeView = new MyGoScope();
         Gun primary, pistol;
         int selected = -1, aimSince, stoppedAt, knifeReady, throwReady, feedbackUntil, channelInputAt;
@@ -318,7 +315,6 @@ public final class MyGoSession implements PortedGameSession {
                         movement.lengthSquared() > 6.25 ? 0 : movement.y);
             }
             applyCameraRecovery(player, fighter);
-            applyScopeSensitivity(player, fighter);
             if (fighter.scoped && (!combatPhase() || selectedGun == null
                     || selectedGun.type.scopeLevels() == 0 || fighter.scopeLevel > selectedGun.type.scopeLevels())) {
                 fighter.scoped = false; fighter.scopeLevel = 0; updateHead(player, fighter);
@@ -515,38 +511,6 @@ public final class MyGoSession implements PortedGameSession {
         player.setPitch(net.minecraft.util.math.MathHelper.clamp(player.getPitch() + pitchDelta, -89.9F, 89.9F));
         player.networkHandler.sendPacket(new PlayerPositionLookS2CPacket(0, 0, 0, yaw, pitchDelta,
                 EnumSet.allOf(PositionFlag.class), RECOIL_CONFIRM_ID));
-    }
-
-    /**
-     * The vanilla client owns mouse sensitivity, so a server-only scope uses a
-     * relative camera correction to scale each reported look delta. Keeping the
-     * last displayed angle avoids feeding the correction back into the next
-     * delta and keeps movement/input packets on the same server view.
-     */
-    private void applyScopeSensitivity(ServerPlayerEntity player, Fighter fighter) {
-        Gun gun = fighter.gun(player.getInventory().selectedSlot);
-        if (!fighter.alive || !fighter.scoped || gun == null || gun.type.scopeLevels() == 0) {
-            fighter.scopeSensitivityReady = false;
-            return;
-        }
-        float yaw = player.getYaw(), pitch = player.getPitch();
-        if (!fighter.scopeSensitivityReady) {
-            fighter.scopeLastYaw = yaw; fighter.scopeLastPitch = pitch;
-            fighter.scopeSensitivityReady = true;
-            return;
-        }
-        float factor = MyGoScope.sensitivityFactor(gun.type.scopeFov(fighter.scopeLevel));
-        float yawDelta = MathHelper.wrapDegrees(yaw - fighter.scopeLastYaw);
-        float pitchDelta = pitch - fighter.scopeLastPitch;
-        float correctedYaw = fighter.scopeLastYaw + yawDelta * factor;
-        float correctedPitch = MathHelper.clamp(fighter.scopeLastPitch + pitchDelta * factor, -89.9F, 89.9F);
-        float yawCorrection = MathHelper.wrapDegrees(correctedYaw - yaw);
-        float pitchCorrection = correctedPitch - pitch;
-        player.setYaw(correctedYaw); player.setPitch(correctedPitch);
-        fighter.scopeLastYaw = correctedYaw; fighter.scopeLastPitch = correctedPitch;
-        if (Math.abs(yawCorrection) < 1e-5F && Math.abs(pitchCorrection) < 1e-5F) return;
-        player.networkHandler.sendPacket(new PlayerPositionLookS2CPacket(0, 0, 0,
-                yawCorrection, pitchCorrection, EnumSet.allOf(PositionFlag.class), RECOIL_CONFIRM_ID));
     }
 
     private void damage(ServerPlayerEntity victim, ServerPlayerEntity attacker, double amount, String reason) {
