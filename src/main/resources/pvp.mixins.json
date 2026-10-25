@@ -27,6 +27,7 @@
     "FireballEntityMixin",
     "HungerManagerMixin",
     "SnowballEntityMixin",
+    "EggEntityMixin",
     "ProjectileEntityMixin",
     "TntEntityMixin",
     "ExplosionMixin",

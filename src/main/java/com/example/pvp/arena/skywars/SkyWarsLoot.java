@@ -98,6 +98,7 @@ public final class SkyWarsLoot {
             new LootEntry(5, (r, c) -> stack(Items.FISHING_ROD, 1)),
             new LootEntry(5, (r, c) -> trackingCompass()),
             new LootEntry(6, (r, c) -> stack(Items.SNOWBALL, 16)),
+            new LootEntry(6, (r, c) -> stack(Items.EGG, 16)),
             new LootEntry(0.2, (r, c) -> slimeBall()), // 专用击退球（刷新率极低，每次只出 1 个）
             new LootEntry(3, (r, c) -> stack(Items.ANVIL, 1)),
             new LootEntry(8, (r, c) -> goldenAxe(r)),
@@ -133,6 +134,7 @@ public final class SkyWarsLoot {
             new LootEntry(8, (r, c) -> stack(Items.EXPERIENCE_BOTTLE, 12 + r.nextInt(13))),
             new LootEntry(6, (r, c) -> trackingCompass()),
             new LootEntry(6, (r, c) -> stack(Items.SNOWBALL, 16)),
+            new LootEntry(6, (r, c) -> stack(Items.EGG, 16)),
             new LootEntry(0.2, (r, c) -> slimeBall()), // 专用击退球（刷新率极低，不刷普通球）
             new LootEntry(4, (r, c) -> stack(Items.ANVIL, 1)),
             new LootEntry(6, (r, c) -> goldenAxe(r))
