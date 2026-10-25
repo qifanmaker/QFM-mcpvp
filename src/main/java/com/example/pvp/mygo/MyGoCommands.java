@@ -47,9 +47,11 @@ public final class MyGoCommands {
                         .then(CommandManager.literal("buy")
                                 .then(CommandManager.argument("item", StringArgumentType.word())
                                         .suggests((ctx, builder) -> CommandSource.suggestMatching(
-                                                java.util.stream.Stream.concat(java.util.Arrays.stream(MyGoWeapon.values())
-                                                        .map(weapon -> weapon.name().toLowerCase(java.util.Locale.ROOT)),
-                                                        java.util.stream.Stream.of("vest", "helmet", "defuser", "he", "flash", "smoke")).toList(), builder))
+                                                java.util.stream.Stream.concat(
+                                                        java.util.stream.Stream.concat(java.util.Arrays.stream(MyGoWeapon.values())
+                                                                .map(weapon -> weapon.name().toLowerCase(java.util.Locale.ROOT)),
+                                                                java.util.Arrays.stream(MyGoUtilities.Type.values()).map(type -> type.name().toLowerCase(java.util.Locale.ROOT))),
+                                                        java.util.stream.Stream.of("vest", "helmet", "defuser")).toList(), builder))
                                         .executes(ctx -> {
                                             ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
                                             MyGoSession session = requireSession(player);

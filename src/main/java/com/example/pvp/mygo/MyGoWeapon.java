@@ -6,8 +6,9 @@ import java.util.Locale;
  * 用末期 CS:GO 的 34 种枪械替换旧 PUBG 混合目录，让阵营、买枪和击杀经济使用同一份真实数据。
  * 数值依据随游戏公开分发的 items_game（含 prefab 继承），并合入 2022 年的 AWP / M4A1-S 调整；
  * 可审计的来源和原始属性见测试资源 mygo/csgo-weapon-facts.json，避免误用未更新的旧 weapon 脚本。
- * 一格按一米换算 Source 射程；射击与换弹向上取整到服务端 20 Hz。换弹是动画时长的近似适配，
- * 散布和后坐力仍适配 Minecraft 输入；左键一次发射一颗子弹，不再强制 AK / M4 三连发。
+ * 一格按一米换算 Source 射程；cycleTicks 仅为兼容显示，实际射击使用浮点 tick 间隔累计，
+ * 避免 MP9/M4A4 等全部被压到 600 RPM。换弹仍是动画时长近似；各枪操控原始属性
+ * 由 MyGoWeaponProfile 提供，Minecraft 引擎的碰撞、移动与相机反馈明确属于适配。
  */
 public enum MyGoWeapon {
     // 副枪：十种手枪独立购买，T 默认 Glock-18，CT 默认 USP-S。
@@ -99,11 +100,26 @@ public enum MyGoWeapon {
     }
 
     public int[] burstOffsets() { return new int[]{0}; }
+    /** 精确调度间隔；不得每发重新 ceil，否则 .07 秒会永久变为 .10 秒。 */
+    public double cycleTickInterval() { return this.cycleSeconds * 20; }
+    public double cycleTickInterval(boolean burstMode, boolean alternateFire) {
+        return (burstMode && hasBurstMode() ? profile().burstCycleSeconds()
+                : alternateFire && this == REVOLVER ? profile().value("cycletime alt") : this.cycleSeconds) * 20;
+    }
+    public double[] burstTickOffsets(boolean burstMode) {
+        if (!burstMode || !hasBurstMode()) return new double[]{0};
+        double gap = profile().burstIntervalSeconds() * 20;
+        return new double[]{0, gap, gap * 2};
+    }
+    public MyGoWeaponProfile profile() { return MyGoWeaponProfile.of(this); }
+    public boolean hasBurstMode() { return profile().hasBurstMode(); }
+    public boolean hasSilencer() { return profile().hasSilencer(); }
+    public boolean shellReload() { return this == NOVA || this == XM1014 || this == SAWEDOFF; }
     public boolean pistol() { return this.group == Group.PISTOL; }
     public boolean sniper() { return this.group == Group.SNIPER; }
     public boolean unzoomAfterShot() { return this == AWP || this == SSG08; }
     public boolean smg() { return this.group == Group.SMG; }
-    public boolean automatic() { return this.group == Group.SMG || this.group == Group.RIFLE || this.group == Group.MACHINE_GUN; }
+    public boolean automatic() { return profile().automatic(); }
     public boolean shotgun() { return this.group == Group.SHOTGUN; }
     public int pellets() { return this.pelletCount; }
     public int scopeLevels() { return this.scopeFovs.length; }
@@ -112,32 +128,14 @@ public enum MyGoWeapon {
     public String soundKey() { return name().toLowerCase(Locale.ROOT); }
     public static MyGoWeapon defaultPistol(boolean attackers) { return attackers ? GLOCK : USP_S; }
 
-    /**
-     * Minecraft 用角度散布；不再让同一类别的所有武器共享一个数值。
-     * 手枪首发最稳定，冲锋枪/步枪按 CS:GO 的定位逐级增加，霰弹枪保留明显散布。
-     */
+    /** 兼容诊断：默认持枪状态的静止误差半角；实际开火使用两个独立径向锥。 */
     public double spread() {
-        return switch (this) {
-            case USP_S, P2000, GLOCK -> .16;
-            case P250, FIVESEVEN, TEC9, DUALS -> .24;
-            case CZ75 -> .3;
-            case DEAGLE, REVOLVER -> .38;
-            case MAC10, MP9, MP7, MP5SD -> .62;
-            case UMP45, BIZON -> .7;
-            case P90 -> .78;
-            case GALIL, FAMAS, M4A1S -> .38;
-            case AK47, M4A4, AUG, SG553 -> .32;
-            case G3SG1, SCAR20 -> .48;
-            case SSG08, AWP -> 5.5;
-            case NOVA, XM1014 -> 3.8;
-            case MAG7 -> 3.3;
-            case SAWEDOFF -> 5.5;
-            case M249, NEGEV -> .72;
-        };
+        boolean alternate = hasSilencer();
+        return Math.toDegrees(Math.atan((profile().value("inaccuracy stand", alternate)
+                + profile().value("spread", alternate)) / 1000));
     }
     public double recoil() {
-        return sniper() ? (this == AWP ? 2.4 : 1.8) : shotgun() ? 2.2
-                : this == DEAGLE || this == REVOLVER ? 1.8 : smg() ? .3 : pistol() ? .5 : .65;
+        return profile().value("recoil magnitude", hasSilencer()) * .02;
     }
     public boolean availableTo(boolean attackers) { return this.side == Side.ANY || (this.side == Side.T) == attackers; }
     public String sideLabel() { return this.side == Side.T ? "进攻方" : this.side == Side.CT ? "防守方" : "双方"; }

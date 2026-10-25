@@ -268,9 +268,9 @@ async function smoke() {
   await waitUntil(() => ids.every(id => bots[id].inventory.items().some(item => item.name === 'iron_pickaxe')), 25000, 'round loadouts');
   const initial = Object.fromEntries(await Promise.all(ids.map(async id => [id, await status(id)])));
   check('balanced 2v2 sides', Object.values(initial).filter(state => state.side === 'T').length === 2 && Object.values(initial).filter(state => state.side === 'CT').length === 2, initial, 'two T and two CT');
-  check('quick match begins with $1600 and 100 HP', Object.values(initial).every(state => state.cash === 1600 && state.hp === 100), initial, '1600 cash, 100 virtual HP');
-  await waitUntil(() => hudMoney('A',1600).length > 0,5000,'first money HUD after match activation');
-  check('money HUD is a bold gold action bar with thousands separators', hudMoney('A',1600).length > 0, hudMoney('A',1600).slice(-1), '$ 1,600 above hotbar');
+  check('CS:GO quick match begins with $800 and 100 HP', Object.values(initial).every(state => state.cash === 800 && state.hp === 100), initial, '800 cash, 100 virtual HP');
+  await waitUntil(() => hudMoney('A',800).length > 0,5000,'first money HUD after match activation');
+  check('money HUD is a bold gold action bar with thousands separators', hudMoney('A',800).length > 0, hudMoney('A',800).slice(-1), '$ 800 above hotbar');
   const attackers = ids.filter(id => initial[id].side === 'T'), defenders = ids.filter(id => initial[id].side === 'CT');
   const carrier = attackers.find(id => bots[id].inventory.items().some(item => item.name === 'redstone'));
   check('exactly one attacker receives C4', !!carrier && attackers.filter(id => bots[id].inventory.items().some(item => item.name === 'redstone')).length === 1, carrier, 'one carrier');

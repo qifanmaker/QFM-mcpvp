@@ -109,6 +109,7 @@ public abstract class MyGoInputMixin {
         MyGoSession session = MyGoCommands.session(handler.player);
         if (session == null) return;
         switch (packet.getAction()) {
+            case ABORT_DESTROY_BLOCK, STOP_DESTROY_BLOCK -> session.onAttackRelease(handler.player);
             case SWAP_ITEM_WITH_OFFHAND -> {
                 session.reload(handler.player);
                 ci.cancel();

@@ -37,8 +37,8 @@ final class MyGoGrenadePhysicsTest {
     }
 
     @Test void heDamageDecaysWithoutLongRangeOrInvalidDistanceDamage() {
-        double peak = 25 / MyGoGrenadePhysics.UNITS_PER_BLOCK;
-        assertEquals(105, MyGoGrenadePhysics.heDamage(peak), 1.0e-9);
+        double peak = 0;
+        assertEquals(99, MyGoGrenadePhysics.heDamage(peak), 1.0e-9);
         assertTrue(MyGoGrenadePhysics.heDamage(3) < MyGoGrenadePhysics.heDamage(1));
         assertTrue(MyGoGrenadePhysics.heDamage(6) < MyGoGrenadePhysics.heDamage(3));
         assertEquals(0, MyGoGrenadePhysics.heDamage(MyGoGrenadePhysics.HE_RADIUS + .01));

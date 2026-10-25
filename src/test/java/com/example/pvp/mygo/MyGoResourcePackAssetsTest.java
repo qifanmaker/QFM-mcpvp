@@ -143,9 +143,12 @@ final class MyGoResourcePackAssetsTest {
                 assertEquals("pvp:item/mygo/" + name, json("assets/pvp/models/item/mygo/" + name + "_" + pose + ".json").get("parent").getAsString());
             }
         }
-        JsonArray utilities = json("assets/minecraft/models/item/slime_ball.json").getAsJsonArray("overrides");
-        for (MyGoUtilities.Type utility : MyGoUtilities.Type.values())
+        for (MyGoUtilities.Type utility : MyGoUtilities.Type.values()) {
+            String item = utility.fire() ? "fire_charge" : "slime_ball";
+            JsonArray utilities = json("assets/minecraft/models/item/" + item + ".json").getAsJsonArray("overrides");
             assertEquals("pvp:item/mygo/" + utility.name().toLowerCase(java.util.Locale.ROOT), selectedModel(utilities, utility.model));
+        }
+        JsonArray utilities = json("assets/minecraft/models/item/slime_ball.json").getAsJsonArray("overrides");
         assertEquals("pvp:item/mygo/fog", selectedModel(utilities, 72004));
     }
 

@@ -4755,7 +4755,8 @@ public final class Match {
                 sbTeam = scoreboard.addTeam(teamName);
             }
             sbTeam.setColor(team.getColor());
-            sbTeam.setCollisionRule(AbstractTeam.CollisionRule.NEVER);
+            // MyGO restores competitive body blocking; other modes retain their existing collision policy.
+            sbTeam.setCollisionRule(this.type == MatchType.MYGO ? AbstractTeam.CollisionRule.ALWAYS : AbstractTeam.CollisionRule.NEVER);
             sbTeam.setNameTagVisibilityRule((this.type == MatchType.MYGO || PvPConfig.INSTANCE.healthTagEnabled)
                     ? AbstractTeam.VisibilityRule.NEVER : AbstractTeam.VisibilityRule.ALWAYS);
             // 组队模式（2v2 等）关闭友伤；FFA/空岛战争/幸运之柱全员同一队，必须保留互伤。

@@ -371,7 +371,9 @@ def build_visuals():
         entries.extend([(value, name), (value + 100, name + "_fire"), (value + 200, name + "_reload")])
     override("iron_pickaxe", sorted(entries))
     override("iron_sword", [(71006, "knife")])
-    for i, (name, material) in enumerate([("he", "olive"), ("flash", "silver"), ("smoke", "dark")]):
+    utility_visuals = [("he", "olive"), ("flash", "silver"), ("smoke", "dark"),
+                       ("molotov", "red"), ("incendiary", "red"), ("decoy", "tan")]
+    for i, (name, material) in enumerate(utility_visuals):
         base = json.loads((STAGING / "assets/pvp/models/item/mygo/knife.json").read_text())
         base["textures"]["particle"] = "pvp:item/mygo/" + material
         base["elements"] = [box([5, 3, 5], [11, 11, 11], material),
@@ -379,7 +381,11 @@ def build_visuals():
                             box([9, 6, 8], [11, 14, 9], "silver"),
                             box([5.5, 7, 4.9], [10.5, 9, 5], "red")]
         write_json(f"assets/pvp/models/item/mygo/{name}.json", base)
-    override("slime_ball", [(72001, "he"), (72002, "flash"), (72003, "smoke"), (72004, "fog")])
+    utility_entries = [(72001, "he"), (72002, "flash"), (72003, "smoke"),
+                       (72004, "fog"), (72005, "molotov"), (72006, "incendiary"), (72007, "decoy")]
+    # Keep the historical slime-ball fixture and map the actual runtime fire charges too.
+    override("slime_ball", utility_entries)
+    override("fire_charge", [(72005, "molotov"), (72006, "incendiary")])
     for name, elements in {
         "c4": [box([3, 3, 5], [13, 10, 11], "olive"), box([4, 10, 6], [12, 12, 10], "dark"),
                box([5, 10.1, 5.8], [10, 11.7, 6], "glass"), box([3, 6, 4.7], [13, 6.7, 5], "red"),

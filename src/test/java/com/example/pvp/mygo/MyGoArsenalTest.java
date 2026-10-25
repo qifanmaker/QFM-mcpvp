@@ -106,7 +106,11 @@ final class MyGoArsenalTest {
         assertTrue(MyGoWeapon.MP9.spread() < MyGoWeapon.AK47.spread() + .4);
         assertTrue(MyGoWeapon.AWP.spread() > MyGoWeapon.AK47.spread());
         assertTrue(MyGoWeapon.SAWEDOFF.spread() > MyGoWeapon.AK47.spread());
-        assertTrue(MyGoWeapon.DEAGLE.spread() > MyGoWeapon.GLOCK.spread());
+        // Reason: spread() now exposes the resolved CS:GO standing cone. The
+        // Deagle's superior fire inaccuracy is distinct from Glock's base cone;
+        // do not assert the old hand-tuned ordering between those two values.
+        assertTrue(MyGoWeapon.DEAGLE.profile().value("inaccuracy fire")
+                > MyGoWeapon.GLOCK.profile().value("inaccuracy fire"));
     }
 
     @Test void originalRangeFalloffUsesSourceUnitsWithoutCuttingOffDustTwoLongSightlines() {
@@ -146,6 +150,8 @@ final class MyGoArsenalTest {
     @Test void utilityLimitsAllowFourItemsWithoutUnlimitedFlashPurchases() {
         assertEquals(1, MyGoUtilities.Type.HE.maximum); assertEquals(2, MyGoUtilities.Type.FLASH.maximum);
         assertEquals(1, MyGoUtilities.Type.SMOKE.maximum);
-        assertEquals(3, Arrays.stream(MyGoUtilities.Type.values()).map(t -> t.slot).distinct().count());
+        // Molotov and CT incendiary intentionally share a mutually exclusive
+        // slot; adding decoy/fire utilities expanded the distinct slot count.
+        assertEquals(5, Arrays.stream(MyGoUtilities.Type.values()).map(t -> t.slot).distinct().count());
     }
 }
