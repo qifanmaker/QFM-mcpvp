@@ -49,8 +49,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.predicate.BlockPredicate;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.RaycastContext;
 
@@ -79,6 +77,7 @@ public final class MyGoSession implements PortedGameSession {
     private static final Identifier SPEED_ID = Identifier.of("pvp", "mygo_speed");
     // Keep the client-only target inside vanilla Adventure block reach.
     private static final double SYNTHETIC_HOLD_REACH = 3.0;
+    private static final double REAL_BLOCK_REACH = 4.5;
     // Vanilla teleport IDs are non-negative. This camera-only packet must not
     // acknowledge or replace an outstanding world/round teleport on the server.
     private static final int RECOIL_CONFIRM_ID = -1;
@@ -467,8 +466,6 @@ public final class MyGoSession implements PortedGameSession {
             }
         }
         soundAt(player.getBlockPos(), gun.type.soundKey(), 1);
-        Vec3d muzzle = player.getEyePos().add(player.getRotationVec(1).multiply(.65));
-        this.match.arenaWorld().spawnParticles(ParticleTypes.FLAME, muzzle.x, muzzle.y, muzzle.z, 1, .01, .01, .01, .005);
         for (var hit : hits.entrySet()) {
             boolean headshot = headshots.contains(hit.getKey().getUuid());
             MyGoRules.Damage resolved = MyGoRules.roundBulletDamage(hit.getValue());
@@ -666,23 +663,33 @@ public final class MyGoSession implements PortedGameSession {
             if (hit.isPresent()) entityDistance = Math.min(entityDistance, from.distanceTo(hit.get()));
         }
         BlockPos pos;
+        boolean fakeBarrier;
         if (entityDistance < blockDistance) {
             // Keep a fake block in front of a player target so vanilla does not
             // fall back to its one-shot entity attack path while moving.
             pos = reachableAir(from, direction, Math.max(.8, entityDistance - .35));
-        } else if (blockDistance <= SYNTHETIC_HOLD_REACH + .75) {
-            // Never cover a real map block. Put the fake block in the air cell
-            // immediately before a reachable wall instead.
-            pos = reachableAir(from, direction, blockDistance - .25);
+            fakeBarrier = true;
+        } else if (blockDistance <= REAL_BLOCK_REACH) {
+            // A reachable real block is the preferred native hold target; do
+            // not overlay it with a client-only barrier.
+            pos = block.getBlockPos();
+            fakeBarrier = false;
         } else {
+            // Looking down while walking must never create an invisible wall in
+            // the player's path. A real reachable block above took precedence.
+            if (player.isOnGround() && direction.y < -.15 && player.getVelocity().horizontalLengthSquared() > .0001) {
+                if (this.syntheticHolds.containsKey(player.getUuid())) clearSyntheticHold(player);
+                return;
+            }
             pos = reachableAir(from, direction, SYNTHETIC_HOLD_REACH);
+            fakeBarrier = true;
         }
         if (pos == null) {
             if (this.syntheticHolds.containsKey(player.getUuid())) clearSyntheticHold(player);
             return;
         }
         BlockState actual = this.match.arenaWorld().getBlockState(pos);
-        if (!actual.isAir()) {
+        if (fakeBarrier && !actual.isAir()) {
             if (this.syntheticHolds.containsKey(player.getUuid())) clearSyntheticHold(player);
             return;
         }
@@ -693,7 +700,7 @@ public final class MyGoSession implements PortedGameSession {
             this.syntheticHolds.remove(player.getUuid());
         }
         this.syntheticHolds.put(player.getUuid(), new SyntheticHold(pos, actual));
-        player.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, Blocks.BARRIER.getDefaultState()));
+        if (fakeBarrier) player.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, Blocks.BARRIER.getDefaultState()));
     }
 
     /** Find an air cell close enough for vanilla block-breaking reach. */
@@ -1231,11 +1238,11 @@ public final class MyGoSession implements PortedGameSession {
         int pose = gun.reloadAt > this.ticks ? 200 : gun.lastShot > 0 && this.ticks < gun.lastShot + 2 ? 100 : 0;
         ItemStack stack = model(Items.IRON_PICKAXE, gun.type.model + pose, "§f" + gun.type.label + " §7[" + gun.ammo + "/" + gun.reserve + "]");
         // Adventure clients refuse to start block breaking unless the held item
-        // explicitly allows the target. The server swaps the target to a
-        // client-only barrier so vanilla can provide reliable held-input packets.
+        // explicitly allows the target. Server-side input handling cancels the
+        // corresponding block action, so real map blocks remain unchanged.
         stack.set(DataComponentTypes.CAN_BREAK, new BlockPredicatesChecker(
                 List.of(new BlockPredicate(
-                        Optional.of(RegistryEntryList.of(Registries.BLOCK.getEntry(Blocks.BARRIER))),
+                        Optional.empty(),
                         Optional.empty(), Optional.empty())), false));
         return stack;
     }
