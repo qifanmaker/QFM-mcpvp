@@ -653,6 +653,8 @@ public final class MyGoSession implements PortedGameSession {
         }
         Gun gun = f.gun(slot);
         if (gun != null) {
+            // Right-click scope/mode changes must never inherit an automatic-fire lease.
+            gun.inputLease.clear(); gun.autoArmed = false;
             if (combatPhase() && gun.type.scopeLevels() > 0) {
                 // 原版按住右键每 4 tick 重复使用；同次实体／方块／物品交互也可能有多个包。
                 // 连续输入仅延长去抖窗口，松开后再次点按才切换，避免镜框不停闪烁。
