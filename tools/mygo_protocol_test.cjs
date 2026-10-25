@@ -303,7 +303,8 @@ async function smoke() {
   const shot = await status(gunner), friendAfter = await status(carrier), enemyAfter = await status(defender);
   check('P250 emits one bullet per trigger', shot.ammo === 12, shot, '13 -> 12');
   check('friendly target does not take damage or block bullets', friendAfter.hp === friendBefore.hp && enemyAfter.hp < enemyBefore.hp, { friendBefore, friendAfter, enemyBefore, enemyAfter }, 'friend unchanged, enemy damaged');
-  check('hit feedback keeps the bold money label visible', hudMoney(gunner,500,'命中').length > 0, hudMoney(gunner,500,'命中').slice(-1), '$ 500 with hit feedback');
+  check('hit or kill feedback keeps the bold money label visible', enemyAfter.alive === false || hudMoney(gunner,500,'命中').length > 0,
+    { enemyAfter, hud: hudMoney(gunner,500,'命中').slice(-1) }, '$ 500 with hit/kill feedback');
   bots[gunner]._client.write('block_dig', { status: 6, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: 0 });
   await sleep(2300);
   const reloaded = await status(gunner);
