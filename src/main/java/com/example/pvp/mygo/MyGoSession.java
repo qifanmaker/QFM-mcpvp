@@ -653,7 +653,9 @@ public final class MyGoSession implements PortedGameSession {
         Vec3d direction = player.getRotationVec(1).normalize();
         Vec3d end = from.add(direction.multiply(8));
         BlockHitResult block = this.match.arenaWorld().raycast(new RaycastContext(from, end,
-                RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, player));
+                // Match the client's selectable outline, including slabs,
+                // stairs, carpets and other partial blocks.
+                RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, player));
         double blockDistance = block.getType() == net.minecraft.util.hit.HitResult.Type.MISS
                 ? Double.POSITIVE_INFINITY : from.distanceTo(block.getPos());
         double entityDistance = Double.POSITIVE_INFINITY;
@@ -675,6 +677,12 @@ public final class MyGoSession implements PortedGameSession {
             pos = block.getBlockPos();
             fakeBarrier = false;
         } else {
+            if (block.getType() != net.minecraft.util.hit.HitResult.Type.MISS) {
+                // A real partial block is in the view path but outside native
+                // reach. Do not replace the path with a blocking fake barrier.
+                if (this.syntheticHolds.containsKey(player.getUuid())) clearSyntheticHold(player);
+                return;
+            }
             // Looking down while walking must never create an invisible wall in
             // the player's path. A real reachable block above took precedence.
             if (player.isOnGround() && direction.y < -.15 && player.getVelocity().horizontalLengthSquared() > .0001) {
