@@ -85,8 +85,13 @@
     "Static block states only; no entities, block entity NBT, player data, datapacks or source resource packs.",
     "Runtime layout coordinates are relative to the source origin; Y coordinates remain at source scale."
   ],
-  "layoutSha256": "da4a08b13be557d769025ba220db8578e2204746ef379237e53c05197881994a",
-  "geometrySha256": "5cd0d1674fa587655a76e681d65c4a019caefaaa229c77f815dadd20f159a949",
-  "geometryBytes": 326391,
-  "minecraftSourcesSha256": "9780274ba8ca382aa1071c480fef6c78207d965cdcf4c788bbb51f9d38d73cfa"
+  "layoutSha256": "d51ee05e4924681b59250e5b4f32c9ca710d5c4b08587ba17638c0709082babe",
+  "geometrySha256": "178970e40a3b5b16a6eff1fc753b269b65e7e7ff708250e84252488fa25b63ed",
+  "geometryBytes": 326411,
+  "minecraftSourcesSha256": "9780274ba8ca382aa1071c480fef6c78207d965cdcf4c788bbb51f9d38d73cfa",
+  "pointReference": {
+    "source": "Valve depot radar_info mirrored by MurkyYT/cs2-map-icons",
+    "url": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_inferno.txt",
+    "normalizedCoordinates": "T/CT/A/B positions were mapped from the official radar overview into the cropped Minecraft source bounds."
+  }
 }

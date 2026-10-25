@@ -484,3 +484,10 @@ Mineflayer 配方解析和传送移动告警仍为工具限制；协议包和解
 交付 `dist/pvp-1.0.0-mygo-csgo-utilities-sound.jar`，1,918,265 bytes，SHA-256
 `c29466aeea11b73667b5c21029383eb685664d286fea1855879a84492e1ad5a9`。
 资源 ZIP 已由用户上传并核验，安装新版 JAR 后完整重启即可自动使用新地址；无需再次上传同一资源包。
+
+### 点位核对来源
+
+Mirage 和 Inferno 的 T/CT/A/B 相对位置按 Valve 游戏文件提取的 radar_info 对照：
+[Mirage radar_info](https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_mirage.txt)、
+[Inferno radar_info](https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_inferno.txt)。
+这些归一化雷达坐标映射到裁剪后的 Minecraft 蓝图后，再用服务端出生点校验和离线路线审计确认可站立、可到达。
