@@ -1,0 +1,19 @@
+{
+  "title": "[LesRaisins | CSGO] Inferno",
+  "version": "1.21.1",
+  "authors": [
+    "xjqsh / LesRaisins Studio"
+  ],
+  "publisher": "xjqsh / LesRaisins Studio",
+  "projectUrl": "https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-inferno",
+  "fileUrl": "https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-inferno/files/5637189",
+  "downloadUrl": "https://mediafilez.forgecdn.net/files/5637/189/inferno.zip",
+  "archiveSha256": "6a44cd041c2983343da9c15f67664736576505984a31dffc1500a9e753e7e880",
+  "sha256": "6a44cd041c2983343da9c15f67664736576505984a31dffc1500a9e753e7e880",
+  "sourceMinecraftVersion": "1.16.5",
+  "reviewedAt": "2026-10-25",
+  "license": "Non-commercial use with retained copyright information; all other rights reserved",
+  "copyright": "Minecraft recreation by xjqsh / LesRaisins Studio. Original Inferno map copyright Valve.",
+  "permissionText": "Static architectural adaptation only; retain the upstream attribution and respect the source license.",
+  "adaptation": "Static architectural crop for the isolated MyGO arena; entities, commands, inventories and source resource packs are omitted."
+}

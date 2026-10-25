@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 原版 Dust II 存档的静态方块蓝图；出生、朝向、购买区和包点使用同一份相对坐标。
+ * CS 地图存档的静态方块蓝图；出生、朝向、购买区和包点使用同一份相对坐标。
  * 旧平面场地的固定 Y 会把掉落物埋进地形，窄高度检查也会误杀上台阶的玩家，
  * 因此边界和掉落支撑均随真实地图读取；只导入建筑，不运行原存档的命令或实体。
  */
@@ -31,11 +31,15 @@ public final class MyGoArena {
     private final Map<UUID, DisplayEntity.BlockDisplayEntity> decorations = new HashMap<>();
 
     public MyGoArena(ArenaTemplate template, int regionIndex) {
+        this(template, regionIndex, null);
+    }
+
+    public MyGoArena(ArenaTemplate template, int regionIndex, String mapKey) {
         this.center = template.getCenter(regionIndex).down();
         try {
-            this.blueprint = MyGoMapBlueprint.load();
+            this.blueprint = mapKey == null ? MyGoMapBlueprint.load() : MyGoMapBlueprint.load(mapKey);
         } catch (IOException error) {
-            throw new IllegalStateException("MyGO Dust II 地图读取失败", error);
+            throw new IllegalStateException("MyGO 地图读取失败: " + (mapKey == null ? MyGoMapBlueprint.selectedKey() : mapKey), error);
         }
     }
 

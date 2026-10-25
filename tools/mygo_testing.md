@@ -1,5 +1,13 @@
 # MyGO 隔离服务器验证
 
+## MyGO 地图目录
+
+MyGO 默认使用 Dust II。OP 可以在下一场比赛前执行 `/pvp mygo map mirage`
+或 `/pvp mygo map inferno`，使用 `/pvp mygo map` 查看当前选择和可用地图；
+已经生成的对局会继续使用创建时绑定的蓝图。Mirage、Inferno 与 Dust II
+都在服务端静态蓝图中携带各自的出生点、购买区、A/B 包点和阵亡等待室，
+切图不会复用 Dust II 的坐标。
+
 这些工具用于真实 Minecraft 1.21.1 协议回归，避免修改开发者现有的 `run/` 配置、世界和正在运行的 25565 服务。
 
 先运行项目要求的 `./gradlew build`。验证器使用 Loom 已生成的运行类路径、Fabric Loader 与 JDK 21，并把编译输出快照放在 `build/mygo-server-test/mod-snapshot/`；验证期间再次构建不会改变已启动快照。

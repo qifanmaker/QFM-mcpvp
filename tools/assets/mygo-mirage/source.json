@@ -1,0 +1,19 @@
+{
+  "title": "[THE MIRAGE]",
+  "version": "1.21.1",
+  "authors": [
+    "fepe2k_oficial"
+  ],
+  "publisher": "fepe2k_oficial",
+  "projectUrl": "https://www.curseforge.com/minecraft/worlds/the-mirage",
+  "fileUrl": "https://www.curseforge.com/minecraft/worlds/the-mirage/files/6784337",
+  "downloadUrl": "https://mediafilez.forgecdn.net/files/6784/337/Mirage%20CS%20GO1.1.zip",
+  "archiveSha256": "2d07d870c469f0a7460a7cea05db3fe3956419b39dfe7c76879f1bb160ca03aa",
+  "sha256": "2d07d870c469f0a7460a7cea05db3fe3956419b39dfe7c76879f1bb160ca03aa",
+  "sourceMinecraftVersion": "1.20.1",
+  "reviewedAt": "2026-10-25",
+  "license": "All Rights Reserved; retain attribution and obtain permission before redistribution",
+  "copyright": "Minecraft recreation by fepe2k_oficial. Original Mirage map copyright Valve.",
+  "permissionText": "Static architectural adaptation only; retain the upstream attribution and respect the source license.",
+  "adaptation": "Static architectural crop for the isolated MyGO arena; entities, commands, inventories and source resource packs are omitted."
+}

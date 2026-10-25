@@ -32,6 +32,28 @@ public final class MyGoCommands {
                             MyGoResourcePack.request(ctx.getSource().getPlayerOrThrow());
                             return 1;
                         }))
+                        .then(CommandManager.literal("map")
+                                .requires(source -> source.hasPermissionLevel(2))
+                                .executes(ctx -> {
+                                    ctx.getSource().sendFeedback(() -> Text.literal("§e当前 MyGO 地图：§f"
+                                            + MyGoMapBlueprint.selectedKey() + " §7可选：§f"
+                                            + String.join(", ", MyGoMapBlueprint.availableMaps())), false);
+                                    return 1;
+                                })
+                                .then(CommandManager.argument("name", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> CommandSource.suggestMatching(
+                                                MyGoMapBlueprint.availableMaps(), builder))
+                                        .executes(ctx -> {
+                                            String key = StringArgumentType.getString(ctx, "name").toLowerCase(java.util.Locale.ROOT);
+                                            try {
+                                                MyGoMapBlueprint map = MyGoMapBlueprint.select(key);
+                                                ctx.getSource().sendFeedback(() -> Text.literal("§a下一场 MyGO 地图已设为 §f" + map.name()), true);
+                                                return 1;
+                                            } catch (java.io.IOException error) {
+                                                ctx.getSource().sendError(Text.literal("§c未知或损坏的 MyGO 地图：" + key));
+                                                return 0;
+                                            }
+                                        })))
                         .then(CommandManager.literal("stats").executes(ctx -> {
                             ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
                             player.sendMessage(Text.literal(MyGoStats.describe(player.getUuid())), false);

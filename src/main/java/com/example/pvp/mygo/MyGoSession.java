@@ -200,6 +200,8 @@ public final class MyGoSession implements PortedGameSession {
     }
 
     @Override public List<BlockPos> spawnPositions() { return List.copyOf(this.initialSpawns); }
+    public String mapName() { return this.map.name(); }
+    public String mapId() { return this.map.id(); }
     @Override public void stageMap() { this.map.generate(this.match.arenaWorld()); }
 
     @Override public void start() {
@@ -215,7 +217,7 @@ public final class MyGoSession implements PortedGameSession {
         }
         String invalidSpawn = this.map.validateSpawns(this.match.arenaWorld());
         if (invalidSpawn != null) {
-            this.match.cancelMatch("Dust II 出生点校验失败：" + invalidSpawn);
+            this.match.cancelMatch(this.map.name() + " 出生点校验失败：" + invalidSpawn);
             return;
         }
         announce("§6地图：" + this.map.name() + " · A / B 双包点");

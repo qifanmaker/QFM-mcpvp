@@ -5120,7 +5120,8 @@ public final class Match {
             case DEATHMATCH -> "§7地图: §e平地竞技场"; // 复用 Layout.FFA 的场地
             case MINECRAFT_PARTY -> "§7地图: §dParty 2 · 分阶段移植";
             case ISLAND_SIEGE -> "§7地图: §c海岛攻防 · 重建地图";
-            case MYGO -> "§7地图: §6Dust II";
+            case MYGO -> "§7地图: §6" + (this.portedSession instanceof com.example.pvp.mygo.MyGoSession session
+                    ? session.mapName() : "生成中");
             case BOAT_RACE -> "§7地图: §b随机冰面赛道 §7(" + (this.boatRaceSession != null
                     ? this.boatRaceSession.trackSummary() : "生成中") + ")";
         };

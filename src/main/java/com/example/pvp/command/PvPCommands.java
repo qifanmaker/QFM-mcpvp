@@ -367,7 +367,7 @@ public final class PvPCommands {
                         + "§e/pvp join deathmatch -k <套件>§r 加入死斗（5 分钟，人头最多者胜）\n"
                         + "§e/pvp join racing§r 加入亦可赛艇（无需套件，原版船 + 随机冰面赛道竞速）\n"
                         + "§e/pvp join mygo§r 加入 MyGO 枪战爆破（先加载资源包，再次加入）\n"
-                        + "§e/pvp mygo [shop|buy <商品>|reload|stats]§r 枪战商店、换弹与独立战绩\n"
+                        + "§e/pvp mygo [shop|buy <商品>|map <dust2|mirage|inferno>|reload|stats]§r 枪战商店、选图、换弹与独立战绩\n"
                         + "§e/pvp join minecraftparty§r 加入 Minecraft Party 2（移植中：首批 3 个小游戏 Quick Play）\n"
                         + "§e/pvp join islandsiege§r 加入海岛攻防（无需套件，红队进攻、蓝队防守）\n"
                         + "§e/pvp leave§r 离开队列\n"
