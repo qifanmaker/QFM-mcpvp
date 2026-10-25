@@ -308,8 +308,10 @@ public final class MyGoSession implements PortedGameSession {
     private void tickGun(ServerPlayerEntity player, Fighter f, Gun gun) {
         if (gun == null) return;
         if (gun.autoArmed && this.ticks - gun.lastInput <= autoInputGrace(gun.type)
-                && gun.ready <= this.ticks && gun.reloadAt == 0 && gun.ammo > 0)
-            trigger(player, f, gun);
+                && gun.ready <= this.ticks && gun.reloadAt == 0) {
+            if (gun.ammo > 0) trigger(player, f, gun);
+            else { gun.autoArmed = false; reload(player); }
+        }
         else if (gun.autoArmed && this.ticks - gun.lastInput > autoInputGrace(gun.type))
             gun.autoArmed = false;
         if (f.resumeScopeLevel > 0 && this.ticks >= f.resumeScopeAt) {
@@ -333,7 +335,12 @@ public final class MyGoSession implements PortedGameSession {
     private void trigger(ServerPlayerEntity player, Fighter f, Gun gun) {
         if (!combatPhase() || !f.alive || gun.reloadAt > 0 || this.channel != null && this.channel.player().equals(f.id)) return;
         if (this.ticks < gun.ready) return;
-        if (gun.ammo <= 0) { gun.ready = this.ticks + 8; sound(player, "empty", .7F); actionBar(player, "§e弹匣已空，按 F 换弹。"); return; }
+        if (gun.ammo <= 0) {
+            gun.ready = this.ticks + 8;
+            if (gun.reserve > 0) reload(player);
+            else { sound(player, "empty", .7F); actionBar(player, "§e没有备用弹药。"); }
+            return;
+        }
         gun.ready = this.ticks + gun.type.cycleTicks;
         for (int offset : gun.type.burstOffsets()) gun.shots.add(this.ticks + offset);
         tickGun(player, f, gun);
