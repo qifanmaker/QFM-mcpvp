@@ -37,6 +37,12 @@ final class MyGoMapCatalogTest {
         }
     }
 
+    @Test void unforcedSelectionCanChooseEveryCatalogMap() {
+        Set<String> selected = new HashSet<>();
+        for (int seed = 0; seed < 48; seed++) selected.add(MyGoMapBlueprint.randomKey(seed));
+        assertEquals(Set.of("dust2", "mirage", "inferno"), selected);
+    }
+
     private static JsonObject read(String id) throws Exception {
         try (InputStream input = MyGoMapCatalogTest.class.getResourceAsStream("/pvp/mygo/maps/" + id + ".json.gz")) {
             assertNotNull(input, id);

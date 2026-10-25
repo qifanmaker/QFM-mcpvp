@@ -168,8 +168,14 @@ public final class MyGoSession implements PortedGameSession {
     private Channel channel;
 
     public MyGoSession(Match match, ArenaTemplate template, int regionIndex, int seed) {
+        this(match, template, regionIndex, seed, null);
+    }
+
+    public MyGoSession(Match match, ArenaTemplate template, int regionIndex, int seed, String forcedMapKey) {
         this.match = match;
-        this.map = new MyGoArena(template, regionIndex);
+        String mapKey = forcedMapKey == null || forcedMapKey.isBlank()
+                ? MyGoMapBlueprint.randomKey(seed) : forcedMapKey;
+        this.map = new MyGoArena(template, regionIndex, mapKey);
         this.random = new Random(seed * 341873128712L + 1927);
         this.utilities = new MyGoUtilities(this.match.arenaWorld(),
                 () -> participants().stream().filter(p -> fighter(p).alive).toList(), (victim, owner, amount) -> {

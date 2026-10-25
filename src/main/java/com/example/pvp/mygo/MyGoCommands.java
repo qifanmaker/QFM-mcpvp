@@ -47,6 +47,7 @@ public final class MyGoCommands {
                                             String key = StringArgumentType.getString(ctx, "name").toLowerCase(java.util.Locale.ROOT);
                                             try {
                                                 MyGoMapBlueprint map = MyGoMapBlueprint.select(key);
+                                                if (PvPMod.MATCH != null) PvPMod.MATCH.setNextMyGoMap(key);
                                                 ctx.getSource().sendFeedback(() -> Text.literal("§a下一场 MyGO 地图已设为 §f" + map.name()), true);
                                                 return 1;
                                             } catch (java.io.IOException error) {

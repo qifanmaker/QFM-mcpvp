@@ -562,7 +562,8 @@ public final class Match {
             this.hotPotatoLayout = null;
             if (type.usesGameSession()) {
                 this.portedSession = switch (type) {
-                    case MYGO -> new com.example.pvp.mygo.MyGoSession(this, template, regionIndex, id);
+                    case MYGO -> new com.example.pvp.mygo.MyGoSession(this, template, regionIndex, id,
+                            this.manager.consumePendingMyGoMap());
                     case ISLAND_SIEGE -> new IslandSiegeSession(this, template, regionIndex, id);
                     default -> new MinecraftPartySession(this, template, regionIndex, id);
                 };

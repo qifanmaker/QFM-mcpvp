@@ -772,6 +772,19 @@ public final class PvpGuiManager {
         });
     }
 
+    /** OP 立即开始时的 MyGO 地图选择页；随机按钮交给会话从地图目录选择。 */
+    private void openMyGoMapPage(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.MYGO_MAP;
+        this.openPage(player, ctx, "§6选择 MyGO 地图（立即开始）", inv -> {
+            inv.setStack(9, makeButton(Items.SANDSTONE, "§eDust II", "经典沙漠地图", "点击指定并立即开始"));
+            inv.setStack(11, makeButton(Items.SANDSTONE_WALL, "§bMirage", "中路 / A 大 / B 小", "点击指定并立即开始"));
+            inv.setStack(13, makeButton(Items.BRICKS, "§cInferno", "香蕉道 / 中路 / 双包点", "点击指定并立即开始"));
+            inv.setStack(15, makeButton(Items.ENDER_EYE, "§d随机地图", "从 Dust II、Mirage、Inferno 中随机选择", "点击立即开始"));
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+        });
+    }
+
     /** 幸运之柱地图风格对应的展示图标。 */
     private static net.minecraft.item.Item iconForLuckyPillarStyle(com.example.pvp.arena.luckypillar.LuckyPillarLayout.PlatformStyle style) {
         return switch (style) {
@@ -829,6 +842,7 @@ public final class PvpGuiManager {
             case THEME -> this.onClickTheme(player, ctx, slotIndex);
             case LUCKY_PILLAR_MAP -> this.onClickLuckyPillarMap(player, ctx, slotIndex);
             case BEDWARS_MAP -> this.onClickBedwarsMap(player, ctx, slotIndex);
+            case MYGO_MAP -> this.onClickMyGoMap(player, ctx, slotIndex);
             case PRACTICE_CATEGORY -> this.onClickPracticeCategory(player, ctx, slotIndex);
             case STATS -> {
                 if (slotIndex == 27) {
@@ -907,6 +921,8 @@ public final class PvpGuiManager {
                     this.openLuckyPillarMapPage(player);
                 } else if (entry != null && entry.getType().isBedWars()) {
                     this.openBedwarsMapPage(player);
+                } else if (entry != null && entry.getType() == MatchType.MYGO) {
+                    this.openMyGoMapPage(player);
                 } else {
                     this.doForceStart(player);
                 }
@@ -1112,6 +1128,24 @@ public final class PvpGuiManager {
         this.doForceStart(player);
     }
 
+    /** MyGO 地图选择页点击：指定项只对当前强制开赛消费一次。 */
+    private void onClickMyGoMap(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        String mapKey = switch (slot) {
+            case 9 -> "dust2";
+            case 11 -> "mirage";
+            case 13 -> "inferno";
+            case 15 -> null;
+            default -> "";
+        };
+        if (mapKey.isEmpty()) return;
+        if (PvPMod.MATCH != null) PvPMod.MATCH.setNextMyGoMap(mapKey);
+        this.doForceStart(player);
+    }
+
     /** OP 立即开赛：用当前队列人数开赛并返回主菜单。 */
     private void doForceStart(ServerPlayerEntity player) {
         if (PvPMod.QUEUE.forceStart(PvPMod.MATCH, player)) {
@@ -1296,7 +1330,7 @@ public final class PvpGuiManager {
 
     private enum Page {
         MAIN, PVP_CATEGORY, BRIDGE_CATEGORY, GAMES_CATEGORY, BED_WARS_CATEGORY,
-        KIT, DUEL_TARGET, STATS, KIT_INFO, THEME, LUCKY_PILLAR_MAP, BEDWARS_MAP,
+        KIT, DUEL_TARGET, STATS, KIT_INFO, THEME, LUCKY_PILLAR_MAP, BEDWARS_MAP, MYGO_MAP,
         PRACTICE_CATEGORY
     }
 

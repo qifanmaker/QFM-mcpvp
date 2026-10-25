@@ -373,7 +373,7 @@ public final class PvPCommands {
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
-                        + "§e/pvp start [主题]§r OP 专用：立即用当前队列人数开赛（排空岛指定主题 / 幸运之柱指定地图）\n"
+                        + "§e/pvp start [主题/地图]§r OP 专用：立即用当前队列人数开赛（MyGO 可选地图，否则随机）\n"
                         + "§e/pvp queue§r 查看排队状态\n"
                         + "§e/pvp list§r 查看进行中的比赛\n"
                         + "§e/pvp stats [玩家]§r 查看战绩\n"
@@ -687,6 +687,25 @@ public final class PvPCommands {
                 }
                 PvPMod.MATCH.setNextBedwarsMap(mapDir.getFileName().toString());
                 player.sendMessage(Messages.info("已设置强制地图：§e" + mapDir.getFileName()), false);
+            } else if (entry.getType() == MatchType.MYGO) {
+                String mapKey = themeName.toLowerCase(java.util.Locale.ROOT);
+                if (mapKey.equals("random")) {
+                    PvPMod.MATCH.setNextMyGoMap(null);
+                    player.sendMessage(Messages.info("MyGO 将随机选择地图"), false);
+                } else if (com.example.pvp.mygo.MyGoMapBlueprint.availableMaps().contains(mapKey)) {
+                    try {
+                        com.example.pvp.mygo.MyGoMapBlueprint map = com.example.pvp.mygo.MyGoMapBlueprint.load(mapKey);
+                        PvPMod.MATCH.setNextMyGoMap(mapKey);
+                        player.sendMessage(Messages.info("已设置 MyGO 地图：§e" + map.name()), false);
+                    } catch (java.io.IOException error) {
+                        player.sendMessage(Messages.error("MyGO 地图资源损坏：" + mapKey), false);
+                        return 0;
+                    }
+                } else {
+                    player.sendMessage(Messages.error("未知 MyGO 地图: " + themeName
+                            + "（可用: dust2, mirage, inferno, random）"), false);
+                    return 0;
+                }
             } else {
                 player.sendMessage(Messages.error("只有排空岛战争（主题）、幸运之柱（地图）或起床战争（地图）才能指定"), false);
                 return 0;

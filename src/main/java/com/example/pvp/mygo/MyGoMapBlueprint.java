@@ -141,6 +141,13 @@ public final class MyGoMapBlueprint {
 
     public static synchronized String selectedKey() { return selectedMap; }
 
+    /** Select a deterministic pseudo-random catalog entry for an unforced match. */
+    public static String randomKey(long seed) {
+        List<String> maps = availableMaps();
+        int index = new java.util.Random(seed * 341873128712L + 1927).nextInt(maps.size());
+        return maps.get(index);
+    }
+
     public static List<String> availableMaps() {
         List<String> result = new ArrayList<>(RESOURCES.keySet());
         Collections.sort(result);

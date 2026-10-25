@@ -2,9 +2,10 @@
 
 ## MyGO 地图目录
 
-MyGO 默认使用 Dust II。OP 可以在下一场比赛前执行 `/pvp mygo map mirage`
-或 `/pvp mygo map inferno`，使用 `/pvp mygo map` 查看当前选择和可用地图；
-已经生成的对局会继续使用创建时绑定的蓝图。Mirage、Inferno 与 Dust II
+MyGO 默认随机选图。OP 在排队后打开 `/pvp`，点击“立即开始”，会看到 Dust II、
+Mirage、Inferno 和“随机地图”四个按钮；也可以执行 `/pvp start mirage`、
+`/pvp start inferno` 或 `/pvp start random`。`/pvp mygo map <地图>`仍作为
+命令入口保留。已经生成的对局会继续使用创建时绑定的蓝图。Mirage、Inferno 与 Dust II
 都在服务端静态蓝图中携带各自的出生点、购买区、A/B 包点和阵亡等待室，
 切图不会复用 Dust II 的坐标。
 
