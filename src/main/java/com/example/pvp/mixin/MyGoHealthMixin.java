@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MyGoHealthMixin {
     @Inject(method = "heal", at = @At("HEAD"), cancellable = true)
     private void pvp$myGoNoHealing(float amount, CallbackInfo ci) {
-        if ((Object) this instanceof ServerPlayerEntity player && MyGoCommands.session(player) != null) {
+        if ((Object) this instanceof ServerPlayerEntity player && MyGoCommands.weaponSession(player) != null) {
             ci.cancel();
         }
     }

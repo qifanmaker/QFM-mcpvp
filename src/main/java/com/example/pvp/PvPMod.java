@@ -210,11 +210,13 @@ public final class PvPMod implements ModInitializer {
             com.example.pvp.mygo.MyGoResourcePack.start(server);
             com.example.pvp.mygo.MyGoResourcePack.setFailureHandler(player -> {
                 Match match = MATCH == null ? null : MATCH.getMatchFor(player);
-                if (match != null && match.getType() == MatchType.MYGO) {
+                if (match != null && (match.getType() == MatchType.MYGO
+                        || match.getType() == MatchType.SKYWARS_GUNS)) {
                     match.leaveMatch(player);
                 } else if (QUEUE != null) {
                     var entry = QUEUE.getEntry(player);
-                    if (entry != null && entry.getType() == MatchType.MYGO) QUEUE.leave(player);
+                    if (entry != null && (entry.getType() == MatchType.MYGO
+                            || entry.getType() == MatchType.SKYWARS_GUNS)) QUEUE.leave(player);
                 }
             });
             LOGGER.info("[PvP] 服务器已就绪，PvP 竞技场可用");
@@ -224,7 +226,8 @@ public final class PvPMod implements ModInitializer {
             // 在玩家存盘和删除临时竞技场之前归还枪战快照，正常停服不能留下南瓜和玩法背包。
             if (MATCH != null && MATCH.getServer() == server) {
                 for (Match match : List.copyOf(MATCH.getMatches())) {
-                    if (match.getType() == MatchType.MYGO) match.cancelMatch("服务器关闭");
+                    if (match.getType() == MatchType.MYGO
+                            || match.getType() == MatchType.SKYWARS_GUNS) match.cancelMatch("服务器关闭");
                 }
             }
             com.example.pvp.mygo.MyGoResourcePack.stop();
@@ -353,6 +356,12 @@ public final class PvPMod implements ModInitializer {
                     return TypedActionResult.fail(stack);
                 }
                 Match skywarsMatch = MATCH == null ? null : MATCH.getMatchFor(serverPlayer);
+                if (skywarsMatch != null && skywarsMatch.isGunSkyWars()
+                        && skywarsMatch.skywarsGunSession() != null
+                        && skywarsMatch.getState() == MatchState.ACTIVE) {
+                    ActionResult result = skywarsMatch.skywarsGunSession().useItem(serverPlayer, hand);
+                    if (result != ActionResult.PASS) return new TypedActionResult<>(result, stack);
+                }
                 if (skywarsMatch != null && skywarsMatch.getType() == MatchType.SKYWARS
                         && com.example.pvp.match.SkyWarsItems.isRescuePlatform(stack)) {
                     return skywarsMatch.skywarsProfessionUse(serverPlayer, stack)
@@ -431,6 +440,11 @@ public final class PvPMod implements ModInitializer {
             }
             if (player instanceof ServerPlayerEntity sp && MATCH != null) {
                 Match match = MATCH.getMatchFor(sp);
+                if (match != null && match.isGunSkyWars() && match.skywarsGunSession() != null
+                        && match.getState() == MatchState.ACTIVE) {
+                    ActionResult result = match.skywarsGunSession().useBlock(sp, hand, hitResult);
+                    if (result != ActionResult.PASS) return result;
+                }
                 if (match != null && match.getType() == MatchType.SKYWARS
                         && match.getState() == MatchState.COUNTDOWN) {
                     return ActionResult.FAIL;
@@ -549,6 +563,9 @@ public final class PvPMod implements ModInitializer {
                 // 烫手山芋：左键（攻击）其他存活玩家传递山芋；
                 // 放行原版攻击（被打者受击退），伤害由 applyDamage 拦截（不掉血）
                 Match match = MATCH.getMatchFor(sp);
+                if (match != null && match.isGunSkyWars() && match.skywarsGunSession() != null) {
+                    return match.skywarsGunSession().attack(sp, entity);
+                }
                 if (match != null && match.getType() == MatchType.HOT_POTATO
                         && entity instanceof ServerPlayerEntity) {
                     match.tryPassHotPotato(sp, entity);
@@ -561,6 +578,13 @@ public final class PvPMod implements ModInitializer {
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
             if (player instanceof ServerPlayerEntity sp) {
                 if (MATCH != null && MATCH.isEliminated(sp.getUuid())) {
+                    return false;
+                }
+                Match gunMatch = MATCH == null ? null : MATCH.getMatchFor(sp);
+                ItemStack held = sp.getMainHandStack();
+                if (gunMatch != null && gunMatch.isGunSkyWars()
+                        && (com.example.pvp.mygo.MyGoWeaponItemCodec.isGun(held)
+                        || com.example.pvp.mygo.MyGoWeaponItemCodec.isKnife(held))) {
                     return false;
                 }
                 BedWarsEditor.Session session = BedWarsEditor.get(sp.getUuid());
@@ -585,6 +609,14 @@ public final class PvPMod implements ModInitializer {
                     && MATCH != null && MATCH.isEliminated(attacker.getUuid())) {
                 return false;
             }
+            if (entity instanceof ServerPlayerEntity gunVictim && MATCH != null
+                    && (source.getAttacker() instanceof ServerPlayerEntity
+                    || source.getAttacker() instanceof net.minecraft.entity.projectile.ProjectileEntity)) {
+                Match gunMatch = MATCH.getMatchFor(gunVictim);
+                if (gunMatch != null && gunMatch.isGunSkyWars() && gunMatch.skywarsGunSession() != null) {
+                    return gunMatch.skywarsGunSession().allowsDamage(gunVictim, source);
+                }
+            }
             // 亦可赛艇：纯竞速，赛道上没有任何伤害来源是有意义的（只有掉落物/摔落/虚空），
             // 全部取消，避免玩家在弯道被摔掉血影响驾驶手感。
             if (entity instanceof ServerPlayerEntity raceVictim && MATCH != null) {
@@ -599,6 +631,9 @@ public final class PvPMod implements ModInitializer {
                     && source.getAttacker() instanceof ServerPlayerEntity attacker
                     && attacker != victim && MATCH != null) {
                 Match match = MATCH.getMatchFor(attacker);
+                if (match != null && match.isGunSkyWars() && match.skywarsGunSession() != null) {
+                    return match.skywarsGunSession().allowsDamage(victim, source);
+                }
                 if (match != null && !match.getType().allowsPlayerDamage()) {
                     return false;
                 }

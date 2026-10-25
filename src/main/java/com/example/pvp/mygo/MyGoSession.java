@@ -72,7 +72,7 @@ import java.util.UUID;
  * 编辑前审查：成员、存活、回合、整场胜负分别管理；截止 tick 先于引导进度；所有枪包状态由服务端授权。
  * 装备模型、快捷栏和南瓜镜框只是状态投影，移动或伪造物品不会获得另一把枪或多出弹药。
  */
-public final class MyGoSession implements PortedGameSession {
+public final class MyGoSession implements PortedGameSession, WeaponSession {
     private enum Phase { BUY, LIVE, POST, FINISHED }
     private static final Identifier SPEED_ID = Identifier.of("pvp", "mygo_speed");
     // Keep the client-only target inside vanilla Adventure block reach.

@@ -202,8 +202,13 @@ public final class ArenaWorldManager {
 
         // 空岛战争：随机生成出生岛 + 中间主岛 + 箱子战利品
         if (template.getLayout() == ArenaTemplate.Layout.SKYWARS) {
-            SkyWarsMapGenerator.generate(arena, regionIndex, seed, playerCount, players, skyWarsVariant,
-                    skyWarsLayout);
+            if (type == MatchType.SKYWARS_GUNS) {
+                SkyWarsMapGenerator.generateGunSkywars(arena, regionIndex, seed, playerCount, players,
+                        skyWarsLayout);
+            } else {
+                SkyWarsMapGenerator.generate(arena, regionIndex, seed, playerCount, players, skyWarsVariant,
+                        skyWarsLayout);
+            }
             return;
         }
 

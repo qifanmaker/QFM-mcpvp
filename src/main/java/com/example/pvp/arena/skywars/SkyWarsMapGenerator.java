@@ -88,7 +88,14 @@ public final class SkyWarsMapGenerator {
     public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
                                          List<ServerPlayerEntity> players, SkyWarsMapVariant variant,
                                          SkyWarsLayout precomputedLayout) {
-        return SkyWarsBetaMapGenerator.generate(world, regionIndex, seed, playerCount, players, precomputedLayout);
+        return SkyWarsBetaMapGenerator.generate(world, regionIndex, seed, playerCount, players, precomputedLayout, false);
+    }
+
+    /** 生成枪械空岛：地形和布局完全复用普通空岛，只切换箱子战利品表。 */
+    public static SkyWarsLayout generateGunSkywars(ArenaWorld world, int regionIndex, int seed, int playerCount,
+                                                   List<ServerPlayerEntity> players, SkyWarsLayout precomputedLayout) {
+        return SkyWarsBetaMapGenerator.generate(world, regionIndex, seed, playerCount, players,
+                precomputedLayout, true);
     }
 
     static SkyWarsLayout generateClassic(ArenaWorld world, int regionIndex, int seed, int playerCount,
@@ -336,7 +343,13 @@ public final class SkyWarsMapGenerator {
     /** 定时补货，返回找到的箱数和补货前非空箱数；被拆除的箱子不会重建。 */
     public static int[] refillChests(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
                                      List<ServerPlayerEntity> players) {
-        return populateChests(world, layout, theme, players, true);
+        return populateChests(world, layout, theme, players, true, false);
+    }
+
+    /** 枪械空岛补货：沿用同一箱位和补货时机，使用枪械物资表。 */
+    public static int[] refillGunSkywarsChests(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
+                                               List<ServerPlayerEntity> players) {
+        return populateChests(world, layout, theme, players, true, true);
     }
 
     /**
@@ -345,14 +358,19 @@ public final class SkyWarsMapGenerator {
      */
     static int[] populateChests(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
                                List<ServerPlayerEntity> players, boolean refill) {
+        return populateChests(world, layout, theme, players, refill, false);
+    }
+
+    static int[] populateChests(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
+                               List<ServerPlayerEntity> players, boolean refill, boolean gunLoot) {
         if (world == null || layout == null) return new int[]{0, 0};
         int[] handicaps = players == null ? new int[0] : SkyWarsLoot.handicapForMatch(players);
         int[] stats = new int[2];
         java.util.Set<BlockPos> visited = new java.util.HashSet<>();
         populateOuterIslands(world, layout, theme, layout.spawnIslands(),
-                SkyWarsLootPolicy.Tier.SPAWN, handicaps, refill, stats, visited);
+                SkyWarsLootPolicy.Tier.SPAWN, handicaps, refill, stats, visited, gunLoot);
         populateOuterIslands(world, layout, theme, layout.midIslands(),
-                SkyWarsLootPolicy.Tier.TRANSIT, handicaps, refill, stats, visited);
+                SkyWarsLootPolicy.Tier.TRANSIT, handicaps, refill, stats, visited, gunLoot);
 
         List<ChestBlockEntity> centerChests = new ArrayList<>();
         for (int i = 0; i < layout.middleIslands().size(); i++) {
@@ -368,14 +386,18 @@ public final class SkyWarsMapGenerator {
                 collectChest(world, extra.pos(), centerChests, stats, visited);
             }
         }
-        SkyWarsLoot.populateIsland(centerChests, SkyWarsLootPolicy.Tier.CENTER, 0, refill, layout.lootPolicy());
+        if (gunLoot) {
+            SkyWarsGunLoot.populateIsland(centerChests, SkyWarsLootPolicy.Tier.CENTER, refill, layout.lootPolicy());
+        } else {
+            SkyWarsLoot.populateIsland(centerChests, SkyWarsLootPolicy.Tier.CENTER, 0, refill, layout.lootPolicy());
+        }
         return stats;
     }
 
     private static void populateOuterIslands(ArenaWorld world, SkyWarsLayout layout, SkyWarsTheme theme,
                                              List<SkyWarsLayout.Island> islands, SkyWarsLootPolicy.Tier tier,
                                              int[] handicaps, boolean refill, int[] stats,
-                                             java.util.Set<BlockPos> visited) {
+                                             java.util.Set<BlockPos> visited, boolean gunLoot) {
         for (int i = 0; i < islands.size(); i++) {
             List<ChestBlockEntity> chests = new ArrayList<>();
             collectIslandChests(world, islands.get(i), false, false, theme, chests, stats, visited);
@@ -384,8 +406,12 @@ public final class SkyWarsMapGenerator {
                     collectChest(world, extra.pos(), chests, stats, visited);
                 }
             }
-            SkyWarsLoot.populateIsland(chests, tier, i < handicaps.length ? handicaps[i] : 0,
-                    refill, layout.lootPolicy());
+            if (gunLoot) {
+                SkyWarsGunLoot.populateIsland(chests, tier, refill, layout.lootPolicy());
+            } else {
+                SkyWarsLoot.populateIsland(chests, tier, i < handicaps.length ? handicaps[i] : 0,
+                        refill, layout.lootPolicy());
+            }
         }
     }
 

@@ -184,6 +184,7 @@ public final class MyGoUtilities {
             }
         }
     }
+
     private void detonate(Thrown grenade, int tick) {
         Vec3d position = grenade.position;
         if (grenade.type == Type.SMOKE) {
