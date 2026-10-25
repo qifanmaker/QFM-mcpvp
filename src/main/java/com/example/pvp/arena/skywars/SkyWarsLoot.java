@@ -125,7 +125,7 @@ public final class SkyWarsLoot {
             new LootEntry(2, (r, c) -> stack(Items.LAVA_BUCKET, 1)),
             new LootEntry(10, (r, c) -> bridgeBlocks(r)), // 搭桥方块：刷新率上调
             new LootEntry(6, (r, c) -> stack(Items.TNT, 2 + r.nextInt(2))),
-            new LootEntry(8, (r, c) -> weapon(Items.MACE, r, c)),
+            new LootEntry(8, (r, c) -> mace(r, c)),
             new LootEntry(8, (r, c) -> spear()), // 长矛：与重锤同刷新率（同刷中间岛）
             new LootEntry(6, (r, c) -> stack(Items.WIND_CHARGE, 2 + r.nextInt(3))),
             new LootEntry(6, (r, c) -> stack(Items.FIRE_CHARGE, 3 + r.nextInt(3))),
@@ -218,6 +218,15 @@ public final class SkyWarsLoot {
     private static ItemStack weapon(Item item, Random random, int enchantChance) {
         ItemStack stack = new ItemStack(item);
         maybeEnchant(stack, random, enchantChance);
+        return stack;
+    }
+
+    /** 重锤：保留常规随机附魔，并有机会随机附加风爆 I~III。 */
+    private static ItemStack mace(Random random, int enchantChance) {
+        ItemStack stack = weapon(Items.MACE, random, enchantChance);
+        if (random.nextBoolean()) {
+            applyEnchant(stack, Enchantments.WIND_BURST, 1 + random.nextInt(3));
+        }
         return stack;
     }
 
