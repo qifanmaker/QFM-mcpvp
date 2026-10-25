@@ -70,6 +70,12 @@ def write_json(path: str, data: dict) -> None:
     target.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n")
 
 
+def write_text(path: str, content: str) -> None:
+    target = STAGING / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content)
+
+
 def write_png(path: str, width: int, height: int, pixels: list[tuple[int, int, int, int]]) -> None:
     def chunk(kind: bytes, content: bytes) -> bytes:
         return struct.pack(">I", len(content)) + kind + content + struct.pack(">I", zlib.crc32(kind + content))
@@ -723,6 +729,10 @@ def main():
     STAGING.mkdir(parents=True)
     write_json("pack.mcmeta", {"pack": {"pack_format": 34,
                "description": "MyGO CS-style Arsenal | 34 guns, utilities, surface footsteps and scope | 1.21.1"}})
+    # Reason: the client renders the selected-block box through the lines core
+    # shader, independently of block textures/models. MyGO's client-only input
+    # targets must stay invisible, so discard this resource-pack line pass.
+    write_text("assets/minecraft/shaders/core/rendertype_lines.fsh", "#version 150\n\nvoid main() {\n    discard;\n}\n")
     build_visuals()
     build_sounds()
     imported_audio = authorized_audio_overrides(args.authorized_audio_dir, args.audio_license_file)

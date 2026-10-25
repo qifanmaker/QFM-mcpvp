@@ -59,6 +59,12 @@ final class MyGoResourcePackAssetsTest {
     }
 
     @Test
+    void hidesVanillaSelectedBlockOutlineForMyGoTargets() {
+        String shader = new String(FILES.get("assets/minecraft/shaders/core/rendertype_lines.fsh"), StandardCharsets.UTF_8);
+        assertTrue(shader.contains("discard"), "MyGO pack must hide the vanilla lines selection pass");
+    }
+
+    @Test
     void onlyReservedCustomModelNumbersSelectGuns() {
         JsonArray overrides = json("assets/minecraft/models/item/iron_pickaxe.json").getAsJsonArray("overrides");
         for (MyGoWeapon weapon : MyGoWeapon.values()) {
