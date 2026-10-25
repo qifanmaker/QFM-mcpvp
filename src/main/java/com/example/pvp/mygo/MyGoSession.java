@@ -306,6 +306,8 @@ public final class MyGoSession implements PortedGameSession {
             SyntheticHold synthetic = this.syntheticHolds.get(player.getUuid());
             if (synthetic != null && (selectedGun == null || !selectedGun.type.automatic()))
                 clearSyntheticHold(player);
+            if (combatPhase() && selectedGun != null && selectedGun.type.automatic())
+                ensureSyntheticHold(player, fighter);
             if (selectedGun != null) {
                 double maxSpeed = selectedGun.type.profile().maxSpeed(alternateMode(fighter, selectedGun))
                         / (100 / 2.54) / 20;
@@ -621,7 +623,12 @@ public final class MyGoSession implements PortedGameSession {
             if (repeated && gun.type.automatic())
                 gun.autoArmed = true;
             trigger(player, f, gun);
-            if (gun.type.automatic()) armSyntheticHold(player, f, gun);
+            if (gun.type.automatic()) {
+                // The target is normally pre-armed each tick, but a newly
+                // selected weapon may need one immediate client-only update.
+                ensureSyntheticHold(player, f);
+                gun.autoArmed = true;
+            }
         } else {
             for (MyGoUtilities.Type type : MyGoUtilities.Type.values())
                 if (player.getInventory().selectedSlot == type.slot) throwGrenade(player, f, type, MyGoUtilities.ThrowMode.STRONG);
@@ -643,37 +650,44 @@ public final class MyGoSession implements PortedGameSession {
      * path when the player is aiming air/an entity; the server never changes
      * its world and treats the corresponding dig packets as input only.
      */
-    private void armSyntheticHold(ServerPlayerEntity player, Fighter fighter, Gun gun) {
-        if (this.syntheticHolds.containsKey(player.getUuid()) || !combatPhase() || !fighter.alive) return;
+    private void ensureSyntheticHold(ServerPlayerEntity player, Fighter fighter) {
+        if (!combatPhase() || !fighter.alive) return;
         Vec3d from = player.getEyePos();
         Vec3d direction = player.getRotationVec(1).normalize();
         Vec3d end = from.add(direction.multiply(8));
         BlockHitResult block = this.match.arenaWorld().raycast(new RaycastContext(from, end,
                 RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, player));
+        double blockDistance = block.getType() == net.minecraft.util.hit.HitResult.Type.MISS
+                ? Double.POSITIVE_INFINITY : from.distanceTo(block.getPos());
+        double entityDistance = Double.POSITIVE_INFINITY;
+        for (ServerPlayerEntity candidate : participants()) {
+            if (candidate == player || candidate.getWorld() != this.match.arenaWorld()) continue;
+            Optional<Vec3d> hit = candidate.getBoundingBox().raycast(from, end);
+            if (hit.isPresent()) entityDistance = Math.min(entityDistance, from.distanceTo(hit.get()));
+        }
         BlockPos pos;
-        if (block.getType() != net.minecraft.util.hit.HitResult.Type.MISS) {
+        if (entityDistance < blockDistance) {
+            // Keep a fake block in front of a player target so vanilla does not
+            // fall back to its one-shot entity attack path while moving.
+            pos = reachableAir(from, direction, Math.max(.8, entityDistance - .35));
+        } else if (blockDistance <= SYNTHETIC_HOLD_REACH + .75) {
             // Replace the client-visible target too. Otherwise Adventure mode
             // can finish breaking the map block and send STOP_DESTROY_BLOCK.
             // A distant wall itself is outside vanilla reach, so put the fake
             // block on the same ray at a reachable air position in front of it.
-            double hitDistance = from.distanceTo(block.getPos());
-            pos = hitDistance <= SYNTHETIC_HOLD_REACH + .75
-                    ? block.getBlockPos() : reachableAir(from, direction, SYNTHETIC_HOLD_REACH);
+            pos = block.getBlockPos();
         } else {
-            double distance = SYNTHETIC_HOLD_REACH;
-            for (ServerPlayerEntity candidate : participants()) {
-                if (candidate == player || candidate.getWorld() != this.match.arenaWorld()) continue;
-                Optional<Vec3d> hit = candidate.getBoundingBox().raycast(from, end);
-                if (hit.isPresent()) distance = Math.min(distance, Math.max(1.0, from.distanceTo(hit.get()) - .35));
-            }
-            pos = reachableAir(from, direction, distance);
+            pos = reachableAir(from, direction, SYNTHETIC_HOLD_REACH);
         }
         if (pos == null) return;
+        SyntheticHold existing = this.syntheticHolds.get(player.getUuid());
+        if (existing != null && existing.pos().equals(pos)) return;
+        if (existing != null) {
+            player.networkHandler.sendPacket(new BlockUpdateS2CPacket(existing.pos(), existing.actual()));
+            this.syntheticHolds.remove(player.getUuid());
+        }
         BlockState actual = this.match.arenaWorld().getBlockState(pos);
         this.syntheticHolds.put(player.getUuid(), new SyntheticHold(pos, actual));
-        // Reason: the first click must start the automatic state immediately;
-        // the bounded lease still expires unless vanilla sends another swing.
-        gun.autoArmed = true;
         player.networkHandler.sendPacket(new BlockUpdateS2CPacket(pos, Blocks.BARRIER.getDefaultState()));
     }
 
