@@ -40,6 +40,7 @@ import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -222,7 +223,7 @@ public final class MyGoSession implements PortedGameSession {
             player.sendMessage(Text.literal("§6MyGO 经典爆破 · 先赢 16 回合，第 15 回合换边，15:15 平局。"), false);
             player.sendMessage(Text.literal("§e左键点射 · 瞄具枪右键切换倍率/关镜 · F 换弹 · Q 丢枪/C4 · 购买器右键商店。"), false);
             player.sendMessage(Text.literal("§7CS:GO 军械库 34 种枪械 · T 默认 Glock-18 / CT 默认 USP-S · 仅瞄具枪支持开镜。"), false);
-            player.sendMessage(Text.literal("§e投掷物：左键大力高抛，右键小力低抛，投出后自动切回武器。潜行/低速移动静音。"), false);
+            player.sendMessage(Text.literal("§e投掷物：左键大力高抛，右键小力低抛，投出后自动切回武器。默认奔跑，Shift 静步、Ctrl 蹲下（前进时），静步和蹲下均无脚步声。"), false);
             player.sendMessage(Text.literal("§7携 C4 到包点，选择第 6 格，潜行右键安装；防守方同样操作拆包。阵亡后在封闭室等待下一回合。"), false);
         }
         String invalidSpawn = this.map.validateSpawns(this.match.arenaWorld());
@@ -322,7 +323,8 @@ public final class MyGoSession implements PortedGameSession {
             if (selectedGun != null) {
                 double maxSpeed = selectedGun.type.profile().maxSpeed(alternateMode(fighter, selectedGun))
                         / (100 / 2.54) / 20;
-                selectedGun.accuracy.update(this.ticks, alternateMode(fighter, selectedGun), player.isSneaking(),
+                selectedGun.accuracy.update(this.ticks, alternateMode(fighter, selectedGun),
+                        MyGoStance.of(player.isSneaking(), player.isSprinting()) == MyGoStance.CROUCH,
                         player.isOnGround(), player.isClimbing(), movement.horizontalLength() / Math.max(.001, maxSpeed),
                         movement.lengthSquared() > 6.25 ? 0 : movement.y);
             }
@@ -548,6 +550,10 @@ public final class MyGoSession implements PortedGameSession {
         f.taggedAt = this.ticks;
         updateSpeed(victim, f);
         f.hp = Math.max(0, f.hp - amount);
+        // 虚拟 HP 不走原版伤害流程（allowsDamage 恒为 false），原版受击音不会触发；
+        // 在受害者位置发声，本人和附近玩家都能听到，致死一击由阵亡流程接管，不重复播放。
+        if (f.hp > .0000001) this.match.arenaWorld().playSound(null, victim.getX(), victim.getY(), victim.getZ(),
+                SoundEvents.ENTITY_PLAYER_HURT, SoundCategory.PLAYERS, 1, 1);
         if (f.hp <= .0000001) kill(victim, attacker, reason, killReward);
         else actionBar(victim, "§c受到 " + String.format(Locale.ROOT, "%.1f", amount) + " 伤害 · "
                 + String.format(Locale.ROOT, "%.1f", f.hp) + " HP");
@@ -1302,8 +1308,8 @@ public final class MyGoSession implements PortedGameSession {
         // One block is one metre. Vanilla normal walking is 4.317 m/s; Source max speeds are units/s.
         double units = gun == null ? 250 : gun.type.profile().maxSpeed(alternateMode(f, gun));
         double factor = units / MyGoWeapon.SOURCE_UNITS_PER_BLOCK / 4.317;
-        if (p.isSprinting()) factor *= .52 / 1.3; // Vanilla sprint key becomes CS-style quiet walking.
-        if (p.isSneaking()) factor *= .34 / .3;
+        // Shift（原版潜行）是静步，Ctrl（原版疾跑）是蹲下；抵消客户端已乘的 .3 / 1.3。
+        factor *= MyGoStance.of(p.isSneaking(), p.isSprinting()).compensation();
         if (gun != null && gun.accuracy.recentlyFired(this.ticks)) factor *= gun.type.profile().attackMoveFactor();
         double tag = Math.max(0, 1 - (this.ticks - f.taggedAt) / 14.0) * f.tagSlowdown;
         factor *= 1 - tag;
@@ -1385,7 +1391,8 @@ public final class MyGoSession implements PortedGameSession {
     /** 资源包屏蔽原版脚步后，只由本场实际位移发出具有位置和材质的声源。 */
     private void tickMovementSounds(ServerPlayerEntity player, Fighter f) {
         MyGoFootsteps.Cue cue = f.footsteps.update(this.ticks, player.getX(), player.getY(), player.getZ(),
-                player.isOnGround(), player.isSneaking() || player.isSprinting(), false, player.isTouchingWater(), player.isClimbing());
+                player.isOnGround(), MyGoStance.of(player.isSneaking(), player.isSprinting()).quiet(), false,
+                player.isTouchingWater(), player.isClimbing());
         if (cue == MyGoFootsteps.Cue.NONE) return;
         String surface = footstepSurface(player);
         String key = switch (cue) {
