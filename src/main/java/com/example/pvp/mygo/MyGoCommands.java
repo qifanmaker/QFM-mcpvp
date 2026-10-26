@@ -24,6 +24,14 @@ public final class MyGoCommands {
         return match != null && match.portedSession() instanceof MyGoSession session ? session : null;
     }
 
+    /** Resolve either the Dust II session or the independent gun-SkyWars runtime. */
+    public static WeaponSession weaponSession(ServerPlayerEntity player) {
+        Match match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
+        if (match == null) return null;
+        if (match.portedSession() instanceof WeaponSession session) return session;
+        return match.skywarsGunSession();
+    }
+
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         dispatcher.register(CommandManager.literal("pvp")
                 .then(CommandManager.literal("mygo")

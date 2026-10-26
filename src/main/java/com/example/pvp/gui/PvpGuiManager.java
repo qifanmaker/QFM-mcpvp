@@ -253,6 +253,12 @@ public final class PvpGuiManager {
         this.applyQueueIndicator(skywars, player, PvPMod.QUEUE.countQueued(MatchType.SKYWARS));
         inv.setStack(10, skywars);
 
+        inv.setStack(20, queueButton(Items.CROSSBOW, "§e§l枪械空岛", player, MatchType.SKYWARS_GUNS,
+                "2~8 人，复用普通空岛地图",
+                "出生只有战术刀，枪械和弹药从箱子获取",
+                "普通空岛逻辑独立匹配，暂不与普通空岛混队",
+                "需要加载 MyGO 资源包"));
+
         // MyGO 允许两人正常匹配，入口同步提示 1v1；火药可堆叠以完整显示排队人数。
         inv.setStack(11, queueButton(Items.GUNPOWDER, "§6MyGO 枪战爆破", player, MatchType.MYGO,
                 "1v1~5v5 经典爆破，先赢十六回合",
@@ -920,6 +926,7 @@ public final class PvpGuiManager {
                 this.openMyGoTeamPage(player);
                 return;
             }
+            case 20 -> this.joinQueue(player, MatchType.SKYWARS_GUNS, KitManager.skywarsKit());
             case 12 -> this.openBridgeCategory(player);
             case 13 -> this.openGamesCategory(player);
             case 14 -> this.openBedWarsCategory(player);
@@ -935,7 +942,7 @@ public final class PvpGuiManager {
             case 21 -> {
                 // OP 立即开始：排队空岛/幸运之柱/床战时可先选地图/主题，其余模式直接开
                 QueueEntry entry = PvPMod.QUEUE.getEntry(player);
-                if (entry != null && entry.getType() == MatchType.SKYWARS) {
+                if (entry != null && entry.getType().isSkyWars()) {
                     this.openThemePage(player);
                 } else if (entry != null && entry.getType() == MatchType.LUCKY_PILLAR) {
                     this.openLuckyPillarMapPage(player);
@@ -1209,6 +1216,9 @@ public final class PvpGuiManager {
                 String mapLabel = skyWarsVariant == SkyWarsMapVariant.BETA ? "空岛 Beta 地图" : "空岛战争";
                 player.sendMessage(Messages.info("已加入" + mapLabel + "：凑齐 "
                         + PvPConfig.INSTANCE.skywarsStartPlayers + " 人开赛，开箱获得装备"), false);
+            } else if (type == MatchType.SKYWARS_GUNS) {
+                player.sendMessage(Messages.info("已加入枪械空岛：凑齐 "
+                        + PvPConfig.INSTANCE.skywarsStartPlayers + " 人开赛，出生只有战术刀，枪械从箱子获取"), false);
             } else if (type == MatchType.LUCKY_PILLAR) {
                 player.sendMessage(Messages.info("已加入幸运之柱：凑齐 " + PvPConfig.INSTANCE.luckyPillarStartPlayers
                         + " 人开赛，空手开局，随机物品与事件"), false);

@@ -18,8 +18,14 @@ public final class SkyWarsBetaMapGenerator {
 
     private SkyWarsBetaMapGenerator() { }
 
+    /** 保留调试命令和旧调用方的普通空岛入口。 */
     public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
                                          List<ServerPlayerEntity> players, SkyWarsLayout layout) {
+        return generate(world, regionIndex, seed, playerCount, players, layout, false);
+    }
+
+    public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
+                                         List<ServerPlayerEntity> players, SkyWarsLayout layout, boolean gunLoot) {
         layout = SkyWarsMapGenerator.generateClassic(world, regionIndex, seed, playerCount, players, layout);
         List<String> validationErrors = SkyWarsBetaLayoutValidator.validate(layout, playerCount);
         if (!validationErrors.isEmpty()) {
@@ -66,7 +72,7 @@ public final class SkyWarsBetaMapGenerator {
                 buildCentralCore(world, layout, middle, style, structure, accent, theme);
             }
         }
-        SkyWarsMapGenerator.populateChests(world, layout, theme, players, false);
+        SkyWarsMapGenerator.populateChests(world, layout, theme, players, false, gunLoot);
         List<String> generatedErrors = SkyWarsBetaLayoutValidator.validateGenerated(world, layout, theme);
         if (!generatedErrors.isEmpty()) {
             LOGGER.warn("空岛地形校验出现问题（seed={}）: {}", seed, String.join("；", generatedErrors));

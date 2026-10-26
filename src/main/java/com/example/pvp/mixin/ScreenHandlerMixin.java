@@ -27,6 +27,8 @@ public class ScreenHandlerMixin {
 
         // 枪械槽位由服务器授权状态管理，禁止背包搬运绕过枪种/弹药/装备限制。
         // MyGO 商店覆写 onSlotClick，不经过此原版内部移动路径。
+        // Dust II owns its whole inventory during buy/round phases. Gun SkyWars
+        // must still allow chest clicks; its session converts tagged items on tick.
         if (com.example.pvp.mygo.MyGoCommands.session((ServerPlayerEntity) player) != null) {
             ci.cancel();
             self.syncState();

@@ -31,6 +31,7 @@ import com.example.pvp.kit.BridgeGear;
 import com.example.pvp.kit.InventorySnapshot;
 import com.example.pvp.kit.Kit;
 import com.example.pvp.kit.KitApplicator;
+import com.example.pvp.kit.HotbarSync;
 import com.example.pvp.kit.KitManager;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
@@ -38,6 +39,8 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import java.nio.file.Path;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.CustomModelDataComponent;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.component.type.FireworkExplosionComponent;
 import net.minecraft.component.type.FireworksComponent;
 import net.minecraft.component.type.LodestoneTrackerComponent;
@@ -152,6 +155,8 @@ public final class Match {
     private final Map<UUID, Integer> skywarsOutsideSince = new HashMap<>();
     private int skywarsLastKeepRadius = Integer.MAX_VALUE; // 上一档安全半径
     private boolean skywarsChestRefilled; // "物资刷新"事件是否已触发（每场一次）
+    /** 枪械空岛独立武器运行时；不放进 portedSession，保留空岛通用胜负流程。 */
+    private SkyWarsGunSession skywarsGunSession;
 
     /** 战桥地图布局（仅战桥模式非空，进球判定/重生/清理用）。 */
     private final BridgeLayout bridgeLayout;
@@ -364,7 +369,7 @@ public final class Match {
         this.template = template;
         this.regionIndex = regionIndex;
         // 亦可赛艇固定 3-2-1-GO（地图在这一段倒计时的第一帧一次性铺完，见 BoatRaceSession.prepare）
-        this.initialCountdownTicks = this.type == MatchType.SKYWARS
+        this.initialCountdownTicks = this.isSkyWars()
                 ? 5 * 20
                 : this.type.isBoatRace()
                 ? PvPConfig.INSTANCE.boatRaceCountdownSeconds * 20
@@ -380,7 +385,7 @@ public final class Match {
 
         // 计算出生点（空岛战争/战桥用同一份确定性布局，保证与地图生成一致）
         List<BlockPos> spawnPositions;
-        if (type == MatchType.SKYWARS) {
+        if (type == MatchType.SKYWARS || type == MatchType.SKYWARS_GUNS) {
             // OP 强制开赛可指定主题：消费一次性的强制主题；否则由 seed 随机抽取
             SkyWarsTheme forced = manager.consumePendingSkywarsTheme();
             int seed = id;
@@ -392,6 +397,9 @@ public final class Match {
             }
             this.skywarsSeed = seed;
             this.skywarsLayout = SkyWarsLayout.compute(template.getCenter(regionIndex), seed, this.players.size());
+            if (type == MatchType.SKYWARS_GUNS) {
+                this.skywarsGunSession = new SkyWarsGunSession(this, seed);
+            }
             this.bridgeLayout = null;
             this.luckyPillarLayout = null;
             this.tntRunLayout = null;
@@ -653,6 +661,19 @@ public final class Match {
         return this.type;
     }
 
+    /** 普通空岛与枪械空岛共用的地图/缩圈生命周期判断。 */
+    public boolean isSkyWars() {
+        return this.type == MatchType.SKYWARS || this.type == MatchType.SKYWARS_GUNS;
+    }
+
+    public boolean isGunSkyWars() {
+        return this.type == MatchType.SKYWARS_GUNS;
+    }
+
+    public SkyWarsGunSession skywarsGunSession() {
+        return this.skywarsGunSession;
+    }
+
     public Kit getKit() {
         return this.kit;
     }
@@ -738,7 +759,7 @@ public final class Match {
         if (this.type.usesGameSession()) {
             // 会话自行计时；兜底只处理运行时卡死，不擅自把第一队判为胜者。
             activeTimeout = 20 * 60 * (this.type == MatchType.MYGO ? 120 : 30);
-        } else if (this.type == MatchType.SKYWARS) {
+        } else if (this.isSkyWars()) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20);
         } else if (this.type.isBridge()) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.bridgeTimeoutSeconds * 20);
@@ -818,13 +839,16 @@ public final class Match {
                 if (this.portedSession != null) {
                     this.portedSession.tick();
                 }
+                if (this.skywarsGunSession != null) {
+                    this.skywarsGunSession.tick();
+                }
                 if (this.type == MatchType.SUMO) {
                     this.checkSumoRingOut();
                 }
                 if (this.type.isBridge()) {
                     this.tickBridge();
                 }
-                if (this.type == MatchType.SKYWARS) {
+                if (this.isSkyWars()) {
                     this.tickSkywarsShrink();
                     this.tickSkywarsTotem();
                     this.tickSkywarsCompass();
@@ -951,8 +975,10 @@ public final class Match {
             return; // 场地未就绪，下一 tick 再试
         }
         this.skywarsChestRefilled = true;
-        int[] chestStats = SkyWarsMapGenerator.refillChests(arena, this.skywarsLayout, this.skywarsTheme,
-                this.players);
+        int[] chestStats = this.isGunSkyWars()
+                ? SkyWarsMapGenerator.refillGunSkywarsChests(arena, this.skywarsLayout, this.skywarsTheme,
+                this.players)
+                : SkyWarsMapGenerator.refillChests(arena, this.skywarsLayout, this.skywarsTheme, this.players);
         // 自检：补货前"已有物资"的箱子数应该 > 0（说明开局那次装填是成功的）；
         // 恒为 0 就说明开局装填没生效，箱子是空的
         LOGGER.info("[PvP] 比赛 #{} 空岛箱子补货：找到 {} 个箱子，其中 {} 个补货前已有物资",
@@ -999,7 +1025,7 @@ public final class Match {
      * 返回 true 表示成功消耗并救回（调用方据此取消死亡/淘汰）。
      */
     public boolean tryTotemSave(ServerPlayerEntity player, boolean voidFall) {
-        if (this.type != MatchType.SKYWARS && this.type != MatchType.LUCKY_PILLAR) {
+        if (!this.isSkyWars() && this.type != MatchType.LUCKY_PILLAR) {
             return false;
         }
         if (this.state != MatchState.ACTIVE || this.eliminated.contains(player.getUuid())) {
@@ -1013,7 +1039,7 @@ public final class Match {
         if (slot < 0) {
             return false;
         }
-        if (this.type == MatchType.SKYWARS) {
+        if (this.isSkyWars()) {
             BlockPos rescue = voidFall ? this.skywarsRescuePoint(player) : null;
             if (voidFall && rescue == null) return false;
             player.getInventory().getStack(slot).decrement(1);
@@ -3372,6 +3398,9 @@ public final class Match {
         ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
         if (online != null) {
             this.dropEliminatedLoot(online); // 身上物品爆落在地（供其他玩家拾取），再转幽灵
+            if (this.skywarsGunSession != null) {
+                this.skywarsGunSession.onDeath(online);
+            }
             this.makeGhost(online);
         }
 
@@ -3391,9 +3420,15 @@ public final class Match {
         }
         this.state = MatchState.ENDED;
         this.endPortedSession();
+        if (this.skywarsGunSession != null) this.skywarsGunSession.onEnd();
         try {
             this.removeSkywarsCage();
             this.broadcast(Messages.error("比赛取消：" + reason));
+            if (this.isGunSkyWars()) {
+                for (ServerPlayerEntity player : this.onlineParticipants()) {
+                    com.example.pvp.mygo.MyGoResourcePack.remove(player);
+                }
+            }
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
             this.removeHeartbeatBossBar();
@@ -3555,6 +3590,12 @@ public final class Match {
     private void finalizeMatch() {
         Set<UUID> winners = this.computeWinners();
         try {
+            if (this.isGunSkyWars()) {
+                for (ServerPlayerEntity player : this.onlineParticipants()) {
+                    com.example.pvp.mygo.MyGoResourcePack.remove(player);
+                }
+            }
+            if (this.skywarsGunSession != null) this.skywarsGunSession.onEnd();
             this.restoreAllPlayers();
             this.removeScoreboardTeams();
             this.removeHeartbeatBossBar();
@@ -3918,7 +3959,9 @@ public final class Match {
 
     /** 玩家主动离开竞技场回主城：幽灵走旁观离开流程；活跃玩家视为弃权淘汰并恢复赛前状态。 */
     public void leaveMatch(ServerPlayerEntity player) {
-        if (this.type == MatchType.MYGO) com.example.pvp.mygo.MyGoResourcePack.remove(player);
+        if (this.type == MatchType.MYGO || this.isGunSkyWars()) {
+            com.example.pvp.mygo.MyGoResourcePack.remove(player);
+        }
         if (this.portedSession != null && this.contains(player.getUuid())) {
             // 铺图/倒计时尚未开始会话，退赛要取消整场，避免按旧名单发装备和传送。
             if (this.state == MatchState.COUNTDOWN) {
@@ -3951,7 +3994,9 @@ public final class Match {
 
     /** 旁观者提前离场：requeue=true 立即重排当前模式，false 回主城。 */
     public void spectatorLeave(ServerPlayerEntity player, boolean requeue) {
-        if (this.type == MatchType.MYGO) com.example.pvp.mygo.MyGoResourcePack.remove(player);
+        if (this.type == MatchType.MYGO || this.isGunSkyWars()) {
+            com.example.pvp.mygo.MyGoResourcePack.remove(player);
+        }
         if (!this.leftEarly.add(player.getUuid())) {
             return;
         }
@@ -3966,7 +4011,7 @@ public final class Match {
         if (requeue) {
             Kit kit = this.playerKits.get(player.getUuid());
             if (kit != null && PvPMod.QUEUE != null) {
-                if (this.type == MatchType.SKYWARS) {
+                if (this.isSkyWars()) {
                     PvPMod.QUEUE.join(player, this.type, kit, this.skywarsVariant);
                 } else {
                     PvPMod.QUEUE.join(player, this.type, kit);
@@ -4108,16 +4153,20 @@ public final class Match {
                 this.broadcastTitleBig("§a§lGO!", "§e按顺序穿过所有 Checkpoint，跑满 "
                         + this.boatRaceSession.laps() + " 圈");
             } else {
-            if (this.type == MatchType.SKYWARS) {
+            if (this.isSkyWars()) {
                 this.removeSkywarsCage();
-                this.skywarsMetrics.begin(this.players, this.skywarsProfessions);
+                if (!this.isGunSkyWars()) {
+                    this.skywarsMetrics.begin(this.players, this.skywarsProfessions);
+                }
                 for (ServerPlayerEntity player : this.players) {
                     ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
                     if (online == null) {
                         continue;
                     }
                     this.skywarsStartFallSafe.add(player.getUuid());
-                    this.skywarsProfessionOf(player.getUuid()).apply(online);
+                    if (!this.isGunSkyWars()) {
+                        this.skywarsProfessionOf(player.getUuid()).apply(online);
+                    }
                 }
             }
                 this.broadcast(Messages.gold("战斗开始！"));
@@ -4132,6 +4181,9 @@ public final class Match {
             }
             if (this.portedSession != null) {
                 this.portedSession.start();
+            }
+            if (this.skywarsGunSession != null) {
+                this.skywarsGunSession.start();
             }
         }
     }
@@ -4387,7 +4439,8 @@ public final class Match {
             return;
         }
 
-        boolean skywars = this.type == MatchType.SKYWARS;
+        boolean skywars = this.isSkyWars();
+        boolean gunSkywars = this.isGunSkyWars();
         boolean bridge = this.type.isBridge();
         boolean luckyPillar = this.type == MatchType.LUCKY_PILLAR;
         boolean tntRun = this.type == MatchType.TNT_RUN;
@@ -4438,11 +4491,17 @@ public final class Match {
                 // 战桥：队伍色装备 + 生存模式（可放/拆方块）
                 this.applyBridgeGear(online);
             } else if (skywars) {
-                // 空岛战争：先清空背包并放入职业选择纸，玩家站在出生岛上方玻璃笼子内
+                // 普通空岛选择职业；枪械空岛只发战术刀，枪械全部从箱子获得。
                 this.clearForBareStart(online, GameMode.SURVIVAL, 5f, false);
-                ItemStack selector = new ItemStack(Items.PAPER);
-                selector.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§e选择空岛职业（右键）"));
-                online.getInventory().setStack(8, selector);
+                if (gunSkywars) {
+                    online.getInventory().setStack(2, skywarsGunKnife());
+                    online.getInventory().selectedSlot = 2;
+                    HotbarSync.sendSelection(online);
+                } else {
+                    ItemStack selector = new ItemStack(Items.PAPER);
+                    selector.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§e选择空岛职业（右键）"));
+                    online.getInventory().setStack(8, selector);
+                }
                 this.prepareSkywarsCage(arena, online, spawn);
             } else if (luckyPillar) {
                 // 幸运之柱：无套件，生存模式空手开局，等随机物品发放
@@ -4488,7 +4547,7 @@ public final class Match {
         }
 
         this.createScoreboardTeams();
-        if (skywars) {
+        if (skywars && !gunSkywars) {
             for (ServerPlayerEntity player : this.players) {
                 ServerPlayerEntity online = this.manager.getOnlinePlayer(player.getUuid());
                 if (online != null) {
@@ -4500,6 +4559,11 @@ public final class Match {
         if (bridge) {
             this.broadcast(Messages.info("战桥开始！冲进对方球门得分，先得 "
                     + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜！（1.8 低版本战斗）"));
+        } else if (skywars && gunSkywars) {
+            String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
+            String variantName = "§d" + this.skywarsLayout.mapStyle().getDisplayName();
+            this.broadcast(Messages.info("枪械空岛开始！" + variantName + "，主题：§e" + themeName
+                    + "§r。出生只有战术刀，枪械和弹药请搜索箱子！"));
         } else if (skywars) {
             String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
             String variantName = "§d" + this.skywarsLayout.mapStyle().getDisplayName();
@@ -4535,6 +4599,17 @@ public final class Match {
             online.addStatusEffect(new StatusEffectInstance(StatusEffects.SATURATION, -1, 0, false, false, false));
         }
         online.currentScreenHandler.sendContentUpdates();
+    }
+
+    /** 枪械空岛出生装备：只提供 MyGO 战术刀，枪械与弹药全部来自箱子。 */
+    private static ItemStack skywarsGunKnife() {
+        ItemStack knife = new ItemStack(Items.IRON_SWORD);
+        knife.set(DataComponentTypes.CUSTOM_MODEL_DATA, new CustomModelDataComponent(71006));
+        knife.set(DataComponentTypes.CUSTOM_NAME, Text.literal("§6战术刀"));
+        NbtCompound nbt = new NbtCompound();
+        nbt.putString("pvp.skywars_knife", "1");
+        knife.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+        return knife;
     }
 
     /** ACTIVE 已经过去的 tick 数（铺图占用的时间不算进去）。 */
@@ -4984,7 +5059,7 @@ public final class Match {
             }
         } else if (this.type.isLastManStanding()) {
             // FFA/空岛战争/幸运之柱/TNT 跑酷/烫手山芋：模式专属事件倒计时 + 存活玩家列表（玩家数量见头部）
-            if (this.type == MatchType.SKYWARS) {
+            if (this.isSkyWars()) {
                 this.setInfoLine(scoreboard, objective, this.skywarsShrinkLine(), score--);
             }
             if (this.type == MatchType.LUCKY_PILLAR) {
@@ -5073,7 +5148,7 @@ public final class Match {
             case DUEL_2V2 -> "§e";
             case FFA -> "§d";
             case SUMO -> "§b";
-            case SKYWARS -> "§6";
+            case SKYWARS, SKYWARS_GUNS -> "§6";
             case BRIDGE_1V1 -> "§3";
             case BRIDGE_2V2 -> "§b";
             case BRIDGE_1V1V1V1 -> "§5";
@@ -5098,7 +5173,7 @@ public final class Match {
     /** 地图行：各模式当前地图/主题/场地信息。 */
     private String mapLine() {
         return switch (this.type) {
-            case SKYWARS -> "§7地图: §e" + (this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界")
+            case SKYWARS, SKYWARS_GUNS -> "§7地图: §e" + (this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界")
                     + "·" + (this.skywarsLayout != null ? this.skywarsLayout.mapStyle().getDisplayName() : "随机");
             case LUCKY_PILLAR -> "§7地图: §e" + (this.luckyPillarLayout != null
                     ? this.luckyPillarLayout.platformStyle().getDisplayName() : "随机");

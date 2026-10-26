@@ -2,7 +2,7 @@ package com.example.pvp.mixin;
 
 import com.example.pvp.mygo.MyGoCommands;
 import com.example.pvp.mygo.MyGoInputGuard;
-import com.example.pvp.mygo.MyGoSession;
+import com.example.pvp.mygo.WeaponSession;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.DoorBlock;
@@ -32,7 +32,7 @@ public abstract class MyGoInputMixin {
     @Unique
     private final MyGoInputGuard pvp$myGoInput = new MyGoInputGuard();
     @Unique
-    private MyGoSession pvp$predictionSession;
+    private WeaponSession pvp$predictionSession;
 
     // 修复原因：右键 use 的 SUCCESS 会向本人广播摆手；1.21.1 原版客户端收到后
     // 调用 ClientPlayerEntity.swingHand，再回发 HandSwingC2S，误走下面的左键开火入口。
@@ -41,7 +41,7 @@ public abstract class MyGoInputMixin {
     @Redirect(method = {"onPlayerInteractItem", "onPlayerInteractBlock"}, at = @At(value = "INVOKE",
             target = "Lnet/minecraft/server/network/ServerPlayerEntity;swingHand(Lnet/minecraft/util/Hand;Z)V"))
     private void pvp$myGoUseAnimation(ServerPlayerEntity actor, Hand hand, boolean includeSelf) {
-        actor.swingHand(hand, includeSelf && MyGoCommands.session(actor) == null);
+        actor.swingHand(hand, includeSelf && MyGoCommands.weaponSession(actor) == null);
     }
 
     // 空挥、点方块、攻击实体都会发送挥手包；统一在此触发，避免一击打出两组子弹。
@@ -49,7 +49,7 @@ public abstract class MyGoInputMixin {
     @Inject(method = "onHandSwing", at = @At("TAIL"))
     private void pvp$myGoFire(HandSwingC2SPacket packet, CallbackInfo ci) {
         ServerPlayNetworkHandler handler = (ServerPlayNetworkHandler) (Object) this;
-        MyGoSession session = MyGoCommands.session(handler.player);
+        WeaponSession session = MyGoCommands.weaponSession(handler.player);
         if (session == null || session != this.pvp$predictionSession) this.pvp$clearPrediction();
         if (session == null) return;
         if (!this.pvp$myGoInput.consumePredictedSwing(packet.getHand() == Hand.MAIN_HAND))
@@ -64,7 +64,7 @@ public abstract class MyGoInputMixin {
         ServerPlayNetworkHandler handler = (ServerPlayNetworkHandler) (Object) this;
         NetworkThreadUtils.forceMainThread(packet, handler, handler.player.getServerWorld());
         boolean predicts = false;
-        MyGoSession session = MyGoCommands.session(handler.player);
+        WeaponSession session = MyGoCommands.weaponSession(handler.player);
         if (session != null && packet.getHand() == Hand.MAIN_HAND
                 && !handler.player.shouldCancelInteraction() && !handler.player.getMainHandStack().isEmpty()) {
             BlockState state = handler.player.getServerWorld().getBlockState(packet.getBlockHitResult().getBlockPos());
@@ -97,7 +97,7 @@ public abstract class MyGoInputMixin {
     private void pvp$myGoSlot(UpdateSelectedSlotC2SPacket packet, CallbackInfo ci) {
         this.pvp$clearPrediction();
         ServerPlayNetworkHandler handler = (ServerPlayNetworkHandler) (Object) this;
-        MyGoSession session = MyGoCommands.session(handler.player);
+        WeaponSession session = MyGoCommands.weaponSession(handler.player);
         if (session != null) session.onSelectedSlotChanged(handler.player);
     }
 
@@ -106,7 +106,7 @@ public abstract class MyGoInputMixin {
         ServerPlayNetworkHandler handler = (ServerPlayNetworkHandler) (Object) this;
         NetworkThreadUtils.forceMainThread(packet, handler, handler.player.getServerWorld());
         this.pvp$clearPrediction();
-        MyGoSession session = MyGoCommands.session(handler.player);
+        WeaponSession session = MyGoCommands.weaponSession(handler.player);
         if (session == null) return;
         if (session.handleSyntheticAction(handler.player, packet)) {
             ci.cancel();

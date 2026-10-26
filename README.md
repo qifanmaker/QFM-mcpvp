@@ -204,6 +204,7 @@
 | `/pvp` 或 `/pvp menu` | 打开游戏内 GUI 菜单 |
 | `/pvp join <1v1\|2v2\|ffa\|sumo\|deathmatch> <套件>` | 加入匹配队列 |
 | `/pvp join skywars` | 加入空岛战争（无需套件） |
+| `/pvp join skywarsguns` | 加入枪械空岛（独立队列，出生战术刀，枪械和弹药从箱子获取） |
 | `/pvp professions` | 在大厅预览空岛职业；入场倒计时期间打开职业选择 |
 | `/pvp join bridge1v1\|bridge1v1v1v1\|bridge2v2\|bridge` | 加入战桥（`bridge`=混战，需偶数人数） |
 | `/pvp join luckypillar` | 加入幸运之柱 |

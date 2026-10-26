@@ -11,6 +11,8 @@ public enum MatchType {
     FFA("ffa", "自由乱斗"),
     SUMO("sumo", "相扑"),
     SKYWARS("skywars", "空岛战争"),
+    /** 独立枪械空岛：复用空岛地图与缩圈，但装备和战利品由枪械规则管理。 */
+    SKYWARS_GUNS("skywarsguns", "枪械空岛"),
     BRIDGE_1V1("bridge1v1", "战桥 1v1"),
     BRIDGE_1V1V1V1("bridge1v1v1v1", "战桥 1v1v1v1"),
     BRIDGE_2V2("bridge2v2", "战桥 2v2"),
@@ -64,7 +66,7 @@ public enum MatchType {
             case DUEL_1V1, SUMO, BRIDGE_1V1 -> 2;
             case DUEL_2V2, BRIDGE_2V2, BRIDGE_1V1V1V1 -> 4;
             case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
-            case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;
+            case SKYWARS, SKYWARS_GUNS -> PvPConfig.INSTANCE.skywarsMinPlayers;
             case BRIDGE_TEAM -> PvPConfig.INSTANCE.bridgeTeamMinPlayers;
             case LUCKY_PILLAR -> PvPConfig.INSTANCE.luckyPillarMinPlayers;
             case TNT_RUN -> PvPConfig.INSTANCE.tntRunMinPlayers;
@@ -105,6 +107,11 @@ public enum MatchType {
         return this == BOAT_RACE;
     }
 
+    /** 是否使用空岛地图、缩圈和虚空救援基础设施。 */
+    public boolean isSkyWars() {
+        return this == SKYWARS || this == SKYWARS_GUNS;
+    }
+
     /** 移植玩法直接排队，装备和胜负由玩法会话控制，不使用自选套件或通用淘汰规则。 */
     public boolean isPortedGame() {
         return this == MINECRAFT_PARTY || this == ISLAND_SIEGE;
@@ -117,7 +124,7 @@ public enum MatchType {
 
     /** 是否"最后存活者获胜"的 FFA 淘汰类玩法（自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 烫手山芋 / 色盲派对）。 */
     public boolean isLastManStanding() {
-        return this == FFA || this == SKYWARS || this == LUCKY_PILLAR || this == TNT_RUN || this == HOT_POTATO
+        return this == FFA || this.isSkyWars() || this == LUCKY_PILLAR || this == TNT_RUN || this == HOT_POTATO
                 || this == COLORBLIND_PARTY;
     }
 

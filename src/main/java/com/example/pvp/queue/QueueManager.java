@@ -33,9 +33,10 @@ public final class QueueManager {
     private final List<QueueEntry> entries = new ArrayList<>();
     /** 自由乱斗开赛倒计时（tick 数）；null 表示未开始。 */
     private Integer ffaCountdownTicks;
-    /** 空岛战争按地图变体分别计时，避免经典地图和 Beta 地图混排后互相占用倒计时。 */
-    private final Map<SkyWarsMapVariant, Integer> skywarsCountdownTicks = new EnumMap<>(SkyWarsMapVariant.class);
-    private final Map<SkyWarsMapVariant, Integer> skywarsFillTicks = new EnumMap<>(SkyWarsMapVariant.class);
+    /** 空岛队列按模式和地图变体分别计时，避免普通空岛与枪械空岛混排。 */
+    private record SkyWarsQueueKey(MatchType type, SkyWarsMapVariant variant) { }
+    private final Map<SkyWarsQueueKey, Integer> skywarsCountdownTicks = new HashMap<>();
+    private final Map<SkyWarsQueueKey, Integer> skywarsFillTicks = new HashMap<>();
     /** 幸运之柱开赛倒计时 / 等待填人计时（tick 数）；null 表示未开始。 */
     private Integer luckyPillarCountdownTicks;
     private Integer luckyPillarFillTicks;
@@ -121,10 +122,11 @@ public final class QueueManager {
             return false;
         }
         // 两个移植玩法自行控制物品，所有入口统一占位套件，避免命令或重排带入自选装备。
-        if (type == MatchType.MYGO && !com.example.pvp.mygo.MyGoResourcePack.request(player)) {
+        if ((type == MatchType.MYGO || type == MatchType.SKYWARS_GUNS)
+                && !com.example.pvp.mygo.MyGoResourcePack.request(player)) {
             return false;
         }
-        if (type != MatchType.MYGO) {
+        if (type != MatchType.MYGO && type != MatchType.SKYWARS_GUNS) {
             // 已下载镜框但改玩其他模式时，避免全局南瓜贴图影响色盲派对等玩法。
             com.example.pvp.mygo.MyGoResourcePack.remove(player);
         }
@@ -148,7 +150,8 @@ public final class QueueManager {
         boolean removed = this.leave(player.getUuid());
         if (removed) {
             PvpGuiManager.removeQueueItem(player);
-            if (entry != null && entry.getType() == MatchType.MYGO) {
+            if (entry != null && (entry.getType() == MatchType.MYGO
+                    || entry.getType() == MatchType.SKYWARS_GUNS)) {
                 com.example.pvp.mygo.MyGoResourcePack.remove(player);
             }
         }
@@ -335,67 +338,68 @@ public final class QueueManager {
      * 2~startPlayers-1 人时进入等待填人计时，超时按当前人数开赛。
      */
     private void tickSkywars(MatchManager matchManager) {
-        for (SkyWarsMapVariant variant : SkyWarsMapVariant.values()) {
-            this.tickSkywarsVariant(matchManager, variant);
+        for (MatchType type : new MatchType[]{MatchType.SKYWARS, MatchType.SKYWARS_GUNS}) {
+            for (SkyWarsMapVariant variant : SkyWarsMapVariant.values()) {
+                this.tickSkywarsVariant(matchManager, type, variant);
+            }
         }
     }
 
-    private void tickSkywarsVariant(MatchManager matchManager, SkyWarsMapVariant variant) {
+    private void tickSkywarsVariant(MatchManager matchManager, MatchType type, SkyWarsMapVariant variant) {
         PvPConfig config = PvPConfig.INSTANCE;
-        long count = this.countSkywars(variant);
-        Integer countdown = this.skywarsCountdownTicks.get(variant);
+        SkyWarsQueueKey key = new SkyWarsQueueKey(type, variant);
+        long count = this.countSkywars(type, variant);
+        Integer countdown = this.skywarsCountdownTicks.get(key);
         if (countdown != null) {
             countdown = count >= config.skywarsMaxPlayers ? 0 : countdown - 1;
             if (countdown <= 0) {
-                this.skywarsCountdownTicks.remove(variant);
-                this.skywarsFillTicks.remove(variant);
-                this.startSkywarsMatch(matchManager, variant);
+                this.skywarsCountdownTicks.remove(key);
+                this.skywarsFillTicks.remove(key);
+                this.startSkywarsMatch(matchManager, type, variant);
             } else {
-                this.skywarsCountdownTicks.put(variant, countdown);
+                this.skywarsCountdownTicks.put(key, countdown);
             }
             return;
         }
         if (count >= config.skywarsStartPlayers) {
-            this.skywarsCountdownTicks.put(variant, config.skywarsCountdownSeconds * 20);
-            this.broadcastSkywars(matchManager, variant, Messages.info(
+            this.skywarsCountdownTicks.put(key, config.skywarsCountdownSeconds * 20);
+            this.broadcastSkywars(matchManager, type, variant, Messages.info(
                     "§e" + count + "§r 人已就绪，§e" + config.skywarsCountdownSeconds + "§r 秒后开始"
-                            + (variant == SkyWarsMapVariant.BETA ? "空岛 Beta 地图" : "空岛战争") + "！"));
-            this.skywarsFillTicks.remove(variant);
+                            + (type == MatchType.SKYWARS_GUNS ? "枪械空岛" : variant == SkyWarsMapVariant.BETA ? "空岛 Beta 地图" : "空岛战争") + "！"));
+            this.skywarsFillTicks.remove(key);
             return;
         }
         if (count >= config.skywarsMinPlayers) {
-            Integer fill = this.skywarsFillTicks.get(variant);
+            Integer fill = this.skywarsFillTicks.get(key);
             if (fill == null) {
                 fill = config.skywarsFillTimeoutSeconds * 20;
             }
             if (fill % 40 == 0) {
-                this.broadcastSkywars(matchManager, variant, Messages.info(
-                        "等待更多玩家加入" + (variant == SkyWarsMapVariant.BETA ? "空岛 Beta 地图" : "空岛战争")
+                this.broadcastSkywars(matchManager, type, variant, Messages.info(
+                        "等待更多玩家加入" + (type == MatchType.SKYWARS_GUNS ? "枪械空岛" : variant == SkyWarsMapVariant.BETA ? "空岛 Beta 地图" : "空岛战争")
                                 + "（当前 " + count + "/" + config.skywarsStartPlayers + "）..."));
             }
             fill--;
             if (fill <= 0) {
-                this.skywarsFillTicks.remove(variant);
-                this.startSkywarsMatch(matchManager, variant);
+                this.skywarsFillTicks.remove(key);
+                this.startSkywarsMatch(matchManager, type, variant);
             } else {
-                this.skywarsFillTicks.put(variant, fill);
+                this.skywarsFillTicks.put(key, fill);
             }
         } else {
-            this.skywarsFillTicks.remove(variant);
+            this.skywarsFillTicks.remove(key);
         }
     }
 
     /** 开一场空岛战争：取队列前 maxPlayers 人，每人发哨兵套件（实际上空手开局）。 */
     private void startSkywarsMatch(MatchManager matchManager) {
-        SkyWarsMapVariant variant = this.entries.stream()
-                .filter(entry -> entry.getType() == MatchType.SKYWARS)
-                .map(QueueEntry::getSkyWarsVariant)
-                .findFirst()
-                .orElse(SkyWarsMapVariant.CLASSIC);
-        this.startSkywarsMatch(matchManager, variant);
+        QueueEntry first = this.entries.stream()
+                .filter(entry -> entry.getType().isSkyWars())
+                .findFirst().orElse(null);
+        if (first != null) this.startSkywarsMatch(matchManager, first.getType(), first.getSkyWarsVariant());
     }
 
-    private void startSkywarsMatch(MatchManager matchManager, SkyWarsMapVariant variant) {
+    private void startSkywarsMatch(MatchManager matchManager, MatchType type, SkyWarsMapVariant variant) {
         PvPConfig config = PvPConfig.INSTANCE;
         List<ServerPlayerEntity> players = new ArrayList<>();
         List<QueueEntry> toRemove = new ArrayList<>();
@@ -405,7 +409,7 @@ public final class QueueManager {
         }
 
         for (QueueEntry entry : List.copyOf(this.entries)) {
-            if (entry.getType() != MatchType.SKYWARS) {
+            if (entry.getType() != type) {
                 continue;
             }
             if (entry.getSkyWarsVariant() != variant) {
@@ -429,20 +433,20 @@ public final class QueueManager {
         for (ServerPlayerEntity player : players) {
             kits.put(player.getUuid(), sentinel);
         }
-        if (matchManager.startMatch(players, MatchType.SKYWARS, kits, variant)) {
+        if (matchManager.startMatch(players, type, kits, variant)) {
             this.entries.removeAll(toRemove);
         }
         // 开赛失败（场地已满）则保留排队，等待下一轮
     }
 
-    private long countSkywars(SkyWarsMapVariant variant) {
-        return this.entries.stream().filter(e -> e.getType() == MatchType.SKYWARS
+    private long countSkywars(MatchType type, SkyWarsMapVariant variant) {
+        return this.entries.stream().filter(e -> e.getType() == type
                 && e.getSkyWarsVariant() == variant).count();
     }
 
-    private void broadcastSkywars(MatchManager matchManager, SkyWarsMapVariant variant, Text message) {
+    private void broadcastSkywars(MatchManager matchManager, MatchType type, SkyWarsMapVariant variant, Text message) {
         for (QueueEntry entry : this.entries) {
-            if (entry.getType() != MatchType.SKYWARS || entry.getSkyWarsVariant() != variant) {
+            if (entry.getType() != type || entry.getSkyWarsVariant() != variant) {
                 continue;
             }
             ServerPlayerEntity online = matchManager.getOnlinePlayer(entry.getPlayer().getUuid());
@@ -1447,7 +1451,7 @@ public final class QueueManager {
     private void tickInstantMatches(MatchManager matchManager) {
         Map<String, List<QueueEntry>> groups = new LinkedHashMap<>();
         for (QueueEntry entry : this.entries) {
-            if (entry.getType() == MatchType.FFA || entry.getType() == MatchType.SKYWARS
+            if (entry.getType() == MatchType.FFA || entry.getType().isSkyWars()
                     || entry.getType() == MatchType.LUCKY_PILLAR || entry.getType() == MatchType.TNT_RUN
                     || entry.getType() == MatchType.HEARTBEAT || entry.getType() == MatchType.HOT_POTATO
                     || entry.getType() == MatchType.VILLAGE_DEFENSE
@@ -1547,7 +1551,7 @@ public final class QueueManager {
         }
 
         // 自由乱斗 / 空岛战争 / 幸运之柱 / TNT 跑酷 / 心跳水立方 / 烫手山芋 / 床战：直接以当前队列所有人开赛
-        if (type == MatchType.FFA || type == MatchType.SKYWARS || type == MatchType.LUCKY_PILLAR
+        if (type == MatchType.FFA || type.isSkyWars() || type == MatchType.LUCKY_PILLAR
                 || type == MatchType.TNT_RUN || type == MatchType.HEARTBEAT || type == MatchType.HOT_POTATO
                 || type == MatchType.VILLAGE_DEFENSE || type == MatchType.COLORBLIND_PARTY
                 || type == MatchType.DEATHMATCH
@@ -1555,7 +1559,7 @@ public final class QueueManager {
                 || type.isBedWars()) {
             int min = switch (type) {
                 case FFA -> PvPConfig.INSTANCE.ffaMinPlayers;
-                case SKYWARS -> PvPConfig.INSTANCE.skywarsMinPlayers;
+                case SKYWARS, SKYWARS_GUNS -> PvPConfig.INSTANCE.skywarsMinPlayers;
                 case LUCKY_PILLAR -> PvPConfig.INSTANCE.luckyPillarMinPlayers;
                 case HEARTBEAT -> PvPConfig.INSTANCE.heartbeatMinPlayers;
                 case HOT_POTATO -> PvPConfig.INSTANCE.hotPotatoMinPlayers;
@@ -1565,16 +1569,17 @@ public final class QueueManager {
                 case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceMinPlayers;
                 default -> type.isBedWars() ? 2 : PvPConfig.INSTANCE.tntRunMinPlayers;
             };
-            int count = type == MatchType.SKYWARS
-                    ? (int) this.countSkywars(entry.getSkyWarsVariant())
+            int count = type.isSkyWars()
+                    ? (int) this.countSkywars(type, entry.getSkyWarsVariant())
                     : (int) this.countType(type);
             if (count < min) {
                 player.sendMessage(Messages.warn("当前 " + type.getDisplayName() + " 队列人数不足（" + count + "/" + min + "），无法立即开始"), false);
                 return false;
             }
             this.ffaCountdownTicks = null;
-            this.skywarsCountdownTicks.clear();
-            this.skywarsFillTicks.clear();
+            SkyWarsQueueKey key = new SkyWarsQueueKey(type, entry.getSkyWarsVariant());
+            this.skywarsCountdownTicks.remove(key);
+            this.skywarsFillTicks.remove(key);
             this.luckyPillarCountdownTicks = null;
             this.luckyPillarFillTicks = null;
             this.tntRunCountdownTicks = null;
@@ -1614,7 +1619,7 @@ public final class QueueManager {
             }
             switch (type) {
                 case FFA -> this.startFfaMatch(matchManager);
-                case SKYWARS -> this.startSkywarsMatch(matchManager);
+                case SKYWARS, SKYWARS_GUNS -> this.startSkywarsMatch(matchManager, type, entry.getSkyWarsVariant());
                 case LUCKY_PILLAR -> this.startLuckyPillarMatch(matchManager);
                 case HEARTBEAT -> this.startHeartbeatMatch(matchManager);
                 case HOT_POTATO -> this.startHotPotatoMatch(matchManager);

@@ -66,7 +66,7 @@ import java.util.UUID;
 public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> MODE_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(new String[]{
-                    "1v1", "2v2", "ffa", "sumo", "skywars",
+                    "1v1", "2v2", "ffa", "sumo", "skywars", "skywarsguns",
                     "bridge1v1", "bridge1v1v1v1", "bridge2v2", "bridge", "luckypillar", "tntrun",
                     "heartbeat", "hotpotato", "bedwars", "bedwars2", "villagedefense", "colorblindparty",
                     "deathmatch", "racing", "boatrace", "minecraftparty", "islandsiege", "mygo"}, builder);
@@ -356,6 +356,7 @@ public final class PvPCommands {
                 "§6§lPvP 匹配 §r命令：\n"
                         + "§e/pvp join <1v1|2v2|ffa|sumo> <套件>§r 加入匹配队列\n"
                         + "§e/pvp join skywars§r 加入空岛战争（无需套件）\n"
+                        + "§e/pvp join skywarsguns§r 加入枪械空岛（资源包，出生战术刀，枪械和弹药从箱子获取）\n"
                         + "§e/pvp join bridge1v1|bridge1v1v1v1|bridge2v2|bridge§r 加入战桥（无需套件）\n"
                         + "§e/pvp join luckypillar§r 加入幸运之柱（无需套件，空手开局）\n"
                         + "§e/pvp join tntrun§r 加入 TNT 跑酷（无需套件，踩过的方块掉落）\n"
@@ -391,12 +392,12 @@ public final class PvPCommands {
         MatchType type = MatchType.byId(modeId);
         if (type == null) {
             player.sendMessage(Messages.error("未知模式: " + modeId
-                    + "（可用: 1v1, 2v2, ffa, sumo, skywars, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense, colorblindparty, deathmatch, racing, minecraftparty, islandsiege）"), false);
+                    + "（可用: 1v1, 2v2, ffa, sumo, skywars, skywarsguns, bridge1v1, bridge1v1v1v1, bridge2v2, bridge, luckypillar, tntrun, heartbeat, hotpotato, bedwars, bedwars2, villagedefense, colorblindparty, deathmatch, racing, minecraftparty, islandsiege）"), false);
             return 0;
         }
         Kit kit;
-        if (type == MatchType.SKYWARS) {
-            kit = KitManager.skywarsKit(); // 空岛战争无套件
+        if (type.isSkyWars()) {
+            kit = KitManager.skywarsKit(); // 空岛系列无套件
         } else if (type.isBridge()) {
             kit = KitManager.bridgeKit(); // 战桥装备固定（按队伍色发放），无套件选择
         } else if (type == MatchType.LUCKY_PILLAR) {
@@ -441,6 +442,9 @@ public final class PvPCommands {
             } else if (type == MatchType.SKYWARS) {
                 player.sendMessage(Messages.info("已加入空岛战争：凑齐 " + PvPConfig.INSTANCE.skywarsStartPlayers
                         + " 人开赛，开箱获得装备"), false);
+            } else if (type == MatchType.SKYWARS_GUNS) {
+                player.sendMessage(Messages.info("已加入枪械空岛：凑齐 " + PvPConfig.INSTANCE.skywarsStartPlayers
+                        + " 人开赛，出生只有战术刀，枪械和弹药从箱子获取"), false);
             } else if (type == MatchType.LUCKY_PILLAR) {
                 player.sendMessage(Messages.info("已加入幸运之柱：凑齐 " + PvPConfig.INSTANCE.luckyPillarStartPlayers
                         + " 人开赛，空手开局，随机物品与事件"), false);
@@ -658,7 +662,7 @@ public final class PvPCommands {
                 player.sendMessage(Messages.error("请先加入队列再指定地图/主题"), false);
                 return 0;
             }
-            if (entry.getType() == MatchType.SKYWARS) {
+            if (entry.getType().isSkyWars()) {
                 SkyWarsTheme theme = SkyWarsTheme.byName(themeName);
                 if (theme == null) {
                     player.sendMessage(Messages.error("未知主题: " + themeName + "（可用: 主世界, 地狱, 冰原, 末地, 村庄）"), false);

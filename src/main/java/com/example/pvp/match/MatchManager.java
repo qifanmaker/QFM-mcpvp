@@ -470,9 +470,13 @@ public final class MatchManager {
             if (players.size() < PvPConfig.INSTANCE.ffaMinPlayers) {
                 return false;
             }
-        } else if (type == MatchType.SKYWARS) {
+        } else if (type.isSkyWars()) {
             if (players.size() < PvPConfig.INSTANCE.skywarsMinPlayers
                     || players.size() > PvPConfig.INSTANCE.skywarsMaxPlayers) {
+                return false;
+            }
+            if (type == MatchType.SKYWARS_GUNS
+                    && players.stream().anyMatch(p -> !com.example.pvp.mygo.MyGoResourcePack.isReady(p))) {
                 return false;
             }
         } else if (type == MatchType.LUCKY_PILLAR) {
@@ -658,7 +662,7 @@ public final class MatchManager {
 
     /** 是否为低版本(1.8)战斗模式：空岛战争 / 战桥 / 幸运之柱 / 起床战争 / 村庄保卫战（无攻击冷却）。 */
     public boolean isLegacyCombat(Match match) {
-        return match != null && (match.getType() == MatchType.SKYWARS || match.getType().isBridge()
+        return match != null && (match.getType().isSkyWars() || match.getType().isBridge()
                 || match.getType() == MatchType.LUCKY_PILLAR || match.getType().isBedWars()
                 || match.getType() == MatchType.VILLAGE_DEFENSE);
     }
@@ -921,7 +925,7 @@ public final class MatchManager {
             case DUEL_2V2 -> PvPConfig.INSTANCE.duel2v2Size;
             case FFA -> PvPConfig.INSTANCE.ffaSize;
             case SUMO -> PvPConfig.INSTANCE.sumoSize;
-            case SKYWARS -> PvPConfig.INSTANCE.skywarsSize;
+            case SKYWARS, SKYWARS_GUNS -> PvPConfig.INSTANCE.skywarsSize;
             case BRIDGE_1V1, BRIDGE_2V2, BRIDGE_1V1V1V1, BRIDGE_TEAM -> PvPConfig.INSTANCE.bridgeSize;
             case LUCKY_PILLAR -> PvPConfig.INSTANCE.luckyPillarSize;
             case TNT_RUN -> PvPConfig.INSTANCE.tntRunSize;
@@ -942,7 +946,7 @@ public final class MatchManager {
             case DUEL_1V1, SUMO -> ArenaTemplate.Layout.DUEL_1V1;
             case DUEL_2V2 -> ArenaTemplate.Layout.DUEL_2V2;
             case FFA -> ArenaTemplate.Layout.FFA;
-            case SKYWARS -> ArenaTemplate.Layout.SKYWARS;
+            case SKYWARS, SKYWARS_GUNS -> ArenaTemplate.Layout.SKYWARS;
             case BRIDGE_1V1, BRIDGE_2V2, BRIDGE_1V1V1V1, BRIDGE_TEAM -> ArenaTemplate.Layout.BRIDGE;
             case LUCKY_PILLAR -> ArenaTemplate.Layout.LUCKY_PILLAR;
             case TNT_RUN -> ArenaTemplate.Layout.TNT_RUN;
@@ -960,7 +964,7 @@ public final class MatchManager {
             case MINECRAFT_PARTY, ISLAND_SIEGE, MYGO -> ArenaTemplate.Layout.FFA;
         };
         // 相扑/空岛/战桥/幸运之柱/TNT 跑酷/心跳水立方/烫手山芋/床战/村庄保卫战/色盲派对无围墙；其地图本身由各自生成器铺
-        boolean hasWalls = type != MatchType.SUMO && type != MatchType.SKYWARS && !type.isBridge()
+        boolean hasWalls = type != MatchType.SUMO && !type.isSkyWars() && !type.isBridge()
                 && type != MatchType.LUCKY_PILLAR && type != MatchType.TNT_RUN
                 && type != MatchType.HEARTBEAT && type != MatchType.HOT_POTATO
                 && !type.isBedWars() && type != MatchType.VILLAGE_DEFENSE
@@ -993,7 +997,7 @@ public final class MatchManager {
                 if (match.getState() == MatchState.ACTIVE) {
                     if (match.isEliminated(player.getUuid())) {
                         match.rescueGhost(player); // 幽灵掉出虚空送回观战台
-                    } else if (match.getType() == MatchType.SKYWARS) {
+                    } else if (match.getType().isSkyWars()) {
                         // 高下落速度跳过救援带时，淘汰前再尝试一次；失败不会消耗图腾。
                         if (!match.tryTotemSave(player, true)) match.eliminate(player, EliminationCause.VOID);
                     } else if (match.portedSession() != null) {
