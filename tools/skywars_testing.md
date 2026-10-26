@@ -60,3 +60,40 @@ MYGO_TEST_RUN_DIR=build/mygo-skywars-matches MYGO_TEST_PORT=25627 \
 `skywars-match-results.jsonl`、`server-console.log`。服务端没有 ERROR/Java 异常，
 有一条协议客户端传送移动警告；客户端有已知配方解析警告。首次中文命令参数解析失败的
 证据保留在 `first-chinese-command-*`，最终测试使用等价英文主题参数。
+
+## 弹药数量与背包移动
+
+修改原因：用户反馈拾取、换弹或移动枪械后弹药减少。检查真实物品的弹匣、备弹和散装弹药总和，
+并单独检查没有新开火输入时是否仍在扣弹；不能只把背包里消失的散装弹药视为丢失。
+
+```sh
+./gradlew build --warning-mode all
+./gradlew -I tools/mygo_prepare_test.gradle mygoPrepareTestRuntime
+python3 tools/mygo_test_server.py --run-dir build/mygo-skywars-ammo-final --port 25633
+# 另一终端；依赖安装见 mygo_testing.md。
+MYGO_TEST_RUN_DIR=build/mygo-skywars-ammo-final MYGO_TEST_PORT=25633 \
+  node tools/skywars_ammo_regression.cjs
+```
+
+每次复跑使用新隔离目录。机器人完成后退出，服务器终端输入 `stop` 正常停服。
+测试用两个真实协议客户端完成排队、资源包门禁和开赛，在隔离世界注入明确数量的枪械、弹药，
+执行实际物品实体拾取、F 换弹、背包点击、数字键交换、Q 丢枪及拾回，记录客户端物品组件和
+服务端 `/data get` 的库存。还检查手持枪优先补弹、数量说明、相同型号/弹量的枪不会继承换弹、
+单击/双击/切枪后停止扣弹、连续输入可射击，以及同格更换物品不会重置尚未到期的射击冷却。
+
+2026-10-26 基线快照取自 `7444050`（修改前准备）：22 项检查中 6 项失败，
+复现 AK 单击 30→27、双击 30→26、快速切回后继续扣弹、相同枪交换后继续扣弹、
+拾取弹药先流入备用枪、没有弹药数量说明。拾取、换弹、移槽和丢拾的基础总数守恒检查通过。
+证据在 `build/mygo-skywars-ammo-baseline/skywars-ammo-verification.json` 和
+`skywars-ammo-results.jsonl`，首轮证据保留为 `first-pass-*`。
+
+修复取消没有真实输入的续射，切槽取消换弹，运行时绑定真实枪物品并保留同槽冷却；
+散装弹药优先补充手持的匹配枪，物品说明显示弹匣与备弹。此协议测试没有客户端渲染器，
+不能代替原版客户端的画面和按键手感验收。
+
+修复版实服 24/24 项通过：AK 单击 30→29、双击 30→28，停下、切槽和同弹量换枪后不再额外扣弹；
+拾取、换弹、移动、丢拾均保持弹药总数，备弹去向与说明正确。构建通过，143 项单测中
+142 项通过、1 项跳过，无失败。最终快照与交付编译类逐字节一致；结果在
+`build/mygo-skywars-ammo-final/skywars-ammo-verification.json`、`skywars-ammo-results.jsonl`、
+`ammo-bot-console.log` 和 `server-console.log`。服务器无 ERROR、Java 异常或移动警告，
+仅有预期的离线模式警告；协议客户端仍有已知配方解码警告。测试服务器均已正常停止。

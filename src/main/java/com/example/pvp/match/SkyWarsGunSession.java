@@ -4,7 +4,6 @@ import com.example.pvp.mygo.MyGoBulletTrace;
 import com.example.pvp.mygo.MyGoGunAccuracy;
 import com.example.pvp.mygo.MyGoKnifeRules;
 import com.example.pvp.mygo.MyGoLagHistory;
-import com.example.pvp.mygo.MyGoPreciseCadence;
 import com.example.pvp.mygo.MyGoRules;
 import com.example.pvp.mygo.MyGoScope;
 import com.example.pvp.mygo.MyGoUtilities;
@@ -31,7 +30,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.world.GameMode;
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -55,19 +53,21 @@ public final class SkyWarsGunSession implements WeaponSession {
     private static final class Gun {
         final MyGoWeapon type;
         final MyGoGunAccuracy accuracy;
-        final MyGoPreciseCadence cadence = new MyGoPreciseCadence();
+        ItemStack stack;
         int ammo;
         int reserve;
         int readyAt;
         int reloadAt;
-        int lastInput = -100;
-        boolean automatic;
 
-        Gun(MyGoWeapon type, int ammo, int reserve) {
-            this.type = type;
-            this.accuracy = new MyGoGunAccuracy(type);
-            this.ammo = Math.clamp(ammo, 0, type.magazine);
-            this.reserve = Math.clamp(reserve, 0, type.reserve);
+        Gun(ItemStack stack, MyGoWeaponItemCodec.GunData data, Gun previous) {
+            this.stack = stack;
+            this.type = data.weapon();
+            this.accuracy = new MyGoGunAccuracy(this.type);
+            this.ammo = data.ammo();
+            this.reserve = data.reserve();
+            // Replacing an item cancels its pending reload, but must not make
+            // an identical gun ready to fire before the old slot's cooldown.
+            if (previous != null && previous.type == this.type) this.readyAt = previous.readyAt;
         }
 
         MyGoWeaponItemCodec.GunData data() {
@@ -76,9 +76,6 @@ public final class SkyWarsGunSession implements WeaponSession {
 
         void cancel() {
             this.reloadAt = 0;
-            this.readyAt = 0;
-            this.automatic = false;
-            this.cadence.reset();
         }
     }
 
@@ -143,6 +140,7 @@ public final class SkyWarsGunSession implements WeaponSession {
         for (ServerPlayerEntity player : players) {
             Fighter fighter = fighter(player);
             if (fighter == null || !fighter.alive) continue;
+            onSelectedSlotChanged(player);
             reconcileGuns(player, fighter);
             collectInventory(player, fighter);
             syncGunItems(player, fighter);
@@ -151,8 +149,6 @@ public final class SkyWarsGunSession implements WeaponSession {
                 gun.accuracy.update(this.ticks, false, player.isSneaking(), player.isOnGround(), false,
                         Math.clamp(player.getVelocity().horizontalLength() / .215, 0, 1), player.getVelocity().y);
                 if (gun.reloadAt > 0 && this.ticks >= gun.reloadAt) finishReload(player, fighter, gun);
-                if (gun.automatic && gun.reloadAt == 0 && this.ticks >= gun.readyAt && gun.ammo > 0
-                        && this.ticks - gun.lastInput <= 4) fire(player, fighter, gun);
                 applyCameraRecovery(player, fighter, gun);
             }
             if (this.ticks % 5 == 0) sync(player, fighter);
@@ -171,8 +167,9 @@ public final class SkyWarsGunSession implements WeaponSession {
         }
         Gun gun = selectedGun(player, fighter);
         if (gun == null) return;
-        gun.lastInput = this.ticks;
-        if (gun.type.automatic()) gun.automatic = true;
+        // Only real swing packets authorize shots. Vanilla sends them every tick
+        // while holding attack on a block, but sends no air-target release packet.
+        // Guessing a hold after either one click or a double-click wastes ammo.
         if (gun.reloadAt == 0 && this.ticks >= gun.readyAt) {
             if (gun.ammo <= 0) reload(player);
             else fire(player, fighter, gun);
@@ -180,18 +177,11 @@ public final class SkyWarsGunSession implements WeaponSession {
     }
 
     @Override
-    public void onAttackRelease(ServerPlayerEntity player) {
-        Fighter fighter = fighter(player);
-        if (fighter != null) {
-            Gun gun = selectedGun(player, fighter);
-            if (gun != null) gun.automatic = false;
-        }
-    }
-
-    @Override
     public void onSelectedSlotChanged(ServerPlayerEntity player) {
         Fighter fighter = fighter(player);
         if (fighter == null || fighter.selected == player.getInventory().selectedSlot) return;
+        // Switching away and back must not resume old fire/reload requests.
+        for (Gun gun : fighter.guns.values()) gun.cancel();
         closeScope(player, fighter);
         fighter.selected = player.getInventory().selectedSlot;
         sync(player, fighter);
@@ -319,13 +309,6 @@ public final class SkyWarsGunSession implements WeaponSession {
     }
 
     @Override
-    public boolean handleSyntheticAction(ServerPlayerEntity player, PlayerActionC2SPacket packet) {
-        if (packet.getAction() == PlayerActionC2SPacket.Action.ABORT_DESTROY_BLOCK
-                || packet.getAction() == PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK) onAttackRelease(player);
-        return false;
-    }
-
-    @Override
     public boolean allowsDamage(LivingEntity victim, net.minecraft.entity.damage.DamageSource source) {
         if (!(victim instanceof ServerPlayerEntity)) return true;
         Entity attacker = source.getAttacker();
@@ -435,7 +418,7 @@ public final class SkyWarsGunSession implements WeaponSession {
             if (gun != null) continue;
             MyGoWeaponItemCodec.AmmoData ammo = MyGoWeaponItemCodec.decodeAmmo(stack);
             if (ammo != null) {
-                int left = addAmmo(fighter, ammo.category(), ammo.count());
+                int left = addAmmo(fighter, player.getInventory().selectedSlot, ammo.category(), ammo.count());
                 if (left <= 0) player.getInventory().setStack(slot, ItemStack.EMPTY);
                 else stack.setCount(left);
                 continue;
@@ -459,16 +442,24 @@ public final class SkyWarsGunSession implements WeaponSession {
         return null;
     }
 
-    private int addAmmo(Fighter fighter, String category, int count) {
-        int left = count;
+    private int addAmmo(Fighter fighter, int selectedSlot, String category, int count) {
+        // Picked-up rounds should fill the gun in hand first, rather than
+        // disappear into an unrelated backup gun merely indexed earlier.
+        Gun selected = fighter.guns.get(selectedSlot);
+        int left = addAmmo(selected, category, count);
         for (Gun gun : fighter.guns.values()) {
-            if (!ammoMatches(gun.type, category)) continue;
-            int add = Math.min(left, gun.type.reserve - gun.reserve);
-            gun.reserve += add;
-            left -= add;
+            if (gun == selected) continue;
+            left = addAmmo(gun, category, left);
             if (left <= 0) break;
         }
         return left;
+    }
+
+    private static int addAmmo(Gun gun, String category, int count) {
+        if (gun == null || !ammoMatches(gun.type, category)) return count;
+        int add = Math.min(count, gun.type.reserve - gun.reserve);
+        gun.reserve += add;
+        return count - add;
     }
 
     private static boolean ammoMatches(MyGoWeapon weapon, String category) {
@@ -508,12 +499,15 @@ public final class SkyWarsGunSession implements WeaponSession {
     private void reconcileGuns(ServerPlayerEntity player, Fighter fighter) {
         Set<Integer> present = new LinkedHashSet<>();
         for (int slot = 0; slot < player.getInventory().size(); slot++) {
-            MyGoWeaponItemCodec.GunData data = MyGoWeaponItemCodec.decodeGun(player.getInventory().getStack(slot));
+            ItemStack stack = player.getInventory().getStack(slot);
+            MyGoWeaponItemCodec.GunData data = MyGoWeaponItemCodec.decodeGun(stack);
             if (data == null) continue;
             present.add(slot);
             Gun gun = fighter.guns.get(slot);
-            if (gun == null || gun.type != data.weapon()) {
-                fighter.guns.put(slot, new Gun(data.weapon(), data.ammo(), data.reserve()));
+            // Inventory moves can replace a gun with an identical type/count.
+            // Ammo travels in the item; pending input must never travel by slot.
+            if (gun == null || gun.stack != stack || gun.type != data.weapon()) {
+                fighter.guns.put(slot, new Gun(stack, data, gun));
             } else if (gun.ammo != data.ammo() || gun.reserve != data.reserve()) {
                 gun.ammo = data.ammo();
                 gun.reserve = data.reserve();
@@ -525,14 +519,15 @@ public final class SkyWarsGunSession implements WeaponSession {
 
     private Gun selectedGun(ServerPlayerEntity player, Fighter fighter) {
         int slot = player.getInventory().selectedSlot;
-        MyGoWeaponItemCodec.GunData data = MyGoWeaponItemCodec.decodeGun(player.getInventory().getStack(slot));
+        ItemStack stack = player.getInventory().getStack(slot);
+        MyGoWeaponItemCodec.GunData data = MyGoWeaponItemCodec.decodeGun(stack);
         if (data == null) {
             fighter.guns.remove(slot);
             return null;
         }
         Gun gun = fighter.guns.get(slot);
-        if (gun == null || gun.type != data.weapon()) {
-            gun = new Gun(data.weapon(), data.ammo(), data.reserve());
+        if (gun == null || gun.stack != stack || gun.type != data.weapon()) {
+            gun = new Gun(stack, data, gun);
             fighter.guns.put(slot, gun);
         } else if (gun.ammo != data.ammo() || gun.reserve != data.reserve()) {
             gun.ammo = data.ammo();
@@ -547,22 +542,22 @@ public final class SkyWarsGunSession implements WeaponSession {
             Map.Entry<Integer, Gun> entry = iterator.next();
             int slot = entry.getKey();
             if (slot < 0 || slot >= player.getInventory().size()
-                    || !MyGoWeaponItemCodec.isGun(player.getInventory().getStack(slot))) {
+                    || entry.getValue().stack != player.getInventory().getStack(slot)) {
                 iterator.remove();
                 continue;
             }
             Gun gun = entry.getValue();
-            player.getInventory().setStack(slot,
-                    MyGoWeaponItemCodec.encodeGun(gun.type, gun.ammo, gun.reserve));
+            gun.stack = MyGoWeaponItemCodec.encodeGun(gun.type, gun.ammo, gun.reserve);
+            player.getInventory().setStack(slot, gun.stack);
         }
     }
 
     private void syncGunItem(ServerPlayerEntity player, int slot, Gun gun) {
         if (slot < 0 || slot >= player.getInventory().size()
                 || fighter(player).guns.get(slot) != gun
-                || !MyGoWeaponItemCodec.isGun(player.getInventory().getStack(slot))) return;
-        player.getInventory().setStack(slot,
-                MyGoWeaponItemCodec.encodeGun(gun.type, gun.ammo, gun.reserve));
+                || gun.stack != player.getInventory().getStack(slot)) return;
+        gun.stack = MyGoWeaponItemCodec.encodeGun(gun.type, gun.ammo, gun.reserve);
+        player.getInventory().setStack(slot, gun.stack);
     }
 
     private static boolean isScopeItem(ItemStack stack) {

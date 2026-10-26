@@ -2,11 +2,14 @@ package com.example.pvp.mygo;
 
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.CustomModelDataComponent;
+import net.minecraft.component.type.LoreComponent;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.text.Text;
+
+import java.util.List;
 
 /**
  * MyGO 枪械物品协议的唯一编解码入口。
@@ -70,6 +73,11 @@ public final class MyGoWeaponItemCodec {
         nbt.putInt(GUN_AMMO_TAG, data.ammo());
         nbt.putInt(GUN_RESERVE_TAG, data.reserve());
         stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+        // Loose ammo is absorbed into a gun's reserve. Expose both counts so
+        // inventory moves/pickups cannot look like the ammunition disappeared.
+        stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+                Text.literal("§7弹匣：§f" + data.ammo() + "/" + data.weapon().magazine),
+                Text.literal("§7备弹：§f" + data.reserve() + "/" + data.weapon().reserve))));
         return stack;
     }
 
