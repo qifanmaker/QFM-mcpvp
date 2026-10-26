@@ -101,6 +101,55 @@ class SkyWarsLayoutTest {
     }
 
     @Test
+    void repeatedMapsGetFreshLootWithoutMovingIslandsOrChests() {
+        SkyWarsLayout first = SkyWarsLayout.compute(CENTER, 42, 4);
+        Set<List<Long>> lootSequences = new HashSet<>();
+        for (int match = 0; match < 16; match++) {
+            SkyWarsLayout repeated = SkyWarsLayout.compute(CENTER, 42, 4);
+            assertSameGeometry(first, repeated);
+            lootSequences.add(repeated.lootPolicy().random().longs(16).boxed().toList());
+        }
+        assertEquals(16, lootSequences.size(), "复用相同地图不能重复整套箱子抽取序列");
+    }
+
+    @Test
+    void explicitLootSeedsReproduceInitialFillAndRefillIndependentlyOfGeometry() {
+        long lootSeed = 0x123456789ABCDEFL;
+        SkyWarsLayout first = SkyWarsLayout.compute(CENTER, 42, 4, lootSeed);
+        SkyWarsLayout replay = SkyWarsLayout.compute(CENTER, 42, 4, lootSeed);
+        SkyWarsLayout nextMatch = SkyWarsLayout.compute(CENTER, 42, 4, lootSeed + 1);
+        assertSameGeometry(first, nextMatch);
+        List<Long> initial = first.lootPolicy().random().longs(32).boxed().toList();
+        assertEquals(initial, replay.lootPolicy().random().longs(32).boxed().toList());
+        assertNotEquals(initial, nextMatch.lootPolicy().random().longs(32).boxed().toList());
+        List<Long> refill = first.lootPolicy().random().longs(32).boxed().toList();
+        assertEquals(refill, replay.lootPolicy().random().longs(32).boxed().toList());
+        assertNotEquals(initial, refill, "补货必须继续抽取，不能重放开局随机序列");
+    }
+
+    private static void assertSameGeometry(SkyWarsLayout expected, SkyWarsLayout actual) {
+        assertEquals(expected.spawns(), actual.spawns());
+        assertEquals(expected.maxRadius(), actual.maxRadius());
+        assertEquals(expected.middleVariant(), actual.middleVariant());
+        assertEquals(expected.styleSeed(), actual.styleSeed());
+        assertEquals(expected.mapStyle(), actual.mapStyle());
+        List<List<SkyWarsLayout.Island>> expectedGroups =
+                List.of(expected.spawnIslands(), expected.midIslands(), expected.middleIslands());
+        List<List<SkyWarsLayout.Island>> actualGroups =
+                List.of(actual.spawnIslands(), actual.midIslands(), actual.middleIslands());
+        for (int group = 0; group < expectedGroups.size(); group++) {
+            assertEquals(expectedGroups.get(group).size(), actualGroups.get(group).size());
+            for (int island = 0; island < expectedGroups.get(group).size(); island++) {
+                SkyWarsLayout.Island left = expectedGroups.get(group).get(island);
+                SkyWarsLayout.Island right = actualGroups.get(group).get(island);
+                assertEquals(left.center(), right.center());
+                assertEquals(left.radius(), right.radius());
+                assertEquals(left.chests(), right.chests());
+            }
+        }
+    }
+
+    @Test
     void eachMaterialThemeCanDrawEveryStructureWithoutLockingToTopologyOrPlayerCount() {
         Set<SkyWarsMapStyle> expected = EnumSet.allOf(SkyWarsMapStyle.class);
         expected.remove(SkyWarsMapStyle.VILLAGE);

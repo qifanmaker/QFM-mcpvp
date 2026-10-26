@@ -4,6 +4,7 @@ import com.example.pvp.PvPMod;
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
+import com.example.pvp.arena.ArenaRegionCleanup;
 import com.example.pvp.arena.MapBuildQueue;
 import com.example.pvp.arena.bridge.BridgeLayout;
 import com.example.pvp.arena.bedwars.BedWarsLayout;
@@ -157,6 +158,7 @@ public final class Match {
     private boolean skywarsChestRefilled; // "物资刷新"事件是否已触发（每场一次）
     /** 枪械空岛独立武器运行时；不放进 portedSession，保留空岛通用胜负流程。 */
     private SkyWarsGunSession skywarsGunSession;
+    private ArenaRegionCleanup skywarsCleanup;
 
     /** 战桥地图布局（仅战桥模式非空，进球判定/重生/清理用）。 */
     private final BridgeLayout bridgeLayout;
@@ -3671,6 +3673,22 @@ public final class Match {
         PvPMod.oneHitKillActive = false;
     }
 
+    /** Keep the region reserved while previously hidden entities load asynchronously. */
+    boolean prepareDeferredFinish() {
+        if (!this.isSkyWars()) return true;
+        Match owner = this.manager.regionOwner(this.regionIndex);
+        if (owner != null && owner != this) return true; // cleanupArenaAndRelease handles ownership
+        ArenaWorldManager arenaManager = this.manager.getArenaManager();
+        ArenaWorld arena = arenaManager.getWorld();
+        if (arena == null) return true;
+        if (this.skywarsCleanup == null) {
+            this.skywarsCleanup = new ArenaRegionCleanup(arena,
+                    arenaManager.regionEntityBounds(this.regionIndex, this.template, this.arenaClearRadius()),
+                    this.regionIndex);
+        }
+        return this.skywarsCleanup.ready();
+    }
+
     void deferredFinish() {
         long started = System.nanoTime();
         try {
@@ -3717,6 +3735,7 @@ public final class Match {
         // 提前把它放出去，这里就会把**新一局的场地**当成旧场地清掉。宁可不清、并留下告警。
         Match owner = this.manager.regionOwner(this.regionIndex);
         if (owner != null && owner != this) {
+            this.releaseCleanupTickets();
             LOGGER.warn("[PvP] 比赛 #{} 放弃延迟清场：区域 {} 已被比赛 #{} 占用（照清会把新场地拆掉）",
                     this.id, this.regionIndex, owner.getId());
             return;   // 必须在 try 之外返回，否则 finally 会把新对局的区域释放掉
@@ -3793,9 +3812,16 @@ public final class Match {
             // 兜底：拆方块中途抛异常也不能让掉落物/实体留下来（存回区块文件后，下次同区域开赛又冒出来），
             // 场地更必须在任何情况下都释放
             this.discardArenaEntities();
+            this.releaseCleanupTickets();
             this.manager.cleanupMatch(this);
             LOGGER.info("[PvP] 比赛 #{} 已结束并清理", this.id);
         }
+    }
+
+    private void releaseCleanupTickets() {
+        if (this.skywarsCleanup == null) return;
+        this.skywarsCleanup.close();
+        this.skywarsCleanup = null;
     }
 
     /** 村庄保卫战清场半径，与 {@code ArenaWorldManager#clearVillageDefenseRegion} 里的 ±90 保持一致。 */

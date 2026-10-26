@@ -409,12 +409,7 @@ public final class ArenaWorldManager {
         if (arena == null) {
             return 0;
         }
-        int half = Math.max(template.getSize() / 2, mapMaxRadius) + 16;
-        BlockPos center = template.getCenter(regionIndex);
-        Box box = new Box(
-                center.getX() - half, arena.getBottomY(), center.getZ() - half,
-                center.getX() + half, arena.getTopY(), center.getZ() + half
-        );
+        Box box = this.regionEntityBounds(regionIndex, template, mapMaxRadius);
         int removed = 0;
         for (Entity entity : arena.getEntitiesByClass(Entity.class, box,
                 e -> !(e instanceof ServerPlayerEntity))) {
@@ -422,6 +417,15 @@ public final class ArenaWorldManager {
             removed++;
         }
         return removed;
+    }
+
+    /** Shared bounds for entity loading and removal, including the map's outer buffer. */
+    public Box regionEntityBounds(int regionIndex, ArenaTemplate template, int mapMaxRadius) {
+        ArenaWorld arena = this.requireWorld();
+        int half = Math.max(template.getSize() / 2, mapMaxRadius) + 16;
+        BlockPos center = template.getCenter(regionIndex);
+        return new Box(center.getX() - half, arena.getBottomY(), center.getZ() - half,
+                center.getX() + half + 1, arena.getTopY(), center.getZ() + half + 1);
     }
 
     private ArenaWorld requireWorld() {

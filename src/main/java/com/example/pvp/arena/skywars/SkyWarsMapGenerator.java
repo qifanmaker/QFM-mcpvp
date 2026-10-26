@@ -670,12 +670,13 @@ public final class SkyWarsMapGenerator {
         }
         BlockPos center = center(regionIndex); // 与生成时一致的地图中心
 
-        // 先拆箱再清掉落物，避免箱子 contents 在清实体后重新落到地上。
-        clearColumns(world, center, maxRadius, -1);
         Box box = new Box(
                 center.getX() - maxRadius, world.getBottomY(), center.getZ() - maxRadius,
                 center.getX() + maxRadius + 1, world.getTopY(), center.getZ() + maxRadius + 1
         );
+        // 赛后拆箱及植物邻居更新不能生成下一局的战利品；战斗中的 removeRing 不受影响。
+        int radius = maxRadius;
+        world.runWithoutDrops(box.expand(1), () -> clearColumns(world, center, radius, -1));
         for (ItemEntity entity : world.getEntitiesByClass(ItemEntity.class, box, e -> true)) {
             entity.discard();
         }

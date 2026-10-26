@@ -731,8 +731,10 @@ public final class MatchManager {
             if (now < pending.dueTick()) {
                 continue;
             }
-            it.remove();
             try {
+                // 空岛实体可能已随区块卸载；确认重新加载后再拆图、扫实体和释放区域。
+                if (!pending.match().prepareDeferredFinish()) continue;
+                it.remove();
                 pending.match().deferredFinish();
             } catch (Exception e) {
                 LOGGER.error("[PvP] 比赛 #{} 延迟清场出错", pending.match().getId(), e);

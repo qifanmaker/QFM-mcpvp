@@ -6,6 +6,8 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.ExperienceOrbEntity;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -14,6 +16,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.ProgressListener;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.World;
 import net.minecraft.world.dimension.DimensionOptions;
@@ -46,6 +49,18 @@ public class ArenaWorld extends ServerWorld {
 
     /** 当前正在暂存铺图的队列；null = 正常直写世界（对局中/清场时都是 null）。 */
     private MapBuildQueue staging;
+    private Box dropSuppression;
+
+    /** Cleanup must not turn container contents or neighbour updates into new loot. */
+    public void runWithoutDrops(Box bounds, Runnable cleanup) {
+        Box previous = this.dropSuppression;
+        this.dropSuppression = bounds;
+        try {
+            cleanup.run();
+        } finally {
+            this.dropSuppression = previous;
+        }
+    }
 
     public ArenaWorld(MinecraftServer server, RegistryKey<World> worldKey, ChunkGenerator generator) {
         super(
@@ -151,6 +166,11 @@ public class ArenaWorld extends ServerWorld {
 
     @Override
     public boolean spawnEntity(Entity entity) {
+        if (this.dropSuppression != null && this.dropSuppression.contains(entity.getPos())
+                && (entity instanceof ItemEntity || entity instanceof ExperienceOrbEntity)) {
+            entity.discard();
+            return false;
+        }
         MapBuildQueue queue = this.staging;
         if (queue != null) {
             queue.deferEntity(entity);
