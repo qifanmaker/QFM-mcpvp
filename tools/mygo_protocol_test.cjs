@@ -1316,6 +1316,117 @@ async function utilitiesRegression() {
   }
 }
 
+// Reason: the shared fire slot was overwritten by the empty opposite-faction
+// type, and right-click selected the first enum entry instead of the carried
+// item. Check the actual inventory packets and both inputs for both factions.
+async function fireUtilityRegression() {
+  const ids = Object.keys(bots), startAssertions = assertions.length;
+  await waitUntil(() => ids.every(id => bots[id].entity), 30000, 'fire utility clients');
+  check('fire utility regression has four real clients', ids.length === 4
+    && ids.every(id => bots[id].version === '1.21.1'), ids, 'four 1.21.1 clients');
+  const count = (state, type) => Number(state.grenades.match(new RegExp(`${type}=(\\d+)`))?.[1] || 0);
+  const hasModel = (item, model) => !!item && stringify(itemInfo(item)).includes(String(model));
+  try {
+    for (const id of ids) await chat(id, '/hub', 80);
+    await sleep(6500);
+    const packAt = chats.length;
+    for (const id of ids) await chat(id, '/pvp join mygo', 130);
+    await waitUntil(() => ids.every(id => packs[id] && chats.slice(packAt).some(row => row.id === id
+      && row.message.includes('MyGO 资源包加载成功'))), 30000, 'fire utility resource pack acknowledgements');
+    for (const id of ids) await chat(id, '/pvp join mygo', 80);
+    await chat('A', '/pvp start dust2', 100);
+    await waitUntil(() => ids.every(id => bots[id].inventory.items().some(item => item.name === 'iron_pickaxe')),
+      30000, 'fire utility opening loadouts');
+    const opening = Object.fromEntries(await Promise.all(ids.map(async id => [id, await status(id)])));
+    const ts = ids.filter(id => opening[id].side === 'T'), cts = ids.filter(id => opening[id].side === 'CT');
+    check('fire purchases use normal opening economy', ts.length === 2 && cts.length === 2
+      && Object.values(opening).every(state => state.cash === 800 && state.phase === 'BUY'), opening, '2 T / 2 CT; $800');
+    for (const id of ids) {
+      const type = opening[id].side === 'T' ? 'MOLOTOV' : 'INCENDIARY';
+      await chat(id, `/pvp mygo buy ${type.toLowerCase()}`, 90);
+      await chat(id, '/pvp mygo buy decoy', 90);
+      await chat(id, '/pvp mygo buy decoy', 90);
+      if (id === ts[0]) await chat(id, '/pvp mygo buy flash', 90);
+    }
+    // Wait through periodic equipment synchronization: the old Molotov bug
+    // removed the visible item while leaving its server-side carrying count.
+    await sleep(1100);
+    for (const id of ids) {
+      const type = opening[id].side === 'T' ? 'MOLOTOV' : 'INCENDIARY';
+      const state = await status(id), fireItem = bots[id].inventory.slots[43], decoyItem = bots[id].inventory.slots[44];
+      check(`${id} carries a visible ${type} after periodic sync`, count(state, type) === 1
+        && fireItem?.name === 'fire_charge' && fireItem.count === 1
+        && hasModel(fireItem, type === 'MOLOTOV' ? 72005 : 72006), {state, item: itemInfo(fireItem)}, 'one fire grenade in hotbar 8');
+      check(`${id} decoys remain visible instead of being replaced by the shop`, count(state, 'DECOY') === 2
+        && decoyItem?.count === 2 && hasModel(decoyItem, 72007), itemInfo(decoyItem), 'two decoys in hotbar 9');
+      await select(id, 7); bots[id].activateItem(); await sleep(80);
+      const frozen = await status(id);
+      check(`${id} freeze prevents fire grenade consumption`, frozen.phase === 'BUY'
+        && count(frozen, type) === 1 && frozen.activeGrenades === 0 && frozen.throwType === 'none', frozen, 'still carried; no projectile');
+    }
+    const full = await status(ts[0]);
+    await chat(ts[0], '/pvp mygo buy he', 80);
+    const rejected = await status(ts[0]);
+    check('four carried grenades reject a fifth without charging', count(full, 'MOLOTOV') + count(full, 'FLASH') + count(full, 'DECOY') === 4
+      && rejected.cash === full.cash && rejected.grenades === full.grenades, {before: full, after: rejected}, 'unchanged four-grenade loadout');
+    await chat(ts[0], '/pvp mygo shop', 100);
+    check('shop command remains available while slot 9 holds decoys', !!bots[ts[0]].currentWindow
+      && bots[ts[0]].currentWindow.inventoryStart === 54, snapshot(ts[0]).window, '54-slot shop');
+    bots[ts[0]].closeWindow(bots[ts[0]].currentWindow);
+    await waitPhase(ts[0], 'LIVE', 22000);
+    const range = opening[ts[0]].range;
+    // Keep each probe clear of the previous fire and map walls. A single
+    // temporary block above Dust II also exercises the real block-use path.
+    const throwPosition = {...range, y: range.y + 29}, floor = {...range, y: range.y + 28};
+    await chat('A', `/execute in pvp:arena run setblock ${floor.x} ${floor.y} ${floor.z} minecraft:stone`, 100);
+    const launch = async (id, type, slot, mode) => {
+      await teleport(id, throwPosition); await select(id, slot); await csgoLook(id, Math.PI, .35);
+      const before = await status(id);
+      const displays = new Set(Object.values(bots[id].entities).filter(entity => entity.name === 'item_display').map(entity => entity.id));
+      if (mode === 'STRONG') bots[id]._client.write('arm_animation', {hand: 0});
+      else if (id === cts[1] && type === 'INCENDIARY') bots[id]._client.write('block_place', {
+        location: floor, direction: 1, hand: 0, cursorX: .5, cursorY: 1, cursorZ: .5,
+        insideBlock: false, sequence: 0
+      });
+      else bots[id].activateItem();
+      await waitUntil(() => Object.values(bots[id].entities).some(entity => entity.name === 'item_display' && !displays.has(entity.id)),
+        2000, `${id} ${type} flying display`);
+      const after = await status(id);
+      check(`${id} ${mode} consumes one ${type} and launches its display`, count(after, type) === count(before, type) - 1
+        && after.throwType === type && after.throwMode === mode && after.activeGrenades === 1
+        && after.throwTick > before.throwTick, {before, after}, 'one correctly typed projectile; one grenade removed');
+      check(`${id} throwing switches to the pistol`, bots[id].quickBarSlot === 1 && bots[id].heldItem?.name === 'iron_pickaxe',
+        {slot: bots[id].quickBarSlot, item: itemInfo(bots[id].heldItem)}, 'pistol selected');
+      if (id === cts[1] && type === 'INCENDIARY') check('right-clicking a real block does not launch a vanilla fireball',
+        !Object.values(bots[id].entities).some(entity => ['fireball', 'small_fireball'].includes(entity.name)),
+        Object.values(bots[id].entities).filter(entity => entity.name?.includes('fireball')).map(entity => entity.name), 'no vanilla fireballs');
+      if (type === 'MOLOTOV' || type === 'INCENDIARY') check(`${id} spent fire slot is empty`, !bots[id].inventory.slots[43],
+        itemInfo(bots[id].inventory.slots[43]), 'no hidden fire item');
+      await teleport(id, opening[id].spawn);
+      await sleep(1700);
+      check(`${id} projectile completes its fuse`, (await status(id)).activeGrenades === 0, await status(id), 'zero flying grenades');
+      return after;
+    };
+    await launch(ts[0], 'MOLOTOV', 7, 'STRONG');
+    await launch(ts[1], 'MOLOTOV', 7, 'WEAK');
+    await launch(cts[0], 'INCENDIARY', 7, 'STRONG');
+    await launch(cts[1], 'INCENDIARY', 7, 'WEAK');
+    await launch(ts[0], 'DECOY', 8, 'WEAK');
+    check('one remaining decoy still occupies slot 9', bots[ts[0]].inventory.slots[44]?.count === 1
+      && hasModel(bots[ts[0]].inventory.slots[44], 72007), itemInfo(bots[ts[0]].inventory.slots[44]), 'one decoy');
+    await launch(ts[0], 'DECOY', 8, 'STRONG');
+    check('consuming the last decoy restores the shop item', bots[ts[0]].inventory.slots[44]?.name === 'emerald',
+      itemInfo(bots[ts[0]].inventory.slots[44]), 'shop emerald in hotbar 9');
+    const results = assertions.slice(startAssertions);
+    const summary = {passed: results.filter(row => row.pass).length, failed: results.filter(row => !row.pass).length,
+      normalPurchases: true, renderingVerified: false};
+    emit('fireUtilityRegressionComplete', summary);
+    return summary;
+  } finally {
+    for (const id of ids) if (bots[id]._client.state === 'play') await chat(id, '/hub', 80);
+  }
+}
+
 // Vanilla /tick is used only on the isolated test server. Rate changes are
 // restored even when an assertion fails; no product-only money or round hooks.
 async function csgoFastStatus(id) {
@@ -1718,6 +1829,7 @@ async function execute(command) {
     case 'inputRegression': return inputRegression();
     case 'damageRegression': return damageRegression();
     case 'utilitiesRegression': return utilitiesRegression();
+    case 'fireUtilityRegression': return fireUtilityRegression();
     case 'packMode': packMode[id] = command.value; return packMode[id];
     case 'packProcess': if (!packRequests[id]) throw new Error('No pack requested'); await handlePack(bot, packRequests[id]); return;
     case 'packReply': packStatus(bot, { uuid: command.uuid || packRequests[id]?.uuid }, command.result); return;

@@ -494,3 +494,30 @@ Mirage 和 Inferno 的初始 T/CT/A/B 相对位置按 Valve 游戏文件提取�
 T=(5,-71)、A=(43,-25)、B=(-17,19)、CT=(29,28)。Inferno 的 T/CT 出生点保持原校验结果，
 并按用户提供的 Inferno 俯视标注图将包点调整为 A=(-55,-41)、B=(10,50)。
 两张地图再用服务端出生点校验和离线路线审计确认可站立、可到达。
+
+## 2026-10-26 火雷与投掷物槽位修复
+
+修改原因：燃烧瓶与燃烧弹共用热键 8，旧背包同步按枚举逐个写入，未持有的燃烧弹会覆盖
+已买的燃烧瓶，而服务端库存仍占携带额度。右键也在遇到燃烧瓶枚举后直接返回，导致 CT
+燃烧弹不能低抛。诱饵弹所在热键 9 还会被商店覆盖。
+
+阅读并审查 `MyGoSession`、`MyGoUtilities.Type.heldAt`、`MyGoRoundEquipment` 和输入回调后，
+改为每个投掷槽只同步一次，左右键均按实际库存选类型；热键 9 优先显示诱饵弹，用完恢复
+商店。`/pvp mygo shop` 始终提供购买入口，携带上限和回合购买额度保持原有规则。
+
+修复前独立 Fabric 1.21.1 服务器复现：T 买燃烧瓶后余额 $400、`MOLOTOV=1`，但背包槽为空；
+CT 买燃烧弹后余额 $200、`INCENDIARY=1`，LIVE 右键后仍 `throwType=none`、`activeGrenades=0`。
+记录位于 `build/mygo-fire-before-20261026/protocol-results.jsonl`。
+
+交付代码在独立工作树构建，排除其他正在进行的空岛修改：`./gradlew build --warning-mode all`
+成功，141 项单测、0 失败，无新增编译警告。四名真实协议客户端通过正常 $800 经济购买，
+`fireUtilityRegression` 49 项全部通过：双方火雷真实背包槽/模型编号、冻结禁投、四颗上限、
+T/CT 各自高抛与低抛、实体生成/引信/一次消耗一颗/切回手枪、真实方块右键无普通火球，
+以及两颗诱饵弹依次使用后恢复商店。协议测试不等于客户端渲染或人工音效验收。
+
+最终运行类/资源快照与独立构建一致，无服务器 Java ERROR/异常堆栈；临时测试服务器正常停服。
+记录：`build/mygo-fire-release-20261026/protocol-results.jsonl`、`verification.json`，
+构建/服务端日志：`build/mygo-fire-isolated-build.log`、`build/mygo-fire-release-console.log`。
+交付 `dist/pvp-1.0.0-mygo-fire-fix.jar`，SHA-256
+`afffaffe0af5630ff47bf5a3730e27037f8aaaa22e5520b817b81bdba56141fd`。
+资源包 SHA-1 仍为 `88d5c5163c10774d5408d1bb8780d72794d74551`，无需重新上传。

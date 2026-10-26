@@ -639,8 +639,8 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
                 gun.autoArmed = true;
             }
         } else {
-            for (MyGoUtilities.Type type : MyGoUtilities.Type.values())
-                if (player.getInventory().selectedSlot == type.slot) throwGrenade(player, f, type, MyGoUtilities.ThrowMode.STRONG);
+            MyGoUtilities.Type type = MyGoUtilities.Type.heldAt(f.grenades, player.getInventory().selectedSlot);
+            if (type != null) throwGrenade(player, f, type, MyGoUtilities.ThrowMode.STRONG);
         }
     }
 
@@ -795,12 +795,14 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
         int slot = player.getInventory().selectedSlot;
         // SUCCESS 会向本人回送挥手动画，原版客户端又回发挥手包，曾导致右键先开一枪。
         // 自定义右键动作使用 CONSUME：处理交互但不要求原版播放攻击用的挥手动画。
-        if (slot == 8) { openShop(player); return ActionResult.CONSUME; }
-        if (slot == 5) { beginChannel(player, f); return ActionResult.CONSUME; }
-        for (MyGoUtilities.Type type : MyGoUtilities.Type.values()) if (slot == type.slot) {
+        // 两种火雷共用第 8 格：按实际库存选择，不能遇到未持有的燃烧瓶便提前返回。
+        MyGoUtilities.Type type = MyGoUtilities.Type.heldAt(f.grenades, slot);
+        if (type != null) {
             throwGrenade(player, f, type, MyGoUtilities.ThrowMode.WEAK);
             return ActionResult.CONSUME;
         }
+        if (slot == 8) { openShop(player); return ActionResult.CONSUME; }
+        if (slot == 5) { beginChannel(player, f); return ActionResult.CONSUME; }
         Gun gun = f.gun(slot);
         if (gun != null) {
             // Right-click scope/mode changes must never inherit an automatic-fire lease.
@@ -1193,7 +1195,7 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
         return List.of("§6MyGO · 经济爆破", "§f队伍1 §c" + this.scores[0] + " §7: §9" + this.scores[1] + " §f队伍2",
                 "§e第 " + Math.min(MyGoRules.MAX_ROUNDS, this.round) + " 回合 · " + phaseName(), "§f剩余 " + time(this.deadline - this.ticks),
                 "§cT 存活 " + attackAlive + " §7/ §9CT 存活 " + defendAlive,
-                this.bombPlanted ? "§cC4 已安装" : "§7C4 尚未安装", "§7左键点射 · F 换弹", "§7瞄具枪右键倍率 · 9 商店");
+                this.bombPlanted ? "§cC4 已安装" : "§7C4 尚未安装", "§7左键点射 · F 换弹", "§7瞄具枪右键倍率 · /pvp mygo 商店");
     }
 
     public String debugState(ServerPlayerEntity player) {
@@ -1242,7 +1244,7 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
     private void syncEquipment(ServerPlayerEntity p, Fighter f) {
         if (!f.alive || this.ended) return;
         for (int i = 0; i < p.getInventory().size(); i++) {
-            if (i == 0 || i == 1 || i == 2 || i == 3 || i == 4 || i == 5 || i == 6 || i == 8 || i == 38 || i == 39) continue;
+            if (i <= 8 || i == 38 || i == 39) continue;
             if (!p.getInventory().getStack(i).isEmpty()) p.getInventory().setStack(i, ItemStack.EMPTY);
         }
         setSlot(p, 0, f.primary == null ? ItemStack.EMPTY : gunStack(f.primary));
@@ -1250,11 +1252,16 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
         ItemStack knife = model(Items.IRON_SWORD, 71006, "§f战术刀 · 左键"); setSlot(p, 2, knife);
         ItemStack objective = attackers(f) ? (f.id.equals(this.bombCarrier) ? model(Items.REDSTONE, 73001, "§6C4 · 包点潜行右键安装") : ItemStack.EMPTY)
                 : model(f.kit ? Items.SHEARS : Items.STICK, f.kit ? 73002 : 0, "§b" + (f.kit ? "拆包器 · 5 秒" : "徒手拆包 · 10 秒") + " · 潜行右键");
-        for (MyGoUtilities.Type type : MyGoUtilities.Type.values()) {
-            int count = f.grenades.getOrDefault(type, 0);
-            setSlot(p, type.slot, count > 0 ? type.stack(count) : ItemStack.EMPTY);
+        // 按槽只写一次，避免未持有的另一种火雷清空已买的火雷，留下不可见的占额库存。
+        // 第 9 格优先放诱饵弹；用完后恢复商店，持有期间仍可用 /pvp mygo 打开商店。
+        for (int slot = 3; slot <= 8; slot++) {
+            if (slot == 5) continue;
+            MyGoUtilities.Type type = MyGoUtilities.Type.heldAt(f.grenades, slot);
+            ItemStack stack = type != null ? type.stack(f.grenades.get(type))
+                    : slot == 8 ? named(Items.EMERALD, "§aMyGO 商店 · 购买阶段右键") : ItemStack.EMPTY;
+            setSlot(p, slot, stack);
         }
-        setSlot(p, 5, objective); setSlot(p, 8, named(Items.EMERALD, "§aMyGO 商店 · 购买阶段右键"));
+        setSlot(p, 5, objective);
         ItemStack teamArmor = named(Items.LEATHER_CHESTPLATE, attackers(f) ? "§c进攻方制服" : "§9防守方制服");
         teamArmor.set(DataComponentTypes.DYED_COLOR, new DyedColorComponent(attackers(f) ? 0xD93935 : 0x3478DB, false));
         if (!ItemStack.areEqual(p.getEquippedStack(EquipmentSlot.CHEST), teamArmor)) p.equipStack(EquipmentSlot.CHEST, teamArmor);
