@@ -1,0 +1,99 @@
+{
+  "formatVersion": 1,
+  "mapId": "inferno",
+  "source": {
+    "title": "[LesRaisins | CSGO] Inferno",
+    "version": "1.21.1",
+    "authors": [
+      "xjqsh / LesRaisins Studio"
+    ],
+    "publisher": "xjqsh / LesRaisins Studio",
+    "projectUrl": "https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-inferno",
+    "fileUrl": "https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-inferno/files/5637189",
+    "downloadUrl": "https://mediafilez.forgecdn.net/files/5637/189/inferno.zip",
+    "archiveSha256": "6a44cd041c2983343da9c15f67664736576505984a31dffc1500a9e753e7e880",
+    "sha256": "6a44cd041c2983343da9c15f67664736576505984a31dffc1500a9e753e7e880",
+    "sourceMinecraftVersion": "1.16.5",
+    "reviewedAt": "2026-10-25",
+    "license": "Non-commercial use with retained copyright information; all other rights reserved",
+    "copyright": "Minecraft recreation by xjqsh / LesRaisins Studio. Original Inferno map copyright Valve.",
+    "permissionText": "Static architectural adaptation only; retain the upstream attribution and respect the source license.",
+    "adaptation": "Static architectural crop for the isolated MyGO arena; source entities, commands, inventories and resource packs are omitted."
+  },
+  "sourceMin": [
+    64,
+    10,
+    -293
+  ],
+  "sourceMax": [
+    249,
+    79,
+    -116
+  ],
+  "origin": [
+    156,
+    10,
+    -204
+  ],
+  "scaleXZ": 1.0,
+  "bounds": {
+    "min": [
+      -87,
+      0,
+      -87
+    ],
+    "max": [
+      88,
+      51,
+      81
+    ]
+  },
+  "size": [
+    176,
+    52,
+    169
+  ],
+  "blockCount": 109707,
+  "paletteCount": 723,
+  "blockOrder": "Architectural supports first, then dependent decorations; each group ordered by y, x, z ascending.",
+  "dependentDecorationCount": 3551,
+  "blockReplacements": {
+    "minecraft:anvil -> minecraft:iron_block": 68,
+    "minecraft:damaged_anvil -> minecraft:iron_block": 2,
+    "minecraft:grass -> minecraft:short_grass": 3,
+    "minecraft:gravel -> minecraft:andesite": 14,
+    "minecraft:red_concrete_powder -> minecraft:red_concrete": 15,
+    "minecraft:water -> minecraft:glass": 48,
+    "minecraft:yellow_concrete_powder -> minecraft:yellow_concrete": 22
+  },
+  "propertyChanges": {
+    "leaves persistent -> true": 875,
+    "waterlogged -> false": 4
+  },
+  "omittedExecutableBlocks": {},
+  "omittedBlockEntityNbt": {
+    "minecraft:banner": 57,
+    "minecraft:barrel": 17,
+    "minecraft:campfire": 2,
+    "minecraft:daylight_detector": 2,
+    "minecraft:hopper": 11,
+    "minecraft:shulker_box": 124,
+    "minecraft:sign": 271,
+    "minecraft:skull": 59
+  },
+  "notes": [
+    "Static block states only; no entities, block entity NBT, player data, datapacks or source resource packs.",
+    "Runtime layout coordinates are relative to the source origin; Y coordinates remain at source scale."
+  ],
+  "layoutSha256": "f86cf9900ecf9c3b6b5d1a21dadaf238efbbf9635aca241c39b15b9efb3da783",
+  "geometrySha256": "8699dd751a85d24040973ac9e157ced3a0ec7bcc34c0f30d77c88e4ea3d7654d",
+  "geometryBytes": 326412,
+  "minecraftSourcesSha256": "9780274ba8ca382aa1071c480fef6c78207d965cdcf4c788bbb51f9d38d73cfa",
+  "pointReference": {
+    "source": "Valve radar_info plus user-provided annotated Minecraft Inferno preview",
+    "url": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_inferno.txt",
+    "normalizedCoordinates": "T/CT spawns remain from the validated layout; A/B use the red handwritten overlay centers, snapped to full-support standable cells.",
+    "axisTransform": "manual overlay: A (-55,-41), B (10,50); T/CT unchanged",
+    "overlayDate": "2026-10-25"
+  }
+}

@@ -13,6 +13,7 @@ import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.practice.PracticeManager;
 import com.example.pvp.practice.PracticeType;
 import com.example.pvp.queue.QueueEntry;
+import com.example.pvp.queue.MyGoTeamPreference;
 import com.example.pvp.text.Messages;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.component.DataComponentTypes;
@@ -257,8 +258,8 @@ public final class PvpGuiManager {
                 "1v1~5v5 经典爆破，先赢十六回合",
                 "工具枪械 / 经济购买 / 南瓜瞄准镜",
                 "左键点射，瞄具枪右键切倍率/关镜，F 换弹",
-                "首次点击下载资源包，加载成功后再次点击加入",
-                "十人立即开局，至少两人等待 60 秒等员开局"));
+                "选择 T / CT / 自动平衡后加入",
+                "支持 2~10 人，奇数人数两队相差一人"));
 
         ItemStack bridge = makeButton(Items.BRICK, "§3§l战桥",
                 "1v1 / 1v1v1v1 / 2v2 / 混战",
@@ -772,6 +773,34 @@ public final class PvpGuiManager {
         });
     }
 
+    /** OP 立即开始时的 MyGO 地图选择页；随机按钮交给会话从地图目录选择。 */
+    private void openMyGoMapPage(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.MYGO_MAP;
+        this.openPage(player, ctx, "§6选择 MyGO 地图（立即开始）", inv -> {
+            inv.setStack(9, makeButton(Items.SANDSTONE, "§eDust II", "经典沙漠地图", "点击指定并立即开始"));
+            inv.setStack(11, makeButton(Items.SANDSTONE_WALL, "§bMirage", "中路 / A 大 / B 小", "点击指定并立即开始"));
+            inv.setStack(13, makeButton(Items.BRICKS, "§cInferno", "香蕉道 / 中路 / 双包点", "点击指定并立即开始"));
+            inv.setStack(15, makeButton(Items.ENDER_EYE, "§d随机地图", "从 Dust II、Mirage、Inferno 中随机选择", "点击立即开始"));
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+        });
+    }
+
+    /** MyGO 入队前选择队伍偏好；资源包尚未加载时偏好会暂存到下一次入队。 */
+    private void openMyGoTeamPage(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.MYGO_TEAM;
+        this.openPage(player, ctx, "§6选择 MyGO 队伍", inv -> {
+            inv.setStack(10, makeButton(Items.RED_WOOL, "§cT 进攻方", "优先安排到 T，奇数人数时最多一人差",
+                    "点击选择并加入 MyGO"));
+            inv.setStack(13, makeButton(Items.BLUE_WOOL, "§9CT 防守方", "优先安排到 CT，奇数人数时最多一人差",
+                    "点击选择并加入 MyGO"));
+            inv.setStack(16, makeButton(Items.WHITE_WOOL, "§f自动平衡", "由服务器按人数平衡分队",
+                    "点击选择并加入 MyGO"));
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
+        });
+    }
+
     /** 幸运之柱地图风格对应的展示图标。 */
     private static net.minecraft.item.Item iconForLuckyPillarStyle(com.example.pvp.arena.luckypillar.LuckyPillarLayout.PlatformStyle style) {
         return switch (style) {
@@ -829,6 +858,8 @@ public final class PvpGuiManager {
             case THEME -> this.onClickTheme(player, ctx, slotIndex);
             case LUCKY_PILLAR_MAP -> this.onClickLuckyPillarMap(player, ctx, slotIndex);
             case BEDWARS_MAP -> this.onClickBedwarsMap(player, ctx, slotIndex);
+            case MYGO_MAP -> this.onClickMyGoMap(player, ctx, slotIndex);
+            case MYGO_TEAM -> this.onClickMyGoTeam(player, ctx, slotIndex);
             case PRACTICE_CATEGORY -> this.onClickPracticeCategory(player, ctx, slotIndex);
             case STATS -> {
                 if (slotIndex == 27) {
@@ -885,7 +916,10 @@ public final class PvpGuiManager {
             case 9 -> this.openPvpCategory(player);
             // 空岛战争无套件，直接加入
             case 10 -> this.joinQueue(player, MatchType.SKYWARS, KitManager.skywarsKit());
-            case 11 -> this.joinQueue(player, MatchType.MYGO, KitManager.portedGameKit());
+            case 11 -> {
+                this.openMyGoTeamPage(player);
+                return;
+            }
             case 12 -> this.openBridgeCategory(player);
             case 13 -> this.openGamesCategory(player);
             case 14 -> this.openBedWarsCategory(player);
@@ -907,6 +941,8 @@ public final class PvpGuiManager {
                     this.openLuckyPillarMapPage(player);
                 } else if (entry != null && entry.getType().isBedWars()) {
                     this.openBedwarsMapPage(player);
+                } else if (entry != null && entry.getType() == MatchType.MYGO) {
+                    this.openMyGoMapPage(player);
                 } else {
                     this.doForceStart(player);
                 }
@@ -1112,6 +1148,41 @@ public final class PvpGuiManager {
         this.doForceStart(player);
     }
 
+    /** MyGO 地图选择页点击：指定项只对当前强制开赛消费一次。 */
+    private void onClickMyGoMap(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        String mapKey = switch (slot) {
+            case 9 -> "dust2";
+            case 11 -> "mirage";
+            case 13 -> "inferno";
+            case 15 -> null;
+            default -> "";
+        };
+        if (mapKey.isEmpty()) return;
+        if (PvPMod.MATCH != null) PvPMod.MATCH.setNextMyGoMap(mapKey);
+        this.doForceStart(player);
+    }
+
+    /** MyGO 队伍选择：先保存偏好，再发起资源包握手/入队。 */
+    private void onClickMyGoTeam(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMainMenu(player);
+            return;
+        }
+        MyGoTeamPreference preference = switch (slot) {
+            case 10 -> MyGoTeamPreference.T;
+            case 13 -> MyGoTeamPreference.CT;
+            case 16 -> MyGoTeamPreference.AUTO;
+            default -> null;
+        };
+        if (preference == null) return;
+        PvPMod.QUEUE.setMyGoTeam(player.getUuid(), preference);
+        this.joinQueue(player, MatchType.MYGO, KitManager.portedGameKit());
+    }
+
     /** OP 立即开赛：用当前队列人数开赛并返回主菜单。 */
     private void doForceStart(ServerPlayerEntity player) {
         if (PvPMod.QUEUE.forceStart(PvPMod.MATCH, player)) {
@@ -1155,8 +1226,9 @@ public final class PvpGuiManager {
                         + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛；原版船 + 随机冰面赛道，跑 "
                         + PvPConfig.INSTANCE.boatRaceLaps + " 圈"), false);
             } else if (type == MatchType.MYGO) {
-                player.sendMessage(Messages.info("已加入 MyGO：十人立即开局，至少两人等待 60 秒等员开局；"
-                        + "左键点射、瞄具枪右键切倍率/关镜、F 换弹、/pvp mygo 打开商店"), false);
+                player.sendMessage(Messages.info("已加入 MyGO：2~10 人均可开局，奇数人数两队相差一人；"
+                        + "当前队伍偏好：" + PvPMod.QUEUE.myGoTeam(player.getUuid()).displayName()
+                        + "；可用 /pvp mygo team <t|ct|auto> 修改，左键点射、瞄具枪右键切倍率/关镜、F 换弹"), false);
             } else if (type.isPortedGame()) {
                 player.sendMessage(Messages.info("已加入" + type.getDisplayName() + "：凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛；至少 " + MatchType.PORTED_MIN_PLAYERS
@@ -1296,7 +1368,7 @@ public final class PvpGuiManager {
 
     private enum Page {
         MAIN, PVP_CATEGORY, BRIDGE_CATEGORY, GAMES_CATEGORY, BED_WARS_CATEGORY,
-        KIT, DUEL_TARGET, STATS, KIT_INFO, THEME, LUCKY_PILLAR_MAP, BEDWARS_MAP,
+        KIT, DUEL_TARGET, STATS, KIT_INFO, THEME, LUCKY_PILLAR_MAP, BEDWARS_MAP, MYGO_MAP, MYGO_TEAM,
         PRACTICE_CATEGORY
     }
 

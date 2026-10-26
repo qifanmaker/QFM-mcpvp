@@ -62,9 +62,11 @@ public final class QueueManager {
     private Integer boatRaceCountdownTicks;
     private Integer boatRaceFillTicks;
 
-    /** 枪战必须等员开局，独立等待避免复用移植模式时以奇数人数开赛。 */
+    /** MyGO 独立等待计时；两人即可开局，奇数人数按一人差平衡分队。 */
     private int myGoFillTicks = 60 * 20;
     private int myGoRetryTicks;
+    /** 资源包首次加载前玩家已经在 GUI 选定的队伍偏好。 */
+    private final Map<UUID, MyGoTeamPreference> pendingMyGoTeam = new HashMap<>();
 
     /** 两个移植玩法分别等待填人；独立记录，防止一个模式开赛重置另一个模式的等待。 */
     private final Map<MatchType, Integer> portedGameFillTicks = new EnumMap<>(MatchType.class);
@@ -132,7 +134,11 @@ public final class QueueManager {
                 return false;
             }
         }
-        this.entries.add(new QueueEntry(player, type, kit, this.server.getTicks(), skyWarsVariant));
+        QueueEntry entry = new QueueEntry(player, type, kit, this.server.getTicks(), skyWarsVariant);
+        if (type == MatchType.MYGO) {
+            entry.setMyGoTeamPreference(this.pendingMyGoTeam.remove(player.getUuid()));
+        }
+        this.entries.add(entry);
         PvpGuiManager.giveQueueItem(player); // 快捷栏第一格放「离开排队」红石
         return true;
     }
@@ -150,7 +156,36 @@ public final class QueueManager {
     }
 
     public boolean leave(UUID uuid) {
+        this.pendingMyGoTeam.remove(uuid);
         return this.entries.removeIf(e -> e.getPlayer().getUuid().equals(uuid));
+    }
+
+    /** 设置 MyGO 队伍偏好；尚未完成资源包握手时先暂存，下一次成功入队立即应用。 */
+    public boolean setMyGoTeam(UUID uuid, MyGoTeamPreference preference) {
+        if (uuid == null || preference == null) return false;
+        QueueEntry entry = null;
+        for (QueueEntry candidate : this.entries) {
+            if (candidate.getPlayer().getUuid().equals(uuid)) {
+                entry = candidate;
+                break;
+            }
+        }
+        if (entry == null) {
+            this.pendingMyGoTeam.put(uuid, preference);
+            return true;
+        }
+        if (entry.getType() != MatchType.MYGO) return false;
+        entry.setMyGoTeamPreference(preference);
+        return true;
+    }
+
+    public MyGoTeamPreference myGoTeam(UUID uuid) {
+        for (QueueEntry entry : this.entries) {
+            if (entry.getPlayer().getUuid().equals(uuid) && entry.getType() == MatchType.MYGO) {
+                return entry.getMyGoTeamPreference();
+            }
+        }
+        return this.pendingMyGoTeam.getOrDefault(uuid, MyGoTeamPreference.AUTO);
     }
 
     public boolean contains(UUID uuid) {
@@ -1247,7 +1282,7 @@ public final class QueueManager {
         }
     }
 
-    /** 允许两人正常自动开局；十人立即开始，其余等待一分钟，奇数队列保留最后一位。 */
+    /** 允许两人正常自动开局；十人立即开始，其余等待一分钟，奇数人数也直接开赛。 */
     private void tickMyGo(MatchManager manager) {
         int count = this.countQueued(MatchType.MYGO);
         int minimum = MatchType.MYGO.requiredPlayers();
@@ -1262,7 +1297,7 @@ public final class QueueManager {
         if (count < 10 && --this.myGoFillTicks > 0) {
             if (this.myGoFillTicks % 200 == 0) {
                 this.broadcastPortedGame(manager, MatchType.MYGO, Messages.info(
-                        "MyGO 当前 " + count + " 人，" + this.myGoFillTicks / 20 + " 秒后等员开赛；满十人立即开始"));
+                        "MyGO 当前 " + count + " 人，" + this.myGoFillTicks / 20 + " 秒后开赛；满十人立即开始"));
             }
             return;
         }
@@ -1271,22 +1306,18 @@ public final class QueueManager {
 
     private boolean startMyGoMatch(MatchManager manager, int minimum) {
         List<QueueEntry> selected = new ArrayList<>();
-        List<ServerPlayerEntity> players = new ArrayList<>();
         for (QueueEntry entry : this.entries) {
             if (entry.getType() != MatchType.MYGO) continue;
             ServerPlayerEntity online = manager.getOnlinePlayer(entry.getPlayer().getUuid());
             if (online == null || manager.isInMatch(online.getUuid())
                     || !com.example.pvp.mygo.MyGoResourcePack.isReady(online)) continue;
             selected.add(entry);
-            players.add(online);
-            if (players.size() == 10) break;
+            if (selected.size() == 10) break;
         }
-        if (players.size() % 2 != 0) {
-            selected.removeLast();
-            players.removeLast();
-        }
+        if (selected.size() < minimum) return false;
+        List<QueueEntry> arranged = this.arrangeMyGoTeams(selected);
+        List<ServerPlayerEntity> players = arranged.stream().map(QueueEntry::getPlayer).toList();
         if (players.size() < minimum) return false;
-        Collections.shuffle(players);
         if (!manager.startMatch(players, MatchType.MYGO, KitManager.portedGameKit())) {
             for (ServerPlayerEntity player : players) PvpGuiManager.giveQueueItem(player);
             return false;
@@ -1295,6 +1326,37 @@ public final class QueueManager {
         this.myGoFillTicks = 60 * 20;
         this.myGoRetryTicks = 0;
         return true;
+    }
+
+    /**
+     * 按玩家偏好排列列表，让 MyGoSession 的前半段成为 T、后半段成为 CT。
+     * 奇数人数固定让 T 多一人，任何一边超出容量的偏好都会落到另一队，避免空队或人数失衡。
+     */
+    private List<QueueEntry> arrangeMyGoTeams(List<QueueEntry> selected) {
+        int tTarget = (selected.size() + 1) / 2;
+        int ctTarget = selected.size() / 2;
+        List<QueueEntry> t = new ArrayList<>(tTarget);
+        List<QueueEntry> ct = new ArrayList<>(ctTarget);
+        List<QueueEntry> overflow = new ArrayList<>();
+        for (QueueEntry entry : selected) {
+            switch (entry.getMyGoTeamPreference()) {
+                case T -> {
+                    if (t.size() < tTarget) t.add(entry); else overflow.add(entry);
+                }
+                case CT -> {
+                    if (ct.size() < ctTarget) ct.add(entry); else overflow.add(entry);
+                }
+                case AUTO -> overflow.add(entry);
+            }
+        }
+        for (QueueEntry entry : overflow) {
+            if (t.size() < tTarget) t.add(entry);
+            else ct.add(entry);
+        }
+        List<QueueEntry> arranged = new ArrayList<>(selected.size());
+        arranged.addAll(t);
+        arranged.addAll(ct);
+        return arranged;
     }
 
     /** 起床战争队列：凑 2 人即开始倒计时，倒计时结束按当前人数开赛（按人数动态分队）。 */
@@ -1470,7 +1532,7 @@ public final class QueueManager {
 
         if (type == MatchType.MYGO) {
             if (this.startMyGoMatch(matchManager, MatchType.MYGO.requiredPlayers())) return true;
-            player.sendMessage(Messages.warn("MyGO 至少需要两名已加载资源包的玩家，并保持双方等员"), false);
+            player.sendMessage(Messages.warn("MyGO 至少需要两名已加载资源包的玩家；奇数人数也会按一人差平衡分队"), false);
             return false;
         }
 

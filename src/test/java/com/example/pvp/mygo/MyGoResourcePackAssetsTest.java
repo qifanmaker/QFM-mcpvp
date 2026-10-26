@@ -59,6 +59,12 @@ final class MyGoResourcePackAssetsTest {
     }
 
     @Test
+    void hidesVanillaSelectedBlockOutlineForMyGoTargets() {
+        String shader = new String(FILES.get("assets/minecraft/shaders/core/rendertype_lines.fsh"), StandardCharsets.UTF_8);
+        assertTrue(shader.contains("discard"), "MyGO pack must hide the vanilla lines selection pass");
+    }
+
+    @Test
     void onlyReservedCustomModelNumbersSelectGuns() {
         JsonArray overrides = json("assets/minecraft/models/item/iron_pickaxe.json").getAsJsonArray("overrides");
         for (MyGoWeapon weapon : MyGoWeapon.values()) {
@@ -143,9 +149,12 @@ final class MyGoResourcePackAssetsTest {
                 assertEquals("pvp:item/mygo/" + name, json("assets/pvp/models/item/mygo/" + name + "_" + pose + ".json").get("parent").getAsString());
             }
         }
-        JsonArray utilities = json("assets/minecraft/models/item/slime_ball.json").getAsJsonArray("overrides");
-        for (MyGoUtilities.Type utility : MyGoUtilities.Type.values())
+        for (MyGoUtilities.Type utility : MyGoUtilities.Type.values()) {
+            String item = utility.fire() ? "fire_charge" : "slime_ball";
+            JsonArray utilities = json("assets/minecraft/models/item/" + item + ".json").getAsJsonArray("overrides");
             assertEquals("pvp:item/mygo/" + utility.name().toLowerCase(java.util.Locale.ROOT), selectedModel(utilities, utility.model));
+        }
+        JsonArray utilities = json("assets/minecraft/models/item/slime_ball.json").getAsJsonArray("overrides");
         assertEquals("pvp:item/mygo/fog", selectedModel(utilities, 72004));
     }
 

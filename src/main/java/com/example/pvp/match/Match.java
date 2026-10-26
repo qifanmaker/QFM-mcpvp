@@ -562,7 +562,8 @@ public final class Match {
             this.hotPotatoLayout = null;
             if (type.usesGameSession()) {
                 this.portedSession = switch (type) {
-                    case MYGO -> new com.example.pvp.mygo.MyGoSession(this, template, regionIndex, id);
+                    case MYGO -> new com.example.pvp.mygo.MyGoSession(this, template, regionIndex, id,
+                            this.manager.consumePendingMyGoMap());
                     case ISLAND_SIEGE -> new IslandSiegeSession(this, template, regionIndex, id);
                     default -> new MinecraftPartySession(this, template, regionIndex, id);
                 };
@@ -604,9 +605,10 @@ public final class Match {
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));
         } else if (type == MatchType.DUEL_2V2 || type == MatchType.BRIDGE_2V2 || type == MatchType.BRIDGE_TEAM
                 || type == MatchType.ISLAND_SIEGE || type == MatchType.MYGO) {
-            // 战桥 2v2 / 混战：总人数/2 平均分两队（队列已随机洗牌）
-            teams.add(new MatchTeam("红队", Formatting.RED, players.subList(0, players.size() / 2)));
-            teams.add(new MatchTeam("蓝队", Formatting.BLUE, players.subList(players.size() / 2, players.size())));
+            // MyGO 奇数人数由 T 多一人；其它两队模式仍要求调用方传入合法人数。
+            int firstTeamSize = type == MatchType.MYGO ? (players.size() + 1) / 2 : players.size() / 2;
+            teams.add(new MatchTeam("红队", Formatting.RED, players.subList(0, firstTeamSize)));
+            teams.add(new MatchTeam("蓝队", Formatting.BLUE, players.subList(firstTeamSize, players.size())));
         } else if (type == MatchType.BRIDGE_1V1V1V1) {
             teams.add(new MatchTeam("红队", Formatting.RED, List.of(players.get(0))));
             teams.add(new MatchTeam("蓝队", Formatting.BLUE, List.of(players.get(1))));
@@ -4755,7 +4757,8 @@ public final class Match {
                 sbTeam = scoreboard.addTeam(teamName);
             }
             sbTeam.setColor(team.getColor());
-            sbTeam.setCollisionRule(AbstractTeam.CollisionRule.NEVER);
+            // MyGO restores competitive body blocking; other modes retain their existing collision policy.
+            sbTeam.setCollisionRule(this.type == MatchType.MYGO ? AbstractTeam.CollisionRule.ALWAYS : AbstractTeam.CollisionRule.NEVER);
             sbTeam.setNameTagVisibilityRule((this.type == MatchType.MYGO || PvPConfig.INSTANCE.healthTagEnabled)
                     ? AbstractTeam.VisibilityRule.NEVER : AbstractTeam.VisibilityRule.ALWAYS);
             // 组队模式（2v2 等）关闭友伤；FFA/空岛战争/幸运之柱全员同一队，必须保留互伤。
@@ -5119,7 +5122,8 @@ public final class Match {
             case DEATHMATCH -> "§7地图: §e平地竞技场"; // 复用 Layout.FFA 的场地
             case MINECRAFT_PARTY -> "§7地图: §dParty 2 · 分阶段移植";
             case ISLAND_SIEGE -> "§7地图: §c海岛攻防 · 重建地图";
-            case MYGO -> "§7地图: §6Dust II";
+            case MYGO -> "§7地图: §6" + (this.portedSession instanceof com.example.pvp.mygo.MyGoSession session
+                    ? session.mapName() : "生成中");
             case BOAT_RACE -> "§7地图: §b随机冰面赛道 §7(" + (this.boatRaceSession != null
                     ? this.boatRaceSession.trackSummary() : "生成中") + ")";
         };

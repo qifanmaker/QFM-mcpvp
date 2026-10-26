@@ -1,0 +1,92 @@
+{
+  "formatVersion": 1,
+  "mapId": "mirage",
+  "source": {
+    "title": "[THE MIRAGE]",
+    "version": "1.21.1",
+    "authors": [
+      "fepe2k_oficial"
+    ],
+    "publisher": "fepe2k_oficial",
+    "projectUrl": "https://www.curseforge.com/minecraft/worlds/the-mirage",
+    "fileUrl": "https://www.curseforge.com/minecraft/worlds/the-mirage/files/6784337",
+    "downloadUrl": "https://mediafilez.forgecdn.net/files/6784/337/Mirage%20CS%20GO1.1.zip",
+    "archiveSha256": "2d07d870c469f0a7460a7cea05db3fe3956419b39dfe7c76879f1bb160ca03aa",
+    "sha256": "2d07d870c469f0a7460a7cea05db3fe3956419b39dfe7c76879f1bb160ca03aa",
+    "sourceMinecraftVersion": "1.20.1",
+    "reviewedAt": "2026-10-25",
+    "license": "All Rights Reserved; retain attribution and obtain permission before redistribution",
+    "copyright": "Minecraft recreation by fepe2k_oficial. Original Mirage map copyright Valve.",
+    "permissionText": "Static architectural adaptation only; retain the upstream attribution and respect the source license.",
+    "adaptation": "Static architectural crop for the isolated MyGO arena; source entities, commands, inventories and resource packs are omitted."
+  },
+  "sourceMin": [
+    696,
+    15,
+    375
+  ],
+  "sourceMax": [
+    873,
+    79,
+    569
+  ],
+  "origin": [
+    784,
+    15,
+    472
+  ],
+  "scaleXZ": 1.0,
+  "bounds": {
+    "min": [
+      -88,
+      0,
+      -97
+    ],
+    "max": [
+      89,
+      59,
+      97
+    ]
+  },
+  "size": [
+    178,
+    60,
+    195
+  ],
+  "blockCount": 105533,
+  "paletteCount": 448,
+  "blockOrder": "Architectural supports first, then dependent decorations; each group ordered by y, x, z ascending.",
+  "dependentDecorationCount": 1104,
+  "blockReplacements": {
+    "minecraft:anvil -> minecraft:iron_block": 8,
+    "minecraft:sand -> minecraft:sandstone": 3360,
+    "minecraft:white_concrete_powder -> minecraft:white_concrete": 6070
+  },
+  "propertyChanges": {},
+  "omittedExecutableBlocks": {},
+  "omittedBlockEntityNbt": {
+    "minecraft:banner": 42,
+    "minecraft:barrel": 4,
+    "minecraft:daylight_detector": 2,
+    "minecraft:decorated_pot": 3,
+    "minecraft:furnace": 1,
+    "minecraft:hopper": 5,
+    "minecraft:sign": 2,
+    "minecraft:skull": 11
+  },
+  "notes": [
+    "Static block states only; no entities, block entity NBT, player data, datapacks or source resource packs.",
+    "Runtime layout coordinates are relative to the source origin; Y coordinates remain at source scale."
+  ],
+  "layoutSha256": "48a4a36a5e6c68af17618dcf9e11c22e660a0c2575fe3e2cfeaa6ce941d119d3",
+  "geometrySha256": "116d60eccb18443297fc66972b001965a538900a218617a77d30ab50dd52d4af",
+  "geometryBytes": 284685,
+  "minecraftSourcesSha256": "9780274ba8ca382aa1071c480fef6c78207d965cdcf4c788bbb51f9d38d73cfa",
+  "pointReference": {
+    "source": "Valve radar_info plus user-provided annotated Minecraft Mirage preview",
+    "url": "https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_mirage.txt",
+    "normalizedCoordinates": "T/CT/A/B use the red handwritten overlay centers from the supplied preview, snapped to the nearest full-support standable cells.",
+    "axisTransform": "manual overlay: T (5,-71), A (43,-25), B (-17,19), CT (29,28)",
+    "overlayDate": "2026-10-25"
+  }
+}

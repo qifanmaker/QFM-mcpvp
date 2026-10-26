@@ -1,5 +1,14 @@
 # MyGO 隔离服务器验证
 
+## MyGO 地图目录
+
+MyGO 默认随机选图。OP 在排队后打开 `/pvp`，点击“立即开始”，会看到 Dust II、
+Mirage、Inferno 和“随机地图”四个按钮；也可以执行 `/pvp start mirage`、
+`/pvp start inferno` 或 `/pvp start random`。`/pvp mygo map <地图>`仍作为
+命令入口保留。已经生成的对局会继续使用创建时绑定的蓝图。Mirage、Inferno 与 Dust II
+都在服务端静态蓝图中携带各自的出生点、购买区、A/B 包点和阵亡等待室，
+切图不会复用 Dust II 的坐标。
+
 这些工具用于真实 Minecraft 1.21.1 协议回归，避免修改开发者现有的 `run/` 配置、世界和正在运行的 25565 服务。
 
 先运行项目要求的 `./gradlew build`。验证器使用 Loom 已生成的运行类路径、Fabric Loader 与 JDK 21，并把编译输出快照放在 `build/mygo-server-test/mod-snapshot/`；验证期间再次构建不会改变已启动快照。
@@ -475,3 +484,13 @@ Mineflayer 配方解析和传送移动告警仍为工具限制；协议包和解
 交付 `dist/pvp-1.0.0-mygo-csgo-utilities-sound.jar`，1,918,265 bytes，SHA-256
 `c29466aeea11b73667b5c21029383eb685664d286fea1855879a84492e1ad5a9`。
 资源 ZIP 已由用户上传并核验，安装新版 JAR 后完整重启即可自动使用新地址；无需再次上传同一资源包。
+
+### 点位核对来源
+
+Mirage 和 Inferno 的初始 T/CT/A/B 相对位置按 Valve 游戏文件提取的 radar_info 对照：
+[Mirage radar_info](https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_mirage.txt)、
+[Inferno radar_info](https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/radar_info/de_inferno.txt)。
+根据用户提供的 Mirage Minecraft 俯视标注图，Mirage 最终点位以红色手绘中心为准，并吸附到可站立方块：
+T=(5,-71)、A=(43,-25)、B=(-17,19)、CT=(29,28)。Inferno 的 T/CT 出生点保持原校验结果，
+并按用户提供的 Inferno 俯视标注图将包点调整为 A=(-55,-41)、B=(10,50)。
+两张地图再用服务端出生点校验和离线路线审计确认可站立、可到达。

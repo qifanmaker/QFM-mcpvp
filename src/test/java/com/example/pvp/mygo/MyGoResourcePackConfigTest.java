@@ -17,8 +17,8 @@ final class MyGoResourcePackConfigTest {
         MyGoResourcePack.Config config = new MyGoResourcePack.Config();
         config.validate();
         assertTrue(config.migrate());
-        assertEquals("https://qfmaker.com/upload/files/lf192hqd.zip", config.packUrl);
-        assertEquals(5, config.configVersion);
+        assertEquals("https://qfmaker.com/upload/files/4wnvtb9z.zip", config.packUrl);
+        assertEquals(7, config.configVersion);
     }
 
     @Test void oldEmptyWhitespaceAndNullAddressesMigrateOnce() {
@@ -26,7 +26,7 @@ final class MyGoResourcePackConfigTest {
             MyGoResourcePack.Config config = read("{\"packUrl\":" + value + "}");
             assertTrue(config.migrate());
             assertEquals(MyGoResourcePack.DEFAULT_PACK_URL, config.packUrl);
-            assertEquals(5, config.configVersion);
+            assertEquals(7, config.configVersion);
             assertFalse(config.migrate());
         }
     }
@@ -37,7 +37,7 @@ final class MyGoResourcePackConfigTest {
                     + ",\"packUrl\":\"https://cdn.example.com/mygo.zip\"}");
             assertTrue(config.migrate());
             assertEquals("https://cdn.example.com/mygo.zip", config.packUrl);
-            assertEquals(5, config.configVersion);
+            assertEquals(7, config.configVersion);
             assertFalse(config.migrate());
         }
     }
@@ -47,30 +47,38 @@ final class MyGoResourcePackConfigTest {
             MyGoResourcePack.Config config = read("{\"configVersion\":" + version + ",\"packUrl\":\"\"}");
             assertTrue(config.migrate());
             assertEquals("", config.packUrl);
-            assertEquals(5, config.configVersion);
+            assertEquals(7, config.configVersion);
             assertFalse(config.migrate());
         }
     }
 
     @Test void newerConfigurationIsNotDowngraded() {
-        MyGoResourcePack.Config config = read("{\"configVersion\":6,\"packUrl\":\"https://cdn.example.com/mygo.zip\"}");
+        MyGoResourcePack.Config config = read("{\"configVersion\":7,\"packUrl\":\"https://cdn.example.com/mygo.zip\"}");
         assertFalse(config.migrate());
-        assertEquals(6, config.configVersion);
+        assertEquals(7, config.configVersion);
         assertEquals("https://cdn.example.com/mygo.zip", config.packUrl);
     }
 
     @Test void currentVersionDoesNotRewriteAnExplicitAddress() {
         MyGoResourcePack.Config config = read("{\"configVersion\":5,\"packUrl\":\"https://qfmaker.com/upload/files/5df4ab7h.zip\"}");
-        assertFalse(config.migrate());
-        assertEquals(5, config.configVersion);
+        assertTrue(config.migrate());
+        assertEquals(7, config.configVersion);
         assertEquals("https://qfmaker.com/upload/files/5df4ab7h.zip", config.packUrl);
+    }
+
+    @Test void previousCurrentDefaultUpgradesToTheLatestUploadedPack() {
+        MyGoResourcePack.Config config = read("{\"configVersion\":6,\"packUrl\":\"https://qfmaker.com/upload/files/nyiz2u77.zip\"}");
+        assertTrue(config.migrate());
+        assertEquals(MyGoResourcePack.DEFAULT_PACK_URL, config.packUrl);
+        assertEquals(7, config.configVersion);
+        assertFalse(config.migrate());
     }
 
     @Test void versionThreeTextureFixCdnUpgradesToClassicWeapons() {
         MyGoResourcePack.Config config = read("{\"configVersion\":3,\"packUrl\":\"https://qfmaker.com/upload/files/zevadwr3.zip\"}");
         assertTrue(config.migrate());
         assertEquals(MyGoResourcePack.DEFAULT_PACK_URL, config.packUrl);
-        assertEquals(5, config.configVersion);
+        assertEquals(7, config.configVersion);
         assertFalse(config.migrate());
     }
 
@@ -78,7 +86,7 @@ final class MyGoResourcePackConfigTest {
         MyGoResourcePack.Config config = read("{\"configVersion\":1,\"packUrl\":\"https://qfmaker.com/upload/files/wmcvlnck.zip\"}");
         assertTrue(config.migrate());
         assertEquals(MyGoResourcePack.DEFAULT_PACK_URL, config.packUrl);
-        assertEquals(5, config.configVersion);
+        assertEquals(7, config.configVersion);
         assertFalse(config.migrate());
     }
 
@@ -86,7 +94,7 @@ final class MyGoResourcePackConfigTest {
         MyGoResourcePack.Config config = read("{\"configVersion\":2,\"packUrl\":\"https://qfmaker.com/upload/files/5df4ab7h.zip\"}");
         assertTrue(config.migrate());
         assertEquals(MyGoResourcePack.DEFAULT_PACK_URL, config.packUrl);
-        assertEquals(5, config.configVersion);
+        assertEquals(7, config.configVersion);
         assertFalse(config.migrate());
     }
 
@@ -94,7 +102,7 @@ final class MyGoResourcePackConfigTest {
         MyGoResourcePack.Config config = read("{\"configVersion\":4,\"packUrl\":\"https://qfmaker.com/upload/files/uxv5wsbc.zip\"}");
         assertTrue(config.migrate());
         assertEquals(MyGoResourcePack.DEFAULT_PACK_URL, config.packUrl);
-        assertEquals(5, config.configVersion);
+        assertEquals(7, config.configVersion);
         assertFalse(config.migrate());
     }
 }

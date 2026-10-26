@@ -99,6 +99,11 @@ class ArchivedWorld:
             matched = REGION_PATTERN.fullmatch(member.filename)
             if matched:
                 region = tuple(map(int, matched.groups()))
+                # Reason: CurseForge world exports may retain zero-byte placeholder
+                # entries for empty regions. They contain no Anvil header and must be
+                # ignored; non-empty entries still require the normal bounded size.
+                if member.file_size == 0:
+                    continue
                 if region in self.members or not 8192 <= member.file_size <= MAX_REGION_BYTES:
                     raise ValueError("Duplicate or oversized Anvil region")
                 self.members[region] = member
@@ -134,9 +139,28 @@ class ArchivedWorld:
         self.chunks[key] = chunk
         return chunk
 
+    def has_chunk(self, x: int, z: int) -> bool:
+        """Return whether an Anvil index contains a chunk payload.
+
+        Reason: some published worlds include sparse crops with valid region
+        files but no chunk record at every coordinate. Treat those coordinates
+        as empty while still letting malformed present records fail loudly.
+        """
+        region = (x // 32, z // 32)
+        if region not in self.members:
+            return False
+        if region not in self.regions:
+            self.regions[region] = self.archive.read(self.members[region])
+        data = self.regions[region]
+        index = ((x % 32) + (z % 32) * 32) * 4
+        offset = int.from_bytes(data[index:index + 3], "big") * 4096
+        return offset >= 8192 and data[index + 3] != 0
+
     def blocks(self, minimum: list[int], maximum: list[int]):
         for cx in range(minimum[0] // 16, maximum[0] // 16 + 1):
             for cz in range(minimum[2] // 16, maximum[2] // 16 + 1):
+                if not self.has_chunk(cx, cz):
+                    continue
                 chunk = self.chunk(cx, cz)
                 for section in chunk.get("Sections", chunk.get("sections", [])):
                     sy = section["Y"] * 16

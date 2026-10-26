@@ -2,6 +2,8 @@ package com.example.pvp.mygo;
 
 import com.example.pvp.PvPMod;
 import com.example.pvp.match.Match;
+import com.example.pvp.queue.MyGoTeamPreference;
+import com.example.pvp.queue.QueueEntry;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.command.CommandSource;
@@ -32,6 +34,36 @@ public final class MyGoCommands {
                             MyGoResourcePack.request(ctx.getSource().getPlayerOrThrow());
                             return 1;
                         }))
+                        .then(CommandManager.literal("map")
+                                .requires(source -> source.hasPermissionLevel(2))
+                                .executes(ctx -> {
+                                    ctx.getSource().sendFeedback(() -> Text.literal("§e当前 MyGO 地图：§f"
+                                            + MyGoMapBlueprint.selectedKey() + " §7可选：§f"
+                                            + String.join(", ", MyGoMapBlueprint.availableMaps())), false);
+                                    return 1;
+                                })
+                                .then(CommandManager.argument("name", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> CommandSource.suggestMatching(
+                                                MyGoMapBlueprint.availableMaps(), builder))
+                                        .executes(ctx -> {
+                                            String key = StringArgumentType.getString(ctx, "name").toLowerCase(java.util.Locale.ROOT);
+                                            try {
+                                                MyGoMapBlueprint map = MyGoMapBlueprint.select(key);
+                                                if (PvPMod.MATCH != null) PvPMod.MATCH.setNextMyGoMap(key);
+                                                ctx.getSource().sendFeedback(() -> Text.literal("§a下一场 MyGO 地图已设为 §f" + map.name()), true);
+                                                return 1;
+                                            } catch (java.io.IOException error) {
+                                                ctx.getSource().sendError(Text.literal("§c未知或损坏的 MyGO 地图：" + key));
+                                                return 0;
+                                            }
+                                        })))
+                        .then(CommandManager.literal("team")
+                                .then(CommandManager.argument("choice", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> CommandSource.suggestMatching(
+                                                java.util.Arrays.stream(MyGoTeamPreference.values())
+                                                        .map(MyGoTeamPreference::id).toList(), builder))
+                                        .executes(ctx -> chooseTeam(ctx.getSource().getPlayerOrThrow(),
+                                                StringArgumentType.getString(ctx, "choice")))))
                         .then(CommandManager.literal("stats").executes(ctx -> {
                             ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
                             player.sendMessage(Text.literal(MyGoStats.describe(player.getUuid())), false);
@@ -47,9 +79,11 @@ public final class MyGoCommands {
                         .then(CommandManager.literal("buy")
                                 .then(CommandManager.argument("item", StringArgumentType.word())
                                         .suggests((ctx, builder) -> CommandSource.suggestMatching(
-                                                java.util.stream.Stream.concat(java.util.Arrays.stream(MyGoWeapon.values())
-                                                        .map(weapon -> weapon.name().toLowerCase(java.util.Locale.ROOT)),
-                                                        java.util.stream.Stream.of("vest", "helmet", "defuser", "he", "flash", "smoke")).toList(), builder))
+                                                java.util.stream.Stream.concat(
+                                                        java.util.stream.Stream.concat(java.util.Arrays.stream(MyGoWeapon.values())
+                                                                .map(weapon -> weapon.name().toLowerCase(java.util.Locale.ROOT)),
+                                                                java.util.Arrays.stream(MyGoUtilities.Type.values()).map(type -> type.name().toLowerCase(java.util.Locale.ROOT))),
+                                                        java.util.stream.Stream.of("vest", "helmet", "defuser")).toList(), builder))
                                         .executes(ctx -> {
                                             ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
                                             MyGoSession session = requireSession(player);
@@ -71,6 +105,22 @@ public final class MyGoCommands {
         MyGoSession session = requireSession(player);
         if (session == null) return 0;
         session.openShop(player);
+        return 1;
+    }
+
+    private static int chooseTeam(ServerPlayerEntity player, String rawChoice) {
+        QueueEntry entry = PvPMod.QUEUE == null ? null : PvPMod.QUEUE.getEntry(player);
+        if (entry == null || entry.getType() != com.example.pvp.match.MatchType.MYGO) {
+            player.sendMessage(Text.literal("§e请先加入 MyGO 队列，再选择 T、CT 或自动平衡。"), false);
+            return 0;
+        }
+        MyGoTeamPreference preference = MyGoTeamPreference.parse(rawChoice);
+        if (preference == null) {
+            player.sendMessage(Text.literal("§c队伍选项无效，可用：t、ct、auto。"), false);
+            return 0;
+        }
+        PvPMod.QUEUE.setMyGoTeam(player.getUuid(), preference);
+        player.sendMessage(Text.literal("§aMyGO 队伍偏好已设置为：§f" + preference.displayName()), false);
         return 1;
     }
 

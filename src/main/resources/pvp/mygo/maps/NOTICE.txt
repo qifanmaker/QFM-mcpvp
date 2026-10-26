@@ -44,3 +44,46 @@ not imported. The architectural design remains credited to the authors above.
 中文说明：地图建筑由 LesRaisins Studio 的 LeComte 制作，原 Dust II 地图版权归
 Valve。作者仅允许保留版权信息的非商业使用与分享；商业使用须另获作者授权。
 禁止冒充原创、出售、上传网易 Minecraft 或删除署名后重新发布。
+
+---
+
+MyGO bundled Mirage geometry — third-party copyright and usage notice
+
+Map: [THE MIRAGE]
+Minecraft recreation: fepe2k_oficial
+Original Mirage map: copyright Valve
+Source project:
+https://www.curseforge.com/minecraft/worlds/the-mirage
+Source release:
+https://www.curseforge.com/minecraft/worlds/the-mirage/files/6784337
+Source ZIP SHA-256:
+2d07d870c469f0a7460a7cea05db3fe3956419b39dfe7c76879f1bb160ca03aa
+
+The source page marks this work All Rights Reserved. Keep this attribution and
+obtain the author's permission before redistributing a build that contains the
+Mirage adaptation. This repository does not claim ownership of the map.
+
+MyGO adaptation: the static architectural crop is stored as block states only;
+entities, commands, inventories, block-entity NBT and source resource packs are
+omitted. The horizontal crop is fit to the isolated 384-block arena region.
+
+---
+
+MyGO bundled Inferno geometry — third-party copyright and usage notice
+
+Map: [LesRaisins | CSGO] Inferno
+Minecraft recreation: xjqsh / LesRaisins Studio
+Original Inferno map: copyright Valve
+Source project:
+https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-inferno
+Source release:
+https://www.curseforge.com/minecraft/worlds/lesraisins-csgo-inferno/files/5637189
+Source ZIP SHA-256:
+6a44cd041c2983343da9c15f67664736576505984a31dffc1500a9e753e7e880
+
+The source page permits non-commercial use with retained copyright information;
+commercial use and any other restricted use still require author permission.
+
+MyGO adaptation: the static architectural crop is stored as block states only;
+entities, commands, inventories, block-entity NBT and source resource packs are
+omitted. The crop is fit to the isolated 384-block arena region.

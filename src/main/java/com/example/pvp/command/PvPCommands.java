@@ -367,13 +367,13 @@ public final class PvPCommands {
                         + "§e/pvp join deathmatch -k <套件>§r 加入死斗（5 分钟，人头最多者胜）\n"
                         + "§e/pvp join racing§r 加入亦可赛艇（无需套件，原版船 + 随机冰面赛道竞速）\n"
                         + "§e/pvp join mygo§r 加入 MyGO 枪战爆破（先加载资源包，再次加入）\n"
-                        + "§e/pvp mygo [shop|buy <商品>|reload|stats]§r 枪战商店、换弹与独立战绩\n"
+                        + "§e/pvp mygo [shop|buy <商品>|team <t|ct|auto>|map <dust2|mirage|inferno>|reload|stats]§r 枪战商店、选队、选图、换弹与独立战绩\n"
                         + "§e/pvp join minecraftparty§r 加入 Minecraft Party 2（移植中：首批 3 个小游戏 Quick Play）\n"
                         + "§e/pvp join islandsiege§r 加入海岛攻防（无需套件，红队进攻、蓝队防守）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
-                        + "§e/pvp start [主题]§r OP 专用：立即用当前队列人数开赛（排空岛指定主题 / 幸运之柱指定地图）\n"
+                        + "§e/pvp start [主题/地图]§r OP 专用：立即用当前队列人数开赛（MyGO 可选地图，否则随机）\n"
                         + "§e/pvp queue§r 查看排队状态\n"
                         + "§e/pvp list§r 查看进行中的比赛\n"
                         + "§e/pvp stats [玩家]§r 查看战绩\n"
@@ -468,8 +468,8 @@ public final class PvPCommands {
                         + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛；原版船 + 每场随机生成的冰面赛道（"
                         + PvPConfig.INSTANCE.boatRaceLaps + " 圈）"), false);
             } else if (type == MatchType.MYGO) {
-                player.sendMessage(Messages.info("已加入 MyGO：十人立即开局，至少两人等待 60 秒等员开局；"
-                        + "左键点射、瞄具枪右键切倍率/关镜、F 换弹、/pvp mygo 打开购买菜单"), false);
+                player.sendMessage(Messages.info("已加入 MyGO：2~10 人均可开局，奇数人数两队相差一人；"
+                        + "可用 /pvp mygo team <t|ct|auto> 选择队伍，左键点射、瞄具枪右键切倍率/关镜、F 换弹"), false);
             } else if (type.isPortedGame()) {
                 player.sendMessage(Messages.info("已加入" + type.getDisplayName() + "：凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛；至少 " + MatchType.PORTED_MIN_PLAYERS
@@ -687,6 +687,25 @@ public final class PvPCommands {
                 }
                 PvPMod.MATCH.setNextBedwarsMap(mapDir.getFileName().toString());
                 player.sendMessage(Messages.info("已设置强制地图：§e" + mapDir.getFileName()), false);
+            } else if (entry.getType() == MatchType.MYGO) {
+                String mapKey = themeName.toLowerCase(java.util.Locale.ROOT);
+                if (mapKey.equals("random")) {
+                    PvPMod.MATCH.setNextMyGoMap(null);
+                    player.sendMessage(Messages.info("MyGO 将随机选择地图"), false);
+                } else if (com.example.pvp.mygo.MyGoMapBlueprint.availableMaps().contains(mapKey)) {
+                    try {
+                        com.example.pvp.mygo.MyGoMapBlueprint map = com.example.pvp.mygo.MyGoMapBlueprint.load(mapKey);
+                        PvPMod.MATCH.setNextMyGoMap(mapKey);
+                        player.sendMessage(Messages.info("已设置 MyGO 地图：§e" + map.name()), false);
+                    } catch (java.io.IOException error) {
+                        player.sendMessage(Messages.error("MyGO 地图资源损坏：" + mapKey), false);
+                        return 0;
+                    }
+                } else {
+                    player.sendMessage(Messages.error("未知 MyGO 地图: " + themeName
+                            + "（可用: dust2, mirage, inferno, random）"), false);
+                    return 0;
+                }
             } else {
                 player.sendMessage(Messages.error("只有排空岛战争（主题）、幸运之柱（地图）或起床战争（地图）才能指定"), false);
                 return 0;

@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,14 +29,19 @@ import java.util.zip.GZIPInputStream;
  * 此蓝图只读取随 Mod 分发的静态方块状态与相对坐标，不执行原世界的实体、命令或函数。
  */
 public final class MyGoMapBlueprint {
-    private static final String RESOURCE = "/pvp/mygo/maps/dust2.json.gz";
+    private static final String DEFAULT_MAP = "dust2";
+    private static final Map<String, String> RESOURCES = Map.of(
+            "dust2", "/pvp/mygo/maps/dust2.json.gz",
+            "mirage", "/pvp/mygo/maps/mirage.json.gz",
+            "inferno", "/pvp/mygo/maps/inferno.json.gz");
     private static final int GEOMETRY_HALF_EXTENT = 160;
     private static final int REGION_HALF_EXTENT = 176;
     private static final int MAX_CELLS = 1_000_000;
     private static final Set<String> EXECUTABLE_BLOCKS = Set.of(
             "minecraft:command_block", "minecraft:chain_command_block", "minecraft:repeating_command_block",
             "minecraft:structure_block", "minecraft:jigsaw", "minecraft:spawner");
-    private static MyGoMapBlueprint cached;
+    private static final Map<String, MyGoMapBlueprint> CACHE = new LinkedHashMap<>();
+    private static String selectedMap = DEFAULT_MAP;
 
     public record Bounds(BlockPos min, BlockPos max) {
         public Bounds {
@@ -101,17 +107,51 @@ public final class MyGoMapBlueprint {
     }
 
     public static synchronized MyGoMapBlueprint load() throws IOException {
-        if (cached != null) return cached;
-        try (InputStream input = MyGoMapBlueprint.class.getResourceAsStream(RESOURCE)) {
-            if (input == null) throw new IOException("Missing MyGO map blueprint: " + RESOURCE);
+        return load(selectedMap);
+    }
+
+    /** Load a named map from the immutable server-side catalog. */
+    public static synchronized MyGoMapBlueprint load(String mapKey) throws IOException {
+        String resource = RESOURCES.get(mapKey);
+        if (resource == null) throw new IOException("Unknown MyGO map: " + mapKey);
+        MyGoMapBlueprint existing = CACHE.get(mapKey);
+        if (existing != null) return existing;
+        try (InputStream input = MyGoMapBlueprint.class.getResourceAsStream(resource)) {
+            if (input == null) throw new IOException("Missing MyGO map blueprint: " + resource);
             try (InputStreamReader reader = new InputStreamReader(new GZIPInputStream(input), StandardCharsets.UTF_8)) {
                 JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-                cached = decode(root);
-                return cached;
+                MyGoMapBlueprint decoded = decode(root);
+                if (!decoded.id().equals(mapKey) && !(mapKey.equals("dust2") && decoded.id().equals("lesraisins_dust2"))) {
+                    throw new IOException("MyGO map resource identity does not match catalog key: " + mapKey);
+                }
+                CACHE.put(mapKey, decoded);
+                return decoded;
             }
         } catch (RuntimeException exception) {
-            throw new IOException("Invalid MyGO map blueprint: " + RESOURCE, exception);
+            throw new IOException("Invalid MyGO map blueprint: " + resource, exception);
         }
+    }
+
+    /** Change the map used by subsequently created matches; existing matches keep their immutable blueprint. */
+    public static synchronized MyGoMapBlueprint select(String mapKey) throws IOException {
+        MyGoMapBlueprint map = load(mapKey);
+        selectedMap = mapKey;
+        return map;
+    }
+
+    public static synchronized String selectedKey() { return selectedMap; }
+
+    /** Select a deterministic pseudo-random catalog entry for an unforced match. */
+    public static String randomKey(long seed) {
+        List<String> maps = availableMaps();
+        int index = new java.util.Random(seed * 341873128712L + 1927).nextInt(maps.size());
+        return maps.get(index);
+    }
+
+    public static List<String> availableMaps() {
+        List<String> result = new ArrayList<>(RESOURCES.keySet());
+        Collections.sort(result);
+        return List.copyOf(result);
     }
 
     private static MyGoMapBlueprint decode(JsonObject root) throws IOException {

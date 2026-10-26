@@ -39,7 +39,13 @@ public final class MyGoRules {
      * 此处保留中间精度，霰弹同一枪的弹丸累加后才进入整数生命/护甲结算。
      */
     public static Damage damageWithArmor(MyGoWeapon gun, double distance, Part part, double armor, boolean helmet) {
-        double raw = gun.damage * gun.distanceMultiplier(distance)
+        return damageWithArmor(gun, distance, part, armor, helmet, 1);
+    }
+
+    /** Penetration/team damage must scale raw damage before finite armour absorbs it. */
+    public static Damage damageWithArmor(MyGoWeapon gun, double distance, Part part, double armor, boolean helmet,
+                                         double damageScale) {
+        double raw = gun.damage * gun.distanceMultiplier(distance) * Math.clamp(damageScale, 0, 1)
                 * switch (part) {
                     case HEAD -> gun.headshotMultiplier;
                     case STOMACH -> 1.25;
@@ -67,6 +73,16 @@ public final class MyGoRules {
         double used = (raw - health) * .5;
         if (used > armor) return new Damage(Math.max(0, raw - armor * 2), armor);
         return new Damage(health, used);
+    }
+
+    /**
+     * 修改原因：按“还有甲”硬封顶 57 会让最后一点甲也挡掉大量伤害。
+     * 预审：HE 沿用有限护甲吸收，耗尽后余量伤害照常扣血，不改变子弹结算。
+     * legacy explosive_grenade 的 armor ratio 为 1.2，健康伤害比例为其一半 .6。
+     */
+    public static Damage heDamage(double raw, double armor) {
+        if (!Double.isFinite(raw) || raw <= 0) return new Damage(0, 0);
+        return roundBulletDamage(protect(raw, .6, armor, true));
     }
 
     public static int armorCost(double armor, boolean helmet, boolean withHelmet) {

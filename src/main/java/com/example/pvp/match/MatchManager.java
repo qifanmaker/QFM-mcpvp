@@ -75,6 +75,8 @@ public final class MatchManager {
     private SkyWarsTheme pendingSkywarsTheme;
     /** OP 强制开赛时指定的一次性床战地图文件夹名（下一次 BED_WARS 用，用后清除）。 */
     private String pendingBedwarsMap;
+    /** OP 开赛时指定的一次性 MyGO 地图；未指定时由会话按比赛种子随机选择。 */
+    private String pendingMyGoMap;
     private int nextMatchId = 0;
     /** 已向其客户端注册过 pvp_info 计分板 objective 的玩家（避免重复发 ADD 包导致客户端崩溃）。 */
     private final Set<UUID> scoreboardObjectiveKnown = ConcurrentHashMap.newKeySet();
@@ -176,6 +178,22 @@ public final class MatchManager {
         String name = this.pendingBedwarsMap;
         this.pendingBedwarsMap = null;
         return name;
+    }
+
+    /** OP 强制开赛前指定下一次 MyGO 地图（null = 随机）。 */
+    public void setNextMyGoMap(String mapKey) {
+        this.pendingMyGoMap = mapKey;
+    }
+
+    /** 消费一次性强制 MyGO 地图（Match 构造时调用）。 */
+    public String consumePendingMyGoMap() {
+        String key = this.pendingMyGoMap;
+        this.pendingMyGoMap = null;
+        return key;
+    }
+
+    public String peekPendingMyGoMap() {
+        return this.pendingMyGoMap;
     }
 
     /** OP 强制开赛前指定下一次幸运之柱的强制平台风格（null = 随机）。 */
@@ -493,8 +511,8 @@ public final class MatchManager {
                 return false;
             }
         } else if (type == MatchType.MYGO) {
-            // 正常匹配最低两人，同场双方始终等员；与队列读取同一最低人数。
-            if (players.size() < type.requiredPlayers() || players.size() > 10 || players.size() % 2 != 0
+            // 正常匹配最低两人；奇数人数由 MyGO 按一人差平衡分队。
+            if (players.size() < type.requiredPlayers() || players.size() > 10
                     || players.stream().anyMatch(p -> !com.example.pvp.mygo.MyGoResourcePack.isReady(p))) {
                 return false;
             }
