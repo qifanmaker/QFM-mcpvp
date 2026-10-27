@@ -5,6 +5,14 @@ import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.MapBuildQueue;
 import com.example.pvp.arena.party.PartyMapBlueprint;
 import com.example.pvp.arena.party.PartyMinigame;
+import com.example.pvp.arena.party.PartyRound;
+import com.example.pvp.arena.party.PartyRoundContext;
+import com.example.pvp.arena.party.PartyGameSelector;
+import com.example.pvp.arena.party.DropperRound;
+import com.example.pvp.arena.party.RainbowRunRound;
+import com.example.pvp.arena.party.RunnerRound;
+import com.example.pvp.arena.party.MemoryLaneRound;
+import com.example.pvp.arena.party.PartyCombatRound;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.block.Block;
@@ -14,6 +22,8 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.UnbreakableComponent;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.ServerBossBar;
@@ -51,9 +61,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Minecraft Party 2 原生移植第一阶段：Quick Play 中的 408 / 412 / 424 三项。
+ * Minecraft Party 2 的 Quick Play 原生移植；首批三项及后续独立规则模块。
  * 原地图要求 1.21.10 且使用全服选择器，所以将规则改为仅作用于本场玩家的 Java 状态机，
- * 并使用从原图提取的七份静态场景。原版 Quick Play 是单小游戏后返回大厅，并非积分轮赛。
+ * 并使用从原图提取的静态场景与原版生成规则。原版 Quick Play 是单小游戏后返回大厅，并非积分轮赛。
  * 本服增加 10 秒选择投票作为匹配入口；棋盘、道具、其他小游戏等仍见 catalog.json 的 planned。
  *
  * <p>规则依据：spleef{,2,3,_tick}.mcfunction、tile_capture{,_rules,_start,_tick}.mcfunction、
@@ -101,6 +111,8 @@ public final class MinecraftPartySession implements PortedGameSession {
 
     private Phase phase = Phase.SELECT;
     private PartyMinigame game;
+    private PartyRound round;
+    private final PartyRoundContext roundContext = new RoundContext();
     private MapBuildQueue buildQueue;
     private BlockPos sourceOffset = BlockPos.ORIGIN;
     private int phaseTicks;
@@ -121,7 +133,8 @@ public final class MinecraftPartySession implements PortedGameSession {
         this.match = match;
         this.center = template.getCenter(regionIndex);
         // 观战/选择平台高于原版小人数 Spleef 的整个模板，避免与其上层地形重叠。
-        this.lobby = this.center.up(54);
+        // 新增 Dropper 占满世界高度；等待平台移到区域角落，避免铺图覆盖仍在等候的玩家。
+        this.lobby = this.center.add(144, 54, 144);
         this.random = new Random(seed * 0x9E3779B97F4A7C15L + 31);
         int count = Math.max(1, match.players().size());
         for (int i = 0; i < match.players().size(); i++) {
@@ -159,14 +172,16 @@ public final class MinecraftPartySession implements PortedGameSession {
         for (ServerPlayerEntity player : this.participants()) {
             this.prepare(player, GameMode.ADVENTURE);
             this.bossBar.addPlayer(player);
-            for (int i = 0; i < PartyMinigame.values().length; i++) {
+            for (int i = 0; i < Math.min(8, PartyMinigame.values().length); i++) {
                 PartyMinigame selection = PartyMinigame.values()[i];
                 player.getInventory().setStack(i, named(selection.selectionItem().getDefaultStack(), "§e右键选择 " + selection.title()));
             }
+            player.getInventory().setStack(8, named(new ItemStack(Items.COMPASS), "§e右键打开全部小游戏投票"));
             player.currentScreenHandler.sendContentUpdates();
+            PartyGameSelector.open(player, this);
         }
-        this.say("§6Party 2 · 第一阶段 Quick Play§7：已移植 3 项原版小游戏。\n§e手持快捷栏物品右键投票，10 秒后按票数选择；同票随机。每场只进行一个小游戏。");
-        this.title("§6选择小游戏", "§f雪球：掘战  §f羊毛：领地  §c染料：红灯绿灯");
+        this.say("§6Party 2 · Quick Play§7：已移植 " + PartyMinigame.values().length + " 项原版小游戏。\n§e在选择界面点击投票，或手持快捷栏物品右键选择；10 秒后取最高票，同票随机。");
+        this.title("§6选择小游戏", "§f点击菜单投票，右键指南针重新打开");
     }
 
     @Override
@@ -218,10 +233,13 @@ public final class MinecraftPartySession implements PortedGameSession {
             }
             case PLAY -> {
                 this.elapsed++;
-                switch (this.game) {
+                if (this.round != null) {
+                    this.round.tick(this.roundContext, this.elapsed);
+                } else switch (this.game) {
                     case SPLEEF -> this.tickSpleef();
                     case TILE_CAPTURE -> this.tickTileCapture();
                     case RED_LIGHT_GREEN_LIGHT -> this.tickTrafficLights();
+                    default -> throw new IllegalStateException("Missing Party round: " + this.game);
                 }
                 if (this.phase == Phase.PLAY && this.gameTimeLimit > 0 && this.elapsed >= this.gameTimeLimit) {
                     this.finishGame();
@@ -258,6 +276,15 @@ public final class MinecraftPartySession implements PortedGameSession {
         List<PartyMinigame> tied = counts.entrySet().stream().filter(entry -> entry.getValue() == maximum)
                 .map(Map.Entry::getKey).toList();
         this.game = tied.get(this.random.nextInt(tied.size()));
+        for (ServerPlayerEntity player : this.participants()) PartyGameSelector.close(player);
+        this.round = switch (this.game) {
+            case DROPPER -> new DropperRound();
+            case RAINBOW_RUN -> new RainbowRunRound();
+            case RUNNER -> new RunnerRound();
+            case MEMORY_LANE -> new MemoryLaneRound();
+            case MEAT_SLAP, ONE_SHOT_WONDER -> new PartyCombatRound(this.game);
+            default -> null;
+        };
         try {
             this.queueGameMap();
             this.phase = Phase.BUILD;
@@ -270,6 +297,15 @@ public final class MinecraftPartySession implements PortedGameSession {
 
     private void queueGameMap() throws IOException {
         this.initialGamePlayers = this.participants().size();
+        if (this.round != null) {
+            this.buildQueue = new MapBuildQueue(this.arena(), this.center, MAP_RADIUS);
+            this.round.stage(this.roundContext);
+            for (ServerPlayerEntity player : this.participants()) {
+                if (!this.gameSpawns.containsKey(player.getUuid())) throw new IOException("Party module omitted a spawn");
+            }
+            this.buildQueue.close();
+            return;
+        }
         String geometry;
         BlockPos sourceAnchor;
         int radius;
@@ -370,7 +406,7 @@ public final class MinecraftPartySession implements PortedGameSession {
         this.phase = Phase.PLAY;
         this.elapsed = 0;
         for (ServerPlayerEntity player : this.participants()) {
-            this.prepare(player, this.game == PartyMinigame.SPLEEF ? GameMode.SURVIVAL : GameMode.ADVENTURE);
+            this.prepare(player, this.round != null ? this.round.gameMode() : this.game == PartyMinigame.SPLEEF ? GameMode.SURVIVAL : GameMode.ADVENTURE);
             this.lastSafe.put(player.getUuid(), player.getPos());
             this.tileRollback.put(player.getUuid(), player.getPos());
             if (this.game == PartyMinigame.SPLEEF) {
@@ -400,6 +436,7 @@ public final class MinecraftPartySession implements PortedGameSession {
             }
             player.currentScreenHandler.sendContentUpdates();
         }
+        if (this.round != null) this.round.start(this.roundContext);
         this.title("§a开始！", this.game.title());
         if (this.game == PartyMinigame.RED_LIGHT_GREEN_LIGHT) {
             this.setLight(false);
@@ -586,6 +623,7 @@ public final class MinecraftPartySession implements PortedGameSession {
         if (this.phase == Phase.RESULTS || this.phase == Phase.FINISHED || this.ended) {
             return;
         }
+        if (this.round != null) this.round.finish(this.roundContext);
         this.phase = Phase.RESULTS;
         this.phaseTicks = RESULT_TICKS;
         this.discardArrows();
@@ -606,6 +644,7 @@ public final class MinecraftPartySession implements PortedGameSession {
             this.say("§e第 " + place + " 名 §f" + this.names.get(uuid) + " §7" + this.scoreDescription(uuid));
         }
         for (ServerPlayerEntity player : this.participants()) {
+            PartyGameSelector.close(player);
             this.restoreJump(player);
             player.getInventory().clear();
             player.changeGameMode(GameMode.SPECTATOR);
@@ -623,14 +662,20 @@ public final class MinecraftPartySession implements PortedGameSession {
         }
         ItemStack held = player.getStackInHand(hand);
         if (this.phase == Phase.SELECT) {
+            if (held.isOf(Items.COMPASS)) {
+                PartyGameSelector.open(player, this);
+                return ActionResult.SUCCESS;
+            }
             for (PartyMinigame choice : PartyMinigame.values()) {
                 if (held.isOf(choice.selectionItem())) {
-                    this.votes.put(player.getUuid(), choice);
-                    player.sendMessage(Text.literal("§a已选择：" + choice.title()), true);
+                    this.vote(player, choice);
                     return ActionResult.SUCCESS;
                 }
             }
             return ActionResult.FAIL;
+        }
+        if (this.phase == Phase.PLAY && this.round != null && !this.out.contains(player.getUuid())) {
+            return this.round.useItem(this.roundContext, player, hand);
         }
         if (this.phase == Phase.PLAY && this.game == PartyMinigame.TILE_CAPTURE && !this.out.contains(player.getUuid())
                 && held.isOf(Items.CARROT_ON_A_STICK)) {
@@ -644,12 +689,18 @@ public final class MinecraftPartySession implements PortedGameSession {
     @Override
     public ActionResult useBlock(ServerPlayerEntity player, Hand hand, BlockHitResult hit) {
         // 场景里的按钮、门、容器不能触发原地图已移除的红石或储物逻辑。
+        if (this.phase == Phase.PLAY && this.round != null && this.isParticipant(player.getUuid())
+                && !this.out.contains(player.getUuid())) {
+            return this.round.useBlock(this.roundContext, player, hand, hit);
+        }
         ActionResult itemResult = this.useItem(player, hand);
         return itemResult == ActionResult.PASS ? ActionResult.FAIL : itemResult;
     }
 
     @Override
     public boolean canBreak(ServerPlayerEntity player, BlockPos pos) {
+        if (this.round != null) return this.phase == Phase.PLAY && this.isParticipant(player.getUuid())
+                && !this.out.contains(player.getUuid()) && this.round.canBreak(this.roundContext, player, pos);
         if (this.phase != Phase.PLAY || this.game != PartyMinigame.SPLEEF || !this.isParticipant(player.getUuid())
                 || this.out.contains(player.getUuid()) || !player.getMainHandStack().isOf(Items.IRON_SHOVEL)
                 || !this.changedBlocks.contains(pos.asLong()) || player.getEyePos().squaredDistanceTo(pos.toCenterPos()) > 36) {
@@ -662,6 +713,8 @@ public final class MinecraftPartySession implements PortedGameSession {
 
     @Override
     public ActionResult attackBlock(ServerPlayerEntity player, BlockPos pos) {
+        if (this.round != null) return this.phase == Phase.PLAY && this.isParticipant(player.getUuid())
+                && !this.out.contains(player.getUuid()) ? this.round.attackBlock(this.roundContext, player, pos) : ActionResult.FAIL;
         if (!this.canBreak(player, pos)) {
             return ActionResult.FAIL;
         }
@@ -672,8 +725,10 @@ public final class MinecraftPartySession implements PortedGameSession {
 
     @Override
     public boolean ownsEntity(Entity entity) {
-        return entity instanceof PersistentProjectileEntity projectile && projectile.getOwner() != null
-                && this.slots.containsKey(projectile.getOwner().getUuid());
+        if (this.round != null) return this.round.ownsEntity(entity);
+        return this.game == PartyMinigame.SPLEEF && entity instanceof PersistentProjectileEntity projectile
+                && projectile.getOwner() != null && this.isParticipant(projectile.getOwner().getUuid())
+                && !this.outOfRegion(projectile);
     }
 
     @Override
@@ -686,6 +741,10 @@ public final class MinecraftPartySession implements PortedGameSession {
             this.teleport(player, this.phase == Phase.INTRO ? this.gameSpawns.get(player.getUuid()) : this.lobby.toCenterPos());
             return;
         }
+        if (this.round != null) {
+            this.round.death(this.roundContext, player);
+            return;
+        }
         if (!this.out.contains(player.getUuid())) {
             if (this.game == PartyMinigame.SPLEEF) {
                 this.scores.put(player.getUuid(), ++this.eliminatedCount);
@@ -696,6 +755,8 @@ public final class MinecraftPartySession implements PortedGameSession {
 
     @Override
     public void onLeave(ServerPlayerEntity player) {
+        if (this.round != null) this.round.leave(this.roundContext, player);
+        PartyGameSelector.close(player);
         this.left.add(player.getUuid());
         this.votes.remove(player.getUuid());
         this.bossBar.removePlayer(player);
@@ -709,6 +770,8 @@ public final class MinecraftPartySession implements PortedGameSession {
             return;
         }
         this.ended = true;
+        if (this.round != null) this.round.close(this.roundContext);
+        for (ServerPlayerEntity player : this.participants()) PartyGameSelector.close(player);
         this.buildQueue = null;
         this.discardArrows();
         this.bossBar.clearPlayers();
@@ -744,7 +807,7 @@ public final class MinecraftPartySession implements PortedGameSession {
     @Override
     public List<String> scoreboardLines() {
         List<String> lines = new ArrayList<>();
-        lines.add("§6Party 2 · 第一阶段");
+        lines.add("§6Party 2 · 分阶段移植");
         lines.add("§fQuick Play 单小游戏");
         if (this.game == null) {
             lines.add("§e右键物品选择小游戏");
@@ -767,6 +830,7 @@ public final class MinecraftPartySession implements PortedGameSession {
     }
 
     private String scoreDescription(UUID uuid) {
+        if (this.round != null) return this.round.scoreDescription(this.roundContext, uuid);
         if (this.game == PartyMinigame.RED_LIGHT_GREEN_LIGHT) {
             return this.completed.contains(uuid) ? "已完赛" : this.maxProgress.getOrDefault(uuid, 0) + " / 145 格";
         }
@@ -814,6 +878,11 @@ public final class MinecraftPartySession implements PortedGameSession {
     }
 
     private void updateProgress() {
+        if (this.round != null && this.round.status(this.roundContext) != null) {
+            this.bossBar.setName(Text.literal(this.round.status(this.roundContext)));
+            this.bossBar.setPercent(this.gameTimeLimit <= 0 ? 1 : Math.max(0, 1 - this.elapsed / (float) this.gameTimeLimit));
+            return;
+        }
         this.bossBar.setName(Text.literal(this.game.title() + (this.gameTimeLimit > 0
                 ? " · " + seconds(this.gameTimeLimit - this.elapsed) + " 秒" : " · 剩余 " + this.playingPlayers().size() + " 人")));
         this.bossBar.setPercent(this.gameTimeLimit <= 0 ? 1 : Math.max(0, 1 - this.elapsed / (float) this.gameTimeLimit));
@@ -908,6 +977,91 @@ public final class MinecraftPartySession implements PortedGameSession {
             player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(subtitle)));
             player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(title)));
         }
+    }
+
+    @Override
+    public void onDeath(ServerPlayerEntity player, DamageSource source) {
+        if (this.phase == Phase.PLAY && this.round != null && this.isParticipant(player.getUuid())
+                && !this.out.contains(player.getUuid()) && !this.ended) {
+            this.round.death(this.roundContext, player, source);
+        } else this.onDeath(player);
+    }
+
+    @Override
+    public void onEntityLoad(Entity entity) {
+        if (this.phase == Phase.PLAY && this.round != null) this.round.entityLoaded(this.roundContext, entity);
+    }
+
+    public boolean allowsNaturalRegeneration() {
+        return this.phase != Phase.PLAY || this.round == null || this.round.allowsNaturalRegeneration();
+    }
+
+    public boolean isChoosing(ServerPlayerEntity player) {
+        return this.phase == Phase.SELECT && !this.ended && this.isParticipant(player.getUuid());
+    }
+
+    public PartyMinigame voteOf(UUID player) { return this.votes.get(player); }
+
+    public void vote(ServerPlayerEntity player, PartyMinigame choice) {
+        if (!this.isChoosing(player)) return;
+        this.votes.put(player.getUuid(), choice);
+        player.sendMessage(Text.literal("§a已选择：" + choice.title()), true);
+    }
+
+    @Override
+    public boolean allowsDamage(LivingEntity victim, DamageSource source) {
+        return this.phase == Phase.PLAY && this.round != null && victim instanceof ServerPlayerEntity player
+                && this.isParticipant(player.getUuid()) && !this.out.contains(player.getUuid())
+                && !this.completed.contains(player.getUuid()) && this.round.allowsDamage(this.roundContext, victim, source);
+    }
+
+    @Override
+    public void onDamage(LivingEntity victim, DamageSource source, float taken) {
+        if (this.phase == Phase.PLAY && this.round != null) this.round.damaged(this.roundContext, victim, source, taken);
+    }
+
+    private final class RoundContext implements PartyRoundContext {
+        public ArenaWorld world() { return arena(); }
+        public BlockPos center() { return center; }
+        public Random random() { return random; }
+        public List<ServerPlayerEntity> players() { return participants(); }
+        public List<ServerPlayerEntity> alive() { return playingPlayers().stream().filter(p -> !completed.contains(p.getUuid())).toList(); }
+        public Set<UUID> playerIds() { return Set.copyOf(slots.keySet()); }
+        public int initialPlayerCount() { return initialGamePlayers; }
+        public int slot(UUID player) { return slots.getOrDefault(player, -1); }
+        public boolean isOut(UUID player) { return out.contains(player) || left.contains(player) || completed.contains(player); }
+        public void sourceAnchor(BlockPos anchor) { sourceOffset = center.subtract(anchor); }
+        public Vec3d source(double x, double y, double z) { return MinecraftPartySession.this.source(x, y, z); }
+        public void geometry(String name, BlockPos translation) throws IOException {
+            PartyMapBlueprint.load(name).forEachTranslated(translation, this::stage);
+        }
+        private void validate(BlockPos pos) {
+            if (Math.abs(pos.getX() - center.getX()) > MAP_RADIUS || Math.abs(pos.getZ() - center.getZ()) > MAP_RADIUS
+                    || pos.getY() < arena().getBottomY() || pos.getY() >= arena().getTopY()) {
+                throw new IllegalArgumentException("Party module wrote outside its region: " + pos);
+            }
+        }
+        public void stage(BlockPos pos, BlockState state) {
+            validate(pos);
+            changedBlocks.add(pos.asLong());
+            buildQueue.stage(pos, state);
+        }
+        public void set(BlockPos pos, BlockState state) {
+            validate(pos);
+            put(pos, state);
+        }
+        public void spawn(UUID player, Vec3d position) { gameSpawns.put(player, position); }
+        public void teleport(ServerPlayerEntity player, Vec3d pos) { MinecraftPartySession.this.teleport(player, pos); }
+        public void timeLimit(int ticks) { gameTimeLimit = ticks; }
+        public int elapsed() { return elapsed; }
+        public int timeLimit() { return gameTimeLimit; }
+        public int score(UUID player) { return scores.getOrDefault(player, 0); }
+        public void score(UUID player, int score) { scores.put(player, score); }
+        public void eliminate(ServerPlayerEntity player, String message) { spectate(player, message); }
+        public void completed(UUID player) { completed.add(player); }
+        public void finish() { finishGame(); }
+        public void announce(String message) { say(message); }
+        public void title(String title, String subtitle) { MinecraftPartySession.this.title(title, subtitle); }
     }
 
     private static ItemStack named(ItemStack stack, String name) {

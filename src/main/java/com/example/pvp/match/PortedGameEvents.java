@@ -3,6 +3,7 @@ package com.example.pvp.match;
 import com.example.pvp.PvPMod;
 import com.example.pvp.arena.ArenaWorldManager;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
@@ -53,13 +54,20 @@ public final class PortedGameEvents {
     public static boolean allowsDamage(LivingEntity victim, DamageSource source) {
         Match victimMatch = matchOf(victim);
         Match attackerMatch = matchOf(source.getAttacker());
+        // 原生风弹/落块可以没有 attacker，但其直接伤害实体仍归属于一个独立会话。
+        if (attackerMatch == null) attackerMatch = matchOf(source.getSource());
         if (!isPorted(victimMatch) && !isPorted(attackerMatch)) return true;
-        if (source.getAttacker() != null && attackerMatch != victimMatch) return false;
+        if ((source.getAttacker() != null || source.getSource() != null) && attackerMatch != victimMatch) return false;
         return isPorted(victimMatch) && victimMatch.getState() == MatchState.ACTIVE
                 && victimMatch.portedSession().allowsDamage(victim, source);
     }
 
     public static void register() {
+        // 原版 OITQ 在箭发出后立即设伤害；不能等 tick 扫描，否则近距离命中会抢先结算。
+        ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            Match match = matchOf(entity);
+            if (isPorted(match)) match.portedSession().onEntityLoad(entity);
+        });
         UseItemCallback.EVENT.register((player, world, hand) -> {
             Match match = matchOf(player);
             var stack = player.getStackInHand(hand);
@@ -78,6 +86,8 @@ public final class PortedGameEvents {
             Match match = matchOf(player);
             if (!isPorted(match) || !(player instanceof ServerPlayerEntity sp)) return ActionResult.PASS;
             if (match.getState() != MatchState.ACTIVE || match.isEliminated(sp.getUuid())) return ActionResult.FAIL;
+            // Party 的按钮/告示牌是独立输入；禁止空中物品使用不能提前吞掉方块点击。
+            if (match.portedSession() instanceof MinecraftPartySession) return match.portedSession().useBlock(sp, hand, hit);
             ActionResult item = match.portedSession().useItem(sp, hand);
             return item != ActionResult.PASS ? item : match.portedSession().useBlock(sp, hand, hit);
         });
@@ -121,6 +131,12 @@ public final class PortedGameEvents {
                     && match.portedSession().canBreak(sp, pos);
         });
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> allowsDamage(entity, source));
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) -> {
+            Match match = matchOf(entity);
+            if (isPorted(match) && match.getState() == MatchState.ACTIVE) {
+                match.portedSession().onDamage(entity, source, taken);
+            }
+        });
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
             Match match = matchOf(entity);
             if (isPorted(match) && !(entity instanceof ServerPlayerEntity)) {

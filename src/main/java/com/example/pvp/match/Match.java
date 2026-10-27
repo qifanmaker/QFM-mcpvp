@@ -5479,6 +5479,12 @@ public final class Match {
         }
     }
 
+    /** 保留致死伤害来源，让击杀赛在首发致死时也能正确归属人头。 */
+    public void onPortedDeath(ServerPlayerEntity player, net.minecraft.entity.damage.DamageSource source) {
+        if (this.portedSession != null && this.state == MatchState.ACTIVE) this.portedSession.onDeath(player, source);
+        else this.onPortedDeath(player);
+    }
+
     public void onPortedDisconnect(ServerPlayerEntity player) {
         // 停服恢复中的传送可能触发断线；已结束的会话不能再清空刚归还的背包。
         if (this.portedSession == null || this.state == MatchState.ENDED) return;

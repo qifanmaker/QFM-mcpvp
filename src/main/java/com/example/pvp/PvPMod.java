@@ -657,7 +657,7 @@ public final class PvPMod implements ModInitializer {
                         match.recordSkywarsCombat(attacker, sp);
                     }
                     if (match.portedSession() != null) {
-                        match.onPortedDeath(sp);
+                        match.onPortedDeath(sp, source);
                     } else if (match.getType().isBridge()) {
                         match.onBridgeDeath(sp);
                     } else if (match.getType().isBedWars()) {

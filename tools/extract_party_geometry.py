@@ -199,6 +199,85 @@ def specifications():
     return specs
 
 
+def next_stage_specifications():
+    # Preserve the original clone sources and the complete playable footprint.
+    # These crops deliberately contain no executable NBT: Java rounds reproduce
+    # the separately audited random generators, interaction and scoring rules.
+    return {
+        "dropper_start_platform": {
+            "min": (-144, 8, -48), "max": (-128, 9, -32),
+            "functions": ["dropper", "dropper_generate", "dropper_generate2", "dropper_generate3"],
+            "notes": ["Immutable 17x2x17 launch platform; dropper_generate clones it to (-192,318,-49)."],
+        },
+        "dropper_rings": {
+            "min": (-144, 11, -48), "max": (-120, 26, -24),
+            "functions": ["dropper_generate2", "dropper_generate3"],
+            "notes": ["Sixteen 25x1x25 ring slices; color_cycle 0..15 selects source Y=26-color_cycle.",
+                      "The Java round must reproduce source ring offsets and clear each destination slice before pasting."],
+        },
+        "dropper_pool": {
+            "min": (-192, -64, -49), "max": (-176, -60, -33),
+            "functions": ["dropper", "dropper_tick", "cleanup_dropper"],
+            "notes": ["Original live tower base: Y=-64 is 289 smooth_quartz; Y=-63 is 225 water plus 64 rim blocks.",
+                      "Source completion requires Y<=-61 and water at the player's feet; tower walls are generated separately."],
+        },
+        "rainbow_run": {
+            "min": (-136, -64, -340), "max": (-44, -17, -245),
+            "functions": ["rainbow_run", "rainbow_run_start", "rainbow_run_tick", "rainbow_run_end"],
+            "notes": ["Exact immutable clone box in rainbow_run; runtime destination (-21,-64,501), translation (115,0,841).",
+                      "Source wind-charge shooters are entities and are supplied separately by the Java round."],
+        },
+        "runner_small": {
+            "min": (173, -57, -35), "max": (194, -50, -14),
+            "functions": ["runner", "runner_start", "runner_tick2"],
+            "notes": ["Exact runner clone source for <=4 players; destination (173,4,-3).",
+                      "Oak planks occur only at source Y=-57 and -50, 256 blocks on each layer.",
+                      "Clear the entire destination box before overlaying this template on runner_shell."],
+        },
+        "runner_large": {
+            "min": (173, -57, -5), "max": (194, -50, 16),
+            "functions": ["runner", "runner_start", "runner_tick2"],
+            "notes": ["Exact runner clone source for >=5 players; destination (173,4,-3).",
+                      "Oak planks occur only at source Y=-57 and -50, 484 blocks on each layer.",
+                      "Clear the entire destination box before overlaying this template on runner_shell."],
+        },
+        "runner_shell": {
+            "min": (168, -40, -8), "max": (199, 40, 23),
+            "functions": ["runner", "runner_tick2", "runnerstillcheck"],
+            "notes": ["Live shaft surrounds the function's floor area x173..194,z-3..18 and lower cleanup area x170..197,z-6..21.",
+                      "Includes original walls, bedrock/nether decoration and bottom support; source shaft top ends at Y=40.",
+                      "Live floor must be replaced by the immutable small/large template; distant spectator scenery outside this crop is omitted."],
+        },
+        "memory_lane_first": {
+            "min": (-89, 35, -317), "max": (-7, 50, -303),
+            "functions": ["memory", "memory_start", "memory_generate", "memory_wrong_choice", "memory_tick"],
+            "notes": ["First original reference chamber and five player chambers, centered at Z=-311; includes penalty position (-83,40,-304).",
+                      "Bounds include original chamber floors, roof overhangs, lapis reference-zone marker and button walls.",
+                      "Canvas contents and stone/button reset are supplied by Java; source sign text NBT and exterior scenery are omitted."],
+        },
+        "memory_lane_second": {
+            "min": (-89, 32, -557), "max": (-7, 52, -543),
+            "functions": ["memory", "memory_start", "memory_generate", "memory_wrong_choice", "memory_tick"],
+            "notes": ["Second original reference chamber and five player chambers, centered at Z=-551; includes penalty position (-79,38,-544).",
+                      "Preserves source group's distinct geometry rather than copying the first group; source reference canvas is cloned down 3 and Z-240.",
+                      "Canvas contents and stone/button reset are supplied by Java; source sign text NBT and exterior scenery are omitted."],
+        },
+        "meat_slap": {
+            "min": (-139, 25, -316), "max": (-90, 56, -241),
+            "functions": ["meat_slap", "meat_slap_start", "meat_slap_tag", "meat_slap_tick", "end_meat_slap"],
+            "notes": ["Horizontal bounds are the forceload rectangle in meat_slap; live orange canyon includes lower walkways around Y=29.",
+                      "Vertical bounds include original support at Y=25 and terrain through the highest non-air layer Y=56.",
+                      "Marker entities, source day-cycle lamp changes, signs and decorative NBT are not copied."],
+        },
+        "one_shot_wonder": {
+            "min": (108, 17, -57), "max": (142, 43, -25),
+            "functions": ["oitq", "oitq_rules", "oitq_start", "oitq_tick", "oitq_end"],
+            "notes": ["Horizontal bounds match oitq_tick player containment x108..142,z-57..-25; includes floor support and roof at Y=43.",
+                      "All original initial spawn and random respawn marker positions lie inside this crop; entities and exterior scenery are omitted."],
+        },
+    }
+
+
 def supported_block_names(source_jar: Path) -> set[str]:
     with zipfile.ZipFile(source_jar) as archive:
         source = archive.read("net/minecraft/block/Blocks.java").decode("utf-8")
@@ -262,6 +341,7 @@ def main():
     parser.add_argument("--output", type=Path, default=Path("src/main/resources/pvp/party/geometry"))
     parser.add_argument("--minecraft-sources", type=Path,
                         help="1.21.1 mapped Minecraft sources jar; defaults to the local Loom cache")
+    parser.add_argument("--only", nargs="+", help="Extract only these resource names, leaving other files byte-for-byte unchanged")
     args = parser.parse_args()
     source_jar = args.minecraft_sources
     if source_jar is None:
@@ -271,11 +351,17 @@ def main():
         source_jar = candidates[0]
     supported = supported_block_names(source_jar)
     world = AnvilWorld(args.world)
-    # Prepare all seven results before writing, so unsupported blocks cannot leave
-    # a partially updated set of resources.
+    specs = specifications() | next_stage_specifications()
+    if args.only:
+        unknown = sorted(set(args.only) - specs.keys())
+        if unknown:
+            parser.error("Unknown resource names: " + ", ".join(unknown))
+        specs = {name: specs[name] for name in args.only}
+    # Prepare every selected result before writing, so unsupported blocks cannot
+    # leave a partially updated set of resources.
     with zipfile.ZipFile(args.world / "datapacks/data.zip") as data_pack:
         results = {name: extract(world, name, spec, data_pack, supported)
-                   for name, spec in specifications().items()}
+                   for name, spec in specs.items()}
     args.output.mkdir(parents=True, exist_ok=True)
     for name, result in results.items():
         data = json.dumps(result, ensure_ascii=False, separators=(",", ":")).encode("utf-8")

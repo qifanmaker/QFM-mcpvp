@@ -26,6 +26,26 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
  */
 @Mixin(PlayerEntity.class)
 public abstract class PlayerEntityMixin {
+    /** 局部复现小游戏的自然回血规则，避免改共享世界 gamerule 或先回血再回扣。 */
+    @Inject(method = "canFoodHeal", at = @At("HEAD"), cancellable = true)
+    private void pvp$partyRegeneration(CallbackInfoReturnable<Boolean> cir) {
+        if ((Object) this instanceof ServerPlayerEntity player && MatchManager.get() != null) {
+            Match match = MatchManager.get().getMatchFor(player);
+            if (match != null && match.portedSession() instanceof com.example.pvp.match.MinecraftPartySession session
+                    && !session.allowsNaturalRegeneration()) cir.setReturnValue(false);
+        }
+    }
+
+    /** 和平难度还有独立于 FoodManager 的回血分支，也要遵循本场自然回血设置。 */
+    @ModifyExpressionValue(method = "tickMovement", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/GameRules;getBoolean(Lnet/minecraft/world/GameRules$Key;)Z", ordinal = 0))
+    private boolean pvp$partyPeacefulRegeneration(boolean original) {
+        if (!original || !((Object) this instanceof ServerPlayerEntity player) || MatchManager.get() == null) return original;
+        Match match = MatchManager.get().getMatchFor(player);
+        return !(match != null && match.portedSession() instanceof com.example.pvp.match.MinecraftPartySession session)
+                || session.allowsNaturalRegeneration();
+    }
+
     @Inject(method = "canPlaceOn(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/util/math/Direction;Lnet/minecraft/item/ItemStack;)Z", at = @At("HEAD"), cancellable = true)
     private void pvp$allowBucketsInArena(BlockPos pos, Direction side, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         PlayerEntity self = (PlayerEntity) (Object) this;

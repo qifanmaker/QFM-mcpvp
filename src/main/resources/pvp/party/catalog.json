@@ -11,14 +11,20 @@
       "assets/minecraft/lang/zh_cn.json"
     ]
   },
-  "scope": "First-stage native port of three Quick Play games. Remaining entries are planned, not playable placeholders.",
+  "scope": "Native Quick Play port with 9 of 102 catalogued games implemented. Phase 2 is in progress; the remaining 93 games, boards and other Party 2 modes are still planned.",
   "entryCount": 102,
   "implementedGameIds": [
+    401,
     408,
+    409,
     412,
-    424
+    413,
+    415,
+    424,
+    425,
+    428
   ],
-  "sessionBehavior": "One selected minigame, ranking, then return to the PvP lobby. Ten-second item voting is this server's matchmaking wrapper, not an original Party 2 rule.",
+  "sessionBehavior": "One selected minigame, ranking, then return to the PvP lobby. Ten-second voting through a paginated menu or hotbar shortcuts is this server's matchmaking wrapper, not an original Party 2 rule. The ninth-slot compass opens all implemented choices.",
   "modules": [
     {
       "name": "Boards and paths",
@@ -62,7 +68,8 @@
     },
     {
       "name": "Remaining minigames",
-      "status": "planned"
+      "status": "in_progress",
+      "remainingCount": 93
     },
     {
       "name": "Custom resource-pack audiovisuals",
@@ -74,11 +81,14 @@
     }
   ],
   "knownDifferences": [
-    "Normal-difficulty 19-tick red-light reaction window is fixed in this stage.",
+    "Difficulty selection is not exposed. Normal difficulty is used where source difficulty branches apply: Dropper ring spacing 10+2*min(level,5), red-light reaction window 19 ticks; multiplayer time limits are used.",
     "Same-tick finishes or falls are tied rather than resolved by selector order.",
-    "Scene extraction excludes entities and block-entity inventories; decorative barrels and custom skull textures are not reproduced.",
-    "Nine newer decorative plants in Tile Capture medium are replaced by 1.21.1 counterparts; resource metadata records exact replacements.",
-    "Decorative water and lava remain static inside Party scenes to prevent cropped channels from flowing into other arenas."
+    "Scene extraction excludes entities and block-entity NBT; original decorative barrel inventories, custom skull textures, banner patterns, sign text and campfire contents are not reproduced.",
+    "Nine newer decorative plants in Tile Capture medium are replaced by 1.21.1 counterparts; resource metadata records exact replacements. The 11 phase-2 crops require no additional block substitutions.",
+    "Decorative water and lava remain static inside Party scenes to prevent cropped channels from flowing into other arenas.",
+    "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
+    "Runner follows the active source functions: falling colored blocks can damage lower-floor players and are removed after landing; lower oak-plank floors are not destroyed by the falling blocks. The normal 10-tick stillness check is used; the source high-ping 20-tick setting is not exposed.",
+    "The new crops omit original NBT for 10 banners in Memory Lane first, 20 signs in Memory Lane second, and 8 banners, 12 signs and 4 campfires in Meat Slap. Generated gameplay labels do not restore these original decorative contents."
   ],
   "games": [
     {
@@ -416,8 +426,31 @@
       "name": "Dropper (Dr)",
       "category": "free_for_all",
       "sourceFunction": "dropper",
-      "status": "planned",
-      "nameZhSource": "星跳水立方"
+      "status": "implemented_phase_2",
+      "nameZhSource": "星跳水立方",
+      "defaultDifficulty": "normal",
+      "difficultyPolicy": "Normal where the source has difficulty branches; fixed source rules otherwise. No difficulty selector or single-player variant is exposed.",
+      "geometryResources": [
+        "dropper_start_platform",
+        "dropper_rings",
+        "dropper_pool"
+      ],
+      "implementationNotes": [
+        "Source Dropper 90-second multiplayer race with retries, deepest-progress scoring and a shared first-attempt finish group during the first nine seconds.",
+        "Original start platform, sixteen ring slices and bottom pool are extracted; ring offsets are generated with normal-difficulty spacing. Solo easy/hard timer variants are not selectable."
+      ],
+      "disconnectBehavior": "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
+      "sourceFunctionSha256": {
+        "dropper": "b7d4b9c53c4f21b055c3acb8b50ea78166414f80429c82dc1ad1b3a1a24b637d",
+        "dropper_generate": "e5eaa77407d52fe319a3fb848f0439e3c268c6092fdf18f3c705042437ff69ee",
+        "dropper_generate2": "afceb82d955c6fb23e5c47b8e596f86beccd7b1c84253dd3521702bb0cd2e925",
+        "dropper_generate3": "77fb321e8c5318572faa5ef63f06f1ba879355f5e69250d2392048c37539c985",
+        "dropper_rules": "3e08edc73a25d7b82bc21c44986adee6e9e02b29b92b92ec84bac7bb3b9a1f28",
+        "dropper_start": "40f8414b38e6a748a9bab27d8ef4935d966c3dd9227ae08067a1a15fecf4a218",
+        "dropper_tick": "c68ad276138f16f621346983f14576513b466f037808fd598e1bc73682b13b2d",
+        "end_dropper": "8cef0fdffe4b7298d493cfacfb29e0296d530fc99297a1f076baec024d7562a3",
+        "cleanup_dropper": "b27493447e7957ded485696d696887c2379e490595233c1ab321ad78e81f39a8"
+      }
     },
     {
       "id": 402,
@@ -477,8 +510,28 @@
       "name": "Meat Slap (MSl)",
       "category": "free_for_all",
       "sourceFunction": "meat_slap",
-      "status": "planned",
-      "nameZhSource": "烫手的生肉"
+      "status": "implemented_phase_2",
+      "nameZhSource": "烫手的生肉",
+      "defaultDifficulty": "normal",
+      "difficultyPolicy": "Normal where the source has difficulty branches; fixed source rules otherwise. No difficulty selector or single-player variant is exposed.",
+      "geometryResources": [
+        "meat_slap"
+      ],
+      "implementationNotes": [
+        "Source Meat Slap is a 120-second tag timer: least time holding the meat wins; holder has Speed IV and Sharpness X porkchop; transfer requires the source 6.5-damage threshold.",
+        "The previous holder relocates to an original marker at least 24 blocks from the tagged player. The port pairs attacker and victim within this session instead of using global damage-stat selectors.",
+        "If the holder leaves, a remaining player becomes the holder. Out-of-bounds or unexpected death returns to the starting position instead of eliminating the player; this is a same-server recovery adaptation."
+      ],
+      "disconnectBehavior": "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
+      "sourceFunctionSha256": {
+        "meat_slap": "7c400825663dd4ff79a5ae535f65e684370df73fc385dbf8628618379fbe4b3d",
+        "meat_slap_rules": "12dcb5f2c33c8815354c36a250a5db80bbd3d73145e2bbd3b1384ec7f5c96287",
+        "meat_slap_start": "2928d6e7d472389ebab5d0440d0607894b9990aaf117ed732ea03c30fff3596c",
+        "meat_slap_tick": "4619be6f8a975f30a3c683c8162bb734f72a0392f027f5c9bfde33e1765ffd89",
+        "meat_slap_tag": "3f779540f31714cc9676ccddee621effd33c878454b11c97510af460a2eaae16",
+        "regive_meat": "d450ea97b2adfb23e1bcc6df14ef28b4a2a4ed01e3c1dd7b6fcf723791c0f91b",
+        "end_meat_slap": "eb360eb111aae425df03cf656b8b1279b3ebaf89f6374caebc9b8bc184855abb"
+      }
     },
     {
       "id": 410,
@@ -509,8 +562,31 @@
       "name": "Rainbow Run (RRn)",
       "category": "free_for_all",
       "sourceFunction": "rainbow_run",
-      "status": "planned",
-      "nameZhSource": "彩虹之路"
+      "status": "implemented_phase_2",
+      "nameZhSource": "彩虹之路",
+      "defaultDifficulty": "normal",
+      "difficultyPolicy": "Normal where the source has difficulty branches; fixed source rules otherwise. No difficulty selector or single-player variant is exposed.",
+      "geometryResources": [
+        "rainbow_run"
+      ],
+      "implementationNotes": [
+        "Uses the current active wind-charge survival rules, original 112 shooter positions and increasing spawn rate. The commented-out colored-floor collision scoring is not enabled.",
+        "Players cannot jump, have step height 4, and are eliminated by falling; last survivor wins. The source has no fixed time limit or selectable difficulty branch for these rules."
+      ],
+      "disconnectBehavior": "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
+      "sourceFunctionSha256": {
+        "rainbow_run": "ad95250da770cfac8a9bc4f3834a087b07ae74e8f34410ce7c657c51091ede0b",
+        "rainbow_run_start": "ddc9b4e05e3575b7a821a5933dae6e50f1b1d259d1b7c7d655b58ee13630f59e",
+        "rainbow_run_tick": "d7735b18e7b29338bf9244fcedb25091fb01f81073d842ed00a30dae5b6307ae",
+        "rainbow_run_check_collision": "8dcba1cac6a861c9b6f74afdb2703c3c372ec3b0b895b3309beba061d498ab3a",
+        "rainbow_run_end": "03d1d221f0e3e32eaa7070e3e6228971f9832c2a4829e92b6f3ce61de0536279",
+        "sentry:shoot_breeze_wind_charge": "7fdd99f337fc4d5df606da8ae18321d5a94857091a569378dd62e9be30a2ec60",
+        "sentry:add_proj_motion": "3d31ae28b07a2d6e5f2a364699bf414a668440e2560c26b4bf70909c7478481b",
+        "sentry:trig/cos_rx": "568d591b36d0e9155c6ca7777357b3b7902fc1cb4b36dc725b0616e8e07f3035",
+        "sentry:trig/sin_rx": "1d9ef25c9c7a2648e58a743a26caa35767913ce89f5ed84c0aa8a7ad37717ba7",
+        "sentry:trig/cos_ry": "dd24ca17a48e64b5f743ab4b67548dba39db9c8dce3a883d0c6ba80c527190fa",
+        "sentry:trig/sin_ry": "b2373019d64c815546716c5a24e5d061ffe1d8053e7f239e17fd6f26ae926b57"
+      }
     },
     {
       "id": 414,
@@ -525,8 +601,29 @@
       "name": "Runner (Rn)",
       "category": "free_for_all",
       "sourceFunction": "runner",
-      "status": "planned",
-      "nameZhSource": "踏碎狂奔"
+      "status": "implemented_phase_2",
+      "nameZhSource": "踏碎狂奔",
+      "defaultDifficulty": "normal",
+      "difficultyPolicy": "Normal where the source has difficulty branches; fixed source rules otherwise. No difficulty selector or single-player variant is exposed.",
+      "geometryResources": [
+        "runner_small",
+        "runner_large",
+        "runner_shell"
+      ],
+      "implementationNotes": [
+        "Original 16x16 or 22x22 two-floor layout is selected by player count; stepped planks change color and fall after 40 ticks.",
+        "Falling blocks damage players but do not destroy lower oak planks; active source cleanup only removes landed colored blocks. No extra floor-destruction mechanic is invented.",
+        "The normal 10-tick stillness check is used after a 40-tick grace period; the source high-ping 20-tick check is not exposed. Source crouch and walking counters are retained."
+      ],
+      "disconnectBehavior": "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
+      "sourceFunctionSha256": {
+        "runner": "e1a28c980afbd43329f87b67c9827cad390287da3bcdd772aea57fd2e8e9cd9c",
+        "runner_start": "8a6e30b26a6545ce36bc3bafb47cf071e817c21356efbaae08ce350600d1bfa3",
+        "runner_tick": "33627829a4242aa22e3c96dd8ac40feaf005ef19356d61afc22c2a849721b4b4",
+        "runner_tick2": "48c741db876a00a28db244ec5e1679232f196142c49826e0abf29b2aeef66032",
+        "runnerstillcheck": "44a30f15bad8944dc696e594fa0ec8f6f9fcc3fe1f3ed821c5fb05892b02f9af",
+        "end_runner": "1be246d6fb26a3710f7615f549d522a34b2dcb7b36412683da8ea7bbed295717"
+      }
     },
     {
       "id": 416,
@@ -604,7 +701,30 @@
       "name": "Memory Lane (ML)",
       "category": "free_for_all",
       "sourceFunction": "memory",
-      "status": "planned"
+      "status": "implemented_phase_2",
+      "defaultDifficulty": "normal",
+      "difficultyPolicy": "Normal where the source has difficulty branches; fixed source rules otherwise. No difficulty selector or single-player variant is exposed.",
+      "geometryResources": [
+        "memory_lane_first",
+        "memory_lane_second"
+      ],
+      "implementationNotes": [
+        "Original shared 3x5 canvas contains exactly three each of five ore types. Initial viewing is 200 ticks; mistakes cause 80 penalty ticks then 60 viewing ticks. Jumping can end viewing early.",
+        "Uses the 2000-tick multiplayer limit and progress/attainment-order ranking. Source single-player difficulty time limits are not selectable. The two original chamber groups are retained separately."
+      ],
+      "disconnectBehavior": "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
+      "sourceFunctionSha256": {
+        "memory": "ad364809397b0977b71984098a3b6c993c670ae5f2f809db4a0fca169d8dd533",
+        "memory_start": "e829b94101b31a2285c082880ace429e9b9afcef013973bfd7c083939c374c29",
+        "memory_generate": "0bebb42920cb83f78bbfd262ab922d2dbf269fa260b8d0b0b018448328b58aff",
+        "memory_new_ore": "3345f7e4120a9aac18b29d122ec09b41bc88008337247af37939795a95ef0046",
+        "memory_sign_setup": "656cd09d9e5e46f60d7f40f20f6942500eedf3404536cca8fd74baa57f79ba85",
+        "memory_tick": "81456a3b26354e87ceaa029210803f64cfbe4372a6f405aba26f2b9a7d2b74ac",
+        "memory_wrong_choice": "ff268b73ce86c244226f911285c80ac583abe0bf0365c33e1eb6194c7c31d239",
+        "memory_rules": "5a09022eab008192802742c96be47b4290834f5f35e1996a8f50db0e7a481cdc",
+        "memory_spectate": "9af7f96997451ad66f51e74e31b07165d6f2dfac24bf0d60d77d94363827643e",
+        "memory_end": "7292d0c0121d476f34ebdd0468785bb1e829e93e1c4fcfaeb6dbb5891e285f54"
+      }
     },
     {
       "id": 426,
@@ -627,7 +747,25 @@
       "name": "One Shot Wonder (OITQ)",
       "category": "free_for_all",
       "sourceFunction": "oitq",
-      "status": "planned"
+      "status": "implemented_phase_2",
+      "defaultDifficulty": "normal",
+      "difficultyPolicy": "Normal where the source has difficulty branches; fixed source rules otherwise. No difficulty selector or single-player variant is exposed.",
+      "geometryResources": [
+        "one_shot_wonder"
+      ],
+      "implementationNotes": [
+        "Source 90-second FFA kill contest uses modern sword/bow combat, arrow damage 99, one arrow on spawn and an additional arrow per credited kill. Arrows can accumulate.",
+        "Random respawns use the original 24 marker entries, including the repeated marker. Players return on the following tick with a fresh life and the native new-player 60-tick non-fall damage protection; fall and invulnerability-bypassing damage follow the vanilla exception.",
+        "The port credits each kill directly; it does not reproduce the source kills2==1 selector edge case that can lose arrow awards for multiple kills in one tick. Dropped/grounded projectiles are removed within the session."
+      ],
+      "disconnectBehavior": "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
+      "sourceFunctionSha256": {
+        "oitq": "4973b70857ac8deca0288f029960530ad721402cc150402c4e9f9caf44c6b54e",
+        "oitq_rules": "421f08d4d7135749817a6f64490ba6eb9803123cf3436fda49bdafe2820946e9",
+        "oitq_start": "993f2799b2d910531fdcb8463701aee5c58a250cd7808466e4657e614d9bf496",
+        "oitq_tick": "77e64c6f350528561c0b9f81406f449c5681bbd3814fe57bed660a10c5144ea7",
+        "oitq_end": "dee9f522a1c7f5cf83c631ec091e03810bff776c3cb6076964c7ed5e347df7ae"
+      }
     },
     {
       "id": 429,
@@ -883,5 +1021,11 @@
       "status": "planned",
       "nameZhSource": "死亡倒计时"
     }
-  ]
+  ],
+  "progress": {
+    "implementedGames": 9,
+    "remainingGames": 93,
+    "geometryResources": 18,
+    "phase2": "in_progress"
+  }
 }

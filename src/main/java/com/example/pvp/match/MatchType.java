@@ -137,7 +137,8 @@ public enum MatchType {
      */
     public boolean allowsPlayerDamage() {
         return (isLastManStanding() && this != COLORBLIND_PARTY) || this == DEATHMATCH
-                || this == ISLAND_SIEGE;
+                // Party 内含战斗子游戏；具体伤害许可仍由当前独立会话逐次校验。
+                || this == ISLAND_SIEGE || this == MINECRAFT_PARTY;
     }
 
     /**
