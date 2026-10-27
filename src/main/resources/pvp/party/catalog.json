@@ -11,7 +11,7 @@
       "assets/minecraft/lang/zh_cn.json"
     ]
   },
-  "scope": "Native Quick Play port with 9 of 102 catalogued games implemented. Phase 2 is in progress; the remaining 93 games, boards and other Party 2 modes are still planned.",
+  "scope": "Native port with 9 of 102 catalogued games implemented. Further minigame migration is paused by request; the server runs a five-minigame ranked series. Remaining games, boards and original Party modes are not implemented.",
   "entryCount": 102,
   "implementedGameIds": [
     401,
@@ -24,7 +24,7 @@
     425,
     428
   ],
-  "sessionBehavior": "One selected minigame, ranking, then return to the PvP lobby. Ten-second voting through a paginated menu or hotbar shortcuts is this server's matchmaking wrapper, not an original Party 2 rule. The ninth-slot compass opens all implemented choices.",
+  "sessionBehavior": "Server-adapted series of five distinct implemented minigames. Each round votes among unplayed games. Rank points are original player count minus competition rank plus one; equal raw scores get equal rank/points. The final ranking uses the five-round sum, with one match result recorded. Original Quick Play is a single minigame.",
   "modules": [
     {
       "name": "Boards and paths",
@@ -68,7 +68,7 @@
     },
     {
       "name": "Remaining minigames",
-      "status": "in_progress",
+      "status": "paused",
       "remainingCount": 93
     },
     {
@@ -1027,5 +1027,14 @@
     "remainingGames": 93,
     "geometryResources": 18,
     "phase2": "in_progress"
+  },
+  "tournamentRules": {
+    "roundCount": 5,
+    "repeatGames": false,
+    "pointFormula": "originalPlayerCount - roundRank + 1",
+    "tieRanks": "competition (1,1,3,4)",
+    "overallTieBreak": "shared final rank",
+    "statistics": "one result per full series, not one per minigame",
+    "departure": "permanent forfeit; no further points or final win eligibility; one remaining player ends early; zero remaining cancels unless final standings were already published"
   }
 }

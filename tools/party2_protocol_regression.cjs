@@ -15,6 +15,7 @@ const mineflayer = require('mineflayer'); // Resolve through NODE_PATH; no repo 
 const { Vec3 } = require('vec3');
 
 const GAMES = {
+  spleef: { slot: 0, source: 408 }, tile: { slot: 1, source: 412 }, rlgl: { slot: 2, source: 424 },
   dropper: { slot: 3, source: 401 }, rainbow: { slot: 4, source: 413 },
   runner: { slot: 5, source: 415 }, memory: { slot: 6, source: 425 },
   meat: { slot: 7, source: 409 }, oitq: { slot: 8, source: 428 }
@@ -196,8 +197,22 @@ class PartyProbe extends EventEmitter {
     if (!GAMES[game]) throw new Error(`Unknown game ${game}`);
     const bot = this.bots[id];
     await this.wait(() => !!bot.currentWindow, `${id} voting menu`);
-    this.log('vote', { id, game, slot: GAMES[game].slot });
-    await bot.clickWindow(GAMES[game].slot, 0, 0);
+    // Five-round menus omit played entries, so enum ordinals stop matching
+    // their slots. Read the actual server item lore before every vote.
+    await this.wait(() => this.menuChoices(bot.currentWindow).length > 0, `${id} voting lore received`, 2500);
+    const choice = this.menuChoices(bot.currentWindow).find(item => item.source === GAMES[game].source);
+    if (!choice) throw new Error(`${game} is absent from the current unplayed-game menu`);
+    this.log('vote', { id, game, slot: choice.slot, source: choice.source });
+    await bot.clickWindow(choice.slot, 0, 0);
+  }
+
+  menuChoices(window) {
+    return (window?.slots || []).slice(0, 45).flatMap((item, slot) => {
+      if (!item) return [];
+      const lore = clean(json(item.customLore ?? item.components ?? item.nbt));
+      const source = lore.match(/原版编号\s+(\d+)/);
+      return source ? [{ slot, source: Number(source[1]), item: item.name, lore }] : [];
+    });
   }
 
   async start(game) {
@@ -210,7 +225,7 @@ class PartyProbe extends EventEmitter {
     }
     await this.wait(() => {
       if (this.voteError) throw this.voteError;
-      return this.chats.some(row => row.at >= since && row.text.includes('本场选择：')
+      return this.chats.some(row => row.at >= since && /第\s+\d+\/5\s+轮选择：/.test(row.text)
         && row.text.includes(`编号 ${GAMES[game].source}`));
     }, `${game} selected via real menu votes`, 90000);
     // Match may also send a generic start title before the voting phase. Only
@@ -302,8 +317,8 @@ class PartyProbe extends EventEmitter {
   }
 
   async waitServerBlock(position, block, timeout = 25000) {
-    // The session shows rankings for 120 ticks; Match then celebrates for
-    // 100 ticks and defers cleanup another 100. /hub does not skip these phases.
+    // Normal round cleanup follows its results page. Test cases that leave
+    // together cancel the whole tournament and use Match's deferred cleanup.
     const deadline = Date.now() + timeout;
     do {
       if (await this.serverBlockIs(position, block)) return true;
@@ -320,8 +335,17 @@ class PartyProbe extends EventEmitter {
 
   async leaveAll() {
     this.stopOrbits(); this.game = null;
-    for (const id of Object.keys(this.bots)) await this.chat(id, '/hub', 100);
-    await this.wait(() => Object.values(this.bots).every(bot => bot.probeWorld !== 'pvp:arena'), 'players returned from arena', 25000);
+    // Vanilla tick freeze does not stop the mod's end-server-tick callback.
+    // Run every bot's real /hub handler in one command execution instead, so
+    // there is no intermediate one-player tournament tick. Tag only our bots.
+    const tag = `p2_probe_leave_${++this.sequence}`;
+    for (const id of Object.keys(this.bots)) await this.console(`tag MyGoCheck${id} add ${tag}`);
+    try {
+      await this.console(`execute as @a[tag=${tag}] run hub`);
+      await this.wait(() => Object.values(this.bots).every(bot => bot.probeWorld !== 'pvp:arena'), 'players returned from arena', 25000);
+    } finally {
+      await this.console(`tag @a[tag=${tag}] remove ${tag}`);
+    }
     await sleep(1500);
   }
 
@@ -419,7 +443,7 @@ class PartyProbe extends EventEmitter {
     this.check('Memory completed player death restores observation without elimination', this.bots.A.game.gameMode === 'adventure'
       && this.bots.A.health > 0 && vec(this.bots.A.probePosition).distanceTo(afterSwitch) < 0.2, this.snapshot('A'));
     await complete('B'); await complete('C');
-    await this.wait(() => this.chats.some(row => row.at >= since && row.text.includes('Quick Play 排名')), 'N-1 completed ends Memory');
+    await this.wait(() => this.chats.some(row => row.at >= since && /第\s+\d+\/5\s+轮排名/.test(row.text)), 'N-1 completed ends Memory round');
     this.check('Memory first finisher ranks first', this.chats.some(row => row.at >= since && /第 1 名.*MyGoCheckA/.test(row.text)),
       this.chats.filter(row => row.at >= since && row.id === 'A' && /第 \d+ 名/.test(row.text)));
     await this.leaveAll(); await sleep(6000);
@@ -467,7 +491,7 @@ class PartyProbe extends EventEmitter {
     await this.wait(() => this.chats.some(row => row.at >= since && row.text.includes('MyGoCheckD 因落块或摔落伤害出局')),
       'original falling block lethally hits lower-floor player', 3500);
     this.stopOrbits();
-    await this.wait(() => this.chats.some(row => row.at >= since && row.text.includes('Quick Play 排名')), 'Runner last survivor ends round');
+    await this.wait(() => this.chats.some(row => row.at >= since && /第\s+\d+\/5\s+轮排名/.test(row.text)), 'Runner last survivor ends round');
     this.check('Runner surviving player ranks first', this.chats.some(row => row.at >= since && /第 1 名.*MyGoCheckC/.test(row.text)),
       this.chats.filter(row => row.at >= since && row.id === 'C' && /第 \d+ 名/.test(row.text)));
     this.check('Runner owned falling entities are gone after finish', await this.noFallingBlocks());
@@ -480,7 +504,7 @@ class PartyProbe extends EventEmitter {
   async smoke(game) {
     await this.start(game);
     this.check(`${game} menu starts real playable scene`, Object.values(this.bots).every(bot => bot.probeWorld === 'pvp:arena'
-      && bot.game?.gameMode === 'adventure'), Object.keys(this.bots).map(id => this.snapshot(id)));
+      && bot.game?.gameMode === (game === 'spleef' ? 'survival' : 'adventure')), Object.keys(this.bots).map(id => this.snapshot(id)));
     this.log('coverageLimit', { game, note: 'Lifecycle smoke only; detailed gameplay is not asserted by this case.' });
     await this.leaveAll();
   }
@@ -516,9 +540,9 @@ async function main() {
     'run-dir': { type: 'string' }, attach: { type: 'boolean' }, interactive: { type: 'boolean' }, help: { type: 'boolean' }
   } });
   if (values.help) {
-    process.stdout.write('NODE_PATH=/private/tmp/pvp-protocol-check/node_modules node tools/party2_protocol_regression.cjs [--game memory,runner|all|dropper|rainbow|meat|oitq] [--port 25586] [--attach] [--interactive]\n'
+    process.stdout.write('NODE_PATH=/private/tmp/pvp-protocol-check/node_modules node tools/party2_protocol_regression.cjs [--game memory,runner|all|spleef|tile|rlgl|dropper|rainbow|meat|oitq] [--port 25586] [--attach] [--interactive]\n'
       + 'Prepare first: ./gradlew -I tools/mygo_prepare_test.gradle mygoPrepareTestRuntime; existing run/eula.txt must record acceptance.\n'
-      + 'Default runs Memory and Runner deep cases. Other four are lifecycle smoke cases. --only aliases --game.\n'
+      + 'Default runs Memory and Runner deep cases. Other games are lifecycle smoke cases. Each case cancels the remaining tournament after its checks. --only aliases --game.\n'
       + 'Interactive stdin JSON ops: console {command}, chat {id,command}, start {game}, vote {id,game}, snapshot, block {id,position}, click {id,position}, jump {id}, attack {id,target}, test {game}, quit.\n');
     return;
   }

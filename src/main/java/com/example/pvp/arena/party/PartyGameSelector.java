@@ -27,7 +27,7 @@ public final class PartyGameSelector {
     public static void open(ServerPlayerEntity player, MinecraftPartySession session) {
         if (!session.isChoosing(player)) return;
         player.openHandledScreen(new NamedScreenHandlerFactory() {
-            @Override public Text getDisplayName() { return Text.literal("§6Party 2 · 投票选择小游戏"); }
+            @Override public Text getDisplayName() { return Text.literal("§6Party 2 · 本轮投票选择小游戏"); }
             @Override public ScreenHandler createMenu(int syncId, PlayerInventory inventory, PlayerEntity ignored) {
                 return new Handler(syncId, inventory, session, player);
             }
@@ -41,12 +41,13 @@ public final class PartyGameSelector {
     private static final class Handler extends ScreenHandler {
         private final SimpleInventory grid = new SimpleInventory(54);
         private final MinecraftPartySession session;
-        private final List<PartyMinigame> games = List.of(PartyMinigame.values());
+        private final List<PartyMinigame> games;
         private int page;
 
         Handler(int syncId, PlayerInventory inventory, MinecraftPartySession session, ServerPlayerEntity player) {
             super(ScreenHandlerType.GENERIC_9X6, syncId);
             this.session = session;
+            this.games = session.selectionChoices();
             for (int row = 0; row < 6; row++) for (int col = 0; col < 9; col++) {
                 this.addSlot(new Slot(this.grid, row * 9 + col, 8 + col * 18, 18 + row * 18));
             }

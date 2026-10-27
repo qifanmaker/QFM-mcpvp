@@ -503,9 +503,9 @@ public final class PvpGuiManager {
                 MatchType.PORTED_MIN_PLAYERS + "~" + MatchType.PORTED_MAX_PLAYERS + " 人，凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛",
                 "人数不足 " + MatchType.PORTED_START_PLAYERS + " 人时等待 " + MatchType.PORTED_FILL_SECONDS + " 秒",
-                "分阶段移植：已实现 " + PartyMinigame.values().length + " 个小游戏 Quick Play",
-                "入场菜单投票，右键第 9 格指南针查看全部",
-                "棋盘与其余子游戏待移植，点击直接加入"));
+                "分阶段移植：已实现 " + PartyMinigame.values().length + " 个可选小游戏，每局五轮累计积分",
+                "每轮菜单投票，已玩项目不再出现",
+                "五轮后公布总排名，点击直接加入"));
         inv.setStack(18, queueButton(Items.RED_BANNER, "§c海岛攻防", player, MatchType.ISLAND_SIEGE,
                 MatchType.PORTED_MIN_PLAYERS + "~" + MatchType.PORTED_MAX_PLAYERS + " 人，凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛",
@@ -1246,7 +1246,7 @@ public final class PvpGuiManager {
                         + " 人等待 " + MatchType.PORTED_FILL_SECONDS + " 秒也可开始"), false);
                 if (type == MatchType.MINECRAFT_PARTY) {
                     player.sendMessage(Messages.info("分阶段移植：已实现 " + PartyMinigame.values().length
-                            + " 个小游戏 Quick Play；棋盘与其余子游戏待移植"), false);
+                            + " 个可选小游戏；每局五轮不重复，按累计积分排名"), false);
                 }
             } else if (type.isBedWars()) {
                 player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")
