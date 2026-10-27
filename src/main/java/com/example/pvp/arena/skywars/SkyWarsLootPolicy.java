@@ -19,7 +19,8 @@ public final class SkyWarsLootPolicy {
 
     private final Random random;
 
-    public SkyWarsLootPolicy(int seed) {
+    /** seed 属于本局物资，不与可重复使用的地图种子绑定。 */
+    public SkyWarsLootPolicy(long seed) {
         this.random = new Random(seed * 0x9E3779B97F4A7C15L ^ 0x6A09E667F3BCC909L);
     }
 

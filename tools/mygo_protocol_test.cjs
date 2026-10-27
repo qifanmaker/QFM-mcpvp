@@ -450,44 +450,87 @@ async function explosion() {
 function glows(item) { return !!item?.components?.some(component => component.type === 'enchantments' || component.type === 'enchantment_glint_override' && component.data); }
 function menuItem(id, slot) { return bots[id].currentWindow?.slots[slot]; }
 async function menu() {
+  // The reorganized menu must preserve real click routing, parent navigation,
+  // resource-pack gating and live queue indicators after moving the buttons.
   await waitUntil(() => ['A', 'B', 'C'].every(id => bots[id]?.entity), 30000, 'three GUI clients');
+  const click = async (id, slot) => { await bots[id].clickWindow(slot, 0, 0); await sleep(250); };
+  const title = id => stringify(bots[id].currentWindow?.title) || '';
+  const contains = (id, slot, text) => (stringify(menuItem(id, slot)) || '').includes(text);
+  const mainNames = ['空岛战争', 'MyGO', '枪械空岛', 'TNT 跑酷', 'PVP 竞技场', '幸运之柱', '亦可赛艇', 'Party 2', 'Island Siege'];
   await chat('A', '/pvp');
-  check('main menu orders SkyWars MyGO Bridge at slots 10 11 12',
-    stringify(menuItem('A', 10)).includes('空岛战争') && stringify(menuItem('A', 11)).includes('MyGO') && stringify(menuItem('A', 12)).includes('战桥'),
-    [10, 11, 12].map(slot => itemInfo(menuItem('A', slot))), 'SkyWars / MyGO / Bridge');
-  check('main minigame description no longer lists MyGO', !stringify(menuItem('A', 13)).includes('MyGO'), itemInfo(menuItem('A', 13)), 'no MyGO');
-  await bots.A.clickWindow(13, 0, 0); await sleep(200);
-  check('minigame page contains no MyGO button', !stringify(bots.A.currentWindow.slots.slice(0, 36)).includes('MyGO') && menuItem('A', 19)?.name === 'gray_stained_glass_pane',
-    { title: bots.A.currentWindow.title, slot19: itemInfo(menuItem('A', 19)) }, 'empty slot 19 and no MyGO');
-  await bots.A.clickWindow(19, 0, 0); await sleep(200);
-  check('former minigame MyGO slot no longer routes to queue', !!bots.A.currentWindow && !packRequests.A, { title: bots.A.currentWindow?.title, packRequested: !!packRequests.A }, 'same minigame page, no pack request');
-  await bots.A.clickWindow(26, 0, 0); await sleep(200);
-  await bots.A.clickWindow(11, 0, 0); await sleep(200);
-  await waitUntil(() => packs.A, 15000, 'A resource download from main menu');
-  check('main menu MyGO click requests configured external pack', packRequests.A?.url === 'https://qfmaker.com/upload/files/5df4ab7h.zip', packRequests.A, 'exact configured HTTPS URL');
-  await chat('B', '/pvp'); await bots.B.clickWindow(11, 0, 0); await sleep(200);
-  await waitUntil(() => packs.B, 15000, 'B resource download from main menu');
-  await chat('B', '/pvp'); await bots.B.clickWindow(11, 0, 0); await sleep(250);
+  check('main menu follows requested nine-game order', mainNames.every((name, i) => contains('A', 9 + i, name)),
+    mainNames.map((_, i) => itemInfo(menuItem('A', 9 + i))), mainNames);
+  check('other games and utility buttons have separate slots', contains('A', 22, '其他游戏')
+    && contains('A', 27, '向玩家发起决斗') && contains('A', 28, '我的战绩') && contains('A', 29, '查看套件列表'),
+    [22, 27, 28, 29].map(slot => itemInfo(menuItem('A', slot))), 'other games / duel / stats / kits');
+  await click('A', 22);
+  const otherNames = ['战桥', '起床战争', '心跳水立方', '烫手山芋', '村庄保卫战', '选择村庄保卫战职业', '色盲派对', '练习模式'];
+  check('other games preserves all remaining entries', title('A').includes('其他游戏') && otherNames.every((name, i) => contains('A', 9 + i, name))
+    && [17, 18, 19, 20].every(slot => menuItem('A', slot)?.name === 'gray_stained_glass_pane'),
+    bots.A.currentWindow?.slots.slice(9, 21).map(itemInfo), otherNames);
+  for (const [slot, name] of [[9, '战桥'], [10, '起床战争'], [16, '练习模式']]) {
+    await click('A', slot);
+    check(`${name} opens its category`, title('A').includes(name), title('A'), name);
+    await click('A', 26);
+    check(`${name} returns to other games`, title('A').includes('其他游戏'), title('A'), '其他游戏');
+  }
+  await click('A', 26);
+  check('other games returns to main', contains('A', 17, 'Island Siege'), title('A'), 'main menu');
+  await click('A', 13); await click('A', 13);
+  check('PVP deathmatch opens kit selection', title('A').includes('选择套件') && title('A').includes('死斗'), title('A'), 'deathmatch kits');
+  await click('A', 26); await click('A', 26);
+  check('PVP kit back navigation reaches main', contains('A', 10, 'MyGO'), title('A'), 'main menu');
+
+  for (const id of ['A', 'B']) {
+    await chat(id, '/pvp'); await click(id, 10);
+    check(`${id} MyGO opens team selection`, title(id).includes('选择 MyGO 队伍'), title(id), 'MyGO team selection');
+    await click(id, 16);
+    await waitUntil(() => packs[id], 15000, `${id} resource download from menu`);
+    check(`${id} MyGO menu downloads requested pack`, packs[id].sha1 === packRequests[id]?.hash, packs[id].sha1, packRequests[id]?.hash);
+  }
+  await chat('B', '/pvp'); await click('B', 10); await click('B', 16);
   await chat('A', '/pvp'); await sleep(1100);
-  check('main MyGO button refreshes after B joins', menuItem('A', 11)?.count === 1 && glows(menuItem('A', 11)), itemInfo(menuItem('A', 11)), 'one queued player, enchanted');
-  check('MyGO queue does not light minigame category', menuItem('A', 13)?.count === 1 && !glows(menuItem('A', 13)), itemInfo(menuItem('A', 13)), 'default one item, no enchantment');
-  await bots.A.clickWindow(11, 0, 0); await sleep(250);
+  check('main MyGO button refreshes when another client joins', menuItem('A', 10)?.count === 1 && glows(menuItem('A', 10)), itemInfo(menuItem('A', 10)), 'one queued player, enchanted');
+  await click('A', 10); await click('A', 16);
   await chat('A', '/pvp'); await sleep(1100);
-  check('loaded client rejoins through main MyGO button and shows queue 2', menuItem('A', 11)?.count === 2 && glows(menuItem('A', 11)), itemInfo(menuItem('A', 11)), 'two queued players');
-  check('two MyGO players remain excluded from minigame category', menuItem('A', 13)?.count === 1 && !glows(menuItem('A', 13)), itemInfo(menuItem('A', 13)), 'no minigame queued');
-  await chat('C', '/pvp join luckypillar'); await sleep(1100);
-  check('minigame category counts only the actual minigame player', menuItem('A', 13)?.count === 1 && glows(menuItem('A', 13)) && menuItem('A', 11)?.count === 2,
-    { games: itemInfo(menuItem('A', 13)), mygo: itemInfo(menuItem('A', 11)) }, 'games=1, MyGO=2');
+  check('MyGO queue displays both players', menuItem('A', 10)?.count === 2 && glows(menuItem('A', 10)), itemInfo(menuItem('A', 10)), 'two queued players');
+  check('MyGO queue is excluded from other games', !glows(menuItem('A', 22)), itemInfo(menuItem('A', 22)), 'no other games queued');
+  await chat('C', '/pvp'); await click('C', 22); await click('C', 11); await sleep(1100);
+  check('other games heartbeat click joins and refreshes category', glows(menuItem('A', 22)) && menuItem('A', 10)?.count === 2,
+    { other: itemInfo(menuItem('A', 22)), mygo: itemInfo(menuItem('A', 10)) }, 'other=1; MyGO=2');
   await chat('C', '/pvp leave'); await sleep(1100);
-  check('minigame queue exit clears its indicator while MyGO stays at 2', !glows(menuItem('A', 13)) && menuItem('A', 11)?.count === 2,
-    { games: itemInfo(menuItem('A', 13)), mygo: itemInfo(menuItem('A', 11)) }, 'games empty, MyGO=2');
-  await bots.A.clickWindow(22, 0, 0); await sleep(250);
-  await chat('B', '/pvp leave');
-  await chat('A', '/pvp'); await sleep(1100);
-  check('leaving via main menu resets MyGO queue indicator', menuItem('A', 11)?.count === 1 && !glows(menuItem('A', 11)), itemInfo(menuItem('A', 11)), 'default one item, no enchantment');
-  check('queue exit removes loaded MyGO packs', !packs.A && !packs.B, { A: packs.A, B: packs.B }, 'both removed');
+  check('other games queue exit clears indicator', !glows(menuItem('A', 22)), itemInfo(menuItem('A', 22)), 'no other games queued');
+  await click('A', 34); await chat('B', '/pvp leave'); await sleep(1100);
+  check('new leave button clears queue and resource packs', !glows(menuItem('A', 10)) && !packs.A && !packs.B,
+    { button: itemInfo(menuItem('A', 10)), A: packs.A, B: packs.B }, 'empty MyGO queue; packs removed');
+
+  // One client joins each shortcut in turn, avoiding automatic match starts.
+  for (const [slot, queueName] of [[9, '空岛战争'], [12, 'TNT 跑酷'], [14, '幸运之柱'], [15, '亦可赛艇'], [16, 'Minecraft Party 2'], [17, '海岛攻防']]) {
+    await chat('C', '/pvp'); await click('C', slot); await chat('C', '/pvp');
+    check(`${mainNames[slot - 9]} shortcut joins its own queue`, glows(menuItem('C', slot)) && contains('C', 34, queueName)
+      && !glows(menuItem('C', 22)), { button: itemInfo(menuItem('C', slot)), leave: itemInfo(menuItem('C', 34)) }, queueName);
+    check('queue controls do not overwrite other games', contains('C', 22, '其他游戏') && contains('C', 33, '立即开始'),
+      [22, 33].map(index => itemInfo(menuItem('C', index))), 'other games / immediate start');
+    if (slot === 9) {
+      await click('C', 33);
+      check('moved start button opens SkyWars theme chooser', title('C').includes('主题'), title('C'), 'SkyWars theme chooser');
+      await click('C', 26);
+    }
+    await click('C', 34);
+    check(`${mainNames[slot - 9]} leave button clears queue`, !glows(menuItem('C', slot)) && menuItem('C', 34)?.name === 'gray_stained_glass_pane',
+      itemInfo(menuItem('C', slot)), 'queue empty');
+  }
+  await click('C', 11); await waitUntil(() => packs.C, 15000, 'gun SkyWars pack');
+  await chat('C', '/pvp'); await click('C', 11); await chat('C', '/pvp');
+  check('gun SkyWars stays separate from ordinary SkyWars', glows(menuItem('C', 11)) && !glows(menuItem('C', 9)) && contains('C', 34, '枪械空岛'),
+    [9, 11, 34].map(slot => itemInfo(menuItem('C', slot))), 'gun queue only');
+  await click('C', 34);
+  await click('C', 13); await click('C', 13); await click('C', 9); await chat('C', '/pvp');
+  check('PVP category includes deathmatch queue', glows(menuItem('C', 13)) && contains('C', 34, '死斗') && !glows(menuItem('C', 22)),
+    [13, 22, 34].map(slot => itemInfo(menuItem('C', slot))), 'PVP=1; other games=0');
+  await click('C', 34);
   emit('menuComplete', { passed: assertions.filter(result => result.pass).length, failed: assertions.filter(result => !result.pass).length, renderingVerified: false });
-  return { slot10: itemInfo(menuItem('A', 10)), slot11: itemInfo(menuItem('A', 11)), slot12: itemInfo(menuItem('A', 12)) };
+  return { mainNames, otherNames };
 }
 async function arsenal() {
   const ids = Object.keys(bots);

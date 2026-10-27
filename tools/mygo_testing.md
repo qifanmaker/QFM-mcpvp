@@ -521,3 +521,15 @@ T/CT 各自高抛与低抛、实体生成/引信/一次消耗一颗/切回手枪
 交付 `dist/pvp-1.0.0-mygo-fire-fix.jar`，SHA-256
 `afffaffe0af5630ff47bf5a3730e27037f8aaaa22e5520b817b81bdba56141fd`。
 资源包 SHA-1 仍为 `88d5c5163c10774d5408d1bb8780d72794d74551`，无需重新上传。
+
+## 2026-10-27 首页与“其他游戏”布局复验
+
+按指定顺序把九个常玩入口放到首页，其余玩法归入“其他游戏”。`menu` 场景已同步新槽位，并覆盖 MyGO 选队步骤；上方旧槽位记录属于历史验证。
+
+- 构建：`./gradlew build -I tools/mygo_prepare_test.gradle mygoPrepareTestRuntime` 通过；143 项单元测试中 142 项通过、1 项跳过，无失败或新增编译警告。
+- 本地服务：`python3 tools/mygo_test_server.py --port 25635 --run-dir build/mygo-gui-layout-test`，加载本次编译快照。
+- 协议客户端：设置 `MYGO_TEST_BOTS=ABC`、`MYGO_TEST_PORT=25635`、`MYGO_TEST_RUN_DIR=build/mygo-gui-layout-test` 后运行 `node tools/mygo_protocol_test.cjs`，依次输入 `{"op":"menu"}`、`{"op":"quit"}`。
+- 49 项断言全部通过：九个首页入口顺序、其他游戏完整性、战桥/床战/练习返回层级、PvP 套件返回、MyGO 资源包及二人计数、分类实时计数、各首页快捷入队、退出队列、OP 主题选择，以及枪械空岛与普通空岛队列隔离。
+- 首次启动遇到资源包 HTTP 端口被占用，停止本次测试服后换到空闲端口 25635/25636；最终服务日志无异常堆栈，只有本地离线验证所需的 offline-mode 提示。测试服与机器人均已停止。
+
+证据：`build/gui-layout-validation/verification.json`、`build/gui-layout-validation/server-console.log`、`build/mygo-gui-layout-test/protocol-results.jsonl`。交付包：`dist/pvp-1.0.0-gui-layout.jar`。本次验证真实服务端菜单内容、点击与排队协议，不包含原版客户端画面验收。

@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 /** 确定性的空岛布局：主路线按玩家旋转对称，装饰与地形风格使用独立随机源。 */
 public final class SkyWarsLayout {
@@ -56,7 +57,7 @@ public final class SkyWarsLayout {
 
     private SkyWarsLayout(BlockPos mapCenter, int maxRadius, List<Island> spawnIslands,
                           List<Island> midIslands, List<Island> middleIslands, List<BlockPos> spawns,
-                          int middleVariant, boolean compact, long styleSeed, SkyWarsMapStyle mapStyle, int seed) {
+                          int middleVariant, boolean compact, long styleSeed, SkyWarsMapStyle mapStyle, long lootSeed) {
         this.mapCenter = mapCenter;
         this.maxRadius = maxRadius;
         this.spawnIslands = List.copyOf(spawnIslands);
@@ -67,7 +68,7 @@ public final class SkyWarsLayout {
         this.compact = compact;
         this.styleSeed = styleSeed;
         this.mapStyle = mapStyle;
-        this.lootPolicy = new SkyWarsLootPolicy(seed);
+        this.lootPolicy = new SkyWarsLootPolicy(lootSeed);
     }
 
     public List<ExtraChest> extraChests() { return this.extraChests; }
@@ -114,6 +115,13 @@ public final class SkyWarsLayout {
     }
 
     public static SkyWarsLayout compute(BlockPos mapCenter, int seed, int playerCount) {
+        // 修改原因：地图种子重复时不应复刻箱子装备。普通/枪械空岛共用本局独立的物资随机源，
+        // 初次装填和补货继续消费它；地图、出生点及箱位仍只由地图 seed 决定。
+        return compute(mapCenter, seed, playerCount, ThreadLocalRandom.current().nextLong());
+    }
+
+    /** 显式物资种子用于复现与测试，不参与地形和箱位生成。 */
+    public static SkyWarsLayout compute(BlockPos mapCenter, int seed, int playerCount, long lootSeed) {
         PvPConfig cfg = PvPConfig.INSTANCE;
         int count = Math.max(2, Math.min(8, playerCount));
         boolean compact = count <= 4;
@@ -180,7 +188,7 @@ public final class SkyWarsLayout {
         int maxRadius = Math.max(spawnDistance + spawnRadius + 9,
                 transitDistance + transitRadius + 10) + MAX_RADIUS_MARGIN;
         return new SkyWarsLayout(mapCenter, maxRadius, spawnIslands, midIslands, middleIslands,
-                spawns, variant, compact, styleSeed, mapStyle, seed);
+                spawns, variant, compact, styleSeed, mapStyle, lootSeed);
     }
 
     private static int middleExtent(PvPConfig cfg, boolean compact, SkyWarsMapStyle style,
