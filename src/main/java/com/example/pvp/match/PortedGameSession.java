@@ -23,6 +23,7 @@ public interface PortedGameSession {
     void start();
     void tick();
     void onDeath(ServerPlayerEntity player);
+    default void onDeath(ServerPlayerEntity player, DamageSource source) { onDeath(player); }
     void onLeave(ServerPlayerEntity player);
     void onEnd();
     void clearArena();
@@ -33,7 +34,10 @@ public interface PortedGameSession {
     default boolean hasFinalResult() { return false; }
 
     default boolean allowsDamage(LivingEntity victim, DamageSource source) { return false; }
+    /** 命中后记录原小游戏的传递或击杀归属；不能依赖全服伤害计分板。 */
+    default void onDamage(LivingEntity victim, DamageSource source, float taken) { }
     default boolean ownsEntity(Entity entity) { return false; }
+    default void onEntityLoad(Entity entity) { }
     default void onMobDeath(LivingEntity entity, DamageSource source) { }
     default boolean canBreak(ServerPlayerEntity player, BlockPos pos) { return false; }
     default boolean canPlace(ServerPlayerEntity player, BlockPos pos) { return false; }

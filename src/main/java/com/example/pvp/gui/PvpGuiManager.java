@@ -1,6 +1,7 @@
 package com.example.pvp.gui;
 
 import com.example.pvp.PvPMod;
+import com.example.pvp.arena.party.PartyMinigame;
 import com.example.pvp.arena.skywars.SkyWarsTheme;
 import com.example.pvp.arena.skywars.SkyWarsMapVariant;
 import com.example.pvp.config.PlayerStats;
@@ -488,6 +489,35 @@ public final class PvpGuiManager {
                 "站到「文字的颜色」上，别管它写的是什么！",
                 "非目标色方块全部消失，站错的掉进虚空淘汰",
                 "共 " + PvPConfig.INSTANCE.colorblindRounds + " 回合，最后存活者获胜，点击直接加入"));
+        inv.setStack(16, queueButton(Items.OAK_BOAT, "§b🏁 亦可赛艇", player, MatchType.BOAT_RACE,
+                "驾驶船只，在随机冰面赛道上竞速！",
+                "当前玩家：" + PvPMod.QUEUE.countQueued(MatchType.BOAT_RACE)
+                        + " / " + PvPConfig.INSTANCE.boatRaceMaxPlayers,
+                PvPConfig.INSTANCE.boatRaceMinPlayers + "~" + PvPConfig.INSTANCE.boatRaceMaxPlayers
+                        + " 人，凑齐 " + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛",
+                "驾驶原版船，在随机生成的冰面赛道上竞速",
+                "每场比赛的赛道都不一样（可复现的比赛 Seed）",
+                "赛道宽 " + PvPConfig.INSTANCE.boatRaceTrackWidth + " 格，"
+                        + PvPConfig.INSTANCE.boatRaceMinTrackLength + "~"
+                        + PvPConfig.INSTANCE.boatRaceMaxTrackLength + " 格长，"
+                        + PvPConfig.INSTANCE.boatRaceLaps + " 圈定胜负",
+                "按顺序穿过 Checkpoint，掉出赛道自动回位，点击直接加入"));
+        // 明确分阶段移植范围，避免入口名称让玩家误以为整张原版地图已经全部上线。
+        inv.setStack(17, queueButton(Items.FIREWORK_STAR, "§dMinecraft Party 2（移植中）",
+                player, MatchType.MINECRAFT_PARTY,
+                MatchType.PORTED_MIN_PLAYERS + "~" + MatchType.PORTED_MAX_PLAYERS + " 人，凑齐 "
+                        + MatchType.PORTED_START_PLAYERS + " 人立即开赛",
+                "人数不足 " + MatchType.PORTED_START_PLAYERS + " 人时等待 " + MatchType.PORTED_FILL_SECONDS + " 秒",
+                "分阶段移植：已实现 " + PartyMinigame.values().length + " 个可选小游戏，每局五轮累计积分",
+                "每轮菜单投票，已玩项目不再出现",
+                "五轮后公布总排名，点击直接加入"));
+        inv.setStack(18, queueButton(Items.RED_BANNER, "§c海岛攻防", player, MatchType.ISLAND_SIEGE,
+                MatchType.PORTED_MIN_PLAYERS + "~" + MatchType.PORTED_MAX_PLAYERS + " 人，凑齐 "
+                        + MatchType.PORTED_START_PLAYERS + " 人立即开赛",
+                "人数不足 " + MatchType.PORTED_START_PLAYERS + " 人时等待 " + MatchType.PORTED_FILL_SECONDS + " 秒",
+                "红队进攻、蓝队防守，先建防线再攻岛",
+                "进攻方完成三项目标中的两项获胜",
+                "装备由玩法统一发放，点击直接加入"));
         inv.setStack(16, makeButton(Items.WHITE_WOOL, "§a§l练习模式",
                 "搭桥练习 / 末影珍珠练习", "单人练习，点击选择项目"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
@@ -1221,7 +1251,8 @@ public final class PvpGuiManager {
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛；至少 " + MatchType.PORTED_MIN_PLAYERS
                         + " 人等待 " + MatchType.PORTED_FILL_SECONDS + " 秒也可开始"), false);
                 if (type == MatchType.MINECRAFT_PARTY) {
-                    player.sendMessage(Messages.info("分阶段移植：首批 3 个小游戏 Quick Play；棋盘与其余子游戏待移植"), false);
+                    player.sendMessage(Messages.info("分阶段移植：已实现 " + PartyMinigame.values().length
+                            + " 个可选小游戏；每局五轮不重复，按累计积分排名"), false);
                 }
             } else if (type.isBedWars()) {
                 player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")

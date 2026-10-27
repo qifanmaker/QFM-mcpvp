@@ -32,6 +32,9 @@ public abstract class ProjectileEntityMixin {
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/entity/Entity;getMovement()Lnet/minecraft/util/math/Vec3d;"))
     private Vec3d pvp$noThrowerVelocityInheritance(Entity shooter) {
+        // 原生地图玩法需要现代抛射物初速；只对其本场射手恢复动量继承。
+        com.example.pvp.match.Match match = com.example.pvp.match.PortedGameEvents.matchOf(shooter);
+        if (match != null && match.portedSession() != null) return shooter.getMovement();
         return Vec3d.ZERO; // 1.8.7 手感：投掷物初速不叠加投掷者速度（含下落时的竖直速度）
     }
 }
