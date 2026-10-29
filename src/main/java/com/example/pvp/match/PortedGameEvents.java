@@ -38,6 +38,8 @@ public final class PortedGameEvents {
 
     /** 其他场次的玩家也不能进入移植区域拆图或使用容器。 */
     public static boolean canAccessPosition(Entity player, World world, BlockPos pos) {
+        var training = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+        if (training != null && !training.canAccessPosition(player, world, pos)) return false;
         if (PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return true;
         Match current = matchOf(player);
         for (Match owner : PvPMod.MATCH.getMatches()) {
@@ -48,12 +50,17 @@ public final class PortedGameEvents {
 
     /** 额外速度注入绕过 ALLOW_DAMAGE；移植模式保留自己的原版机制，禁用 PvP 额外击退。 */
     public static boolean allowsExtraKnockback(Entity attacker, Entity victim) {
+        var training = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+        if (training != null && (training.isActor(attacker) || training.isActor(victim))) return false;
         // 人机练习不创建 Match，零伤害的鱼竿/雪球也不能越场干扰或跳过准备阶段。
         if (PvPMod.PRACTICE != null && !PvPMod.PRACTICE.allowsCombatInteraction(attacker, victim)) return false;
         return !isPorted(matchOf(attacker)) && !isPorted(matchOf(victim));
     }
 
     public static boolean allowsDamage(LivingEntity victim, DamageSource source) {
+        // 练习枪战只接受本房 MyGoSession 的虚拟伤害；原版近战、环境和外场投掷物均不能绕过它。
+        var training = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+        if (training != null && (training.isActor(victim) || training.isActor(source.getAttacker()))) return false;
         Match victimMatch = matchOf(victim);
         Match attackerMatch = matchOf(source.getAttacker());
         // 原生风弹/落块可以没有 attacker，但其直接伤害实体仍归属于一个独立会话。
@@ -71,6 +78,10 @@ public final class PortedGameEvents {
             if (isPorted(match)) match.portedSession().onEntityLoad(entity);
         });
         UseItemCallback.EVENT.register((player, world, hand) -> {
+            if (player instanceof ServerPlayerEntity sp) {
+                var training = trainingSession(sp);
+                if (training != null) return new TypedActionResult<>(training.useItem(sp, hand), player.getStackInHand(hand));
+            }
             Match match = matchOf(player);
             var stack = player.getStackInHand(hand);
             if (!isPorted(match) || !(player instanceof ServerPlayerEntity sp)) {
@@ -85,6 +96,10 @@ public final class PortedGameEvents {
         });
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (!canAccessPosition(player, world, hit.getBlockPos())) return ActionResult.FAIL;
+            if (player instanceof ServerPlayerEntity sp) {
+                var training = trainingSession(sp);
+                if (training != null) return training.useBlock(sp, hand, hit);
+            }
             Match match = matchOf(player);
             if (!isPorted(match) || !(player instanceof ServerPlayerEntity sp)) return ActionResult.PASS;
             if (match.getState() != MatchState.ACTIVE || match.isEliminated(sp.getUuid())) return ActionResult.FAIL;
@@ -94,6 +109,10 @@ public final class PortedGameEvents {
             return item != ActionResult.PASS ? item : match.portedSession().useBlock(sp, hand, hit);
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (player instanceof ServerPlayerEntity sp) {
+                var training = trainingSession(sp);
+                if (training != null) { training.useItem(sp, hand); return ActionResult.FAIL; }
+            }
             Match match = matchOf(player);
             // 准星指向玩家时右键仍可开镜，且不能落回原版工具行为。
             if (player instanceof ServerPlayerEntity sp && match != null
@@ -110,6 +129,10 @@ public final class PortedGameEvents {
             return match.portedSession().useEntity(sp, hand, entity);
         });
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (player instanceof ServerPlayerEntity sp) {
+                var training = trainingSession(sp);
+                if (training != null) { training.attack(sp, entity); return ActionResult.FAIL; }
+            }
             Match attackerMatch = matchOf(player);
             Match victimMatch = matchOf(entity);
             if (player instanceof ServerPlayerEntity sp && attackerMatch != null
@@ -125,6 +148,7 @@ public final class PortedGameEvents {
         });
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
             if (!canAccessPosition(player, world, pos)) return ActionResult.FAIL;
+            if (player instanceof ServerPlayerEntity sp && trainingSession(sp) != null) return ActionResult.FAIL;
             Match match = matchOf(player);
             if (!isPorted(match) || !(player instanceof ServerPlayerEntity sp)) return ActionResult.PASS;
             if (match.getState() != MatchState.ACTIVE || match.isEliminated(sp.getUuid())) return ActionResult.FAIL;
@@ -132,6 +156,7 @@ public final class PortedGameEvents {
         });
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
             if (!canAccessPosition(player, world, pos)) return false;
+            if (player instanceof ServerPlayerEntity sp && trainingSession(sp) != null) return false;
             Match match = matchOf(player);
             return !isPorted(match) || player instanceof ServerPlayerEntity sp
                     && match.getState() == MatchState.ACTIVE && !match.isEliminated(sp.getUuid())
@@ -150,5 +175,10 @@ public final class PortedGameEvents {
                 match.portedSession().onMobDeath(entity, source);
             }
         });
+    }
+
+    private static com.example.pvp.mygo.MyGoSession trainingSession(ServerPlayerEntity player) {
+        var training = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+        return training == null ? null : training.session(player);
     }
 }

@@ -54,6 +54,7 @@ public final class SkyWarsLayout {
     private final long styleSeed;
     private final SkyWarsMapStyle mapStyle;
     private final SkyWarsLootPolicy lootPolicy;
+    private SkyWarsImportedMap importedMap;
 
     private SkyWarsLayout(BlockPos mapCenter, int maxRadius, List<Island> spawnIslands,
                           List<Island> midIslands, List<Island> middleIslands, List<BlockPos> spawns,
@@ -94,9 +95,14 @@ public final class SkyWarsLayout {
     public long styleSeed() { return this.styleSeed; }
     public SkyWarsMapStyle mapStyle() { return this.mapStyle; }
     public SkyWarsLootPolicy lootPolicy() { return this.lootPolicy; }
+    public SkyWarsImportedMap importedMap() { return this.importedMap; }
+    public String displayName() { return this.importedMap == null ? this.mapStyle.getDisplayName() : this.importedMap.name(); }
+    public String mapId() { return this.importedMap == null ? this.mapStyle.name() : this.importedMap.id(); }
 
     /** 上下层都有实心落脚面，末地/地狱也能安全缩到中央决战区域。 */
-    public int suggestedFinalRadius() { return scaleCentral(this.compact ? 10 : 14); }
+    public int suggestedFinalRadius() {
+        return this.importedMap == null ? scaleCentral(this.compact ? 10 : 14) : this.importedMap.finalRadius();
+    }
 
     public int centralClearanceRadius() { return this.middle().radius() + scaleCentral(3); }
 
@@ -118,6 +124,55 @@ public final class SkyWarsLayout {
         // 修改原因：地图种子重复时不应复刻箱子装备。普通/枪械空岛共用本局独立的物资随机源，
         // 初次装填和补货继续消费它；地图、出生点及箱位仍只由地图 seed 决定。
         return compute(mapCenter, seed, playerCount, ThreadLocalRandom.current().nextLong());
+    }
+
+    /** 外部地图的出生、箱位和边界必须登记在同一布局中，确保开局与补货使用实际地图坐标。 */
+    public static SkyWarsLayout imported(BlockPos center, int seed, int playerCount, SkyWarsImportedMap map) {
+        if (map == null || playerCount < 1 || playerCount > map.spawns().size()) {
+            throw new IllegalArgumentException("导入地图出生点不足或参赛人数无效");
+        }
+        int capacity = map.spawns().size();
+        long styleSeed = mixSeed(seed, 0x3c6ef372L ^ map.id().hashCode());
+        int start = new Random(styleSeed).nextInt(capacity);
+        List<Integer> sourceOrder = new ArrayList<>(capacity);
+        boolean[] selected = new boolean[capacity];
+        for (int i = 0; i < playerCount; i++) {
+            int sourceIndex = (start + i * capacity / playerCount) % capacity;
+            sourceOrder.add(sourceIndex);
+            selected[sourceIndex] = true;
+        }
+        // 已分配槽位排在前面，与 players/handicaps 的索引一致；空置岛仍参加箱子补货。
+        for (int i = 0; i < capacity; i++) {
+            int sourceIndex = (start + i) % capacity;
+            if (!selected[sourceIndex]) sourceOrder.add(sourceIndex);
+        }
+        List<Island> spawnIslands = new ArrayList<>(capacity);
+        List<BlockPos> spawns = new ArrayList<>(playerCount);
+        int[] reorderedIndex = new int[capacity];
+        for (int i = 0; i < sourceOrder.size(); i++) {
+            int sourceIndex = sourceOrder.get(i);
+            BlockPos spawn = center.add(map.spawns().get(sourceIndex));
+            spawnIslands.add(new Island(spawn.down(), 6, List.of()));
+            if (i < playerCount) spawns.add(spawn);
+            reorderedIndex[sourceIndex] = i;
+        }
+        SkyWarsLayout layout = new SkyWarsLayout(center, map.maxRadius(), spawnIslands, List.of(),
+                List.of(new Island(center, map.finalRadius(), List.of())), spawns, 0, playerCount <= 4,
+                styleSeed, SkyWarsMapStyle.TERRACES, ThreadLocalRandom.current().nextLong());
+        layout.importedMap = map;
+        for (SkyWarsImportedMap.Chest chest : map.chests()) {
+            if (chest.tier() == SkyWarsLootPolicy.Tier.SPAWN) {
+                if (chest.spawnIndex() < 0 || chest.spawnIndex() >= capacity) {
+                    throw new IllegalArgumentException("导入地图出生岛箱子缺少有效出生槽位: " + chest.pos());
+                }
+                layout.addExtraChest(new ExtraChest(center.add(chest.pos()), chest.tier(),
+                        reorderedIndex[chest.spawnIndex()]));
+            } else {
+                // 导入图未单列中途岛，公共路线箱和中央箱共用中岛补货入口。
+                layout.addExtraChest(new ExtraChest(center.add(chest.pos()), SkyWarsLootPolicy.Tier.CENTER, -1));
+            }
+        }
+        return layout;
     }
 
     /** 显式物资种子用于复现与测试，不参与地形和箱位生成。 */
