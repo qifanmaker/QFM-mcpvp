@@ -23,7 +23,8 @@ const GAMES = {
   whack: { source: 402 }, monster: { source: 403 },
   raft: { source: 405 }, knockout: { source: 406 }, skyfly: { source: 407 },
   weapon: { source: 410 }, tedious: { source: 411, players: 4, minimumPlayers: 2, maximumPlayers: 4 }, horse: { source: 416 },
-  speed: { source: 417 }, steve: { source: 418 }, power: { source: 419 }
+  speed: { source: 417 }, steve: { source: 418 }, power: { source: 419 },
+  farming: { source: 420 }, port: { source: 421 }, matchnot: { source: 422 }
 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const json = value => JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item);

@@ -19,6 +19,15 @@ import java.util.UUID;
  */
 public interface PartyRound {
     void stage(PartyRoundContext context) throws IOException;
+    /** 地图落盘并传送后为0，之后每个真实倒计时 tick 递增；用于有界的原生预生长。 */
+    default void introTick(PartyRoundContext context, int elapsed) { }
+    /** 部分原图入场先以原生漂浮展示场景，不能每tick传送抵消该运动。 */
+    default boolean locksIntroPosition() { return true; }
+    /** 原生门、活塞、作物与流体可能写入模板原先为空气的格，须纳入本轮清理。 */
+    default boolean tracksTerrainChanges() { return false; }
+    default boolean allowsFluidFlow() { return false; }
+    /** 维度平移后保留原世界底界等局部限制，不用额外铺可见的人工底板。 */
+    default boolean allowsFluidFlowAt(PartyRoundContext context, BlockPos pos) { return this.allowsFluidFlow(); }
     default GameMode gameMode() { return GameMode.ADVENTURE; }
     void start(PartyRoundContext context);
     void tick(PartyRoundContext context, int elapsed);

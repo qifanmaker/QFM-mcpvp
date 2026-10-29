@@ -1,0 +1,1337 @@
+{
+  "sourceId": 422,
+  "sourceVersion": "1.21.10",
+  "minimumPlayers": 2,
+  "maximumPlayers": 10,
+  "functionSha256": {
+    "match_me_not": "489de3b62966949341e667102b0602234bc7a64e41bc3e1a1c586c188658e9da",
+    "match_me_not_rules": "51035b9513789293bd2914e98d40ed3c3b4cfe8e451f5f148c95cdcf8e8c03b6",
+    "match_me_not_start": "9abdb13abf3d8f0c721531d3ce64c5eb331e46791f44f52f561f848559a945f9",
+    "match_me_not_tick": "11eabe300c7312221c17730967cdf2a52010863f19033a4b7234e36a0e1185cc",
+    "match_me_not_end": "36517567f0f1fc75cb1d1d2777ccfe85a3befe551d4e9b6559f1a0e611a2150b",
+    "player_circle": "d18804d0981068e317e7ae65b9554a9168a024ef7a6dcf6c7ef1aa3dce546952",
+    "player_circle_place_player": "adc09ffba5a6620792dc12ca8a494a28a43bb92f653b2f903b743f480887ef88",
+    "rotate_entity": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801",
+    "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+    "last_timer_title": "2c967d524c537de08bf4ceab74493197d214295ccc7589c0af1b20ac2af191fa",
+    "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+    "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+    "placements": "784cb9dc86bd733c3215f44477b5d464e2bda6fdc5ed5fc859761ea663353494"
+  },
+  "functions": {
+    "match_me_not": "scoreboard players set minigame variables 422\r\nscoreboard players set music variables 17\r\nforceload add -298 -385 -360 -319\r\nexecute as @a[scores={minigameplayer=1..4}] unless score @s minigameplayer matches 2..3 run tp @s -325.0 -9 -376.0\r\nexecute as @a unless score @s minigameplayer matches 2..3 run tp @s 26 1 533\r\neffect give @a minecraft:levitation 4 0 true\r\neffect give @a minecraft:weakness infinite 99 true\r\ntitle @a title {fallback:\"Match Me Not\",translate:\"mcp.match_me_not\",bold:1b,color:\"dark_green\",type:\"translatable\"}\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1\r\nexecute if score players variables matches ..4 run tellraw @a {fallback:\"Choose one of four materials to build your platform (by dropping the item).\",translate:\"mcp.match_me_not.1\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score players variables matches 5..6 run tellraw @a {fallback:\"Choose one of five materials to build your platform (by dropping the item).\",translate:\"mcp.match_me_not.2\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score players variables matches 7..8 run tellraw @a {fallback:\"Choose one of six materials to build your platform (by dropping the item).\",translate:\"mcp.match_me_not.3\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score players variables matches 9..10 run tellraw @a {fallback:\"Choose one of seven materials to build your platform (by dropping the item).\",translate:\"mcp.match_me_not.4\",color:\"dark_green\",type:\"translatable\"}\r\nscoreboard players set currentRule variables 0\r\nscoreboard players set playingMMN variables 0\r\nscoreboard players set @a[scores={Player=1..}] Points 0\r\nscoreboard objectives add item_chosen dummy\r\nscoreboard players operation mmn_doubles_mode variables = doubles_mode variables\r\nexecute if score gamemode variables matches 0 run scoreboard players set mmn_doubles_mode variables 0\r\nschedule function mcp:match_me_not_rules 3s\r\n\r\n#notes for build world: shift over MCP2 brew by 1 bock. set sign",
+    "match_me_not_rules": "scoreboard players add currentRule variables 1\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1\r\nexecute if score currentRule variables matches 1 run function mcp:give_ready_ups\r\nexecute if score currentRule variables matches 1 run scoreboard objectives modify Points displayautoupdate false\r\nexecute if score currentRule variables matches 1 run scoreboard objectives setdisplay sidebar Points\r\nexecute if score currentRule variables matches 1 run scoreboard players set radius variables 10\r\nexecute if score currentRule variables matches 1 if score players variables matches 9..10 run scoreboard players set radius variables 12\r\nexecute if score currentRule variables matches 1 positioned 26 2 533 run function mcp:player_circle\r\nexecute if score currentRule variables matches 1 run forceload add -355 -318 -361 -324\r\nexecute if score currentRule variables matches 1 run clone -350 -12 -385 -298 -5 -319 0 0 500\r\nexecute if score currentRule variables matches 1 run clone -350 0 -385 -298 -4 -319 0 8 500\r\nexecute if score currentRule variables matches 1 run clone -350 1 -385 -298 5 -319 0 13 500\r\nexecute if score currentRule variables matches 1 as @a[team=blue] at @s positioned ^ ^ ^6 run summon minecraft:marker ~ 1 ~ {Tags:[\"p1_mmn\",\"mmn_marker\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=red] at @s positioned ^ ^ ^6 run summon minecraft:marker ~ 1 ~ {Tags:[\"p2_mmn\",\"mmn_marker\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=green] at @s positioned ^ ^ ^6 run summon minecraft:marker ~ 1 ~ {Tags:[\"p3_mmn\",\"mmn_marker\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=yellow] at @s positioned ^ ^ ^6 run summon minecraft:marker ~ 1 ~ {Tags:[\"p4_mmn\",\"mmn_marker\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=dark_aqua] at @s positioned ^ ^ ^6 run summon minecraft:marker ~ 1 ~ {Tags:[\"p5_mmn\",\"mmn_marker\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=light_purple] at @s positioned ^ ^ ^6 run summon minecraft:marker ~ 1 ~ {Tags:[\"p6_mmn\",\"mmn_marker\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=dark_red] at @s positioned ^ ^ ^6 run summon minecraft:marker ~ 1 ~ {Tags:[\"p7_mmn\",\"mmn_marker\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=dark_green] at @s positioned ^ ^ ^6 run summon minecraft:marker ~ 1 ~ {Tags:[\"p8_mmn\",\"mmn_marker\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=dark_purple] at @s positioned ^ ^ ^6 run summon minecraft:marker ~ 1 ~ {Tags:[\"p9_mmn\",\"mmn_marker\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=dark_blue] at @s positioned ^ ^ ^6 run summon minecraft:marker ~ 1 ~ {Tags:[\"p10_mmn\",\"mmn_marker\"]}\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_marker] at @s run setblock ~ 0 ~ minecraft:chiseled_stone_bricks\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_marker] at @s run summon minecraft:item_frame ~ 0 ~ {Silent:1b,Invulnerable:1b,Invisible:1b,Fixed:1b,Tags:[\"mmn_item_frame\"],Item:{}}\r\nexecute if score currentRule variables matches 1 as @a[team=blue] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mmn_chip\",\"temp_p1\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=red] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mmn_chip\",\"temp_p2\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=green] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mmn_chip\",\"temp_p3\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=yellow] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mmn_chip\",\"temp_p4\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=dark_aqua] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mmn_chip\",\"temp_p5\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=light_purple] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mmn_chip\",\"temp_p6\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=dark_red] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mmn_chip\",\"temp_p7\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=dark_green] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mmn_chip\",\"temp_p8\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=dark_purple] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mmn_chip\",\"temp_p9\"]}\r\nexecute if score currentRule variables matches 1 as @a[team=dark_blue] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mmn_chip\",\"temp_p10\"]}\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=temp_p1] at @s run clone -355 8 -318 -361 6 -324 ~-3 ~-2 ~-3\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=temp_p2] at @s run clone -355 4 -318 -361 2 -324 ~-3 ~-2 ~-3\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=temp_p3] at @s run clone -355 0 -318 -361 -2 -324 ~-3 ~-2 ~-3\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=temp_p4] at @s run clone -355 -4 -318 -361 -6 -324 ~-3 ~-2 ~-3\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=temp_p5] at @s run clone -355 -8 -318 -361 -10 -324 ~-3 ~-2 ~-3\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=temp_p6] at @s run clone -355 -12 -318 -361 -14 -324 ~-3 ~-2 ~-3\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=temp_p7] at @s run clone -355 -16 -318 -361 -18 -324 ~-3 ~-2 ~-3\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=temp_p8] at @s run clone -355 -20 -318 -361 -22 -324 ~-3 ~-2 ~-3\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=temp_p9] at @s run clone -355 -24 -318 -361 -26 -324 ~-3 ~-2 ~-3\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=temp_p10] at @s run clone -355 -28 -318 -361 -30 -324 ~-3 ~-2 ~-3\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~-1 ~-1 ~3 ~1 ~-1 ~3 minecraft:white_carpet\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~-1 ~-1 ~-3 ~1 ~-1 ~-3 minecraft:white_carpet\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~3 ~-1 ~-1 ~3 ~-1 ~-1 minecraft:white_carpet\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~-3 ~-1 ~-1 ~-3 ~-1 ~-1 minecraft:white_carpet\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~1 ~-3 ~2 ~-1 ~-3 ~-2 minecraft:piston[facing=up]\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~2 ~-3 ~1 ~-2 ~-3 ~-1 minecraft:piston[facing=up]\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~3 ~ ~1 ~3 ~10 ~-1 minecraft:barrier replace minecraft:air\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~-3 ~ ~1 ~-3 ~10 ~-1 minecraft:barrier replace minecraft:air\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~1 ~ ~3 ~-1 ~10 ~3 minecraft:barrier replace minecraft:air\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~1 ~ ~-3 ~-1 ~10 ~-3 minecraft:barrier replace minecraft:air\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~2 ~ ~2 ~2 ~10 ~2 minecraft:barrier replace minecraft:air\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~-2 ~ ~2 ~-2 ~10 ~2 minecraft:barrier replace minecraft:air\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~2 ~ ~-2 ~2 ~10 ~-2 minecraft:barrier replace minecraft:air\r\nexecute if score currentRule variables matches 1 as @e[type=minecraft:marker,tag=mmn_chip] at @s run fill ~-2 ~ ~-2 ~-2 ~10 ~-2 minecraft:barrier replace minecraft:air\r\nexecute if score currentRule variables matches 1 run forceload remove -355 -318 -361 -324\r\nexecute if score currentRule variables matches 1 run summon minecraft:marker 0 0 500 {Tags:[\"mmn_score\"]}\r\nexecute if score currentRule variables matches 1 run scoreboard players set @e[type=minecraft:marker,tag=mmn_score] Points 999\r\nexecute if score currentRule variables matches 1 run scoreboard players display numberformat @e[type=minecraft:marker,tag=mmn_score] Points blank\r\nexecute if score currentRule variables matches 1 run scoreboard players display name @e[type=minecraft:marker,tag=mmn_score] Points [{color:\"white\",fallback:\"Round \",translate:mcp.Round_,bold:1b}]\r\nexecute if score currentRule variables matches 1 run tellraw @a [{fallback:\"If you choose a material that nobody else chooses, your platform raises by one block.\",translate:\"mcp.match_me_not_rules.1\",color:\"dark_aqua\",type:\"translatable\"}]\r\nexecute if score currentRule variables matches 2 run tellraw @a [{fallback:\"If someone else chooses the same material as you, neither of your platforms gets raised.\",translate:\"mcp.match_me_not_rules.2\",color:\"dark_green\",type:\"translatable\"}]\r\nexecute if score currentRule variables matches 3 run tellraw @a {fallback:\"The player with the highest platform after 8 rounds wins!\",translate:\"mcp.match_me_not_rules.3\",color:\"dark_aqua\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 4 run function mcp:ready_up_tellraw\r\nexecute if score currentRule variables matches 1..3 run schedule function mcp:match_me_not_rules 3s",
+    "match_me_not_start": "title @a title {fallback:\"Pick!\",translate:\"mcp.match_me_not_start.1\",color:\"green\",type:\"translatable\"}\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 0 1\r\nscoreboard players set playingMMN variables 1\r\nscoreboard players set mmn_item_check variables 0\r\nscoreboard players set mmn_round variables 1",
+    "match_me_not_tick": "execute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run give @a[scores={Player=1..}] minecraft:brick[minecraft:custom_name={bold:1b,color:\"#D91515\",italic:0b,fallback:\"Bricks\",translate:mcp.MmnBricks},minecraft:custom_data={mmn:1b,bricks:1b}] 1\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run give @a[scores={Player=1..}] minecraft:iron_ingot[minecraft:custom_name={bold:1b,color:\"#D9D9D9\",italic:0b,fallback:\"Iron\",translate:mcp.MmnIron},minecraft:custom_data={mmn:1b,iron:1b}] 1\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run give @a[scores={Player=1..}] minecraft:gold_ingot[minecraft:custom_name={bold:1b,color:\"gold\",italic:0b,fallback:\"Gold\",translate:mcp.MmnGold},minecraft:custom_data={mmn:1b,gold:1b}] 1\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run give @a[scores={Player=1..}] minecraft:netherite_ingot[minecraft:custom_name={bold:1b,color:\"#363636\",italic:0b,fallback:\"Netherite\",translate:mcp.MmnNetherite},minecraft:custom_data={mmn:1b,netherite:1b}] 1\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 if score players variables matches 5.. run give @a[scores={Player=1..}] minecraft:nether_brick[minecraft:custom_name={bold:1b,color:\"#360505\",italic:0b,fallback:\"Nether Bricks\",translate:mcp.MmnNetherBricks},minecraft:custom_data={mmn:1b,nether_bricks:1b}] 1\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 if score players variables matches 7.. run give @a[scores={Player=1..}] minecraft:copper_ingot[minecraft:custom_name={bold:1b,color:\"#FF6E19\",italic:0b,fallback:\"Copper\",translate:mcp.MmnCopper},minecraft:custom_data={mmn:1b,copper:1b}] 1\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 if score players variables matches 9.. run give @a[scores={Player=1..}] minecraft:diamond[minecraft:custom_name={bold:1b,color:\"aqua\",italic:0b,fallback:\"Diamond\",translate:mcp.MmnDiamond},minecraft:custom_data={mmn:1b,diamond:1b}] 1\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run scoreboard players set @a[scores={Player=1..}] item_chosen 0\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run scoreboard players set mmn_reveal variables 0\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run scoreboard objectives modify Points displayautoupdate true\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run data modify block -5 28 7 front_text.messages[0] set value [{color:\"white\",fallback:\"Round %1$s of 8\",translate:mcp.MatchMeNotRound,bold:1b,with:[{color:\"aqua\",score:{name:\"mmn_round\",objective:\"variables\"},type:\"score\"}]}]\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run data modify entity @e[type=minecraft:marker,tag=mmn_score,limit=1] CustomName set from block -5 28 7 front_text.messages[0]\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run scoreboard players add @e[type=minecraft:marker,tag=mmn_score] Points 0\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run scoreboard objectives modify Points displayautoupdate false\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 at @e[type=minecraft:marker,tag=mmn_chip] run fill ~2 0 ~2 ~-2 0 ~-2 minecraft:white_wool\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 0 run scoreboard players set timeLeft variables 200\r\nexecute if score playingMMN variables matches 1 run scoreboard players add mmn_item_check variables 1\r\nexecute if score playingMMN variables matches 1 if score mmn_item_check variables matches 5 run scoreboard players set playingMMN variables 2\r\n\r\nexecute if score playingMMN variables matches 2 as @e[type=minecraft:item,nbt={Item:{components:{\"minecraft:custom_data\":{bricks:1b}}}}] at @s run scoreboard players set @p[scores={Player=1..}] item_chosen 1\r\nexecute if score playingMMN variables matches 2 as @e[type=minecraft:item,nbt={Item:{components:{\"minecraft:custom_data\":{iron:1b}}}}] at @s run scoreboard players set @p[scores={Player=1..}] item_chosen 2\r\nexecute if score playingMMN variables matches 2 as @e[type=minecraft:item,nbt={Item:{components:{\"minecraft:custom_data\":{gold:1b}}}}] at @s run scoreboard players set @p[scores={Player=1..}] item_chosen 3\r\nexecute if score playingMMN variables matches 2 as @e[type=minecraft:item,nbt={Item:{components:{\"minecraft:custom_data\":{netherite:1b}}}}] at @s run scoreboard players set @p[scores={Player=1..}] item_chosen 4\r\nexecute if score playingMMN variables matches 2 as @e[type=minecraft:item,nbt={Item:{components:{\"minecraft:custom_data\":{nether_bricks:1b}}}}] at @s run scoreboard players set @p[scores={Player=1..}] item_chosen 5\r\nexecute if score playingMMN variables matches 2 as @e[type=minecraft:item,nbt={Item:{components:{\"minecraft:custom_data\":{copper:1b}}}}] at @s run scoreboard players set @p[scores={Player=1..}] item_chosen 6\r\nexecute if score playingMMN variables matches 2 as @e[type=minecraft:item,nbt={Item:{components:{\"minecraft:custom_data\":{diamond:1b}}}}] at @s run scoreboard players set @p[scores={Player=1..}] item_chosen 7\r\nexecute if score playingMMN variables matches 2 as @e[type=minecraft:item,nbt={Item:{components:{\"minecraft:custom_data\":{mmn:1b}}}}] at @s run playsound minecraft:entity.experience_orb.pickup master @p[scores={Player=1..}] ~ ~ ~ 10 2 1\r\nexecute if score playingMMN variables matches 2 run kill @e[type=minecraft:item,nbt={Item:{components:{\"minecraft:custom_data\":{mmn:1b}}}}]\r\nexecute if score playingMMN variables matches 2 run clear @a[scores={Player=1..,item_chosen=1..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=1}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=2..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=2}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=3..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=3}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=4..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=4}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=5..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=5}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=6..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=6}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=7..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=7}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=8..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=8}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=9..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=9}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=10..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=2}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=..1}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=3}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=..2}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=4}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=..3}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=5}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=..4}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=6}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=..5}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=7}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=..6}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=8}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=..7}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=9}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=..8}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 0 as @a[scores={Player=10}] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[scores={Player=..9}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 1 as @a[tag=aqua] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[tag=!aqua,scores={Player=1..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 1 as @a[tag=gold] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[tag=!gold,scores={Player=1..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 2 as @a[tag=pink] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[tag=!pink,scores={Player=1..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 2 as @a[tag=tan] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[tag=!tan,scores={Player=1..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 2 as @a[tag=teal] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[tag=!teal,scores={Player=1..}]\r\nexecute if score playingMMN variables matches 2 if score mmn_doubles_mode variables matches 2 as @a[tag=purple] at @s run particle minecraft:dust{color:[1.0,1.0,1.0],scale:4.0f} ~ ~1 ~ 0.75 0.75 0.75 0 10 force @a[tag=!purple,scores={Player=1..}]\r\nexecute if score playingMMN variables matches 2 run scoreboard players set players_chosen variables 0\r\nexecute if score playingMMN variables matches 2 as @a[scores={Player=1..,item_chosen=1..}] run scoreboard players add players_chosen variables 1\r\nexecute if score playingMMN variables matches 2 if score players_chosen variables >= players variables run scoreboard players set playingMMN variables 3\r\nexecute if score playingMMN variables matches 2 run function mcp:timer_decrement\r\nexecute if score playingMMN variables matches 2 if score timeLeft variables matches ..0 run scoreboard players set playingMMN variables 3\r\n\r\n#set the center markers score of item_chosen to match its respective player's score of item_chosen\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 0 run scoreboard players operation @e[type=minecraft:marker,tag=p1_mmn] item_chosen = @a[team=blue,limit=1] item_chosen\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 0 run scoreboard players operation @e[type=minecraft:marker,tag=p2_mmn] item_chosen = @a[team=red,limit=1] item_chosen\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 0 run scoreboard players operation @e[type=minecraft:marker,tag=p3_mmn] item_chosen = @a[team=green,limit=1] item_chosen\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 0 run scoreboard players operation @e[type=minecraft:marker,tag=p4_mmn] item_chosen = @a[team=yellow,limit=1] item_chosen\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 0 run scoreboard players operation @e[type=minecraft:marker,tag=p5_mmn] item_chosen = @a[team=dark_aqua,limit=1] item_chosen\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 0 run scoreboard players operation @e[type=minecraft:marker,tag=p6_mmn] item_chosen = @a[team=light_purple,limit=1] item_chosen\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 0 run scoreboard players operation @e[type=minecraft:marker,tag=p7_mmn] item_chosen = @a[team=dark_red,limit=1] item_chosen\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 0 run scoreboard players operation @e[type=minecraft:marker,tag=p8_mmn] item_chosen = @a[team=dark_green,limit=1] item_chosen\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 0 run scoreboard players operation @e[type=minecraft:marker,tag=p9_mmn] item_chosen = @a[team=dark_purple,limit=1] item_chosen\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 0 run scoreboard players operation @e[type=minecraft:marker,tag=p10_mmn] item_chosen = @a[team=dark_blue,limit=1] item_chosen\r\nexecute if score playingMMN variables matches 3 run scoreboard players add mmn_reveal variables 1\r\nexecute if score playingMMN variables matches 3 run clear @a[scores={Player=1..}]\r\nexecute if score playingMMN variables matches 3 run title @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{fallback:\"0:00\",translate:\"mcp.zero_time_left\",color:\"#FF0000\",type:\"translatable\"}]\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 20 run playsound minecraft:ui.button.click master @a ~ ~ ~ 10 0 1\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 run playsound minecraft:block.grindstone.use master @a ~ ~ ~ 10 0.75 1\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 as @e[type=minecraft:marker,tag=mmn_marker] at @s run particle minecraft:ash ~ ~ ~ 0.1 0.1 0.1 1 100 force\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 as @e[type=minecraft:marker,tag=mmn_marker,scores={item_chosen=1}] at @s at @n[type=minecraft:item_frame,tag=mmn_item_frame] run summon minecraft:item ~ ~0.5 ~ {Tags:[\"mmn_display\"],Item:{id:\"minecraft:brick\",components:{\"minecraft:custom_name\":{bold:1b,color:\"#D91515\",italic:0b,fallback:\"Bricks\",translate:mcp.MmnBricks},\"minecraft:custom_data\":{bricks:1b,mmn:1b}},count:1}}\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 as @e[type=minecraft:marker,tag=mmn_marker,scores={item_chosen=2}] at @s at @n[type=minecraft:item_frame,tag=mmn_item_frame] run summon minecraft:item ~ ~0.5 ~ {Tags:[\"mmn_display\"],Item:{id:\"minecraft:iron_ingot\",components:{\"minecraft:custom_name\":{bold:1b,color:\"#D9D9D9\",italic:0b,fallback:\"Iron\",translate:mcp.MmnIron},\"minecraft:custom_data\":{iron:1b,mmn:1b}},count:1}}\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 as @e[type=minecraft:marker,tag=mmn_marker,scores={item_chosen=3}] at @s at @n[type=minecraft:item_frame,tag=mmn_item_frame] run summon minecraft:item ~ ~0.5 ~ {Tags:[\"mmn_display\"],Item:{id:\"minecraft:gold_ingot\",components:{\"minecraft:custom_name\":{bold:1b,color:\"gold\",italic:0b,fallback:\"Gold\",translate:mcp.MmnGold},\"minecraft:custom_data\":{gold:1b,mmn:1b}},count:1}}\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 as @e[type=minecraft:marker,tag=mmn_marker,scores={item_chosen=4}] at @s at @n[type=minecraft:item_frame,tag=mmn_item_frame] run summon minecraft:item ~ ~0.5 ~ {Tags:[\"mmn_display\"],Item:{id:\"minecraft:netherite_ingot\",components:{\"minecraft:custom_name\":{bold:1b,color:\"#363636\",italic:0b,fallback:\"Netherite\",translate:mcp.MmnNetherite},\"minecraft:custom_data\":{netherite:1b,mmn:1b}},count:1}}\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 as @e[type=minecraft:marker,tag=mmn_marker,scores={item_chosen=5}] at @s at @n[type=minecraft:item_frame,tag=mmn_item_frame] run summon minecraft:item ~ ~0.5 ~ {Tags:[\"mmn_display\"],Item:{id:\"minecraft:nether_brick\",components:{\"minecraft:custom_name\":{bold:1b,color:\"#360505\",italic:0b,fallback:\"Nether Bricks\",translate:mcp.MmnNetherBricks},\"minecraft:custom_data\":{nether_bricks:1b,mmn:1b}},count:1}}\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 as @e[type=minecraft:marker,tag=mmn_marker,scores={item_chosen=6}] at @s at @n[type=minecraft:item_frame,tag=mmn_item_frame] run summon minecraft:item ~ ~0.5 ~ {Tags:[\"mmn_display\"],Item:{id:\"minecraft:copper_ingot\",components:{\"minecraft:custom_name\":{bold:1b,color:\"#FF6E19\",italic:0b,fallback:\"Copper\",translate:mcp.MmnCopper},\"minecraft:custom_data\":{copper:1b,mmn:1b}},count:1}}\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 as @e[type=minecraft:marker,tag=mmn_marker,scores={item_chosen=7}] at @s at @n[type=minecraft:item_frame,tag=mmn_item_frame] run summon minecraft:item ~ ~0.5 ~ {Tags:[\"mmn_display\"],Item:{id:\"minecraft:diamond\",components:{\"minecraft:custom_name\":{bold:1b,color:\"aqua\",italic:0b,fallback:\"Diamond\",translate:mcp.MmnDiamond},\"minecraft:custom_data\":{diamond:1b,mmn:1b}},count:1}}\r\n#Line below: sets the chip marker scores of item_chosen to match the scores of the center markers\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 as @e[type=minecraft:marker,tag=mmn_marker] at @s run scoreboard players operation @n[type=minecraft:marker,tag=mmn_chip] item_chosen = @s item_chosen\r\n#set the reveal depending in number of players\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 if score players variables matches ..4 run scoreboard players set mmn_reveal variables 440\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 if score players variables matches 5 run scoreboard players set mmn_reveal variables 420\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 if score players variables matches 6 run scoreboard players set mmn_reveal variables 400\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 if score players variables matches 7 run scoreboard players set mmn_reveal variables 380\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 if score players variables matches 8 run scoreboard players set mmn_reveal variables 360\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 if score players variables matches 9 run scoreboard players set mmn_reveal variables 340\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 60 if score players variables matches 10 run scoreboard players set mmn_reveal variables 320\r\n#Adds 1 to players' points score if their selection is unique\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 run scoreboard objectives modify Points displayautoupdate false\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @a[scores={Player=1..,item_chosen=1}] at @s unless entity @a[distance=0.1..,scores={Player=1..,item_chosen=1}] run scoreboard players add @s Points 1\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @a[scores={Player=1..,item_chosen=2}] at @s unless entity @a[distance=0.1..,scores={Player=1..,item_chosen=2}] run scoreboard players add @s Points 1\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @a[scores={Player=1..,item_chosen=3}] at @s unless entity @a[distance=0.1..,scores={Player=1..,item_chosen=3}] run scoreboard players add @s Points 1\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @a[scores={Player=1..,item_chosen=4}] at @s unless entity @a[distance=0.1..,scores={Player=1..,item_chosen=4}] run scoreboard players add @s Points 1\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @a[scores={Player=1..,item_chosen=5}] at @s unless entity @a[distance=0.1..,scores={Player=1..,item_chosen=5}] run scoreboard players add @s Points 1\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @a[scores={Player=1..,item_chosen=6}] at @s unless entity @a[distance=0.1..,scores={Player=1..,item_chosen=6}] run scoreboard players add @s Points 1\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @a[scores={Player=1..,item_chosen=7}] at @s unless entity @a[distance=0.1..,scores={Player=1..,item_chosen=7}] run scoreboard players add @s Points 1\r\n#adds a \"unique\" tag to chip markers\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=mmn_chip,scores={item_chosen=1}] at @s unless entity @e[type=minecraft:marker,distance=0.1..,tag=mmn_chip,scores={item_chosen=1}] run tag @s add unique\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=mmn_chip,scores={item_chosen=2}] at @s unless entity @e[type=minecraft:marker,distance=0.1..,tag=mmn_chip,scores={item_chosen=2}] run tag @s add unique\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=mmn_chip,scores={item_chosen=3}] at @s unless entity @e[type=minecraft:marker,distance=0.1..,tag=mmn_chip,scores={item_chosen=3}] run tag @s add unique\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=mmn_chip,scores={item_chosen=4}] at @s unless entity @e[type=minecraft:marker,distance=0.1..,tag=mmn_chip,scores={item_chosen=4}] run tag @s add unique\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=mmn_chip,scores={item_chosen=5}] at @s unless entity @e[type=minecraft:marker,distance=0.1..,tag=mmn_chip,scores={item_chosen=5}] run tag @s add unique\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=mmn_chip,scores={item_chosen=6}] at @s unless entity @e[type=minecraft:marker,distance=0.1..,tag=mmn_chip,scores={item_chosen=6}] run tag @s add unique\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=mmn_chip,scores={item_chosen=7}] at @s unless entity @e[type=minecraft:marker,distance=0.1..,tag=mmn_chip,scores={item_chosen=7}] run tag @s add unique\r\n#Piston and block placing logic at unique chip markers\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=unique,scores={item_chosen=1}] at @s run fill ~2 ~-2 ~2 ~-2 ~-2 ~-2 minecraft:bricks replace minecraft:white_wool\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=unique,scores={item_chosen=2}] at @s run fill ~2 ~-2 ~2 ~-2 ~-2 ~-2 minecraft:iron_block replace minecraft:white_wool\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=unique,scores={item_chosen=3}] at @s run fill ~2 ~-2 ~2 ~-2 ~-2 ~-2 minecraft:gold_block replace minecraft:white_wool\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=unique,scores={item_chosen=4}] at @s run fill ~2 ~-2 ~2 ~-2 ~-2 ~-2 minecraft:netherite_block replace minecraft:white_wool\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=unique,scores={item_chosen=5}] at @s run fill ~2 ~-2 ~2 ~-2 ~-2 ~-2 minecraft:nether_bricks replace minecraft:white_wool\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=unique,scores={item_chosen=6}] at @s run fill ~2 ~-2 ~2 ~-2 ~-2 ~-2 minecraft:copper_block replace minecraft:white_wool\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=unique,scores={item_chosen=7}] at @s run fill ~2 ~-2 ~2 ~-2 ~-2 ~-2 minecraft:diamond_block replace minecraft:white_wool\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 500 as @e[type=minecraft:marker,tag=unique,tag=mmn_chip] at @s run fill ~3 ~-4 ~3 ~-3 ~-4 ~-3 minecraft:redstone_block\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 510 as @e[type=minecraft:marker,tag=unique,tag=mmn_chip] at @s run fill ~3 ~-4 ~3 ~-3 ~-4 ~-3 minecraft:air\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 510 run tag @e[type=minecraft:marker] remove unique\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 510 run scoreboard players add mmn_round variables 1\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 510 run scoreboard players set mmn_item_check variables 0\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 510 run scoreboard players set @a[scores={Player=1..}] item_chosen 0\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 510 run scoreboard players set @e[tag=mmn_marker] item_chosen 0\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 510 run scoreboard players set @e[tag=mmn_chip] item_chosen 0\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 510 run kill @e[type=minecraft:item,tag=mmn_display]\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 510 if score mmn_round variables matches 9.. run schedule function mcp:match_me_not_end 2s\r\nexecute if score playingMMN variables matches 3 if score mmn_reveal variables matches 510 if score mmn_round variables matches ..8 run scoreboard players set playingMMN variables 1\r\n\r\nexecute as @a[scores={Player=1..}] unless entity @s[nbt={Inventory:[{Slot:9b}]}] run item replace entity @s inventory.0 with minecraft:structure_void[custom_data={void_minigame:1b},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"End Minigame\",translate:mcp.EndMinigame},minecraft:enchantments={\"minecraft:vanishing_curse\":1},tooltip_display={hidden_components:[\"enchantments\"]},enchantment_glint_override=false,minecraft:lore=[{fallback:\"Drop to end current minigame in progress\",translate:mcp.DropToEndMinigame}]]",
+    "match_me_not_end": "scoreboard players reset playingMMN variables\r\nexecute store result score playersOnline variables if entity @a[scores={Player=1..}]\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run title @a actionbar {fallback:\"All players must be online to continue\",translate:\"mcp.MissingPlayerActionBarAlert\",type:\"translatable\"}\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run schedule function mcp:match_me_not_end 1t\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run return 0\r\nscoreboard players reset playersOnline variables\r\n\r\nforceload remove -298 -385 -360 -319\r\nclear @a\r\nfill 52 16 566 0 8 500 minecraft:air\r\nfill 52 0 566 0 7 500 minecraft:air\r\nfill 52 -1 566 0 -6 500 minecraft:air\r\nkill @e[type=minecraft:marker,tag=mmn_marker]\r\nkill @e[type=minecraft:marker,tag=mmn_chip]\r\nkill @e[type=minecraft:marker,tag=mmn_score]\r\nkill @e[type=minecraft:item_frame,tag=mmn_item_frame]\r\nscoreboard players reset mmn_item_check variables\r\nscoreboard players reset mmn_reveal variables\r\nscoreboard players reset mmn_round variables\r\nscoreboard players reset players_chosen variables\r\nscoreboard players reset mmn_doubles_mode variables\r\nscoreboard objectives remove item_chosen\r\nscoreboard objectives setdisplay sidebar\r\nscoreboard objectives modify Points displayautoupdate false\r\nexecute unless score void_minigame variables matches 1 run function mcp:placements\r\nexecute unless score void_minigame variables matches 1 as @a at @s run playsound mcp:finish voice @s ~ ~ ~ 1 1 1\r\nscoreboard players reset game_timer variables",
+    "player_circle": "# Function prerequisites:\r\n# 1. radius variables is set to the desired radius of the player circle\r\n# 2. All players getting place in the circle are online and have a minigameplayer score of at least 1 with no duplicates. The scores should be one big straight\r\n# 3. This function is getting executed at the position of the center of the circle\r\n# 4. The players will get teleported(At Yaw=0 by default unless a rotation offset paramter is specified) and will get teleported in order of their minigameplayer score. The exception to this is in a 2v2 minigame where minigameplayer 2 and 3 are switched\r\n\r\nkill @e[tag=rotationOffset]\r\nexecute unless entity @e[tag=center] store result score playersInCircle variables if entity @a[scores={minigameplayer=1..}]\r\nexecute unless entity @e[tag=center] run summon minecraft:marker ^ ^ ^1 {Tags:[\"rotationOffset\"]}\r\nexecute unless entity @e[tag=center] run summon minecraft:marker ~ ~ ~ {Tags:[\"center\"]}\r\nexecute as @e[tag=center,limit=1] at @s facing entity @e[tag=rotationOffset,limit=1] feet run tp @s ~ ~ ~ ~ ~\r\nkill @e[tag=rotationOffset]\r\nexecute unless score gametype variables matches 2 run scoreboard players add minigameplayer variables 1\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 4.. run scoreboard players add minigameplayer variables 1\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 2 run scoreboard players set minigameplayer variables 4\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 3 run scoreboard players set minigameplayer variables 2\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 1 run scoreboard players set minigameplayer variables 3\r\nexecute if score gametype variables matches 2 unless score minigameplayer variables matches 1.. run scoreboard players set minigameplayer variables 1\r\nexecute as @a[scores={minigameplayer=1..}] if score @s minigameplayer = minigameplayer variables at @e[tag=center] run function mcp:player_circle_place_player\r\nscoreboard players operation rotationChange variables = 360 constants\r\nscoreboard players operation rotationChange variables /= playersInCircle variables\r\nexecute as @e[tag=center,limit=1] run function mcp:rotate_entity\r\nexecute unless score minigameplayer variables >= playersInCircle variables run function mcp:player_circle\r\nkill @e[tag=center]\r\nscoreboard players reset radius variables\r\nscoreboard players reset rotationChange variables\r\nscoreboard players reset rotation variables\r\nscoreboard players reset playersInCircle variables\r\nscoreboard players reset minigameplayer variables",
+    "player_circle_place_player": "execute unless entity @e[tag=playerPosition] run summon minecraft:marker ~ ~ ~ {Tags:[\"playerPosition\"]}\r\nscoreboard players add playerRadius variables 1\r\nexecute as @e[tag=playerPosition] at @s rotated as @e[tag=center] run tp @s ^ ^ ^1\r\nexecute if score playerRadius variables < radius variables run function mcp:player_circle_place_player\r\nexecute unless score playerRadius variables < radius variables at @e[tag=playerPosition,limit=1] run tp @s ~ ~ ~ facing entity @e[tag=center,limit=1]\r\nexecute unless score playerRadius variables < radius variables run kill @e[tag=playerPosition]\r\nexecute unless score playerRadius variables < radius variables run scoreboard players reset playerRadius variables",
+    "rotate_entity": "# rotationChange variables must be set and reset outside of this function. rotation variables needs to be reset outside of this function\r\nexecute if score rotationChange variables matches 0 run scoreboard players set rotationChange variables 36\r\nexecute store result score rotation variables run data get entity @s Rotation[0]\r\nscoreboard players operation rotation variables += rotationChange variables\r\nexecute store result storage mcp:variables rotation float 1 run scoreboard players get rotation variables\r\ndata modify entity @s Rotation[0] set from storage mcp:variables rotation",
+    "timer_decrement": "scoreboard players remove timeLeft variables 1\r\nscoreboard players operation TimeLeftMin variables = timeLeft variables\r\nscoreboard players add TimeLeftMin variables 20\r\nscoreboard players operation TimeLeftMin variables /= 1200 constants\r\nscoreboard players operation TimeLeftSec variables = timeLeft variables\r\nscoreboard players operation TimeLeftSec variables /= 20 constants\r\nscoreboard players add TimeLeftSec variables 1\r\nscoreboard players operation TimeLeftSec variables %= 60 constants\r\nexecute if score TimeLeftSec variables matches 10.. run title @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{score:{name:\"TimeLeftMin\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"},{text:\":\",color:\"#FF0000\"},{score:{name:\"TimeLeftSec\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"}]\r\nexecute unless score TimeLeftSec variables matches 10.. run title @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{score:{name:\"TimeLeftMin\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"},{text:\":0\",color:\"#FF0000\"},{score:{name:\"TimeLeftSec\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"}]\r\nexecute if score timeLeft variables matches 0 run schedule function mcp:last_timer_title 1t",
+    "last_timer_title": "title @a actionbar [{fallback:\"Time Left: 0:00\",translate:\"mcp.last_timer_title.1\",color:\"#FF0000\",type:\"translatable\"}]",
+    "give_ready_ups": "scoreboard players set playersReady variables 0\r\nscoreboard players set practiceVotes variables 0\r\nexecute if score minigame variables matches 200..299 run scoreboard players operation temp_players variables = players variables\r\nexecute if score minigame variables matches 200..299 run scoreboard players operation temp_players variables %= 2 constants\r\nexecute if score minigame variables matches 200..299 run scoreboard players operation playersReady variables = temp_players variables\r\nexecute if score minigame variables matches 200..299 run scoreboard players reset temp_players variables\r\nexecute if score gametype variables matches 5 unless score gamemode variables matches 0 run function mcp:battle_minigame_payouts_sidebar\r\nexecute if score gametype variables matches 3 if score players variables matches 9 run scoreboard players add playersReady variables 1\r\nexecute if score gametype variables matches 3 if score players variables matches 10 run scoreboard players add playersReady variables 2\r\nexecute if score realms_mode variables matches 1 run scoreboard objectives remove VoidMinigame\r\nexecute if score realms_mode variables matches 1 run scoreboard objectives add VoidMinigame trigger\r\nexecute if score realms_mode variables matches 1 run scoreboard players enable @a VoidMinigame\r\n\r\nitem replace entity @a[scores={TeamID=1}] hotbar.8 with minecraft:blue_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"blue\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=2}] hotbar.8 with minecraft:red_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"red\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=3}] hotbar.8 with minecraft:lime_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=4}] hotbar.8 with minecraft:yellow_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"yellow\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=5}] hotbar.8 with minecraft:cyan_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_aqua\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=6}] hotbar.8 with minecraft:magenta_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"light_purple\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=7}] hotbar.8 with minecraft:brown_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_red\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=8}] hotbar.8 with minecraft:green_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_green\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=9}] hotbar.8 with minecraft:purple_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_purple\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=10}] hotbar.8 with minecraft:black_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_blue\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\n\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=1}] hotbar.7 with minecraft:blue_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=2}] hotbar.7 with minecraft:red_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=3}] hotbar.7 with minecraft:lime_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=4}] hotbar.7 with minecraft:yellow_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"yellow\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=5}] hotbar.7 with minecraft:cyan_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_aqua\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=6}] hotbar.7 with minecraft:magenta_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"light_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=7}] hotbar.7 with minecraft:brown_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=8}] hotbar.7 with minecraft:green_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=9}] hotbar.7 with minecraft:purple_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=10}] hotbar.7 with minecraft:black_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\n\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=1}] hotbar.7 with minecraft:blue_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=2}] hotbar.7 with minecraft:red_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=3}] hotbar.7 with minecraft:lime_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=4}] hotbar.7 with minecraft:yellow_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"yellow\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=5}] hotbar.7 with minecraft:cyan_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_aqua\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=6}] hotbar.7 with minecraft:magenta_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"light_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=7}] hotbar.7 with minecraft:brown_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=8}] hotbar.7 with minecraft:green_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=9}] hotbar.7 with minecraft:purple_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=10}] hotbar.7 with minecraft:black_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\n\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=1}] hotbar.7 with minecraft:blue_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=2}] hotbar.7 with minecraft:red_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=3}] hotbar.7 with minecraft:lime_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=4}] hotbar.7 with minecraft:yellow_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"yellow\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=5}] hotbar.7 with minecraft:cyan_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_aqua\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=6}] hotbar.7 with minecraft:magenta_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"light_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=7}] hotbar.7 with minecraft:brown_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=8}] hotbar.7 with minecraft:green_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=9}] hotbar.7 with minecraft:purple_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=10}] hotbar.7 with minecraft:black_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\n\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=1}] hotbar.7 with minecraft:blue_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=2}] hotbar.7 with minecraft:red_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=3}] hotbar.7 with minecraft:lime_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=4}] hotbar.7 with minecraft:yellow_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"yellow\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=5}] hotbar.7 with minecraft:cyan_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_aqua\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=6}] hotbar.7 with minecraft:magenta_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"light_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=7}] hotbar.7 with minecraft:brown_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=8}] hotbar.7 with minecraft:green_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=9}] hotbar.7 with minecraft:purple_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=10}] hotbar.7 with minecraft:black_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\n\r\nitem replace entity @a inventory.0 with minecraft:structure_void[custom_data={void_minigame:1b},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"End Minigame\",translate:mcp.EndMinigame},minecraft:enchantments={\"minecraft:vanishing_curse\":1},tooltip_display={hidden_components:[\"enchantments\"]},enchantment_glint_override=false,minecraft:lore=[{fallback:\"Drop to end current minigame in progress\",translate:mcp.DropToEndMinigame}]]",
+    "ready_up_tellraw": "execute unless score playersReady variables >= players variables run tellraw @a {fallback:\"All players can drop their ready up item when they are ready to begin the game.\",translate:\"mcp.ready_up_tellraw.1\",color:\"#FF2424\",type:\"translatable\"}\r\nexecute unless score playersReady variables >= players variables run playsound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1",
+    "placements": "gamerule fallDamage false\r\nscoreboard objectives remove VoidMinigame\r\nstopsound @a weather\r\nkill @e[type=item]\r\nscoreboard players set @a MusicTime 1\r\nexecute if score gamemode variables matches 3 run scoreboard players set gp_minigame_active variables 0\r\nexecute store result score playersOnline variables if entity @a[scores={Player=1..}]\r\nexecute if score playersOnline variables < players variables run title @a actionbar {fallback:\"All players must be online to continue\",translate:\"mcp.MissingPlayerActionBarAlert\",type:\"translatable\"}\r\nexecute if score playersOnline variables < players variables run schedule function mcp:placements 1t\r\nexecute if score playersOnline variables < players variables run return 0\r\ntitle @a times 0 15 15\r\nexecute if score reduced_cutscenes variables matches 1 run title @a times 0 60 15\r\ntitle @a title {fallback:\"\\uE001\",translate:\"mcp.placements.2\",type:\"translatable\"}\r\nscoreboard players reset playersOnline variables\r\ngamemode adventure @a[scores={Player=1..}]\r\neffect clear @a minecraft:levitation\r\neffect give @a minecraft:weakness infinite 255 true\r\nexecute if score gametype variables matches 5 run fill 0 38 -86 -14 38 -72 minecraft:campfire{} replace minecraft:gold_block\r\nexecute if score gametype variables matches 5 run fill 0 38 -86 -14 38 -72 minecraft:soul_campfire{} replace minecraft:diamond_block\r\nscoreboard objectives add in_ve dummy\r\nscoreboard players set @a[scores={Player=1..}] in_ve 0\r\nscoreboard players set victoryeggplayers variables 0\r\nscoreboard players set battlePlayersDone variables 0\r\nscoreboard players set TiePlace1 variables 0\r\nscoreboard players set TiePlace2 variables 0\r\nscoreboard players set TiePlace3 variables 0\r\nscoreboard players set TiePlace4 variables 0\r\nscoreboard players reset @a MinigamePlacement\r\nfunction mcp:separate_players\r\nscoreboard players set @a[scores={Player=1..}] placement 0\r\nexecute as @a[scores={Player=1..}] at @a[scores={Player=1..}] if score @s Points < @p Points run scoreboard players add @s placement 1\r\nscoreboard players add @a[scores={Player=1..}] placement 1\r\nexecute as @a[scores={placement=4}] run scoreboard players add TiePlace4 variables 1\r\nexecute as @a[scores={placement=3}] run scoreboard players add TiePlace3 variables 1\r\nexecute as @a[scores={placement=2}] run scoreboard players add TiePlace2 variables 1\r\nexecute as @a[scores={placement=1}] run scoreboard players add TiePlace1 variables 1\r\n\r\nexecute if score reduced_cutscenes variables matches 1 run gamemode spectator @a[scores={Player=1..}]\r\nexecute if score reduced_cutscenes variables matches 1 run function mcp:placement\r\nexecute if score reduced_cutscenes variables matches 1 run return 0\r\n\r\nexecute if score gamemode variables matches 0..3 unless score gamemode variables matches 1..2 unless score gametype variables matches 5 run tp @a 287 45 -338 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 1 run tp @a -75 32.5 -525 -90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 2 run tp @a 1487.0 47 78 -90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 3 run tp @a 36.0 -49 -636 180 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 4 run tp @a -459.0 -27 -596.0 0 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 5 run tp @a 395 44 -630 -90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 6 run tp @a 132.5 -59 -635.5 -90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 7 run tp @a 407.0 47 -387.5 180 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 8 run tp @a 1396.0 116 9749.0 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 9 run tp @a 1269 150.5 10057 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 9..17 unless score board variables matches 10..12 unless score board variables matches 15..16 run schedule function mcp:victory_stage 1s\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 10 run tp @a 27.0 89 5123.5 0 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 11 run tp @a 71.5 64 -5132.0 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 12 run tp @a 26.0 1.5 5120.5 0 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 13 run tp @a 1208 119 9455.5 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 14 run tp @a -5154 116 67 -90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 15 run tp @a 4706 62 458 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 16 run tp @a 283.0 58 5435 0 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 17 run tp @a 988 72.5 -5127 0 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 18 run tp @a 1956.0 108.0 1125.0 180 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 100 run tp @a 765 -57 1030 -90 0\r\nexecute if score gametype variables matches 5 positioned 6 33 -79 rotated 0 0 run function mcp:player_line\r\nforceload remove 6 -79 6 -84\r\nexecute unless score void_minigame variables matches 1 run schedule function mcp:placement 3s\r\nexecute if score reduced_cutscenes variables matches 0 run schedule function mcp:spawn_audience 1s\r\nexecute if score gamemode variables matches 0..3 unless score gamemode variables matches 1..2 if score reduced_cutscenes variables matches 0 run schedule function mcp:victory_stage 1s\r\nexecute if score gamemode variables matches 0..3 unless score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 as @a[scores={minigameplayer=1},limit=1] positioned 287 45 -338 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 1 as @a[scores={minigameplayer=1},limit=1] positioned -79 32.5 -525 rotated 180 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 2 as @a[scores={minigameplayer=1},limit=1] positioned 1487.0 47 78 rotated 180 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 3 as @a[scores={minigameplayer=1},limit=1] positioned 36.0 -49 -636 rotated 90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 4 as @a[scores={minigameplayer=1},limit=1] positioned -459.0 -27 -595.0 rotated -90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 5 as @a[scores={minigameplayer=1},limit=1] positioned 395 44 -630 rotated 180 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 6 as @a[scores={minigameplayer=1},limit=1] positioned 132.5 -59 -635.5 rotated 180 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 7 as @a[scores={minigameplayer=1},limit=1] positioned 407.0 47 -387.5 rotated 90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 8 as @a[scores={minigameplayer=1},limit=1] positioned 1396.0 115 9749.0 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 9 as @a[scores={minigameplayer=1},limit=1] positioned 1269.5 150.5 10056.5 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 10 as @a[scores={minigameplayer=1},limit=1] positioned 27.0 89 5123.5 rotated -90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 11 as @a[scores={minigameplayer=1},limit=1] positioned 71.5 64 -5132.0 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 12 as @a[scores={minigameplayer=1},limit=1] positioned 26.0 1.5 5120.5 rotated -90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 13 as @a[scores={minigameplayer=1},limit=1] positioned 1207 118.5 9455.5 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 14 as @a[scores={minigameplayer=1},limit=1] positioned -5154 116 67 rotated 180 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 15 as @a[scores={minigameplayer=1},limit=1] positioned 4706 62 458 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 16 as @a[scores={minigameplayer=1},limit=1] positioned 283.0 58 5435 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 17 as @a[scores={minigameplayer=1},limit=1] positioned 988.5 72.5 -5126.5 rotated -90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 18 as @a[scores={minigameplayer=1},limit=1] positioned 1956.0 108.0 1122.0 rotated 90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 100 as @a[scores={minigameplayer=1},limit=1] positioned 765 -57 1030 rotated -180 0 run function mcp:player_line"
+  },
+  "rules": {
+    "internalRounds": 8,
+    "choiceTicks": 200,
+    "preparationCounter": 5,
+    "intro": "Entry(26,1,533), nativeLevitation80tick at0; originalrules at60 createfield/circle/frames with20levitationticks remaining; expiry80; PLAY160 does not replaylevitation.",
+    "preparationBoundary": "Counter5 also executes the first active choice tick; only four pure preparation ticks.",
+    "materialCount": "4 for2..4 players,5 for5..6,6 for7..8,7 for9..10; retain initial player count after forfeit.",
+    "materialItems": [
+      "brick",
+      "iron_ingot",
+      "gold_ingot",
+      "netherite_ingot",
+      "nether_brick",
+      "copper_ingot",
+      "diamond"
+    ],
+    "materials": [
+      "bricks",
+      "iron_block",
+      "gold_block",
+      "netherite_block",
+      "nether_bricks",
+      "copper_block",
+      "diamond_block"
+    ],
+    "nativeInput": "Actually drop the supplied item. Source material-order1..7 overwrites simultaneous drops; highest index wins.",
+    "rawScore": "Unique nonzero material across active players adds1, duplicate or no choice adds0; total0..8, ties preserved.",
+    "revealCounterAt60": {
+      "2": 440,
+      "3": 440,
+      "4": 440,
+      "5": 420,
+      "6": 400,
+      "7": 380,
+      "8": 360,
+      "9": 340,
+      "10": 320
+    },
+    "scoreCounter": 500,
+    "powerOffCounter": 510,
+    "finalDelayTicks": 40,
+    "circle": "center(26,2,533), radius10 forN<=8/radius12 for9..10, integer360//N angle step; players face center.",
+    "pistons": "Native21 upward pistons atY-1 cross; redstone7x7 atY-2 during500..510 pushes the material layer/floor/player once.",
+    "noRandomDefault": "Unselected0 never becomes a random material. Eight rounds, not one global200tick game."
+  },
+  "banners": [
+    {
+      "pos": [
+        -339,
+        -6,
+        -353
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -340,
+        -8,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:curly_border"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -342,
+        -8,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -340,
+        -6,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -341,
+        -8,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -339,
+        -8,
+        -353
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -342,
+        -6,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -344,
+        -8,
+        -353
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:curly_border"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -341,
+        -6,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -343,
+        -8,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -344,
+        -6,
+        -353
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -343,
+        -6,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -343,
+        -6,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -344,
+        -8,
+        -350
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -339,
+        -6,
+        -352
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -342,
+        -6,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -344,
+        -6,
+        -350
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -344,
+        -8,
+        -352
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -344,
+        -8,
+        -351
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -341,
+        -8,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -339,
+        -8,
+        -351
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -339,
+        -8,
+        -350
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:curly_border"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -340,
+        -8,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -343,
+        -8,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:curly_border"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -339,
+        -6,
+        -351
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -341,
+        -6,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -339,
+        -6,
+        -350
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -340,
+        -6,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -342,
+        -8,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -339,
+        -8,
+        -352
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -344,
+        -6,
+        -352
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -344,
+        -6,
+        -351
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -325,
+        -8,
+        -373
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:border"
+        }
+      ]
+    }
+  ],
+  "sourceCorrections": [
+    "Source end clears only liveY-6..16 despite importing scene topY17; owned full-volume cleanup clears that layer too.",
+    "Global distance0.1 uniqueness guard excludes self; native cages keep distinct players farther apart. Scoped UUID counts also prevent overlapping-player exploits."
+  ],
+  "adaptations": [
+    "Keep original native item drops,21 piston motion/collision,49 redstone pulse and gravity-enabled dropped revealitems; no virtual item/teleport-on-score substitution.",
+    "Preserve clone air and opt into scoped WorldChunk terrain-change tracking because native piston moves bypass BlockItem.onPlaced.",
+    "Native ItemFrame entities are blank, invisible, fixed, silent and invulnerable. Use1.21.1 defaultFacingDOWN and its actual attachment center for revealitem placement.",
+    "Use scoped UUID/seat records instead of global teams, markers, scoreboards, schedules, functions and gamerules. Restore33 safe banner pattern lists.",
+    "Normal five-round tournament and forfeit handling replace original ready-up/board payouts/offline pause;8 rounds are internal to this one minigame."
+  ],
+  "geometry": {
+    "match_me_not_arena": {
+      "bounds": {
+        "min": [
+          -350,
+          -12,
+          -385
+        ],
+        "max": [
+          -298,
+          5,
+          -319
+        ]
+      },
+      "blocks": 4654,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {
+        "minecraft:banner": 33
+      }
+    },
+    "match_me_not_chip_1": {
+      "bounds": {
+        "min": [
+          -361,
+          6,
+          -324
+        ],
+        "max": [
+          -355,
+          8,
+          -318
+        ]
+      },
+      "blocks": 98,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "match_me_not_chip_2": {
+      "bounds": {
+        "min": [
+          -361,
+          2,
+          -324
+        ],
+        "max": [
+          -355,
+          4,
+          -318
+        ]
+      },
+      "blocks": 98,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "match_me_not_chip_3": {
+      "bounds": {
+        "min": [
+          -361,
+          -2,
+          -324
+        ],
+        "max": [
+          -355,
+          0,
+          -318
+        ]
+      },
+      "blocks": 98,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "match_me_not_chip_4": {
+      "bounds": {
+        "min": [
+          -361,
+          -6,
+          -324
+        ],
+        "max": [
+          -355,
+          -4,
+          -318
+        ]
+      },
+      "blocks": 98,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "match_me_not_chip_5": {
+      "bounds": {
+        "min": [
+          -361,
+          -10,
+          -324
+        ],
+        "max": [
+          -355,
+          -8,
+          -318
+        ]
+      },
+      "blocks": 98,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "match_me_not_chip_6": {
+      "bounds": {
+        "min": [
+          -361,
+          -14,
+          -324
+        ],
+        "max": [
+          -355,
+          -12,
+          -318
+        ]
+      },
+      "blocks": 98,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "match_me_not_chip_7": {
+      "bounds": {
+        "min": [
+          -361,
+          -18,
+          -324
+        ],
+        "max": [
+          -355,
+          -16,
+          -318
+        ]
+      },
+      "blocks": 98,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "match_me_not_chip_8": {
+      "bounds": {
+        "min": [
+          -361,
+          -22,
+          -324
+        ],
+        "max": [
+          -355,
+          -20,
+          -318
+        ]
+      },
+      "blocks": 98,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "match_me_not_chip_9": {
+      "bounds": {
+        "min": [
+          -361,
+          -26,
+          -324
+        ],
+        "max": [
+          -355,
+          -24,
+          -318
+        ]
+      },
+      "blocks": 98,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "match_me_not_chip_10": {
+      "bounds": {
+        "min": [
+          -361,
+          -30,
+          -324
+        ],
+        "max": [
+          -355,
+          -28,
+          -318
+        ]
+      },
+      "blocks": 102,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    }
+  }
+}

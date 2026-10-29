@@ -33,6 +33,8 @@ public interface PartyRoundContext {
     }
     void stage(BlockPos position, BlockState state);
     void set(BlockPos position, BlockState state);
+    /** 按原生16³区段随机选格，仅作用于本场指定范围，不改共享 randomTickSpeed。 */
+    void randomTicks(BlockPos minimum, BlockPos maximum, int speed);
     void spawn(UUID player, Vec3d position);
     void teleport(ServerPlayerEntity player, Vec3d position);
     void timeLimit(int ticks);

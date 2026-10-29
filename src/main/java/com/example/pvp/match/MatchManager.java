@@ -634,6 +634,26 @@ public final class MatchManager {
         return List.copyOf(this.matches);
     }
 
+    /** 热路径不复制比赛列表；这里只读查找场地区域对应的 Party 会话。 */
+    public MinecraftPartySession partySessionAt(BlockPos pos) {
+        for (int index = 0; index < this.matches.size(); index++) {
+            Match match = this.matches.get(index);
+            if (match.portedSession() instanceof MinecraftPartySession session && match.ownsPortedPosition(pos)) return session;
+        }
+        return null;
+    }
+
+    /** 等待最终清场的区域仍需停止原生随机生长和流体扩散。 */
+    public MinecraftPartySession partySceneSessionAt(BlockPos pos) {
+        MinecraftPartySession active = this.partySessionAt(pos);
+        if (active != null) return active;
+        for (int index = 0; index < this.pendingFinishes.size(); index++) {
+            Match match = this.pendingFinishes.get(index).match();
+            if (match.portedSession() instanceof MinecraftPartySession session && match.ownsPortedPosition(pos)) return session;
+        }
+        return null;
+    }
+
     /** 装饰流体在等待清场的 5 秒内也必须保持静态，否则退出后才会向裁剪外扩散。 */
     public boolean isPartyScenePosition(BlockPos pos) {
         for (Match match : this.matches) {

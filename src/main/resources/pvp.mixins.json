@@ -38,6 +38,8 @@
     "PartyEffectCloudMixin",
     "PartyCraftingMixin",
     "PartyBlockLootMixin",
+    "PartyRandomTickMixin",
+    "PartyTerrainMixin",
     "ScreenHandlerMixin",
     "registry.DimensionOptionsMixin",
     "registry.SimpleRegistryMixin",

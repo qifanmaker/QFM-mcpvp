@@ -146,6 +146,7 @@ public class ArenaWorld extends ServerWorld {
             queue.stage(pos, state);
             return true;
         }
+        this.loadPatternNeighbors(pos, state);
         return super.setBlockState(pos, state, flags, maxUpdateDepth);
     }
 
@@ -193,7 +194,20 @@ public class ArenaWorld extends ServerWorld {
 
     /** 直写世界，不经过暂存层。 */
     public boolean setBlockStateDirect(BlockPos pos, BlockState state) {
+        this.loadPatternNeighbors(pos, state);
         return super.setBlockState(pos, state, 3, 512);
+    }
+
+    /**
+     * 原图雕刻南瓜会触发原生傀儡模式搜索；分帧铺图时相邻区块可能尚未加载，
+     * vanilla '~' 判定直接读取其null状态会崩服。只在实际放置这两种方块的同一tick
+     * 加载搜索所需的邻区块，保留原方块、生成判定及物理，不挂永久强制加载票。
+     */
+    private void loadPatternNeighbors(BlockPos pos, BlockState state) {
+        if (!state.isOf(Blocks.CARVED_PUMPKIN) && !state.isOf(Blocks.JACK_O_LANTERN)) return;
+        for (int x = Math.floorDiv(pos.getX() - 4, 16); x <= Math.floorDiv(pos.getX() + 4, 16); x++) {
+            for (int z = Math.floorDiv(pos.getZ() - 4, 16); z <= Math.floorDiv(pos.getZ() + 4, 16); z++) this.getChunk(x, z);
+        }
     }
 
     /** 直接生成实体，不经过暂存层。 */

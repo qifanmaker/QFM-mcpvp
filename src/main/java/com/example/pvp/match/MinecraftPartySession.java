@@ -27,6 +27,10 @@ import com.example.pvp.arena.party.HorseRaceRound;
 import com.example.pvp.arena.party.SpeedBuildersRound;
 import com.example.pvp.arena.party.SteveSaysRound;
 import com.example.pvp.arena.party.PowerTowersRound;
+import com.example.pvp.arena.party.PartyRandomTicks;
+import com.example.pvp.arena.party.FarmingFrenzyRound;
+import com.example.pvp.arena.party.PortPriorityRound;
+import com.example.pvp.arena.party.MatchMeNotRound;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.block.Block;
@@ -124,6 +128,8 @@ public final class MinecraftPartySession implements PortedGameSession {
     private final Map<UUID, PersistentProjectileEntity> arrows = new HashMap<>();
     // 等待平台跨轮保留；只有本轮登记的格子进入分帧清场，不能把大厅一并拆掉。
     private final LongOpenHashSet roundBlocks = new LongOpenHashSet();
+    private final LongOpenHashSet cleanupTerrainChanges = new LongOpenHashSet();
+    private final Map<UUID, net.minecraft.entity.FallingBlockEntity> terrainEntities = new HashMap<>();
     private final LongOpenHashSet lobbyBlocks = new LongOpenHashSet();
     private final List<BlockPos> lobbySpawns = new ArrayList<>();
     private final Map<UUID, Vec3d> gameSpawns = new HashMap<>();
@@ -265,9 +271,11 @@ public final class MinecraftPartySession implements PortedGameSession {
                 }
             }
             case INTRO -> {
-                this.lockAtStarts();
+                if (this.round == null || this.round.locksIntroPosition()) this.lockAtStarts();
                 this.bossBar.setName(Text.literal("§e" + this.game.title() + " · " + seconds(this.phaseTicks) + " 秒后开始"));
-                if (--this.phaseTicks <= 0) {
+                --this.phaseTicks;
+                if (this.round != null) this.round.introTick(this.roundContext, INTRO_TICKS - this.phaseTicks);
+                if (this.phaseTicks <= 0) {
                     this.beginGame();
                 }
             }
@@ -303,6 +311,15 @@ public final class MinecraftPartySession implements PortedGameSession {
                         + (int) (this.buildQueue.progress() * 100) + "%"));
                 this.bossBar.setPercent((float) this.buildQueue.progress());
                 if (this.buildQueue.flush(4)) {
+                    if (!this.cleanupTerrainChanges.isEmpty()) {
+                        // 清场引发的原生活塞回缩可能写入新格；下一帧清掉新增格，不能边迭代边改集合。
+                        this.buildQueue = new MapBuildQueue(this.arena(), this.center, MAP_RADIUS);
+                        var changes = this.cleanupTerrainChanges.iterator();
+                        while (changes.hasNext()) this.buildQueue.stage(BlockPos.fromLong(changes.nextLong()), Blocks.AIR.getDefaultState());
+                        this.cleanupTerrainChanges.clear();
+                        this.buildQueue.close();
+                        break;
+                    }
                     this.buildQueue = null;
                     this.roundBlocks.clear();
                     if (this.tournamentScores.roundsPlayed() >= PartyTournamentScores.ROUNDS) this.finishTournament();
@@ -365,6 +382,9 @@ public final class MinecraftPartySession implements PortedGameSession {
             case SPEED_BUILDERS -> new SpeedBuildersRound();
             case STEVE_SAYS -> new SteveSaysRound();
             case POWER_TOWERS -> new PowerTowersRound();
+            case FARMING_FRENZY -> new FarmingFrenzyRound();
+            case PORT_PRIORITY -> new PortPriorityRound();
+            case MATCH_ME_NOT -> new MatchMeNotRound();
             default -> null;
         };
         try {
@@ -484,6 +504,7 @@ public final class MinecraftPartySession implements PortedGameSession {
             this.teleport(player, this.gameSpawns.get(player.getUuid()));
         }
         this.title("§6" + this.game.title(), "§f阅读聊天规则，8 秒后开始");
+        if (this.round != null) this.round.introTick(this.roundContext, 0);
     }
 
     private void beginGame() {
@@ -780,6 +801,8 @@ public final class MinecraftPartySession implements PortedGameSession {
                 this.roundClosed = true;
             }
         } finally {
+            this.terrainEntities.values().forEach(Entity::discard);
+            this.terrainEntities.clear();
             this.discardArrows();
             this.clearDroppedItems();
             for (ServerPlayerEntity player : this.participants()) this.restoreJump(player);
@@ -808,6 +831,7 @@ public final class MinecraftPartySession implements PortedGameSession {
         // 必须先用旧坐标收尾，再清空原三款内置玩法与独立模块的本轮状态。
         this.closeRoundResources();
         this.round = null;
+        this.cleanupTerrainChanges.clear();
         this.roundClosed = false;
         this.game = null;
         this.roundPlayers = Set.of();
@@ -942,6 +966,7 @@ public final class MinecraftPartySession implements PortedGameSession {
 
     @Override
     public boolean ownsEntity(Entity entity) {
+        if (this.terrainEntities.containsKey(entity.getUuid())) return true;
         if (this.round != null) return this.round.ownsEntity(entity);
         return this.game == PartyMinigame.SPLEEF && entity instanceof PersistentProjectileEntity projectile
                 && projectile.getOwner() != null && this.roundPlayers.contains(projectile.getOwner().getUuid())
@@ -1215,6 +1240,41 @@ public final class MinecraftPartySession implements PortedGameSession {
         return this.phase == Phase.PLAY && this.round != null && this.round.allowsBlockDrops();
     }
 
+    /** 只记录所属区域实际发生的原生变化；铺图已自行登记，清场的AIR写入不递归排队。 */
+    public void onTerrainChanged(BlockPos pos, BlockState state) {
+        if (this.ended || this.round == null || !this.round.tracksTerrainChanges() || !this.inTerrainRegion(pos)) return;
+        if (this.phase == Phase.CLEANUP) {
+            if (state.isAir()) this.cleanupTerrainChanges.remove(pos.asLong());
+            else {
+                this.roundBlocks.add(pos.asLong());
+                this.cleanupTerrainChanges.add(pos.asLong());
+            }
+        } else if (!this.roundClosed && (this.phase == Phase.INTRO || this.phase == Phase.PLAY || this.phase == Phase.ROUND_RESULTS)) {
+            this.roundBlocks.add(pos.asLong());
+        }
+    }
+
+    private boolean inTerrainRegion(BlockPos pos) {
+        return Math.abs(pos.getX() - this.center.getX()) <= MAP_RADIUS && Math.abs(pos.getZ() - this.center.getZ()) <= MAP_RADIUS
+                && this.arena() != null && pos.getY() >= this.arena().getBottomY() && pos.getY() < this.arena().getTopY();
+    }
+
+    public boolean allowsFluidFlowAt(BlockPos pos) {
+        return !this.ended && !this.roundClosed && this.phase == Phase.PLAY && this.round != null
+                && this.inTerrainRegion(pos) && this.round.allowsFluidFlowAt(this.roundContext, pos);
+    }
+
+    /** 活塞释放的原生重力块也属本场；关闭后产生的迟到落块立即销毁，避免下轮重新落地。 */
+    public void onTerrainEntityLoad(net.minecraft.entity.FallingBlockEntity block) {
+        if (this.round == null || !this.round.tracksTerrainChanges() || !this.inTerrainRegion(block.getFallingBlockPos())) return;
+        // 原包 doEntityDrops=false；仅限制本场重力块，保留其原生运动和落地放置。
+        block.dropItem = false;
+        if (this.ended || this.roundClosed || this.phase == Phase.CLEANUP) block.discard();
+        else if (this.phase == Phase.INTRO || this.phase == Phase.PLAY || this.phase == Phase.ROUND_RESULTS) {
+            this.terrainEntities.put(block.getUuid(), block);
+        }
+    }
+
     public boolean playerCombatEnabled() {
         return this.phase == Phase.PLAY && this.round != null && this.round.playerCombatEnabled();
     }
@@ -1298,6 +1358,13 @@ public final class MinecraftPartySession implements PortedGameSession {
         public void set(BlockPos pos, BlockState state) {
             validate(pos);
             put(pos, state);
+        }
+        public void randomTicks(BlockPos minimum, BlockPos maximum, int speed) {
+            validate(minimum);
+            validate(maximum);
+            if ((phase == Phase.INTRO || phase == Phase.PLAY) && !ended && !roundClosed) {
+                PartyRandomTicks.tick(arena(), minimum, maximum, speed);
+            }
         }
         public void spawn(UUID player, Vec3d position) { gameSpawns.put(player, position); }
         public void teleport(ServerPlayerEntity player, Vec3d pos) { MinecraftPartySession.this.teleport(player, pos); }

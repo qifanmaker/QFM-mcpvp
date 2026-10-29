@@ -107,6 +107,22 @@ public enum PartyMinigame {
     POWER_TOWERS(419, "速度之巅 Power Towers", Items.NOTE_BLOCK, new String[] {
             "面向自己的音符盒连续右键调音，十秒内尽量升高彩色塔。",
             "倒计时结束后拆塔，按真实落下的彩色方块计分。"
+    }),
+    // 菜单说明呈现操作与计分；底层兼容实现保留在模块和审计数据中。
+    FARMING_FRENZY(420, "农场狂欢 Farming Frenzy", Items.IRON_HOE, new String[] {
+            "用铁锄采收成熟作物，甜菜和地狱疣1分，小麦、土豆和胡萝卜2分。",
+            "可可豆4分，西瓜和南瓜6分；每十秒随机一种作物双倍。",
+            "作物会继续生长并自动补种，九十秒内积分最多者获胜。"
+    }),
+    PORT_PRIORITY(421, "繁忙货港 Port Priority", Items.CHEST, new String[] {
+            "按自己的任务顺序寻找港口货物，用对应钥匙打开货箱。",
+            "货物藏在七处随机位置，留意物品展示框和信标提示。",
+            "四分钟内依次完成三项任务，按进度与完成先后排名。"
+    }),
+    MATCH_ME_NOT(422, "禁止匹配 Match Me Not", Items.BRICK, new String[] {
+            "丢出一种材料作为选择；与任何其他玩家重复都不得分。",
+            "只有独一份的选择获得1分，不选择也不得分。",
+            "独选得分时平台会抬升一格，完成八轮后按累计分排名。"
     });
 
     private final int sourceId;

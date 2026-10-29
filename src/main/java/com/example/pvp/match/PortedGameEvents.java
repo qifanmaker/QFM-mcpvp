@@ -18,6 +18,9 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.Direction;
 
 /** 将地图交互限定到对应会话；先于通用 TNT、指南针和其他模式回调注册。 */
 public final class PortedGameEvents {
@@ -50,6 +53,29 @@ public final class PortedGameEvents {
             }
         }
         return null;
+    }
+
+    public static void terrainChanged(World world, BlockPos pos, BlockState state) {
+        if (world.isClient || PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return;
+        MinecraftPartySession session = PvPMod.MATCH.partySessionAt(pos);
+        if (session != null) session.onTerrainChanged(pos, state);
+    }
+
+    public static boolean freezesPartyFluid(World world, BlockPos pos) {
+        if (PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return false;
+        MinecraftPartySession session = PvPMod.MATCH.partySceneSessionAt(pos);
+        return session != null && !session.allowsFluidFlowAt(pos);
+    }
+
+    /** 原生水可以进入本场船舱，但不能穿越场地区域边界或侵入其他对局。 */
+    public static boolean allowsFluidFlow(WorldAccess access, BlockPos target, Direction direction) {
+        if (!(access instanceof World world) || PvPMod.MATCH == null
+                || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return true;
+        BlockPos source = target.offset(direction.getOpposite());
+        MinecraftPartySession from = PvPMod.MATCH.partySceneSessionAt(source);
+        MinecraftPartySession to = PvPMod.MATCH.partySceneSessionAt(target);
+        if (from == null && to == null) return true;
+        return from != null && from == to && from.allowsFluidFlowAt(source) && from.allowsFluidFlowAt(target);
     }
 
     /** 其他场次的玩家也不能进入移植区域拆图或使用容器。 */
@@ -90,6 +116,11 @@ public final class PortedGameEvents {
     public static void register() {
         // 原版 OITQ 在箭发出后立即设伤害；不能等 tick 扫描，否则近距离命中会抢先结算。
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            if (entity instanceof net.minecraft.entity.FallingBlockEntity block && PvPMod.MATCH != null
+                    && world.getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
+                MinecraftPartySession session = PvPMod.MATCH.partySceneSessionAt(block.getFallingBlockPos());
+                if (session != null) session.onTerrainEntityLoad(block);
+            }
             Match match = matchOf(entity);
             if (isPorted(match)) match.portedSession().onEntityLoad(entity);
         });
