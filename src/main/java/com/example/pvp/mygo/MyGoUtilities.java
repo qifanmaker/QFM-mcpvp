@@ -337,6 +337,33 @@ public final class MyGoUtilities {
     public int activeFires() { return this.fires.size(); }
     public int activeDecoys() { return (int) this.thrown.stream().filter(g -> g.type.decoy()).count(); }
     public LaunchInfo lastLaunch(UUID player) { return this.launches.get(player); }
+
+    /** 人机感知必须尊重烟幕；视觉幕片没有方块碰撞，普通 canSee 无法识别烟雾遮挡。 */
+    public boolean blocksVision(Vec3d from, Vec3d to) {
+        Vec3d segment = to.subtract(from);
+        double lengthSquared = segment.lengthSquared();
+        for (Smoke smoke : this.smokes) {
+            Vec3d center = smoke.position.add(0, 1.5, 0);
+            double t = lengthSquared < 1.0e-9 ? 0 : Math.clamp(center.subtract(from).dotProduct(segment) / lengthSquared, 0, 1);
+            if (from.add(segment.multiply(t)).squaredDistanceTo(center)
+                    <= MyGoGrenadePhysics.SMOKE_RADIUS * MyGoGrenadePhysics.SMOKE_RADIUS) return true;
+        }
+        return false;
+    }
+
+    /** 替换席位时旧实体不再参赛，回收它尚未引爆的投掷物，避免沿用旧 UUID 跨席位结算。 */
+    public void removeOwner(UUID owner) {
+        for (Thrown grenade : List.copyOf(this.thrown)) {
+            if (grenade.owner.getUuid().equals(owner)) {
+                grenade.display.discard();
+                this.thrown.remove(grenade);
+            }
+        }
+        this.fires.removeIf(fire -> fire.owner.getUuid().equals(owner));
+        this.launches.remove(owner);
+        this.previousPositions.remove(owner);
+        this.movement.remove(owner);
+    }
     public boolean owns(Entity entity) { return this.thrown.stream().anyMatch(g -> g.display == entity)
             || this.smokes.stream().anyMatch(s -> s.screens.contains(entity)); }
     public void clear() {

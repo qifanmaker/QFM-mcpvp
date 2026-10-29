@@ -44,6 +44,10 @@ import com.example.pvp.practice.PracticeSession;
 import com.example.pvp.practice.PracticeType;
 import com.example.pvp.practice.BotDifficulty;
 import com.example.pvp.practice.PracticeManager;
+import com.example.pvp.mygo.MyGoMapBlueprint;
+import com.example.pvp.mygo.practice.MyGoBotDifficulty;
+import com.example.pvp.mygo.practice.MyGoPracticeManager;
+import com.example.pvp.queue.MyGoTeamPreference;
 import com.example.pvp.text.Messages;
 import net.minecraft.text.Text;
 import com.mojang.brigadier.CommandDispatcher;
@@ -79,7 +83,7 @@ public final class PvPCommands {
     // 人机练习保留完整命令入口，便于无菜单操作及服务器回归验证五档难度和套件选择。
     private static final SuggestionProvider<ServerCommandSource> PRACTICE_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(
-                    new String[]{"bridge", "pearl", "pvp"}, builder);
+                    new String[]{"bridge", "pearl", "pvp", "mygo"}, builder);
 
     private static final SuggestionProvider<ServerCommandSource> BOT_DIFFICULTY_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(
@@ -88,6 +92,16 @@ public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> PRACTICE_KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(
                     PracticeManager.getPvpKits().stream().map(Kit::getId).toList(), builder);
+
+    private static final SuggestionProvider<ServerCommandSource> MYGO_PRACTICE_DIFFICULTY_SUGGESTIONS =
+            (ctx, builder) -> CommandSource.suggestMatching(
+                    java.util.Arrays.stream(MyGoBotDifficulty.values()).map(MyGoBotDifficulty::getId).toList(), builder);
+
+    private static final SuggestionProvider<ServerCommandSource> MYGO_PRACTICE_TEAM_SUGGESTIONS =
+            (ctx, builder) -> CommandSource.suggestMatching(new String[]{"t", "ct", "auto"}, builder);
+
+    private static final SuggestionProvider<ServerCommandSource> MYGO_PRACTICE_MAP_SUGGESTIONS =
+            (ctx, builder) -> CommandSource.suggestMatching(MyGoMapBlueprint.availableMaps(), builder);
 
     private static final SuggestionProvider<ServerCommandSource> THEME_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(
@@ -149,6 +163,7 @@ public final class PvPCommands {
                                 .executes(ctx -> practiceStatus(ctx.getSource()))
                                 .then(CommandManager.literal("leave")
                                         .executes(ctx -> practiceLeave(ctx.getSource())))
+                                .then(myGoPracticeCommands())
                                 .then(CommandManager.literal("pvp")
                                         .executes(ctx -> practicePvp(ctx.getSource(), "normal", "sword"))
                                         .then(CommandManager.argument("difficulty", StringArgumentType.word())
@@ -396,6 +411,8 @@ public final class PvPCommands {
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp practice <bridge|pearl>§r 进入搭路或珍珠练习\n"
                         + "§e/pvp practice pvp [beginner|easy|normal|hard|expert] [套件]§r 人机 1v1（默认普通、剑战）\n"
+                        + "§e/pvp practice mygo [难度] [t|ct|auto] [dust2|mirage|inferno]§r 加入 MyGO 人机 5v5\n"
+                        + "§e/pvp practice mygo team <t|ct|auto>§r 更换 MyGO 练习队伍\n"
                         + "§e/pvp practice leave§r 退出练习\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
@@ -538,7 +555,7 @@ public final class PvPCommands {
         return 1;
     }
 
-    /** /pvp practice <bridge|pearl|pvp>：进入单人练习。 */
+    /** /pvp practice <bridge|pearl|pvp|mygo>：进入操作或人机练习。 */
     private static int practice(ServerCommandSource source, String typeId) throws CommandSyntaxException {
         ServerPlayerEntity player = source.getPlayer();
         if (player == null) {
@@ -549,9 +566,10 @@ public final class PvPCommands {
             source.sendError(Text.literal("服务器尚未就绪"));
             return 0;
         }
+        if ("mygo".equalsIgnoreCase(typeId)) return practiceMyGo(source, "normal", "auto", "dust2");
         PracticeType type = PracticeType.byId(typeId);
         if (type == null) {
-            source.sendError(Text.literal("未知练习类型: " + typeId + "（可用: bridge, pearl, pvp）"));
+            source.sendError(Text.literal("未知练习类型: " + typeId + "（可用: bridge, pearl, pvp, mygo）"));
             return 0;
         }
         if (type == PracticeType.PVP) {
@@ -586,6 +604,82 @@ public final class PvPCommands {
         return PvPMod.PRACTICE.startPvpPractice(player, difficulty, kit) ? 1 : 0;
     }
 
+    // MyGO 练习共用十个席位，参数必须先校验，再交给房间管理器原子替换人机，不能走正式匹配队列。
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<ServerCommandSource> myGoPracticeCommands() {
+        return CommandManager.literal("mygo")
+                .executes(ctx -> practiceMyGo(ctx.getSource(), "normal", "auto", "dust2"))
+                .then(CommandManager.literal("team")
+                        .then(CommandManager.argument("practiceTeam", StringArgumentType.word())
+                                .suggests(MYGO_PRACTICE_TEAM_SUGGESTIONS)
+                                .executes(ctx -> practiceMyGoTeam(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "practiceTeam")))))
+                .then(CommandManager.argument("mygoDifficulty", StringArgumentType.word())
+                        .suggests(MYGO_PRACTICE_DIFFICULTY_SUGGESTIONS)
+                        .executes(ctx -> practiceMyGo(ctx.getSource(),
+                                StringArgumentType.getString(ctx, "mygoDifficulty"), "auto", "dust2"))
+                        .then(CommandManager.argument("mygoTeam", StringArgumentType.word())
+                                .suggests(MYGO_PRACTICE_TEAM_SUGGESTIONS)
+                                .executes(ctx -> practiceMyGo(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "mygoDifficulty"),
+                                        StringArgumentType.getString(ctx, "mygoTeam"), "dust2"))
+                                .then(CommandManager.argument("mygoPracticeMap", StringArgumentType.word())
+                                        .suggests(MYGO_PRACTICE_MAP_SUGGESTIONS)
+                                        .executes(ctx -> practiceMyGo(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "mygoDifficulty"),
+                                                StringArgumentType.getString(ctx, "mygoTeam"),
+                                                StringArgumentType.getString(ctx, "mygoPracticeMap"))))));
+    }
+
+    private static int practiceMyGo(ServerCommandSource source, String difficultyId, String teamId, String mapId) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.literal("该命令只能由玩家执行"));
+            return 0;
+        }
+        MyGoPracticeManager manager = MyGoPracticeManager.getOrNull();
+        if (manager == null) {
+            source.sendError(Text.literal("服务器尚未就绪"));
+            return 0;
+        }
+        MyGoBotDifficulty difficulty = MyGoBotDifficulty.byId(difficultyId);
+        if (difficulty == null) {
+            source.sendError(Text.literal("未知 MyGO 人机难度: " + difficultyId
+                    + "（可用: beginner, easy, normal, hard, expert；或 1~5）"));
+            return 0;
+        }
+        MyGoTeamPreference team = MyGoTeamPreference.parse(teamId);
+        if (team == null) {
+            source.sendError(Text.literal("未知练习队伍: " + teamId + "（可用: t, ct, auto）"));
+            return 0;
+        }
+        String map = mapId.toLowerCase(java.util.Locale.ROOT);
+        if (!MyGoMapBlueprint.availableMaps().contains(map)) {
+            source.sendError(Text.literal("未知练习地图: " + mapId + "（可用: dust2, mirage, inferno）"));
+            return 0;
+        }
+        player.closeHandledScreen();
+        return manager.join(player, difficulty, team, map) ? 1 : 0;
+    }
+
+    private static int practiceMyGoTeam(ServerCommandSource source, String teamId) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.literal("该命令只能由玩家执行"));
+            return 0;
+        }
+        MyGoTeamPreference team = MyGoTeamPreference.parse(teamId);
+        if (team == null) {
+            source.sendError(Text.literal("未知练习队伍: " + teamId + "（可用: t, ct, auto）"));
+            return 0;
+        }
+        MyGoPracticeManager manager = MyGoPracticeManager.getOrNull();
+        if (manager == null || !manager.contains(player)) {
+            source.sendError(Text.literal("你不在 MyGO 练习中"));
+            return 0;
+        }
+        return manager.selectTeam(player, team) ? 1 : 0;
+    }
+
     /** /pvp practice：查看当前练习状态。 */
     private static int practiceStatus(ServerCommandSource source) throws CommandSyntaxException {
         ServerPlayerEntity player = source.getPlayer();
@@ -593,13 +687,19 @@ public final class PvPCommands {
             source.sendError(Text.literal("该命令只能由玩家执行"));
             return 0;
         }
+        MyGoPracticeManager myGo = MyGoPracticeManager.getOrNull();
+        if (myGo != null && myGo.contains(player)) {
+            player.sendMessage(Messages.info("当前练习: §fMyGO 人机 5v5 §7| " + myGo.status(player)), false);
+            player.sendMessage(Messages.info("§7购买阶段用 /pvp practice mygo team <t|ct|auto> 选队；/pvp practice leave 退出"), false);
+            return 1;
+        }
         if (PvPMod.PRACTICE == null) {
             source.sendError(Text.literal("服务器尚未就绪"));
             return 0;
         }
         PracticeSession session = PvPMod.PRACTICE.getSession(player);
         if (session == null) {
-            player.sendMessage(Messages.info("你不在练习模式中。§7用 §f/pvp practice <bridge|pearl|pvp> §7进入"), false);
+            player.sendMessage(Messages.info("你不在练习模式中。§7用 §f/pvp practice <bridge|pearl|pvp|mygo> §7进入"), false);
             return 0;
         }
         if (session.getType() == PracticeType.PVP) {
@@ -622,6 +722,8 @@ public final class PvPCommands {
             source.sendError(Text.literal("该命令只能由玩家执行"));
             return 0;
         }
+        MyGoPracticeManager myGo = MyGoPracticeManager.getOrNull();
+        if (myGo != null && myGo.leave(player)) return 1;
         if (PvPMod.PRACTICE == null) {
             source.sendError(Text.literal("服务器尚未就绪"));
             return 0;
@@ -636,6 +738,8 @@ public final class PvPCommands {
     /** 竞技场 → 主城：幽灵走旁观离开流程；活跃玩家视为弃权退出本场；访客移除访客身份。 */
     private static int tpOut(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        MyGoPracticeManager myGo = MyGoPracticeManager.getOrNull();
+        if (myGo != null && myGo.leave(player)) return 1;
         if (PvPMod.PRACTICE != null && PvPMod.PRACTICE.exitPractice(player)) {
             return 1;
         }

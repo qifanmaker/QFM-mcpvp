@@ -107,6 +107,11 @@ public final class PracticeManager {
     }
 
     private boolean startPractice(ServerPlayerEntity player, PracticeType type, BotDifficulty difficulty, Kit kit) {
+        var myGo = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+        if (myGo != null && myGo.contains(player)) {
+            player.sendMessage(Messages.error("请先退出 MyGO 人机练习"), false);
+            return false;
+        }
         ArenaWorldManager arenaManager = ArenaWorldManager.getOrNull();
         if (type == null || arenaManager == null || arenaManager.getWorld() == null || PvPMod.MATCH == null) {
             player.sendMessage(Messages.error("竞技场未就绪，无法进入练习"), false);

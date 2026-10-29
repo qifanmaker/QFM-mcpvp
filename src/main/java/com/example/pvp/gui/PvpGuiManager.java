@@ -13,6 +13,8 @@ import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.practice.PracticeManager;
 import com.example.pvp.practice.PracticeType;
 import com.example.pvp.practice.BotDifficulty;
+import com.example.pvp.mygo.practice.MyGoBotDifficulty;
+import com.example.pvp.mygo.practice.MyGoPracticeManager;
 import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.queue.MyGoTeamPreference;
 import com.example.pvp.text.Messages;
@@ -490,7 +492,7 @@ public final class PvpGuiManager {
                 "非目标色方块全部消失，站错的掉进虚空淘汰",
                 "共 " + PvPConfig.INSTANCE.colorblindRounds + " 回合，最后存活者获胜，点击直接加入"));
         inv.setStack(16, makeButton(Items.WHITE_WOOL, "§a§l练习模式",
-                "PvP 人机 1v1 / 搭桥 / 末影珍珠", "单人练习，点击选择项目"));
+                "MyGO 人机 5v5 / PvP 人机 1v1 / 搭桥 / 末影珍珠", "人机与操作练习，点击选择项目"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
@@ -544,6 +546,7 @@ public final class PvpGuiManager {
                 case OTHER_GAMES -> this.fillOtherGames(inv, player, ctx);
                 case BED_WARS_CATEGORY -> this.fillBedWarsCategory(inv, player, ctx);
                 case PRACTICE_CATEGORY -> this.fillPracticeCategory(inv, player, ctx);
+                case MYGO_PRACTICE_TEAM -> this.fillMyGoPracticeTeam(inv, player, ctx);
                 default -> {
                 }
             }
@@ -585,6 +588,13 @@ public final class PvpGuiManager {
                 "§7练习走位、攻击节奏与攻防应对",
                 "§a点击选择人机难度"));
 
+        // 共享 5v5 练习房需要先确认难度、地图和阵营，不能沿用正式 MyGO 排队入口。
+        inv.setStack(17, makeButton(Items.CROSSBOW, "§b§lMyGO 人机 5v5",
+                "§7每队固定 5 人，空位由人机补齐",
+                "§7真人选队加入时替换一名同队人机",
+                "§7五档难度 · 真实地图 · 购买、爆破和拆包",
+                "§a点击选择练习房"));
+
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回其他游戏"));
     }
 
@@ -596,6 +606,10 @@ public final class PvpGuiManager {
         }
         if (slot == 15) {
             this.openPracticeDifficulty(player);
+            return;
+        }
+        if (slot == 17) {
+            this.openMyGoPracticeDifficulty(player);
             return;
         }
         PracticeType type = switch (slot) {
@@ -628,6 +642,108 @@ public final class PvpGuiManager {
             }
             inv.setStack(26, makeButton(Items.ARROW, "§c← 返回练习模式"));
         });
+    }
+
+    private void openMyGoPracticeDifficulty(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.MYGO_PRACTICE_DIFFICULTY;
+        this.openPage(player, ctx, "§6MyGO 练习 · 选择难度", inv -> {
+            Item[] icons = {Items.WOODEN_SWORD, Items.STONE_SWORD, Items.IRON_SWORD,
+                    Items.DIAMOND_SWORD, Items.NETHERITE_SWORD};
+            inv.setStack(4, makeButton(Items.CROSSBOW, "§b5v5 枪战人机练习",
+                    "§7十个席位，真人加入替换同队人机，离开后补回",
+                    "§7难度影响观察反应、瞄准、射击与团队战术",
+                    "§7首次需要加载 MyGO 资源包，加载完成后再次加入"));
+            for (MyGoBotDifficulty difficulty : MyGoBotDifficulty.values()) {
+                inv.setStack(11 + difficulty.ordinal(), makeButton(icons[difficulty.ordinal()],
+                        "§e" + difficulty.getLevel() + " / 5 · " + difficulty.getDisplayName(),
+                        difficulty.getDescription(), "§a点击选择地图"));
+            }
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回练习模式"));
+        });
+    }
+
+    private void onClickMyGoPracticeDifficulty(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openPracticeCategory(player);
+            return;
+        }
+        int index = slot - 11;
+        if (index >= 0 && index < MyGoBotDifficulty.values().length) {
+            ctx.myGoPracticeDifficulty = MyGoBotDifficulty.values()[index];
+            this.openMyGoPracticeMap(player);
+        }
+    }
+
+    private void openMyGoPracticeMap(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.MYGO_PRACTICE_MAP;
+        this.openPage(player, ctx, "§6MyGO 练习 · 选择地图", inv -> {
+            inv.setStack(4, makeButton(Items.PAPER, "§e" + ctx.myGoPracticeDifficulty.getDisplayName(),
+                    "§7相同难度、相同地图的玩家进入同一个练习房"));
+            inv.setStack(10, makeButton(Items.SANDSTONE, "§eDust II", "§7经典沙漠 · A / B 双包点", "§a点击选择队伍"));
+            inv.setStack(13, makeButton(Items.SANDSTONE_WALL, "§bMirage", "§7中路 / A 大 / B 小", "§a点击选择队伍"));
+            inv.setStack(16, makeButton(Items.BRICKS, "§cInferno", "§7香蕉道 / 中路 / 双包点", "§a点击选择队伍"));
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回难度选择"));
+        });
+    }
+
+    private void onClickMyGoPracticeMap(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMyGoPracticeDifficulty(player);
+            return;
+        }
+        String map = switch (slot) {
+            case 10 -> "dust2";
+            case 13 -> "mirage";
+            case 16 -> "inferno";
+            default -> null;
+        };
+        if (map != null) {
+            ctx.myGoPracticeMap = map;
+            this.openMyGoPracticeTeam(player);
+        }
+    }
+
+    private void openMyGoPracticeTeam(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.MYGO_PRACTICE_TEAM;
+        this.openPage(player, ctx, "§6MyGO 练习 · 选择队伍", inv -> this.fillMyGoPracticeTeam(inv, player, ctx));
+    }
+
+    private void fillMyGoPracticeTeam(SimpleInventory inv, ServerPlayerEntity player, GuiContext ctx) {
+        MyGoPracticeManager manager = MyGoPracticeManager.getOrNull();
+        int t = manager == null ? 0 : manager.humanCount(ctx.myGoPracticeDifficulty, ctx.myGoPracticeMap, MyGoTeamPreference.T);
+        int ct = manager == null ? 0 : manager.humanCount(ctx.myGoPracticeDifficulty, ctx.myGoPracticeMap, MyGoTeamPreference.CT);
+        inv.setStack(4, makeButton(Items.PAPER, "§e" + ctx.myGoPracticeDifficulty.getDisplayName() + " · " + ctx.myGoPracticeMap,
+                "§7房间固定 5v5，当前真人 " + (t + ct) + " / 10",
+                "§7接替原席位的生命、装备和存活状态，回合不会重置",
+                "§7退出：/pvp practice leave 或 /hub"));
+        inv.setStack(10, makeButton(t < 5 ? Items.RED_WOOL : Items.BARRIER,
+                "§cT 进攻方 · 真人 " + t + "/5", "§7人机 " + (5 - t) + "/5",
+                t < 5 ? "§a点击替换一名 T 人机" : "§c真人席位已满，请选择其他队伍"));
+        inv.setStack(13, makeButton(ct < 5 ? Items.BLUE_WOOL : Items.BARRIER,
+                "§9CT 防守方 · 真人 " + ct + "/5", "§7人机 " + (5 - ct) + "/5",
+                ct < 5 ? "§a点击替换一名 CT 人机" : "§c真人席位已满，请选择其他队伍"));
+        inv.setStack(16, makeButton(Items.WHITE_WOOL, "§f自动分队",
+                "§7优先选择真人较少的一队", "§7首次加载资源包后，请再次点击加入"));
+        inv.setStack(26, makeButton(Items.ARROW, "§c← 返回地图选择"));
+    }
+
+    private void onClickMyGoPracticeTeam(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openMyGoPracticeMap(player);
+            return;
+        }
+        MyGoTeamPreference team = switch (slot) {
+            case 10 -> MyGoTeamPreference.T;
+            case 13 -> MyGoTeamPreference.CT;
+            case 16 -> MyGoTeamPreference.AUTO;
+            default -> null;
+        };
+        if (team == null) return;
+        player.closeHandledScreen();
+        MyGoPracticeManager.get().join(player, ctx.myGoPracticeDifficulty, team, ctx.myGoPracticeMap);
     }
 
     private void onClickPracticeDifficulty(ServerPlayerEntity player, GuiContext ctx, int slot) {
@@ -947,6 +1063,9 @@ public final class PvpGuiManager {
             case PRACTICE_CATEGORY -> this.onClickPracticeCategory(player, ctx, slotIndex);
             case PRACTICE_DIFFICULTY -> this.onClickPracticeDifficulty(player, ctx, slotIndex);
             case PRACTICE_KIT -> this.onClickPracticeKit(player, ctx, slotIndex);
+            case MYGO_PRACTICE_DIFFICULTY -> this.onClickMyGoPracticeDifficulty(player, ctx, slotIndex);
+            case MYGO_PRACTICE_MAP -> this.onClickMyGoPracticeMap(player, ctx, slotIndex);
+            case MYGO_PRACTICE_TEAM -> this.onClickMyGoPracticeTeam(player, ctx, slotIndex);
             case STATS -> {
                 if (slotIndex == 27) {
                     this.openMainMenu(player);
@@ -1387,6 +1506,7 @@ public final class PvpGuiManager {
 
     private boolean isBusy(ServerPlayerEntity player) {
         return (PvPMod.PRACTICE != null && PvPMod.PRACTICE.isInPractice(player))
+                || (MyGoPracticeManager.getOrNull() != null && MyGoPracticeManager.getOrNull().contains(player))
                 || PvPMod.MATCH.isInMatch(player.getUuid())
                 || PvPMod.QUEUE.contains(player.getUuid());
     }
@@ -1458,7 +1578,8 @@ public final class PvpGuiManager {
     private enum Page {
         MAIN, PVP_CATEGORY, BRIDGE_CATEGORY, OTHER_GAMES, BED_WARS_CATEGORY,
         KIT, DUEL_TARGET, STATS, KIT_INFO, THEME, LUCKY_PILLAR_MAP, BEDWARS_MAP, MYGO_MAP, MYGO_TEAM,
-        PRACTICE_CATEGORY, PRACTICE_DIFFICULTY, PRACTICE_KIT
+        PRACTICE_CATEGORY, PRACTICE_DIFFICULTY, PRACTICE_KIT,
+        MYGO_PRACTICE_DIFFICULTY, MYGO_PRACTICE_MAP, MYGO_PRACTICE_TEAM
     }
 
     private static final class GuiContext {
@@ -1470,6 +1591,8 @@ public final class PvpGuiManager {
         int statsPage; // 战绩排行榜当前页码
         BotDifficulty practiceDifficulty = BotDifficulty.NORMAL;
         int practiceKitPage;
+        MyGoBotDifficulty myGoPracticeDifficulty = MyGoBotDifficulty.NORMAL;
+        String myGoPracticeMap = "dust2";
         boolean navigating;
     }
 }
