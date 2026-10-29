@@ -203,8 +203,8 @@ class ParkourProbe extends PartyProbe {
     }
     this.check('First round does not produce final five-round standings or feedback',!this.chats.some(row=>row.at>=since
       && (row.text.includes('Party 2 五轮总排名') || row.text.includes('qfmaker.com/blackboard/mcserverfb'))));
-    await this.waitServerBlock(cleanPoint,'air',50000);
-    this.check('Pinned original gold platform is cleared before next round',true,cleanPoint);
+    this.check('Pinned original gold platform is cleared before next round',
+      await this.waitServerBlock(cleanPoint,'air',50000),cleanPoint);
     for(const id of IDS) {
       this.check(`${id} loses parkour invisibility/weakness after the round`,await this.condition(`unless entity @a[name=${who(id)},nbt={active_effects:[{id:"minecraft:invisibility"}]}] unless entity @a[name=${who(id)},nbt={active_effects:[{id:"minecraft:weakness"}]}]`));
     }

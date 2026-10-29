@@ -34,9 +34,15 @@ public interface PartyRound {
     default String status(PartyRoundContext context) { return null; }
     default boolean allowsDamage(PartyRoundContext context, LivingEntity victim, DamageSource source) { return false; }
     default void damaged(PartyRoundContext context, LivingEntity victim, DamageSource source, float taken) { }
+    /** 打靶游戏以原生实体死亡结算，不能靠伤害次数或场外击杀统计推算。 */
+    default void mobDied(PartyRoundContext context, LivingEntity victim, DamageSource source) { }
     default boolean ownsEntity(Entity entity) { return false; }
     default void entityLoaded(PartyRoundContext context, Entity entity) { }
     default boolean allowsNaturalRegeneration() { return true; }
+    /** 原版打靶倒计时结束后仍需结清在场目标；由模块停止生成并等最后目标离场。 */
+    default boolean handlesTimeLimit() { return false; }
+    /** 原图 pvp=false 还影响原生箭的碰撞判断；只有战斗项目主动开启。 */
+    default boolean playerCombatEnabled() { return false; }
     default ActionResult useItem(PartyRoundContext context, ServerPlayerEntity player, Hand hand) { return ActionResult.FAIL; }
     default ActionResult useBlock(PartyRoundContext context, ServerPlayerEntity player, Hand hand, BlockHitResult hit) { return ActionResult.FAIL; }
     default ActionResult attackBlock(PartyRoundContext context, ServerPlayerEntity player, BlockPos pos) { return ActionResult.FAIL; }

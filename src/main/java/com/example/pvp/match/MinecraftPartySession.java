@@ -16,6 +16,8 @@ import com.example.pvp.arena.party.PartyCombatRound;
 import com.example.pvp.arena.party.PartyTournamentScores;
 import com.example.pvp.arena.party.CaveParkourRound;
 import com.example.pvp.arena.party.PlatformsRound;
+import com.example.pvp.arena.party.WhackAMobRound;
+import com.example.pvp.arena.party.MonsterShootRound;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.block.Block;
@@ -269,7 +271,8 @@ public final class MinecraftPartySession implements PortedGameSession {
                     case RED_LIGHT_GREEN_LIGHT -> this.tickTrafficLights();
                     default -> throw new IllegalStateException("Missing Party round: " + this.game);
                 }
-                if (this.phase == Phase.PLAY && this.gameTimeLimit > 0 && this.elapsed >= this.gameTimeLimit) {
+                if (this.phase == Phase.PLAY && this.gameTimeLimit > 0 && this.elapsed >= this.gameTimeLimit
+                        && (this.round == null || !this.round.handlesTimeLimit())) {
                     this.finishRound();
                 }
                 if (this.phase == Phase.PLAY && this.elapsed % 20 == 0) {
@@ -341,6 +344,8 @@ public final class MinecraftPartySession implements PortedGameSession {
             case MEAT_SLAP, ONE_SHOT_WONDER -> new PartyCombatRound(this.game);
             case CAVE_PARKOUR -> new CaveParkourRound();
             case PLATFORMS -> new PlatformsRound();
+            case WHACK_A_MOB -> new WhackAMobRound();
+            case MONSTER_SHOOT -> new MonsterShootRound();
             default -> null;
         };
         try {
@@ -1162,6 +1167,10 @@ public final class MinecraftPartySession implements PortedGameSession {
         return this.phase != Phase.PLAY || this.round == null || this.round.allowsNaturalRegeneration();
     }
 
+    public boolean playerCombatEnabled() {
+        return this.phase == Phase.PLAY && this.round != null && this.round.playerCombatEnabled();
+    }
+
     public boolean isChoosing(ServerPlayerEntity player) {
         return this.phase == Phase.SELECT && !this.ended && this.isParticipant(player.getUuid());
     }
@@ -1186,14 +1195,24 @@ public final class MinecraftPartySession implements PortedGameSession {
 
     @Override
     public boolean allowsDamage(LivingEntity victim, DamageSource source) {
-        return this.phase == Phase.PLAY && this.round != null && victim instanceof ServerPlayerEntity player
-                && this.isParticipant(player.getUuid()) && !this.out.contains(player.getUuid())
-                && !this.completed.contains(player.getUuid()) && this.round.allowsDamage(this.roundContext, victim, source);
+        if (this.phase != Phase.PLAY || this.round == null || this.outOfRegion(victim)) return false;
+        if (victim instanceof ServerPlayerEntity player) {
+            if (!this.isParticipant(player.getUuid()) || this.out.contains(player.getUuid())
+                    || this.completed.contains(player.getUuid())) return false;
+        } else if (!this.round.ownsEntity(victim)) return false;
+        // 仅模块登记的目标可受本场伤害；玩家、普通生物和其他场次仍分别经过归属校验。
+        return this.round.allowsDamage(this.roundContext, victim, source);
     }
 
     @Override
     public void onDamage(LivingEntity victim, DamageSource source, float taken) {
         if (this.phase == Phase.PLAY && this.round != null) this.round.damaged(this.roundContext, victim, source, taken);
+    }
+
+    @Override
+    public void onMobDeath(LivingEntity victim, DamageSource source) {
+        if (this.phase == Phase.PLAY && this.round != null && !this.outOfRegion(victim)
+                && this.round.ownsEntity(victim)) this.round.mobDied(this.roundContext, victim, source);
     }
 
     private final class RoundContext implements PartyRoundContext {

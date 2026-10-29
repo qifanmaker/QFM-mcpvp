@@ -37,8 +37,7 @@ class TimeoutProbe extends PartyProbe {
     }
     this.check('Timeout settles one round and keeps five-round match open',this.chats.filter(row=>row.id==='A'&&row.at>=since&&row.text.includes('第 1/5 轮排名')).length===1
       &&!this.chats.some(row=>row.at>=since&&(row.text.includes('Party 2 五轮总排名')||row.text.includes('qfmaker.com/blackboard/mcserverfb'))));
-    await this.waitServerBlock(old,'air',50000);
-    this.check('Timeout map is removed before the next vote',true,old);
+    this.check('Timeout map is removed before the next vote',await this.waitServerBlock(old,'air',50000),old);
     await this.leaveAll();
   }
 }

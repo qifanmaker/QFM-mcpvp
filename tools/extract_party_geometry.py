@@ -322,6 +322,32 @@ def third_stage_specifications():
     }
 
 
+def fourth_stage_specifications():
+    # Why: these games depend on physical sight lines and native collision, so
+    # preserve the original ten Whack-A-Mob rooms and Monster Shoot's full pit
+    # instead of approximating either game with a generic generated platform.
+    return {
+        "whack_a_mob": {
+            "min": (-246, 33, -528), "max": (-194, 48, -414),
+            "functions": ["whack_a_mob", "whack_a_mob_rules", "whack_a_mob_start",
+                          "whack_a_mob_tick", "wam_summon_mob", "wam_summon_mob2"],
+            "notes": ["Complete two banks of five original rooms; bank coordinates match the commented clone source/destination boxes in whack_a_mob_rules.",
+                      "Includes source Y=38 soul-sand holes, room walls/roof, and Y=33 marker-item supports. Native Java controls rising mobs independently of the decorative circuitry.",
+                      "The first bank is X=-246..-224 and the second X=-216..-194; room centers are Z=-422-23*n for n=0..4.",
+                      "Player labels, decorative skull profiles and sign NBT are not copied."],
+        },
+        "monster_shoot": {
+            "min": (-90, -7, -282), "max": (-56, 55, -246),
+            "functions": ["monster_shoot", "monster_shoot_rules", "monster_shoot_start",
+                          "monster_shoot_tick", "ms_spawn_monster", "end_monster_shoot"],
+            "notes": ["Original Monster Shoot pit, ledges at Y=18, lower floor/support and surrounding terrain up to the source Y=55 spawn height.",
+                      "Horizontal crop includes the source forceload rectangle X=-88..-58,Z=-280..-248 plus a two-block border and the original Z=-281 wall details.",
+                      "Preserves the lower Y=-2 introduction position used for five or more players and the radius-12 multiplayer ring.",
+                      "Entity marker items, falling mobs and equipment are supplied by scoped native Java rules; banner NBT and geometry outside the crop are not copied."],
+        },
+    }
+
+
 def supported_block_names(source_jar: Path) -> set[str]:
     with zipfile.ZipFile(source_jar) as archive:
         source = archive.read("net/minecraft/block/Blocks.java").decode("utf-8")
@@ -396,7 +422,7 @@ def main():
         source_jar = candidates[0]
     supported = supported_block_names(source_jar)
     world = AnvilWorld(args.world)
-    specs = specifications() | next_stage_specifications() | third_stage_specifications()
+    specs = specifications() | next_stage_specifications() | third_stage_specifications() | fourth_stage_specifications()
     if args.only:
         unknown = sorted(set(args.only) - specs.keys())
         if unknown:

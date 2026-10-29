@@ -11,10 +11,12 @@
       "assets/minecraft/lang/zh_cn.json"
     ]
   },
-  "scope": "Native port with 11 of 102 catalogued games implemented. Migration continues in source-audited batches; the server runs a five-minigame ranked series. Remaining 91 games, boards and original Party modes are not implemented.",
+  "scope": "Native port with 13 of 102 catalogued games implemented. Migration continues in source-audited batches; the server runs a five-minigame ranked series. Remaining 89 games, boards and original Party modes are not implemented.",
   "entryCount": 102,
   "implementedGameIds": [
     401,
+    402,
+    403,
     404,
     408,
     409,
@@ -71,7 +73,7 @@
     {
       "name": "Remaining minigames",
       "status": "in_progress",
-      "remainingCount": 91
+      "remainingCount": 89
     },
     {
       "name": "Custom resource-pack audiovisuals",
@@ -92,7 +94,9 @@
     "Runner follows the active source functions: falling colored blocks can damage lower-floor players and are removed after landing; lower oak-plank floors are not destroyed by the falling blocks. The normal 10-tick stillness check is used; the source high-ping 20-tick setting is not exposed.",
     "The new crops omit original NBT for 10 banners in Memory Lane first, 20 signs in Memory Lane second, and 8 banners, 12 signs and 4 campfires in Meat Slap. Generated gameplay labels do not restore these original decorative contents.",
     "Platforms retains the original exactly-four-player constraint and six internal gem rounds; it is offered only while four participants remain eligible. Hidden-round signs are generated with native scoped callbacks instead of copying source run-command click events.",
-    "Cave Parkour retains the complete 1,031,051-block cave terrain, 39 checkpoint anchors and a linked random route graph with 22 branches across 11 nodes. Its 28 iron_chain blocks use the 1.21.1 chain name with the same axis and waterlogged properties."
+    "Cave Parkour retains the complete 1,031,051-block cave terrain, 39 checkpoint anchors and a linked random route graph with 22 branches across 11 nodes. Its 28 iron_chain blocks use the 1.21.1 chain name with the same axis and waterlogged properties.",
+    "Whack-A-Mob and Monster Shoot use scoped native target subclasses to retain targets on a Peaceful host and suppress original-map-disabled loot and XP, without changing shared-world difficulty, gamerules or ordinary mobs. Scoped explosion and silverfish protections reproduce the original mobGriefing=false behavior.",
+    "Native PvP collision is selected per Party round: noncombat games keep the original pvp=false arrow pass-through, while Meat Slap and One Shot Wonder retain player combat. This does not change the shared server PvP setting."
   ],
   "games": [
     {
@@ -461,16 +465,60 @@
       "name": "Whack-A-Mob (WAM)",
       "category": "free_for_all",
       "sourceFunction": "whack_a_mob",
-      "status": "planned",
-      "nameZhSource": "怪物打地鼠"
+      "status": "implemented_phase_2",
+      "nameZhSource": "怪物打地鼠",
+      "implementationBatch": 4,
+      "geometryResources": [
+        "whack_a_mob"
+      ],
+      "sourceFunctionSha256": {
+        "wam_enderman_reappear": "319cc419c7f829c1db71f4f4717fbd2f98c40facf8b62c308b9ad58892b42b55",
+        "wam_enderman_teleport": "7bbcec74b61eec27c07c83d7ea374e9da5ffed002078951ad75d7d96d384847b",
+        "wam_summon_mob": "10de5affc00d4f8818c2107f6e61a90769e1d7c57be7cd69674268e8f9303615",
+        "wam_summon_mob2": "97420e1633186044dd8d167e6f1e40356b91102b005b008a59d4db09cab97bad",
+        "whack_a_mob": "360663cacda8c2a39febc7fb75297273e05a8ed938165097784d0a16fc3a0e83",
+        "whack_a_mob_end": "d1a6d4aa7f4102ea0a305904df1d075d67d9156d33953ca0f8b685c62a5c2561",
+        "whack_a_mob_rules": "49d9d2792417c52d07562102c846927ef2576e5f56d9136039c12213c0fa9dad",
+        "whack_a_mob_start": "6ff305bf82c4df4750b726f7a733371c19eecf098b907567f0439b78c00e7fbb",
+        "whack_a_mob_tick": "15fc136f74279605273dd2376ff2885ade01a688de450fee6c9a3b6eb4f0613a"
+      },
+      "sourceAuditResource": "mob_games_rules.json",
+      "implementationNotes": [
+        "Original 90-second normal-difficulty Whack-A-Mob; whack_a_mob_start overrides the entry function's preliminary 1200-tick value with 1800 ticks. A shared 20-tick spawn cycle chooses a weighted type and an empty one of nine holes, mirrored into max(4, initial player count) source rooms.",
+        "Native netherite-axe cooldown and damage, iron armor mitigation, health values 10/10/10/9/4/10, Enderman NoAI/hide/reappear and source movement/life rules are retained. Source type weights are zombie 4, wither skeleton 1, armored zombie villager 1, enderman 1, blaze 2 and zombified piglin 2.",
+        "Per-type killed statistics award each type once per source tick, even for multiple same-type kills. Points flush before the final alive-target drain check. Retraction /kill does not award specific killed-type statistics without a direct player damage source.",
+        "The source keeps the previous hole when all nine are occupied, and excludes Blazes from the ordinary low-Y retraction kill. Unhit Blazes may continue descending until source-world void damage; the game waits for these live targets rather than applying a new timeout. Source Y<-128 void behavior is retained despite arena translation.",
+        "The complete ten-room geometry is preserved. Twenty iron_chain blocks use the original 1.21.1 chain name with unchanged axis/waterlogged properties. Fifty decorative pipe signs, twenty decorative skull profiles and nine banner patterns are not reconstructed.",
+        "Player environmental damage and generic-kill retries remain enabled; damage from other players is disabled. Retries reset health, fire, hit state and equipment, and apply native respawn protection. Fall damage follows the arena default for this server's five-round adaptation rather than inheriting the original map's preceding mode state."
+      ]
     },
     {
       "id": 403,
       "name": "Monster Shoot (MSh)",
       "category": "free_for_all",
       "sourceFunction": "monster_shoot",
-      "status": "planned",
-      "nameZhSource": "狙击怪物"
+      "status": "implemented_phase_2",
+      "nameZhSource": "狙击怪物",
+      "implementationBatch": 4,
+      "geometryResources": [
+        "monster_shoot"
+      ],
+      "sourceFunctionSha256": {
+        "end_monster_shoot": "c6ffcdc60b1825ddca00d0d21628c8fc15f153142ab006d0c7a773db165d1d4e",
+        "monster_shoot": "09e3d454e8cea69d36830583d84a3ac5d0baee5e14053d21ca86a7cf0063cf95",
+        "monster_shoot_rules": "d059ef746bc036e29eb7c9eccaa843a348f2648cc1185d2eba614252313eb574",
+        "monster_shoot_start": "25def69a98595139025a2fe4c24f46cf0df666b3581df9f6436888d9a009aa1d",
+        "monster_shoot_tick": "66a1b1d25cb709640cb57b01913c7ab1dcf5db851fabc6708a14209ea6aaf3cc",
+        "ms_spawn_monster": "b01a674e841673b6dd0278158a5d0ba460127d4e76cb4d8b4f62f51213e008cb"
+      },
+      "sourceAuditResource": "mob_games_rules.json",
+      "implementationNotes": [
+        "Original 60-second Monster Shoot with 25 random spawn markers, source type weights zombie 5, creeper 3, silverfish 2 and skeleton 2, and player-count spawn delays 20/17/14/12/10/9/8 ticks for <=4/5/6/7/8/9/10 players.",
+        "All targets have five health. Zombies ride invisible five-health chickens; skeletons/zombies wear stone buttons as helmets. Native AI, gravity, slow falling, chicken gliding, passenger motion, collision and ground/orphan cleanup are retained.",
+        "The bow retains Power V and Infinity. Actual arrows receive PierceLevel 1, following the source tick rather than the decorative Piercing V enchantment. Points are zombie 1, creeper 2, skeleton 3, silverfish 5 and chicken 1, coalesced once per player/type/source tick.",
+        "After 1200 ticks spawning stops and the game waits for no alive monster-tagged target. The source end test runs before pending-stat flush and removes objectives before placements, so pending points on the final drain tick are discarded; corpses do not delay this condition.",
+        "Five or more players use the original radius-12 player_circle with integer floor(360/N) yaw increments and centered execute-position coordinates. The complete pit, ledges, bottom introduction position and spawn-height terrain are preserved; twelve decorative banner patterns are omitted."
+      ]
     },
     {
       "id": 404,
@@ -1095,9 +1143,9 @@
     }
   ],
   "progress": {
-    "implementedGames": 11,
-    "remainingGames": 91,
-    "geometryResources": 22,
+    "implementedGames": 13,
+    "remainingGames": 89,
+    "geometryResources": 24,
     "phase2": "in_progress"
   },
   "tournamentRules": {

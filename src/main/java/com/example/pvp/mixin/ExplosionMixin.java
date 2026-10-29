@@ -3,6 +3,7 @@ package com.example.pvp.mixin;
 import com.example.pvp.PvPMod;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.config.PvPConfig;
+import com.example.pvp.arena.party.PartySourceMobs;
 import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchManager;
 import com.example.pvp.match.MatchType;
@@ -17,6 +18,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.explosion.Explosion;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -30,6 +32,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Explosion.class)
 public abstract class ExplosionMixin {
     @Shadow @Final private World world;
+    @Shadow @Final @Mutable private Explosion.DestructionType destructionType;
+
+    /** 原打靶地图禁用 mobGriefing；只把本场原生目标的爆炸改为保留方块，不影响其他爆炸。 */
+    @Inject(method = "<init>(Lnet/minecraft/world/World;Lnet/minecraft/entity/Entity;Lnet/minecraft/entity/damage/DamageSource;Lnet/minecraft/world/explosion/ExplosionBehavior;DDDFZLnet/minecraft/world/explosion/Explosion$DestructionType;Lnet/minecraft/particle/ParticleEffect;Lnet/minecraft/particle/ParticleEffect;Lnet/minecraft/registry/entry/RegistryEntry;)V", at = @At("TAIL"))
+    private void pvp$sourceMobGriefing(CallbackInfo ci) {
+        if (PartySourceMobs.isSourceMob(((Explosion) (Object) this).getEntity())) {
+            this.destructionType = Explosion.DestructionType.KEEP;
+        }
+    }
 
     /**
      * 烈焰弹倍率必须在 ServerWorld 广播爆炸包前写回玩家向量。

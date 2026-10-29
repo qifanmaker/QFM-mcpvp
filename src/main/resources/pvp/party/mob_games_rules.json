@@ -1,0 +1,2386 @@
+{
+  "formatVersion": 1,
+  "source": {
+    "name": "Minecraft Party 2",
+    "minecraftVersion": "1.21.10",
+    "url": "https://www.minecraftmaps.com/52024-minecraft-party-2",
+    "functionSha256": {
+      "whack_a_mob": "360663cacda8c2a39febc7fb75297273e05a8ed938165097784d0a16fc3a0e83",
+      "whack_a_mob_rules": "49d9d2792417c52d07562102c846927ef2576e5f56d9136039c12213c0fa9dad",
+      "whack_a_mob_start": "6ff305bf82c4df4750b726f7a733371c19eecf098b907567f0439b78c00e7fbb",
+      "whack_a_mob_tick": "15fc136f74279605273dd2376ff2885ade01a688de450fee6c9a3b6eb4f0613a",
+      "whack_a_mob_end": "d1a6d4aa7f4102ea0a305904df1d075d67d9156d33953ca0f8b685c62a5c2561",
+      "wam_summon_mob": "10de5affc00d4f8818c2107f6e61a90769e1d7c57be7cd69674268e8f9303615",
+      "wam_summon_mob2": "97420e1633186044dd8d167e6f1e40356b91102b005b008a59d4db09cab97bad",
+      "wam_enderman_teleport": "7bbcec74b61eec27c07c83d7ea374e9da5ffed002078951ad75d7d96d384847b",
+      "wam_enderman_reappear": "319cc419c7f829c1db71f4f4717fbd2f98c40facf8b62c308b9ad58892b42b55",
+      "monster_shoot": "09e3d454e8cea69d36830583d84a3ac5d0baee5e14053d21ca86a7cf0063cf95",
+      "monster_shoot_rules": "d059ef746bc036e29eb7c9eccaa843a348f2648cc1185d2eba614252313eb574",
+      "monster_shoot_start": "25def69a98595139025a2fe4c24f46cf0df666b3581df9f6436888d9a009aa1d",
+      "monster_shoot_tick": "66a1b1d25cb709640cb57b01913c7ab1dcf5db851fabc6708a14209ea6aaf3cc",
+      "ms_spawn_monster": "b01a674e841673b6dd0278158a5d0ba460127d4e76cb4d8b4f62f51213e008cb",
+      "end_monster_shoot": "c6ffcdc60b1825ddca00d0d21628c8fc15f153142ab006d0c7a773db165d1d4e",
+      "player_circle": "d18804d0981068e317e7ae65b9554a9168a024ef7a6dcf6c7ef1aa3dce546952",
+      "player_circle_place_player": "adc09ffba5a6620792dc12ca8a494a28a43bb92f653b2f903b743f480887ef88",
+      "rotate_entity": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801",
+      "scoreboard_data": "bf0cb1a938ab95b0bc0f45d0cff37585df419ebe09073daf8500e4d74a321655"
+    }
+  },
+  "games": {
+    "402": {
+      "geometry": "whack_a_mob",
+      "playerStarts": [
+        {
+          "slot": 1,
+          "position": [
+            -231.5,
+            39,
+            -421.5
+          ],
+          "sourceLine": 10
+        },
+        {
+          "slot": 2,
+          "position": [
+            -231.5,
+            39,
+            -444.5
+          ],
+          "sourceLine": 11
+        },
+        {
+          "slot": 3,
+          "position": [
+            -231.5,
+            39,
+            -467.5
+          ],
+          "sourceLine": 12
+        },
+        {
+          "slot": 4,
+          "position": [
+            -231.5,
+            39,
+            -490.5
+          ],
+          "sourceLine": 13
+        },
+        {
+          "slot": 5,
+          "position": [
+            -231.5,
+            39,
+            -513.5
+          ],
+          "sourceLine": 14
+        },
+        {
+          "slot": 6,
+          "position": [
+            -201.5,
+            39,
+            -421.5
+          ],
+          "sourceLine": 15
+        },
+        {
+          "slot": 7,
+          "position": [
+            -201.5,
+            39,
+            -444.5
+          ],
+          "sourceLine": 16
+        },
+        {
+          "slot": 8,
+          "position": [
+            -201.5,
+            39,
+            -467.5
+          ],
+          "sourceLine": 17
+        },
+        {
+          "slot": 9,
+          "position": [
+            -201.5,
+            39,
+            -490.5
+          ],
+          "sourceLine": 18
+        },
+        {
+          "slot": 10,
+          "position": [
+            -201.5,
+            39,
+            -513.5
+          ],
+          "sourceLine": 19
+        }
+      ],
+      "holeMarkers": [
+        {
+          "position": [
+            -233.5,
+            34,
+            -423.5
+          ],
+          "tags": [
+            "mob_spot",
+            "mob_spot1"
+          ],
+          "sourceLine": 4,
+          "commandSha256": "0fb5dbc80edb0239b1a96c2144939a418de885dd5d759d13445ab9a915591b12"
+        },
+        {
+          "position": [
+            -233.5,
+            34,
+            -421.5
+          ],
+          "tags": [
+            "mob_spot",
+            "mob_spot2"
+          ],
+          "sourceLine": 5,
+          "commandSha256": "488e1ff45cd227c78af1f5ee578583b3bf94ea55d0cfc8bd772eda05c5854877"
+        },
+        {
+          "position": [
+            -233.5,
+            34,
+            -419.5
+          ],
+          "tags": [
+            "mob_spot",
+            "mob_spot3"
+          ],
+          "sourceLine": 6,
+          "commandSha256": "3409490c8f5b135417949c151b41c16f8c74f324a7d6270769559bd2d1124a7a"
+        },
+        {
+          "position": [
+            -231.5,
+            34,
+            -423.5
+          ],
+          "tags": [
+            "mob_spot",
+            "mob_spot4"
+          ],
+          "sourceLine": 7,
+          "commandSha256": "c26b412792b4f3c8f4f21a885fc4386679dadaba6ebd9b121f951d2e4bce98f3"
+        },
+        {
+          "position": [
+            -231.5,
+            34,
+            -421.5
+          ],
+          "tags": [
+            "mob_spot",
+            "mob_spot5"
+          ],
+          "sourceLine": 8,
+          "commandSha256": "bdd022cf89d34e5f28727d8b97a2521fc9a01737b3873f0220de9278fa9f8726"
+        },
+        {
+          "position": [
+            -231.5,
+            34,
+            -419.5
+          ],
+          "tags": [
+            "mob_spot",
+            "mob_spot6"
+          ],
+          "sourceLine": 9,
+          "commandSha256": "39d6b177534cad5ce49b0a57707296cedefdbb8f419abb7980ee4f9c84c0ce7a"
+        },
+        {
+          "position": [
+            -229.5,
+            34,
+            -423.5
+          ],
+          "tags": [
+            "mob_spot",
+            "mob_spot7"
+          ],
+          "sourceLine": 10,
+          "commandSha256": "f37be82e9d8ee610bd47c30854c8e048e725a1c957db1a3c53fa3c14dd72ef06"
+        },
+        {
+          "position": [
+            -229.5,
+            34,
+            -421.5
+          ],
+          "tags": [
+            "mob_spot",
+            "mob_spot8"
+          ],
+          "sourceLine": 11,
+          "commandSha256": "6a193d2bfdea3cac5c68bc3480d812c6251277ed233140b9cd1352957bdc1a23"
+        },
+        {
+          "position": [
+            -229.5,
+            34,
+            -419.5
+          ],
+          "tags": [
+            "mob_spot",
+            "mob_spot9"
+          ],
+          "sourceLine": 12,
+          "commandSha256": "643ffbfac204c357921c512a44b27a9daf008f11f1dd9e841826a8c3824a1501"
+        }
+      ],
+      "typeMarkers": [
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob1"
+          ],
+          "sourceLine": 25,
+          "commandSha256": "9e6b2a2ffe05a33cf02ab9647b83e9ddaaeba7c2bbfb115626b88c264c58d6c6"
+        },
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob1"
+          ],
+          "sourceLine": 26,
+          "commandSha256": "9e6b2a2ffe05a33cf02ab9647b83e9ddaaeba7c2bbfb115626b88c264c58d6c6"
+        },
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob1"
+          ],
+          "sourceLine": 27,
+          "commandSha256": "9e6b2a2ffe05a33cf02ab9647b83e9ddaaeba7c2bbfb115626b88c264c58d6c6"
+        },
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob1"
+          ],
+          "sourceLine": 28,
+          "commandSha256": "9e6b2a2ffe05a33cf02ab9647b83e9ddaaeba7c2bbfb115626b88c264c58d6c6"
+        },
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob2"
+          ],
+          "sourceLine": 29,
+          "commandSha256": "a3f2d95aa1a9f698e8f6da0e41e851101d16a474f39089100db366bcf82a4f1f"
+        },
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob3"
+          ],
+          "sourceLine": 30,
+          "commandSha256": "0061facbe1235062908cbd786b0ab2021229e99d78f4f68da9234a2396adc557"
+        },
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob4"
+          ],
+          "sourceLine": 31,
+          "commandSha256": "327d83b0e34d3eb12911786e8882dbc2cebbe5a098df04218f594b4f543fbe7c"
+        },
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob5"
+          ],
+          "sourceLine": 32,
+          "commandSha256": "43272ae96aa38b5c3b96c2392964333c6b166ee5b04293107d36cd5701787d25"
+        },
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob5"
+          ],
+          "sourceLine": 33,
+          "commandSha256": "43272ae96aa38b5c3b96c2392964333c6b166ee5b04293107d36cd5701787d25"
+        },
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob6"
+          ],
+          "sourceLine": 34,
+          "commandSha256": "62a4415299b3550bfe51376f3560f766e8aad02885a1452fec844e90ea4b0992"
+        },
+        {
+          "position": [
+            -227.5,
+            34,
+            -417.5
+          ],
+          "tags": [
+            "mob",
+            "mob6"
+          ],
+          "sourceLine": 35,
+          "commandSha256": "62a4415299b3550bfe51376f3560f766e8aad02885a1452fec844e90ea4b0992"
+        }
+      ],
+      "typeWeights": {
+        "mob1": 4,
+        "mob2": 1,
+        "mob3": 1,
+        "mob4": 1,
+        "mob5": 2,
+        "mob6": 2
+      },
+      "mobTemplates": [
+        {
+          "variant": 1,
+          "entity": "minecraft:zombie",
+          "offsetXZ": [
+            0,
+            0
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 9,
+          "commandSha256": "6adda090e665f1df91c2a78bce73e0c7e3df84fccefc8ca7ca74174504290a9d"
+        },
+        {
+          "variant": 1,
+          "entity": "minecraft:zombie",
+          "offsetXZ": [
+            0,
+            -23
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 10,
+          "commandSha256": "7971309cc3ac77756dbc35f3583cd384da882ebdbde1dc59cd062eac616b02cd"
+        },
+        {
+          "variant": 1,
+          "entity": "minecraft:zombie",
+          "offsetXZ": [
+            0,
+            -46
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 11,
+          "commandSha256": "b5e7bcc902ad3a8e2837314d25c49be482771e76cfaddce489becbd7f027d4ff"
+        },
+        {
+          "variant": 1,
+          "entity": "minecraft:zombie",
+          "offsetXZ": [
+            0,
+            -69
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 12,
+          "commandSha256": "380d9ce76ab50314ef7882049023f8b7b7201a0c869dd801d3a1fd9e856f197b"
+        },
+        {
+          "variant": 1,
+          "entity": "minecraft:zombie",
+          "offsetXZ": [
+            0,
+            -92
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 5,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 13,
+          "commandSha256": "f0e3cb684a1ee69ccc83e26abe87de0e7f3cad7714e1052ae01cd15bf23e2374"
+        },
+        {
+          "variant": 1,
+          "entity": "minecraft:zombie",
+          "offsetXZ": [
+            30,
+            0
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 6,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 14,
+          "commandSha256": "b5469d22424c56918702c19dc301690588f60dcd03b775eee29dface653ea2e0"
+        },
+        {
+          "variant": 1,
+          "entity": "minecraft:zombie",
+          "offsetXZ": [
+            30,
+            -23
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 7,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 15,
+          "commandSha256": "748975d57bed4d6bcb67e931bc73962d8405968ddff31e201a7463a02eed55ce"
+        },
+        {
+          "variant": 1,
+          "entity": "minecraft:zombie",
+          "offsetXZ": [
+            30,
+            -46
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 8,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 16,
+          "commandSha256": "44b7be8326d52f1ec00785adc52fac7ae4ec140f7511a70b255d9a77592e7782"
+        },
+        {
+          "variant": 1,
+          "entity": "minecraft:zombie",
+          "offsetXZ": [
+            30,
+            -69
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 9,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 17,
+          "commandSha256": "748dca487bc3bcd45b6423fe649b566e7beba74dab2357ad3b592d49f96eb599"
+        },
+        {
+          "variant": 1,
+          "entity": "minecraft:zombie",
+          "offsetXZ": [
+            30,
+            -92
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 10,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 18,
+          "commandSha256": "5feba678a00e7c2efa84298c344d06b2ee60a74d49662c86148a55aa7851ecd6"
+        },
+        {
+          "variant": 2,
+          "entity": "minecraft:wither_skeleton",
+          "offsetXZ": [
+            0,
+            0
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 21,
+          "commandSha256": "2c976b58326326b2cbee9f424249f4916a389096bb553e19bf9b21f3a776278e"
+        },
+        {
+          "variant": 2,
+          "entity": "minecraft:wither_skeleton",
+          "offsetXZ": [
+            0,
+            -23
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 22,
+          "commandSha256": "2232f9f94e91ab5ecfab97928eded8509643dd908cc67af366ae278e4ea6533e"
+        },
+        {
+          "variant": 2,
+          "entity": "minecraft:wither_skeleton",
+          "offsetXZ": [
+            0,
+            -46
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 23,
+          "commandSha256": "b69774e38074a487f94fb46de7c49c22f18901b74aca27b7f2930ca65af80bc5"
+        },
+        {
+          "variant": 2,
+          "entity": "minecraft:wither_skeleton",
+          "offsetXZ": [
+            0,
+            -69
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 24,
+          "commandSha256": "31de6ccd777e371ba07d9bb8c297b335700d92162e2a561f23de7ce8ffc4cf6c"
+        },
+        {
+          "variant": 2,
+          "entity": "minecraft:wither_skeleton",
+          "offsetXZ": [
+            0,
+            -92
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 5,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 25,
+          "commandSha256": "01c82e5483abceb7923ef24241d07fe833dedf5bb95257b4828b1663798e2003"
+        },
+        {
+          "variant": 2,
+          "entity": "minecraft:wither_skeleton",
+          "offsetXZ": [
+            30,
+            0
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 6,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 26,
+          "commandSha256": "5f3c5051eaf95639603474d3312ee3c4e5a19887ec25381204f1a34fb79b649a"
+        },
+        {
+          "variant": 2,
+          "entity": "minecraft:wither_skeleton",
+          "offsetXZ": [
+            30,
+            -23
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 7,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 27,
+          "commandSha256": "58bd5824b97d4c8ddb56dcbfea4a93cd5ba03c3cfe18d8f8022555a266b31e4a"
+        },
+        {
+          "variant": 2,
+          "entity": "minecraft:wither_skeleton",
+          "offsetXZ": [
+            30,
+            -46
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 8,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 28,
+          "commandSha256": "d7f8cba41146f7ec4b38095e7654f5c4411223bf47ef1e9863358d8ba86a1f22"
+        },
+        {
+          "variant": 2,
+          "entity": "minecraft:wither_skeleton",
+          "offsetXZ": [
+            30,
+            -69
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 9,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 29,
+          "commandSha256": "058acc101f9ba210435bdaa15296b946474fedeb3f0f9e77d3819b2aa11d37b5"
+        },
+        {
+          "variant": 2,
+          "entity": "minecraft:wither_skeleton",
+          "offsetXZ": [
+            30,
+            -92
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 10,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 30,
+          "commandSha256": "f2b800da183536a6caf0c5cb583737bf523a561334fd9946f66b0a2716a3e9e0"
+        },
+        {
+          "variant": 3,
+          "entity": "minecraft:zombie_villager",
+          "offsetXZ": [
+            0,
+            0
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [
+            "minecraft:iron_boots",
+            "minecraft:iron_leggings",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_helmet"
+          ],
+          "sourceLine": 33,
+          "commandSha256": "3e0483c3de5d24eef6c78cc6f7f1eb5f51c823d1a2f255d17671006d3a6c3ddb"
+        },
+        {
+          "variant": 3,
+          "entity": "minecraft:zombie_villager",
+          "offsetXZ": [
+            0,
+            -23
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [
+            "minecraft:iron_boots",
+            "minecraft:iron_leggings",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_helmet"
+          ],
+          "sourceLine": 34,
+          "commandSha256": "09e66a5b9a90fec34f79c41cd2bf2e34aee649d868f99357ef1cc472358aca43"
+        },
+        {
+          "variant": 3,
+          "entity": "minecraft:zombie_villager",
+          "offsetXZ": [
+            0,
+            -46
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [
+            "minecraft:iron_boots",
+            "minecraft:iron_leggings",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_helmet"
+          ],
+          "sourceLine": 35,
+          "commandSha256": "e0a4e6517954c938b155a7e54b0dc240ab5799d32aa8323faed498816727cf67"
+        },
+        {
+          "variant": 3,
+          "entity": "minecraft:zombie_villager",
+          "offsetXZ": [
+            0,
+            -69
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [
+            "minecraft:iron_boots",
+            "minecraft:iron_leggings",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_helmet"
+          ],
+          "sourceLine": 36,
+          "commandSha256": "3aaed28302ac97318df7434c87d833ed56104e0e3e88953b880a0cb85eaeb0cd"
+        },
+        {
+          "variant": 3,
+          "entity": "minecraft:zombie_villager",
+          "offsetXZ": [
+            0,
+            -92
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 5,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [
+            "minecraft:iron_boots",
+            "minecraft:iron_leggings",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_helmet"
+          ],
+          "sourceLine": 37,
+          "commandSha256": "f5f17b2b275ac72c86807ad56a12691545ccb43af3b36f9c0e0df290aa7666fc"
+        },
+        {
+          "variant": 3,
+          "entity": "minecraft:zombie_villager",
+          "offsetXZ": [
+            30,
+            0
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 6,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [
+            "minecraft:iron_boots",
+            "minecraft:iron_leggings",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_helmet"
+          ],
+          "sourceLine": 38,
+          "commandSha256": "0e424005fbdfce9b74b93880bfe6622353324a498afe67e0ea826083e8615c17"
+        },
+        {
+          "variant": 3,
+          "entity": "minecraft:zombie_villager",
+          "offsetXZ": [
+            30,
+            -23
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 7,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [
+            "minecraft:iron_boots",
+            "minecraft:iron_leggings",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_helmet"
+          ],
+          "sourceLine": 39,
+          "commandSha256": "943720127c1d773758e0477c856f709155f9886c3355ca59d2640f4a3f33fe73"
+        },
+        {
+          "variant": 3,
+          "entity": "minecraft:zombie_villager",
+          "offsetXZ": [
+            30,
+            -46
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 8,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [
+            "minecraft:iron_boots",
+            "minecraft:iron_leggings",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_helmet"
+          ],
+          "sourceLine": 40,
+          "commandSha256": "7688ec3c59652cc5c7f38d1bfb6f7ea256dd7afa6728242a3a5e614a7250f7a4"
+        },
+        {
+          "variant": 3,
+          "entity": "minecraft:zombie_villager",
+          "offsetXZ": [
+            30,
+            -69
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 9,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [
+            "minecraft:iron_boots",
+            "minecraft:iron_leggings",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_helmet"
+          ],
+          "sourceLine": 41,
+          "commandSha256": "4d48d910b7df0e1877fdf4f69b622e46e462e4fa6a82e8e2835859f9675ecd0a"
+        },
+        {
+          "variant": 3,
+          "entity": "minecraft:zombie_villager",
+          "offsetXZ": [
+            30,
+            -92
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 10,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [
+            "minecraft:iron_boots",
+            "minecraft:iron_leggings",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_helmet"
+          ],
+          "sourceLine": 42,
+          "commandSha256": "33c27c09e3747778244a151168a6d89029e3d69314c4dcf65c7b6ae84012bd9f"
+        },
+        {
+          "variant": 4,
+          "entity": "minecraft:enderman",
+          "offsetXZ": [
+            0,
+            0
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 9.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 9.0,
+          "noAI": true,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 45,
+          "commandSha256": "50d5ef9017b7ced2efd23cf0268de402992b361d73b8c46ab79b834d96ed31d8"
+        },
+        {
+          "variant": 4,
+          "entity": "minecraft:enderman",
+          "offsetXZ": [
+            0,
+            -23
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 9.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 9.0,
+          "noAI": true,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 46,
+          "commandSha256": "fca3255d8b3e92d36f8011880294431acdd176ebc212d206c718ffab7aead343"
+        },
+        {
+          "variant": 4,
+          "entity": "minecraft:enderman",
+          "offsetXZ": [
+            0,
+            -46
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 9.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 9.0,
+          "noAI": true,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 47,
+          "commandSha256": "a0665bbe6a4aa88fb4799253366c34e58c9600f80485d08333d2dda81f1b2237"
+        },
+        {
+          "variant": 4,
+          "entity": "minecraft:enderman",
+          "offsetXZ": [
+            0,
+            -69
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 9.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 9.0,
+          "noAI": true,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 48,
+          "commandSha256": "19914e29fcdf39e170da5ac9a9b40bb5a2ac9827a863e4c70d0122448cd41d7e"
+        },
+        {
+          "variant": 4,
+          "entity": "minecraft:enderman",
+          "offsetXZ": [
+            0,
+            -92
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 5,
+          "attributes": {
+            "max_health": 9.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 9.0,
+          "noAI": true,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 49,
+          "commandSha256": "3b1bef1d1675c3cb0515e03d9f78006a77d2f1a2ac89d763dbef54c85dc863cd"
+        },
+        {
+          "variant": 4,
+          "entity": "minecraft:enderman",
+          "offsetXZ": [
+            30,
+            0
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 6,
+          "attributes": {
+            "max_health": 9.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 9.0,
+          "noAI": true,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 50,
+          "commandSha256": "37249e1ed4af8505409221d016c908827f3d68527592a3a5d7ae528d0ab83b2b"
+        },
+        {
+          "variant": 4,
+          "entity": "minecraft:enderman",
+          "offsetXZ": [
+            30,
+            -23
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 7,
+          "attributes": {
+            "max_health": 9.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 9.0,
+          "noAI": true,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 51,
+          "commandSha256": "73f0d9409da603bfd8ad4d672ac5cc5a876e6da656338aea23207b6b6a8c8ee4"
+        },
+        {
+          "variant": 4,
+          "entity": "minecraft:enderman",
+          "offsetXZ": [
+            30,
+            -46
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 8,
+          "attributes": {
+            "max_health": 9.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 9.0,
+          "noAI": true,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 52,
+          "commandSha256": "90d49b30fc0234b740c52c63ae769e9bcbd8a7e86ceab603b8ece5dca2833e6e"
+        },
+        {
+          "variant": 4,
+          "entity": "minecraft:enderman",
+          "offsetXZ": [
+            30,
+            -69
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 9,
+          "attributes": {
+            "max_health": 9.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 9.0,
+          "noAI": true,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 53,
+          "commandSha256": "6472be099153a8756f6d68481ebcc4a031e42128617286bde527eef322dd760e"
+        },
+        {
+          "variant": 4,
+          "entity": "minecraft:enderman",
+          "offsetXZ": [
+            30,
+            -92
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 10,
+          "attributes": {
+            "max_health": 9.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 9.0,
+          "noAI": true,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 54,
+          "commandSha256": "c9a0926fe63b040de80912a97ba45c0fa32b698abd29233439fa837189eb25b2"
+        },
+        {
+          "variant": 5,
+          "entity": "minecraft:blaze",
+          "offsetXZ": [
+            0,
+            0
+          ],
+          "sourceY": 36,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 4.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 4.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 56,
+          "commandSha256": "073a633bea719dd88157ded9cb24ede95d46941c905ee7a56c5228d9d79f7af6"
+        },
+        {
+          "variant": 5,
+          "entity": "minecraft:blaze",
+          "offsetXZ": [
+            0,
+            -23
+          ],
+          "sourceY": 36,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 4.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 4.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 57,
+          "commandSha256": "dc3fd9fa2379468e737d4b90d989cfc558fee8b5278415ab2c932bfbdb910d9a"
+        },
+        {
+          "variant": 5,
+          "entity": "minecraft:blaze",
+          "offsetXZ": [
+            0,
+            -46
+          ],
+          "sourceY": 36,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 4.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 4.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 58,
+          "commandSha256": "5f5ee01fe2acf2385b22a9800c86d3b1ab810bb0ac3ef1bed10b60f2bfaf5e03"
+        },
+        {
+          "variant": 5,
+          "entity": "minecraft:blaze",
+          "offsetXZ": [
+            0,
+            -69
+          ],
+          "sourceY": 36,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 4.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 4.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 59,
+          "commandSha256": "87aa2aaa3eba8278a9452fa23f9c7ab05c4b06652ec81985d4fdc1fe25cf2a89"
+        },
+        {
+          "variant": 5,
+          "entity": "minecraft:blaze",
+          "offsetXZ": [
+            0,
+            -92
+          ],
+          "sourceY": 36,
+          "minimumPlayers": 5,
+          "attributes": {
+            "max_health": 4.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 4.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 60,
+          "commandSha256": "18955418266846a6197282a491f3dfdcfe3a44293e4442e1eb191f2f2027a56d"
+        },
+        {
+          "variant": 5,
+          "entity": "minecraft:blaze",
+          "offsetXZ": [
+            30,
+            0
+          ],
+          "sourceY": 36,
+          "minimumPlayers": 6,
+          "attributes": {
+            "max_health": 4.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 4.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 61,
+          "commandSha256": "7e87bff023ab5383692a3beafe566aae3022d5225091118f1246b42ff9740227"
+        },
+        {
+          "variant": 5,
+          "entity": "minecraft:blaze",
+          "offsetXZ": [
+            30,
+            -23
+          ],
+          "sourceY": 36,
+          "minimumPlayers": 7,
+          "attributes": {
+            "max_health": 4.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 4.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 62,
+          "commandSha256": "e6ffb76facb88b81c2a07b1d89698e28be4cbd05bdc6020f1f83c6145fab17bb"
+        },
+        {
+          "variant": 5,
+          "entity": "minecraft:blaze",
+          "offsetXZ": [
+            30,
+            -46
+          ],
+          "sourceY": 36,
+          "minimumPlayers": 8,
+          "attributes": {
+            "max_health": 4.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 4.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 63,
+          "commandSha256": "5cb3db7d066b52d614da6d3eddd871eea7e9d88a48633ca126ca468eb90b6092"
+        },
+        {
+          "variant": 5,
+          "entity": "minecraft:blaze",
+          "offsetXZ": [
+            30,
+            -69
+          ],
+          "sourceY": 36,
+          "minimumPlayers": 9,
+          "attributes": {
+            "max_health": 4.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 4.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 64,
+          "commandSha256": "3a9c99b61267830b5322371c1b10c5a27e815eb831e2d91ba91efbf4dd4384dd"
+        },
+        {
+          "variant": 5,
+          "entity": "minecraft:blaze",
+          "offsetXZ": [
+            30,
+            -92
+          ],
+          "sourceY": 36,
+          "minimumPlayers": 10,
+          "attributes": {
+            "max_health": 4.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 4.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 65,
+          "commandSha256": "a8846b2410be2060e60c4d23d45d9accbfc40a9d2ba6bc7a93f801b2cf1602dd"
+        },
+        {
+          "variant": 6,
+          "entity": "minecraft:zombified_piglin",
+          "offsetXZ": [
+            0,
+            0
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 68,
+          "commandSha256": "1bbe08487852f7c95312fe09f6981e1104048d4ea2bbfda71b1d70313f10a4d1"
+        },
+        {
+          "variant": 6,
+          "entity": "minecraft:zombified_piglin",
+          "offsetXZ": [
+            0,
+            -23
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 69,
+          "commandSha256": "d2f21d013c9d0e9d83f736ec93e43fd3bdab6ae0206ad88c9c8de2fce8a66949"
+        },
+        {
+          "variant": 6,
+          "entity": "minecraft:zombified_piglin",
+          "offsetXZ": [
+            0,
+            -46
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 70,
+          "commandSha256": "0677088783c88dac586a9933a8b33f563a7ba23d7cfefdd8eac0e79ca7fd2a46"
+        },
+        {
+          "variant": 6,
+          "entity": "minecraft:zombified_piglin",
+          "offsetXZ": [
+            0,
+            -69
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 1,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 71,
+          "commandSha256": "70e1d5ff9ed824cdd8355d005335de966d76a4f0ba2b1f6e03fefc66d54346f3"
+        },
+        {
+          "variant": 6,
+          "entity": "minecraft:zombified_piglin",
+          "offsetXZ": [
+            0,
+            -92
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 5,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 72,
+          "commandSha256": "756d54b2b9d5d3f65b283239851cbf5f880d1a70ed8196c0d39d2d0d22571368"
+        },
+        {
+          "variant": 6,
+          "entity": "minecraft:zombified_piglin",
+          "offsetXZ": [
+            30,
+            0
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 6,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 73,
+          "commandSha256": "bafae21cce3015d28c88f035cb4347cb81805b1a1db466fafbb56daf56bc05f5"
+        },
+        {
+          "variant": 6,
+          "entity": "minecraft:zombified_piglin",
+          "offsetXZ": [
+            30,
+            -23
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 7,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 74,
+          "commandSha256": "8151ab31d9c194e986d739ab0b5948910929d8f13279e59b116167943703250d"
+        },
+        {
+          "variant": 6,
+          "entity": "minecraft:zombified_piglin",
+          "offsetXZ": [
+            30,
+            -46
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 8,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 75,
+          "commandSha256": "10700a3e35fb6d7c0489f576710db501b615a75a62648e57de8974b92c4827d0"
+        },
+        {
+          "variant": 6,
+          "entity": "minecraft:zombified_piglin",
+          "offsetXZ": [
+            30,
+            -69
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 9,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 76,
+          "commandSha256": "5a4e979aff98ab90da24140dfe4567abab66751357648da71b268a870f8f5533"
+        },
+        {
+          "variant": 6,
+          "entity": "minecraft:zombified_piglin",
+          "offsetXZ": [
+            30,
+            -92
+          ],
+          "sourceY": 35,
+          "minimumPlayers": 10,
+          "attributes": {
+            "max_health": 10.0,
+            "follow_range": 0.0,
+            "knockback_resistance": 1.0,
+            "movement_speed": 0.0,
+            "attack_damage": 0.0
+          },
+          "health": 10.0,
+          "noAI": false,
+          "noGravity": true,
+          "equipment": [],
+          "sourceLine": 77,
+          "commandSha256": "ec5960544f8196e571cb8d2e1ba75f80ce109f0040763e2afb99e3232cdb2434"
+        }
+      ],
+      "durationTicks": 1800,
+      "normalSpawnDelayTicks": 20,
+      "typePoints": {
+        "minecraft:zombie": 1,
+        "minecraft:wither_skeleton": 3,
+        "minecraft:zombie_villager": 3,
+        "minecraft:enderman": 5,
+        "minecraft:blaze": -1,
+        "minecraft:zombified_piglin": 2
+      },
+      "semantics": [
+        "Source entry's 1200 ticks are overridden to 1800 ticks by whack_a_mob_start.",
+        "A shared chosen hole and type are mirrored into all ten source lanes; the first four lanes always spawn even with two or three players.",
+        "When all nine holes are occupied the source retains the previous mob_spot score rather than resetting it.",
+        "Only alive entities participate in @e occupancy and drain checks; corpses do not hold a hole open.",
+        "The source flushes each per-type killed statistic once per tick, then decrements its timer and tests for ending.",
+        "Endermen increment life every tick, globally hide at e_teleport=20 at Y=30 and reappear at e_teleport>=30 at Y=37.",
+        "All WAM mobs join the no_collision team; Monster Shoot mobs do not.",
+        "A /kill retraction has no direct attacker and does not increment the specific minecraft.killed:type statistic."
+      ]
+    },
+    "403": {
+      "geometry": "monster_shoot",
+      "spawnMarkers": [
+        {
+          "position": [
+            -67.5,
+            -6,
+            -265.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 31,
+          "commandSha256": "2d38348ff29407f7dfaadf77bc037c4153c9617ab1690a1ab833eb8da762af82"
+        },
+        {
+          "position": [
+            -69.5,
+            -6,
+            -265.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 32,
+          "commandSha256": "9c1d15bc72d3b13e532ea2a8efa61f1bc60bcb7c6b76dbcab78371eda0460b93"
+        },
+        {
+          "position": [
+            -71.5,
+            -6,
+            -265.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 33,
+          "commandSha256": "9d15ab8ec8a358dc8c359986f4595fc6608d11f49088fc841a0c1a2f3322cc2e"
+        },
+        {
+          "position": [
+            -73.5,
+            -6,
+            -265.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 34,
+          "commandSha256": "a7cc6cde03c228863c51cafb7d9db3c9fb7a28e2f2cc6d23f4f6659dd57bdaac"
+        },
+        {
+          "position": [
+            -75.5,
+            -6,
+            -265.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 35,
+          "commandSha256": "9e706b2eec6f774bb5779652be5dccc6dd7a91e2cdf201515ce22c292704435a"
+        },
+        {
+          "position": [
+            -68.5,
+            -6,
+            -263.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 36,
+          "commandSha256": "4cf40edcba32e792f79702ffabb8172672c089f09385bd24cbb6e8f8fc502a6e"
+        },
+        {
+          "position": [
+            -70.5,
+            -6,
+            -263.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 37,
+          "commandSha256": "f996ce936fcbdeb782f803abed81107a4ca8d0104f270bb624b25a9c1d195303"
+        },
+        {
+          "position": [
+            -72.5,
+            -6,
+            -263.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 38,
+          "commandSha256": "0f01c70470a9c919f9a23b5bf53a5cc53d9173145f9b4e4a7f0f6cd3182a257f"
+        },
+        {
+          "position": [
+            -74.5,
+            -6,
+            -263.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 39,
+          "commandSha256": "1feae5a5df4ddef53f194d2f1be27142b60abde623592926f4f91e5b4cfada15"
+        },
+        {
+          "position": [
+            -76.5,
+            -6,
+            -263.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 40,
+          "commandSha256": "ed1cbc76d1787920238141df939c82ff8e90ea3741c1db78406ebd4d2e651a2a"
+        },
+        {
+          "position": [
+            -67.5,
+            -6,
+            -261.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 41,
+          "commandSha256": "ab7e9a155add56fc5f7db27fb93bba244dceb1e931d686f20405e03a142bb263"
+        },
+        {
+          "position": [
+            -69.5,
+            -6,
+            -261.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 42,
+          "commandSha256": "feab5702368fd796c335acf07c6c026966b019016b0e292fbb1dfc84b4361c9b"
+        },
+        {
+          "position": [
+            -71.5,
+            -6,
+            -261.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 43,
+          "commandSha256": "7c940cbf6ae01d8da792da56ce4b43fd357ad4b9bde8a910968e257073921995"
+        },
+        {
+          "position": [
+            -73.5,
+            -6,
+            -261.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 44,
+          "commandSha256": "6e8822922651c6660264b3ae844830a1db55b11ab5cfe3ea65f8fcdd1f6a22e7"
+        },
+        {
+          "position": [
+            -75.5,
+            -6,
+            -261.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 45,
+          "commandSha256": "bd695a8c260325feb6fbb2d5ed767345f7f2c2a0c603b1e79ca84cc3e7ace976"
+        },
+        {
+          "position": [
+            -68.5,
+            -6,
+            -259.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 46,
+          "commandSha256": "b22f71c2060caf9a242406d8ffaf57dddccb511fad7caef01a85da4c0e005bd8"
+        },
+        {
+          "position": [
+            -70.5,
+            -6,
+            -259.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 47,
+          "commandSha256": "917317af15ea74f4372503dfdcd135aa217f063e18aae062609ca07d13c4e4fd"
+        },
+        {
+          "position": [
+            -72.5,
+            -6,
+            -259.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 48,
+          "commandSha256": "ce6ad8b3b707dcc3467b2b9fd6f2a3f21e42aa44ddafe3d3f488a0247d7dbda3"
+        },
+        {
+          "position": [
+            -74.5,
+            -6,
+            -259.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 49,
+          "commandSha256": "b994987435519be622d7e2637753560e412fd2685c78e8fc31831f2469836b16"
+        },
+        {
+          "position": [
+            -76.5,
+            -6,
+            -259.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 50,
+          "commandSha256": "e9fb34f636fe698eb070ef36049dc2fe7f4189b29e1ac09ff708144b75064652"
+        },
+        {
+          "position": [
+            -67.5,
+            -6,
+            -257.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 51,
+          "commandSha256": "a424b704d2d7299b357ad58311fb9bae32365528b944c749a0b00f9b2e91f248"
+        },
+        {
+          "position": [
+            -69.5,
+            -6,
+            -257.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 52,
+          "commandSha256": "f2117c9f787a07f580b78bae3bb3ffa693d9720eb53ff6aeb8b6457666f29bb6"
+        },
+        {
+          "position": [
+            -71.5,
+            -6,
+            -257.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 53,
+          "commandSha256": "76afbd29a28e2e90fe7cd6ef58e327c398002f38bfac813fb72746cb3a9fa829"
+        },
+        {
+          "position": [
+            -73.5,
+            -6,
+            -257.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 54,
+          "commandSha256": "a5b54c91e0d641de370c77e0ed8002faa335222b0d467be6ab0d207adc2e5c29"
+        },
+        {
+          "position": [
+            -75.5,
+            -6,
+            -257.5
+          ],
+          "tags": [
+            "monster_shoot"
+          ],
+          "sourceLine": 55,
+          "commandSha256": "b5750d4c31ecc74b328c9b0b8a5171432aec45d48105f2bf841ffb8721168b84"
+        }
+      ],
+      "typeMarkers": [
+        {
+          "position": [
+            -64.5,
+            -6,
+            -266.5
+          ],
+          "tags": [
+            "ms_monster",
+            "zombie"
+          ],
+          "sourceLine": 57,
+          "commandSha256": "4fe0fe9dad96049c033bf89cf5f8a0abc3a331e7ac2048425a667e8af083f4cc"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -265.5
+          ],
+          "tags": [
+            "ms_monster",
+            "zombie"
+          ],
+          "sourceLine": 58,
+          "commandSha256": "319640b3415e6c15ec172f51c2f3aa88b274a10ecf7b7c02b80f3977fbcc5ac8"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -264.5
+          ],
+          "tags": [
+            "ms_monster",
+            "zombie"
+          ],
+          "sourceLine": 59,
+          "commandSha256": "a9a9a2d391d4c88bc2cb4731ea3725d4564088c45dd8120224206de5851003a0"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -263.5
+          ],
+          "tags": [
+            "ms_monster",
+            "zombie"
+          ],
+          "sourceLine": 60,
+          "commandSha256": "b3e65a03ed8f21b75bacd8a7ffb55ff3416a9df094216bc38a16666172534ec8"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -263.5
+          ],
+          "tags": [
+            "ms_monster",
+            "zombie"
+          ],
+          "sourceLine": 61,
+          "commandSha256": "b3e65a03ed8f21b75bacd8a7ffb55ff3416a9df094216bc38a16666172534ec8"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -262.5
+          ],
+          "tags": [
+            "ms_monster",
+            "creeper"
+          ],
+          "sourceLine": 62,
+          "commandSha256": "0a8adecd4c56f799a56f2ca7fb13c89fb17c7a4293661e02c05f65c30dec4ac0"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -261.5
+          ],
+          "tags": [
+            "ms_monster",
+            "creeper"
+          ],
+          "sourceLine": 63,
+          "commandSha256": "ef116c6619f225bbc7b72bb769b904f05c8d8f81badfc66df47be61f24b96d52"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -260.5
+          ],
+          "tags": [
+            "ms_monster",
+            "creeper"
+          ],
+          "sourceLine": 64,
+          "commandSha256": "b34229439bc489e570deee0674d720c104a9e01f4962060c18d6ae18532c6088"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -259.5
+          ],
+          "tags": [
+            "ms_monster",
+            "silverfish"
+          ],
+          "sourceLine": 65,
+          "commandSha256": "d57409ebba26ab559dfff3bde0aca146ca17de88f896ec8ab6cf3235b1671464"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -258.5
+          ],
+          "tags": [
+            "ms_monster",
+            "silverfish"
+          ],
+          "sourceLine": 66,
+          "commandSha256": "7d656d56f1a6396fb0d5e6dad9bd0de341503c1b5a11e59a0cc61711139d4f23"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -256.5
+          ],
+          "tags": [
+            "ms_monster",
+            "skeleton"
+          ],
+          "sourceLine": 68,
+          "commandSha256": "52ce4bf91a7bda7ed0bd80e932d00fbee25295758ae871ce8ea62a494666b231"
+        },
+        {
+          "position": [
+            -64.5,
+            -6,
+            -255.5
+          ],
+          "tags": [
+            "ms_monster",
+            "skeleton"
+          ],
+          "sourceLine": 69,
+          "commandSha256": "f5ade89cffa96652f78f298e3ec7bead50fb824e905f425c880b124ac74fcf3a"
+        }
+      ],
+      "typeWeights": {
+        "creeper": 3,
+        "silverfish": 2,
+        "skeleton": 2,
+        "zombie": 5
+      },
+      "sourceSpawnY": 55,
+      "durationTicks": 1200,
+      "spawnDelayTicksByPlayerCount": {
+        "2": 20,
+        "3": 20,
+        "4": 20,
+        "5": 17,
+        "6": 14,
+        "7": 12,
+        "8": 10,
+        "9": 9,
+        "10": 8
+      },
+      "typePoints": {
+        "minecraft:zombie": 1,
+        "minecraft:creeper": 2,
+        "minecraft:skeleton": 3,
+        "minecraft:silverfish": 5,
+        "minecraft:chicken": 1
+      },
+      "largePlayerCircle": {
+        "minimumPlayers": 5,
+        "center": [
+          -71.5,
+          19,
+          -262.5
+        ],
+        "radius": 12,
+        "initialYaw": 0,
+        "yawStep": "floor(360/playerCount)"
+      },
+      "semantics": [
+        "All spawned monsters have maximum health five. Zombies ride invisible health-five chickens; zombie and skeleton wear a stone button in the head slot.",
+        "Creepers, silverfish and skeletons receive slow falling; chickens retain native fall gliding and zombies retain their native passenger position.",
+        "The bow has Power V and Infinity. The tick's actual projectile PierceLevel is one, despite the source bow's Piercing V enchantment.",
+        "Grounded mobs and orphaned zombie/chicken partners are killed without a direct player attacker and do not earn per-type points.",
+        "The timer transitions to ending at zero; spawning stops, and the source waits until no alive monster-tagged entity remains.",
+        "The ending test runs before per-type kill-stat flush. end_monster_shoot removes those objectives before placements, so a pending kill on the final drain tick is not counted.",
+        "Per-type killed statistics are tested for >=1, then reset, so multiple same-type kills in one source tick earn that type's value once."
+      ]
+    }
+  },
+  "commonFunctionEvidence": {
+    "player_circle": {
+      "path": "data/mcp/function/player_circle.mcfunction",
+      "sha256": "d18804d0981068e317e7ae65b9554a9168a024ef7a6dcf6c7ef1aa3dce546952",
+      "text": "# Function prerequisites:\r\n# 1. radius variables is set to the desired radius of the player circle\r\n# 2. All players getting place in the circle are online and have a minigameplayer score of at least 1 with no duplicates. The scores should be one big straight\r\n# 3. This function is getting executed at the position of the center of the circle\r\n# 4. The players will get teleported(At Yaw=0 by default unless a rotation offset paramter is specified) and will get teleported in order of their minigameplayer score. The exception to this is in a 2v2 minigame where minigameplayer 2 and 3 are switched\r\n\r\nkill @e[tag=rotationOffset]\r\nexecute unless entity @e[tag=center] store result score playersInCircle variables if entity @a[scores={minigameplayer=1..}]\r\nexecute unless entity @e[tag=center] run summon minecraft:marker ^ ^ ^1 {Tags:[\"rotationOffset\"]}\r\nexecute unless entity @e[tag=center] run summon minecraft:marker ~ ~ ~ {Tags:[\"center\"]}\r\nexecute as @e[tag=center,limit=1] at @s facing entity @e[tag=rotationOffset,limit=1] feet run tp @s ~ ~ ~ ~ ~\r\nkill @e[tag=rotationOffset]\r\nexecute unless score gametype variables matches 2 run scoreboard players add minigameplayer variables 1\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 4.. run scoreboard players add minigameplayer variables 1\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 2 run scoreboard players set minigameplayer variables 4\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 3 run scoreboard players set minigameplayer variables 2\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 1 run scoreboard players set minigameplayer variables 3\r\nexecute if score gametype variables matches 2 unless score minigameplayer variables matches 1.. run scoreboard players set minigameplayer variables 1\r\nexecute as @a[scores={minigameplayer=1..}] if score @s minigameplayer = minigameplayer variables at @e[tag=center] run function mcp:player_circle_place_player\r\nscoreboard players operation rotationChange variables = 360 constants\r\nscoreboard players operation rotationChange variables /= playersInCircle variables\r\nexecute as @e[tag=center,limit=1] run function mcp:rotate_entity\r\nexecute unless score minigameplayer variables >= playersInCircle variables run function mcp:player_circle\r\nkill @e[tag=center]\r\nscoreboard players reset radius variables\r\nscoreboard players reset rotationChange variables\r\nscoreboard players reset rotation variables\r\nscoreboard players reset playersInCircle variables\r\nscoreboard players reset minigameplayer variables"
+    },
+    "player_circle_place_player": {
+      "path": "data/mcp/function/player_circle_place_player.mcfunction",
+      "sha256": "adc09ffba5a6620792dc12ca8a494a28a43bb92f653b2f903b743f480887ef88",
+      "text": "execute unless entity @e[tag=playerPosition] run summon minecraft:marker ~ ~ ~ {Tags:[\"playerPosition\"]}\r\nscoreboard players add playerRadius variables 1\r\nexecute as @e[tag=playerPosition] at @s rotated as @e[tag=center] run tp @s ^ ^ ^1\r\nexecute if score playerRadius variables < radius variables run function mcp:player_circle_place_player\r\nexecute unless score playerRadius variables < radius variables at @e[tag=playerPosition,limit=1] run tp @s ~ ~ ~ facing entity @e[tag=center,limit=1]\r\nexecute unless score playerRadius variables < radius variables run kill @e[tag=playerPosition]\r\nexecute unless score playerRadius variables < radius variables run scoreboard players reset playerRadius variables"
+    },
+    "rotate_entity": {
+      "path": "data/mcp/function/rotate_entity.mcfunction",
+      "sha256": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801",
+      "text": "# rotationChange variables must be set and reset outside of this function. rotation variables needs to be reset outside of this function\r\nexecute if score rotationChange variables matches 0 run scoreboard players set rotationChange variables 36\r\nexecute store result score rotation variables run data get entity @s Rotation[0]\r\nscoreboard players operation rotation variables += rotationChange variables\r\nexecute store result storage mcp:variables rotation float 1 run scoreboard players get rotation variables\r\ndata modify entity @s Rotation[0] set from storage mcp:variables rotation"
+    },
+    "scoreboard_data": {
+      "path": "data/mcp/function/scoreboard_data.mcfunction",
+      "sha256": "bf0cb1a938ab95b0bc0f45d0cff37585df419ebe09073daf8500e4d74a321655",
+      "text": "#remove objectives\r\nscoreboard objectives remove Stars\r\nscoreboard objectives remove Coins\r\nscoreboard objectives remove place\r\nscoreboard objectives remove buystar\r\nscoreboard objectives remove blue_spots\r\nscoreboard objectives remove red_spots\r\nscoreboard objectives remove yellow_spots\r\nscoreboard objectives remove black_spots\r\nscoreboard objectives remove green_spots\r\nscoreboard objectives remove magenta_spots\r\nscoreboard objectives remove orange_spots\r\nscoreboard objectives remove c_t_spots\r\nscoreboard objectives remove 1st_place\r\nscoreboard objectives remove 2nd_place\r\nscoreboard objectives remove 3rd_place\r\nscoreboard objectives remove 4th_place\r\nscoreboard objectives remove duels_lost\r\nscoreboard objectives remove place\r\nscoreboard objectives remove Points\r\nscoreboard objectives remove items_used\r\nscoreboard objectives remove coins_won_from_minigames\r\nscoreboard objectives remove Q4Fishing\r\nscoreboard objectives remove Q4Minions\r\nscoreboard objectives remove Q4TurtleHockey\r\nscoreboard objectives remove Q4RingInTheRing\r\nscoreboard objectives remove Q4PlayerBattle\r\nscoreboard objectives remove Q4DPMB\r\nscoreboard objectives remove 2v2s_won\r\nscoreboard objectives remove 2v2s_lost\r\nscoreboard objectives remove 1v3s_won_as_1\r\nscoreboard objectives remove 1v3s_won_as_3\r\nscoreboard objectives remove 1v3s_lost\r\nscoreboard objectives remove net_battle_coins\r\nscoreboard objectives remove TwiceDice\r\nscoreboard objectives remove tickets\r\nscoreboard objectives remove duels_initiated\r\nscoreboard objectives remove TurnSkipper\r\nscoreboard objectives remove ticketstar\r\nscoreboard objectives remove AnvilTrap\r\nscoreboard objectives remove FireTrap\r\nscoreboard objectives remove IceTrap\r\nscoreboard objectives remove EnderTrap\r\nscoreboard objectives remove EnderAuraTrap\r\nscoreboard objectives remove ZapTrap\r\nscoreboard objectives remove ZapTrapHitsInTurn\r\nscoreboard objectives remove BoardDescription\r\nscoreboard objectives remove MrP\r\nscoreboard objectives remove coin_minigame_coins\r\nscoreboard objectives remove quest1\r\nscoreboard objectives remove quest2\r\nscoreboard objectives remove quest3\r\nscoreboard objectives remove quest4\r\nscoreboard objectives remove quest5\r\nscoreboard objectives remove quest6\r\nscoreboard objectives remove quest7\r\nscoreboard objectives remove quest8\r\nscoreboard objectives remove PickpocketerTurns\r\nscoreboard objectives remove PocketPlundererTurns\r\nscoreboard objectives remove GiveGuideBook\r\nscoreboard objectives remove GiveSpyglass\r\nscoreboard objectives remove Spyglasses\r\nscoreboard objectives remove GuideBooks\r\nscoreboard objectives remove Owner\r\nscoreboard objectives remove GiveTeleportToPlayer\r\nscoreboard objectives remove TeleportToPlayers\r\nscoreboard objectives remove GiveGoToSpectator\r\nscoreboard objectives remove GoToSpectatorModes\r\nscoreboard objectives remove InventoryCoins\r\nscoreboard objectives remove coins_stolen\r\nscoreboard objectives remove cs_star\r\nscoreboard objectives remove star_dupe\r\nscoreboard objectives remove free_item\r\nscoreboard objectives remove troll_toll_fee\r\nscoreboard objectives remove space_type\r\nscoreboard objectives remove doubles_mode\r\nscoreboard objectives remove HoneyBoost\r\nscoreboard objectives remove MinionPet\r\nscoreboard objectives remove Spectate\r\nscoreboard objectives remove SpectateInTurn\r\nscoreboard objectives remove SpectateOutOfTurn\r\nscoreboard objectives remove StarInteraction\r\nscoreboard objectives remove power_pellet1\r\nscoreboard objectives remove power_pellet2\r\nscoreboard objectives remove power_pellet3\r\nscoreboard objectives remove power_pellet4\r\nscoreboard objectives remove warp_trigger\r\nscoreboard objectives remove luck_spaces\r\nscoreboard objectives remove luck_star\r\nscoreboard objectives remove spender_star\r\nscoreboard objectives remove rot1\r\nscoreboard objectives remove rot2\r\nscoreboard objectives remove delay_of_game\r\nscoreboard objectives remove stocking_up\r\nscoreboard objectives remove tickets1\r\nscoreboard objectives remove fi_lap\r\nscoreboard objectives remove fi_laps\r\nscoreboard objectives remove fi_laps_tie\r\nscoreboard objectives remove fi_laps_score\r\nscoreboard objectives remove racing_star\r\nscoreboard objectives remove tm_star\r\nscoreboard objectives remove minimum_plot\r\nscoreboard objectives remove div_star\r\nscoreboard objectives remove initiator_star\r\nscoreboard objectives remove explorer_star\r\nscoreboard objectives remove red_star\r\nscoreboard objectives remove tasks_attempted\r\nscoreboard objectives remove SpiritShield\r\nscoreboard objectives remove ActiveSpiritShields\r\nscoreboard objectives remove ActiveThornedSpiritShields\r\nscoreboard objectives remove StarShard\r\nscoreboard objectives remove CoinDelay\r\nscoreboard objectives remove talk_to_villager\r\nscoreboard objectives remove yPosition\r\nscoreboard objectives remove altar_shard\r\nscoreboard objectives remove PreviousStars\r\nscoreboard objectives remove PreviousCoins\r\nscoreboard objectives remove warper_star\r\nscoreboard objectives remove number_of_warps\r\nscoreboard objectives remove garbageman\r\nscoreboard objectives remove WeightedTwiceDice\r\nscoreboard objectives remove WeightedThriceDice\r\nscoreboard objectives remove TurnStealer\r\nscoreboard objectives remove CoinStealer\r\nscoreboard objectives remove TwinionPets\r\nscoreboard objectives remove PocketPlunderer\r\nscoreboard objectives remove BinaryDice\r\nscoreboard objectives remove BigMagicDice\r\nscoreboard objectives remove PremiumRerollToken\r\nscoreboard objectives remove CuckooClock\r\nscoreboard objectives remove PlayerSwiper\r\nscoreboard objectives remove GhoulMode\r\nscoreboard objectives remove StarCounterfeiter\r\nscoreboard objectives remove StarSafe\r\nscoreboard objectives remove StarSafeDuels\r\nscoreboard objectives remove StarSupplier\r\nscoreboard objectives remove DoubleStarDiscount\r\nscoreboard objectives remove TripleStarDiscount\r\nscoreboard objectives remove AnvilDeathTrap\r\nscoreboard objectives remove InfernoTrap\r\nscoreboard objectives remove FreezeTrap\r\nscoreboard objectives remove LightningTrap\r\nscoreboard objectives remove EnderTrap\r\nscoreboard objectives remove EnderAuraTrap\r\nscoreboard objectives remove StarFragment\r\nscoreboard objectives remove HoneyZoom\r\nscoreboard objectives remove ThornedSpiritShield\r\nscoreboard objectives remove TrafficController\r\nscoreboard objectives remove GoldBar\r\nscoreboard objectives remove EnchantedGoldBar\r\nscoreboard objectives remove CandyCannon\r\nscoreboard objectives remove CandyCannon2\r\nscoreboard objectives remove ReverseABoard\r\nscoreboard objectives remove Freeverser\r\nscoreboard objectives remove trident_smuggler\r\nscoreboard objectives remove yPosition\r\nscoreboard objectives remove ReturnToBoardSigns\r\nscoreboard objectives remove VoidMinigame\r\nscoreboard objectives remove mpiq\r\nscoreboard objectives remove tickets\r\nscoreboard objectives remove coins_stolen\r\nscoreboard objectives remove coins_spent\r\nscoreboard objectives remove CoinsSpentOnStars\r\nscoreboard objectives remove tasks_attempted\r\nscoreboard objectives remove number_of_warps\r\nscoreboard objectives remove luck_spaces\r\nscoreboard objectives remove MinigamesInitiated\r\nscoreboard objectives remove UniqueSpaces\r\nscoreboard objectives remove TurnVisitedEverySpace\r\nscoreboard objectives remove TeamID\r\nscoreboard objectives remove hub_x_pos\r\nscoreboard objectives remove hub_z_pos\r\nfunction mcp:board_objectives_reset\r\n\r\n#add objectives\r\nscoreboard objectives add Stars dummy {fallback:\"Stars\",color:\"yellow\",bold:1b,translate:\"mcp.Stars\",type:\"translatable\"}\r\nscoreboard objectives add Coins dummy {fallback:\"Coins\",color:\"gold\",bold:1b,translate:\"mcp.Coins\",type:\"translatable\"}\r\nscoreboard objectives add place dummy {text:\"Place\",color:\"light_purple\",bold:1b}\r\nscoreboard objectives add Points dummy {fallback:\"Points\",color:\"dark_aqua\",bold:1b,translate:\"mcp.Points\",type:\"translatable\"}\r\nscoreboard objectives add dice dummy\r\nscoreboard objectives add music dummy\r\nscoreboard objectives add turncycle dummy\r\nscoreboard objectives add Player dummy\r\nscoreboard objectives add Roll dummy\r\nscoreboard objectives add Turn dummy\r\nscoreboard objectives add SecondRoll dummy\r\nscoreboard objectives add seconddice dummy\r\nscoreboard objectives add items dummy\r\nscoreboard objectives add MagicDice dummy\r\nscoreboard objectives add MiniDice dummy\r\nscoreboard objectives add TurnSkipper dummy\r\nscoreboard objectives add WarpToStar dummy\r\nscoreboard objectives add StarStealer dummy\r\nscoreboard objectives add buystar minecraft.custom:minecraft.traded_with_villager\r\nscoreboard objectives add stickyglue dummy\r\nscoreboard objectives add tieBreakerRoller dummy\r\nscoreboard objectives add spin dummy\r\nscoreboard objectives add Points dummy {text:\"Points\",bold:1b,color:\"dark_aqua\"}\r\nscoreboard objectives add minigame dummy\r\nscoreboard objectives add 4 dummy\r\nscoreboard objectives add 0 dummy\r\nscoreboard objectives add dummy dummy\r\nscoreboard objectives add meatslap2 dummy\r\nscoreboard objectives add colorindicator dummy\r\nscoreboard objectives add -20 dummy\r\nscoreboard objectives add timer dummy\r\nscoreboard objectives add gambler dummy\r\nscoreboard objectives add win_condition dummy\r\nscoreboard objectives add loss_condition dummy\r\nscoreboard objectives add variables dummy\r\nscoreboard objectives add constants dummy\r\nscoreboard objectives add spinwin dummy\r\nscoreboard objectives add bonusstars dummy\r\nscoreboard objectives add StarSchmoover dummy\r\nscoreboard objectives add chancetime dummy\r\nscoreboard objectives add Pickpocketer dummy\r\nscoreboard objectives add crystalball dummy\r\nscoreboard objectives add GhostMode dummy\r\nscoreboard objectives add PlayerSwapper dummy\r\nscoreboard objectives add CoinSnatcher dummy\r\nscoreboard objectives add RerollToken dummy\r\nscoreboard objectives add MinionPet dummy\r\nscoreboard objectives add nextRoll dummy\r\nscoreboard objectives add TwiceDice dummy\r\nscoreboard objectives add magicDicePlayer dummy\r\nscoreboard objectives add MDRoll1 dummy\r\nscoreboard objectives add MDRoll2 dummy\r\nscoreboard objectives add MDRoll3 dummy\r\nscoreboard objectives add MDRoll4 dummy\r\nscoreboard objectives add MDRoll5 dummy\r\n#scoreboard objectives add unstuckNumber dummy\r\nscoreboard objectives add maxcoins dummy\r\nscoreboard objectives add coinstar dummy\r\nscoreboard objectives add eventstriggered dummy\r\nscoreboard objectives add eventstar dummy\r\nscoreboard objectives add spacesmoved dummy\r\nscoreboard objectives add runnerstar dummy\r\nscoreboard objectives add minigameswon dummy\r\nscoreboard objectives add allstar dummy\r\nscoreboard objectives add ThriceDice dummy\r\nscoreboard objectives add ThirdRoll dummy\r\nscoreboard objectives add nextRoll1 dummy\r\nscoreboard objectives add nextRoll2 dummy\r\nscoreboard objectives add nextRoll3 dummy\r\nscoreboard objectives add nextRoll4 dummy\r\nscoreboard objectives add nextRoll5 dummy\r\nscoreboard objectives add boardstars dummy\r\nscoreboard objectives add minigameplayer dummy\r\nscoreboard objectives add win_condition dummy\r\nscoreboard objectives add loss_condition dummy\r\nscoreboard objectives add placement dummy\r\nscoreboard objectives add duelplayer dummy\r\nscoreboard objectives add skippedturns dummy\r\nscoreboard objectives add stickyglue dummy\r\nscoreboard objectives add eligible dummy\r\nscoreboard objectives add bookCoins dummy\r\nscoreboard objectives add bookStars dummy\r\nscoreboard objectives add CheckpointPoints dummy\r\nscoreboard objectives add MinigamePlacement dummy\r\nscoreboard objectives add CrazyClock dummy\r\nscoreboard objectives add stars_protected dummy\r\nscoreboard objectives add StarProtector dummy\r\nscoreboard objectives add coins_won_from_minigames dummy\r\nscoreboard objectives add buystar minecraft.custom:minecraft.traded_with_villager\r\nscoreboard objectives add blue_spots dummy\r\nscoreboard objectives add red_spots dummy\r\nscoreboard objectives add yellow_spots dummy\r\nscoreboard objectives add black_spots dummy\r\nscoreboard objectives add green_spots dummy\r\nscoreboard objectives add orange_spots dummy\r\nscoreboard objectives add magenta_spots dummy\r\nscoreboard objectives add c_t_spots dummy\r\nscoreboard objectives add 1st_place dummy\r\nscoreboard objectives add 2nd_place dummy\r\nscoreboard objectives add 3rd_place dummy\r\nscoreboard objectives add 4th_place dummy\r\nscoreboard objectives add inTieBreaker dummy\r\nscoreboard objectives add duels_won dummy\r\nscoreboard objectives add duels_lost dummy\r\nscoreboard objectives add 2v2s_won dummy\r\nscoreboard objectives add 2v2s_lost dummy\r\nscoreboard objectives add 1v3s_won_as_1 dummy\r\nscoreboard objectives add 1v3s_won_as_3 dummy\r\nscoreboard objectives add 1v3s_lost dummy\r\nscoreboard objectives add net_battle_coins dummy\r\nscoreboard objectives add tickets dummy {fallback:\"Tickets\",bold:1b,color:\"#FF0000\",translate:\"mcp.Tickets\"}\r\nscoreboard objectives add fi_lap dummy\r\nscoreboard objectives add fi_laps dummy\r\nscoreboard objectives add fi_laps_tie dummy\r\nscoreboard objectives add fi_laps_score dummy\r\nscoreboard objectives add coins_stolen dummy\r\nscoreboard objectives add items_used dummy\r\nscoreboard objectives add coins_spent dummy\r\nscoreboard objectives add CoinsSpentOnStars dummy\r\nscoreboard objectives add tasks_attempted dummy\r\nscoreboard objectives add number_of_warps dummy\r\nscoreboard objectives add luck_spaces dummy\r\nscoreboard objectives add MinigamesInitiated dummy\r\nscoreboard objectives add UniqueSpaces dummy\r\nscoreboard objectives add TurnVisitedEverySpace dummy\r\nscoreboard objectives add ticketstar dummy\r\nscoreboard objectives add cs_star dummy\r\nscoreboard objectives add racing_star dummy\r\nscoreboard objectives add item_star dummy\r\nscoreboard objectives add shopping_star dummy\r\nscoreboard objectives add spender_star dummy\r\nscoreboard objectives add tm_star dummy\r\nscoreboard objectives add warper_star dummy\r\nscoreboard objectives add luck_star dummy\r\nscoreboard objectives add initiator_star dummy\r\nscoreboard objectives add explorer_star dummy\r\nscoreboard objectives add red_star dummy\r\nscoreboard objectives add duels_initiated dummy\r\nscoreboard objectives add AnvilTrap dummy\r\nscoreboard objectives add FireTrap dummy\r\nscoreboard objectives add IceTrap dummy\r\nscoreboard objectives add ZapTrap dummy\r\nscoreboard objectives add SpiritShield dummy\r\nscoreboard objectives add ActiveSpiritShields dummy\r\nscoreboard objectives add ActiveThornedSpiritShields dummy\r\nscoreboard objectives add StarShard dummy\r\nscoreboard objectives add Owner dummy\r\nscoreboard objectives add PickpocketerTurns dummy\r\nscoreboard objectives add PocketPlundererTurns dummy\r\nscoreboard objectives add GiveGuideBook dummy\r\nscoreboard objectives add GiveSpyglass dummy\r\nscoreboard objectives add GiveTeleportToPlayer dummy\r\nscoreboard objectives add Spyglasses dummy\r\nscoreboard objectives add GuideBooks dummy\r\nscoreboard objectives add TeleportToPlayers dummy\r\nscoreboard objectives add GiveGoToSpectator dummy\r\nscoreboard objectives add GoToSpectatorModes dummy\r\nscoreboard objectives add InventoryCoins dummy\r\nscoreboard objectives add BoardDescription trigger\r\nscoreboard objectives add Spectate trigger\r\nscoreboard objectives add coin_minigame_coins dummy\r\nscoreboard objectives add hat dummy\r\nscoreboard objectives add mood dummy\r\nscoreboard objectives add SpectateInTurn dummy\r\nscoreboard objectives add SpectateOutOfTurn dummy\r\nscoreboard objectives add delay_of_game dummy\r\nscoreboard players enable @a BoardDescription\r\nscoreboard objectives add stocking_up dummy\r\nscoreboard objectives add TriggeredSpectate dummy\r\nscoreboard objectives add TriggeredSettings dummy\r\nscoreboard objectives add TriggeredBoardDescription dummy\r\nscoreboard objectives add CoinDelay dummy\r\nscoreboard objectives add talk_to_villager minecraft.custom:minecraft.talked_to_villager\r\nscoreboard objectives add free_item dummy\r\nscoreboard objectives add ChestSlot dummy\r\nscoreboard objectives add LegsSlot dummy\r\nscoreboard objectives add FeetSlot dummy\r\nscoreboard objectives add TrophyArmor dummy\r\nscoreboard objectives add BlingArmor dummy\r\nscoreboard objectives add SpeedArmor dummy\r\nscoreboard objectives add ItemArmor dummy\r\nscoreboard objectives add SuperstarArmor dummy\r\nscoreboard objectives add EnderArmor dummy\r\nscoreboard objectives add SpeedClassOff dummy\r\nscoreboard objectives add EnderWarpWait dummy\r\nscoreboard objectives add PreviousStars dummy\r\nscoreboard objectives add PreviousCoins dummy\r\nscoreboard objectives add mpiq dummy\r\nscoreboard objectives add HoneyBoost dummy\r\nscoreboard objectives add garbageman dummy\r\nscoreboard objectives add WeightedTwiceDice dummy\r\nscoreboard objectives add WeightedThriceDice dummy\r\nscoreboard objectives add CoinStealer dummy\r\nscoreboard objectives add TurnStealer dummy\r\nscoreboard objectives add StarSetter dummy\r\nscoreboard objectives add TwinionPets dummy\r\nscoreboard objectives add PocketPlunderer dummy\r\nscoreboard objectives add BinaryDice dummy\r\nscoreboard objectives add BigMagicDice dummy\r\nscoreboard objectives add PremiumRerollToken dummy\r\nscoreboard objectives add CuckooClock dummy\r\nscoreboard objectives add PlayerSwiper dummy\r\nscoreboard objectives add GhoulMode dummy\r\nscoreboard objectives add StarCounterfeiter dummy\r\nscoreboard objectives add StarSafe dummy\r\nscoreboard objectives add StarSafeDuels dummy\r\nscoreboard objectives add StarSupplier dummy\r\n#scoreboard objectives add DoubleStarDiscount dummy\r\n#scoreboard objectives add TripleStarDiscount dummy\r\nscoreboard objectives add AnvilDeathTrap dummy\r\nscoreboard objectives add InfernoTrap dummy\r\nscoreboard objectives add FreezeTrap dummy\r\nscoreboard objectives add LightningTrap dummy\r\nscoreboard objectives add EnderTrap dummy\r\nscoreboard objectives add EnderAuraTrap dummy\r\n#scoreboard objectives add StarFragment dummy\r\nscoreboard objectives add HoneyZoom dummy\r\nscoreboard objectives add ThornedSpiritShield dummy\r\nscoreboard objectives add TrafficController dummy\r\nscoreboard objectives add GoldBar dummy\r\nscoreboard objectives add EnchantedGoldBar dummy\r\nscoreboard objectives add CandyCannon dummy\r\nscoreboard objectives add CandyCannon2 dummy\r\nscoreboard objectives add ReverseABoard dummy\r\nscoreboard objectives add Freeverser dummy\r\nscoreboard objectives add ComboCard dummy\r\nscoreboard objectives add DoubleComboCard dummy\r\nscoreboard objectives add WarpPipe dummy\r\nscoreboard objectives add SuperWarpPipe dummy\r\nscoreboard objectives add CoinForger dummy\r\nscoreboard objectives add CoinForgerDeluxe dummy\r\nscoreboard objectives add StarForger dummy\r\nscoreboard objectives add StarForgerDeluxe dummy\r\nscoreboard objectives add TeamID dummy\r\nscoreboard objectives add extraCoin dummy\r\nscoreboard objectives add extraStarShard dummy\r\nexecute if score players variables matches 1 run scoreboard objectives add ExtraTurns dummy\r\nscoreboard objectives setdisplay sidebar\r\nscoreboard objectives setdisplay list Player\r\n\r\n#set @a to a score\r\nscoreboard players reset @a[gamemode=adventure] place\r\nscoreboard players reset @a[gamemode=adventure] nextRoll\r\nscoreboard players set @a[gamemode=adventure] Roll -1\r\nscoreboard players set @a[gamemode=adventure] items 0\r\nscoreboard players set @a[gamemode=adventure] MagicDice 0\r\nscoreboard players set @a[gamemode=adventure] TurnSkipper 0\r\nscoreboard players set @a[gamemode=adventure] WarpToStar 0\r\nscoreboard players set @a[gamemode=adventure] stickyglue 0\r\nscoreboard players set @a[gamemode=adventure] StarStealer 0\r\nscoreboard players set @a[gamemode=adventure] GhostMode 0\r\nscoreboard players set @a[gamemode=adventure] Pickpocketer 0\r\nscoreboard players set @a[gamemode=adventure] StarSchmoover 0\r\nscoreboard players set @a[gamemode=adventure] MiniDice 0\r\nscoreboard players set @a[gamemode=adventure] ThriceDice 0\r\nscoreboard players set @a[gamemode=adventure] crystalball 0\r\nscoreboard players operation @a[gamemode=adventure] Coins = starting_coins variables\r\nscoreboard players operation @a[gamemode=adventure] Stars = starting_stars variables\r\nscoreboard players set @a[gamemode=adventure] endofgame 0\r\nscoreboard players set @a[gamemode=adventure] buystar 0\r\nscoreboard players set @a[gamemode=adventure] skippedturns 0\r\nscoreboard players set @a[gamemode=adventure] spinwin 0\r\nscoreboard players set @a[gamemode=adventure] MDRoll 0\r\nscoreboard players set @a[gamemode=adventure] eventstriggered 0\r\nscoreboard players set @a[gamemode=adventure] spacesmoved 0\r\nscoreboard players set @a[gamemode=adventure] minigameswon 0\r\nscoreboard players set @a[gamemode=adventure] nextRoll1 0\r\nscoreboard players set @a[gamemode=adventure] nextRoll2 0\r\nscoreboard players set @a[gamemode=adventure] nextRoll3 0\r\nscoreboard players set @a[gamemode=adventure] nextRoll4 0\r\nscoreboard players set @a[gamemode=adventure] nextRoll5 0\r\nscoreboard players set @a[gamemode=adventure] MDRoll1 0\r\nscoreboard players set @a[gamemode=adventure] MDRoll2 0\r\nscoreboard players set @a[gamemode=adventure] MDRoll3 0\r\nscoreboard players set @a[gamemode=adventure] MDRoll4 0\r\nscoreboard players set @a[gamemode=adventure] MDRoll5 0\r\nscoreboard players set @a[gamemode=adventure] maxcoins 0\r\nscoreboard players set @a[gamemode=adventure] spacesmoved 0\r\nscoreboard players operation @a[gamemode=adventure] boardstars = starting_stars variables\r\nscoreboard players set @a[gamemode=adventure] bonusstars 0\r\nscoreboard players set @a[gamemode=adventure] inTieBreaker 1\r\nscoreboard players set @a[gamemode=adventure] tieBreakerPoints 0\r\nscoreboard players set @a[gamemode=adventure] blue_spots 0\r\nscoreboard players set @a[gamemode=adventure] red_spots 0\r\nscoreboard players set @a[gamemode=adventure] yellow_spots 0\r\nscoreboard players set @a[gamemode=adventure] black_spots 0\r\nscoreboard players set @a[gamemode=adventure] green_spots 0\r\nscoreboard players set @a[gamemode=adventure] magenta_spots 0\r\nscoreboard players set @a[gamemode=adventure] orange_spots 0\r\nscoreboard players set @a[gamemode=adventure] c_t_spots 0\r\nscoreboard players set @a[gamemode=adventure] 2nd_place 0\r\nscoreboard players set @a[gamemode=adventure] 3rd_place 0\r\nscoreboard players set @a[gamemode=adventure] 4th_place 0\r\nscoreboard players set @a[gamemode=adventure] duels_won 0\r\nscoreboard players set @a[gamemode=adventure] duels_lost 0\r\nscoreboard players set @a[gamemode=adventure] items_used 0\r\nscoreboard players set @a[gamemode=adventure] spin 0\r\nscoreboard players set @a[gamemode=adventure] stickyglue 0\r\nscoreboard players set @a[gamemode=adventure] seconddice 0\r\nscoreboard players set @a[gamemode=adventure] spinwin 0\r\nscoreboard players add @a[gamemode=adventure] boardstars 0\r\nscoreboard players set @a[gamemode=adventure] Turn 0\r\nscoreboard players set @a[gamemode=adventure] Player 0\r\nscoreboard players set @a[gamemode=adventure] MiniDice 0\r\nscoreboard players set @a[gamemode=adventure] CoinSnatcher 0\r\nscoreboard players set @a[gamemode=adventure] RerollToken 0\r\nscoreboard players set @a[gamemode=adventure] PlayerSwapper 0\r\nscoreboard players set @a[gamemode=adventure] CrazyClock 0\r\nscoreboard players set @a[gamemode=adventure] stars_protected 0\r\nscoreboard players set @a[gamemode=adventure] StarProtector 0\r\nscoreboard players set @a[gamemode=adventure] duels_initiated 0\r\nscoreboard players add @a[gamemode=adventure] 2v2s_won 0\r\nscoreboard players add @a[gamemode=adventure] 2v2s_lost 0\r\nscoreboard players add @a[gamemode=adventure] 1v3s_won_as_1 0\r\nscoreboard players add @a[gamemode=adventure] 1v3s_won_as_3 0\r\nscoreboard players add @a[gamemode=adventure] 1v3s_lost 0\r\nscoreboard players add @a[gamemode=adventure] net_battle_coins 0\r\nscoreboard players set @a[gamemode=adventure] coin_minigame_coins 0\r\nscoreboard players set @a[gamemode=adventure] coins_won_from_minigames 0\r\nscoreboard players set @a[gamemode=adventure] GiveGuideBook 1\r\nscoreboard players set @a[gamemode=adventure] GiveSpyglass 1\r\nscoreboard players set @a[gamemode=adventure] GiveGoToSpectator 0\r\nscoreboard players set @a[gamemode=adventure] WeightedTwiceDice 0\r\nscoreboard players set @a[gamemode=adventure] WeightedThriceDice 0\r\nscoreboard players set @a[gamemode=adventure] CoinStealer 0\r\nscoreboard players set @a[gamemode=adventure] TurnStealer 0\r\nscoreboard players set @a[gamemode=adventure] StarSetter 0\r\nscoreboard players set @a[gamemode=adventure] TwinionPets 0\r\nscoreboard players set @a[gamemode=adventure] PocketPlunderer 0\r\nscoreboard players set @a[gamemode=adventure] BinaryDice 0\r\nscoreboard players set @a[gamemode=adventure] PremiumRerollToken 0\r\nscoreboard players set @a[gamemode=adventure] CuckooClock 0\r\nscoreboard players set @a[gamemode=adventure] PlayerSwiper 0\r\nscoreboard players set @a[gamemode=adventure] GhoulMode 0\r\nscoreboard players set @a[gamemode=adventure] StarCounterfeiter 0\r\nscoreboard players set @a[gamemode=adventure] StarSafe 0\r\nscoreboard players set @a[gamemode=adventure] StarSupplier 0\r\nscoreboard players set @a[gamemode=adventure] DoubleStarDiscount 0\r\nscoreboard players set @a[gamemode=adventure] TripleStarDiscount 0\r\nscoreboard players set @a[gamemode=adventure] AnvilDeathTrap 0\r\nscoreboard players set @a[gamemode=adventure] InfernoTrap 0\r\nscoreboard players set @a[gamemode=adventure] FreezeTrap 0\r\nscoreboard players set @a[gamemode=adventure] LightningTrap 0\r\nscoreboard players set @a[gamemode=adventure] EnderTrap 0\r\nscoreboard players set @a[gamemode=adventure] EnderAuraTrap 0\r\nscoreboard players set @a[gamemode=adventure] StarFragment 0\r\nscoreboard players set @a[gamemode=adventure] HoneyZoom 0\r\nscoreboard players set @a[gamemode=adventure] ThornedSpiritShield 0\r\nscoreboard players set @a[gamemode=adventure] TrafficController 0\r\nscoreboard players set @a[gamemode=adventure] free_item 0\r\nexecute as @a unless score @s TriggeredBoardDescription matches 1 run scoreboard players set @s TriggeredBoardDescription 0\r\nexecute as @a unless score @s TriggeredSpectate matches 1 run scoreboard players set @s TriggeredSpectate 0\r\nexecute as @a unless score @s TriggeredSettings matches 1 run scoreboard players set @s TriggeredSettings 0\r\n\r\n# Global variables\r\nscoreboard players set minigame variables 0\r\nscoreboard players set spin variables 0\r\nscoreboard players set gamesset variables 0\r\nscoreboard players set game1 variables 0\r\nscoreboard players set game2 variables 0\r\nscoreboard players set game3 variables 0\r\nscoreboard players set game4 variables 0\r\nscoreboard players set path1 variables 0\r\nscoreboard players set path2 variables 0\r\nscoreboard players set path3 variables 0\r\nscoreboard players set path4 variables 0\r\nscoreboard players set randomizeturns variables 0\r\nscoreboard players set turnscompleted variables 0\r\nscoreboard players set onBoard variables 1\r\nscoreboard players set spinpot variables 0\r\nscoreboard players set doMiniDiceRoll variables 0\r\nscoreboard players set shop variables 1\r\nscoreboard players set gameOver variables 0\r\nscoreboard players set event variables 0\r\nscoreboard players operation players_minus_1 variables = players variables\r\nscoreboard players remove players_minus_1 variables 1\r\nscoreboard players operation players_minus_2 variables = players variables\r\nscoreboard players remove players_minus_2 variables 2\r\nscoreboard players operation half_players variables = players variables\r\nscoreboard players operation half_players variables /= 2 constants\r\nscoreboard players operation players_rounded_down variables = players variables\r\nexecute if score players variables matches 3..4 run scoreboard players set small_team variables 1\r\nexecute if score players variables matches 5.. run scoreboard players set small_team variables 2\r\nexecute if score players variables matches 3 run scoreboard players set large_team variables 2\r\nexecute if score players variables matches 4..5 run scoreboard players set large_team variables 3\r\nexecute if score players variables matches 6 run scoreboard players set large_team variables 4\r\nexecute if score players variables matches 7 run scoreboard players set large_team variables 5\r\nexecute if score players variables matches 8.. run scoreboard players set large_team variables 6\r\nexecute if score players_rounded_down variables matches 5 run scoreboard players remove players_rounded_down variables 1\r\nexecute if score players_rounded_down variables matches 7 run scoreboard players remove players_rounded_down variables 1\r\nexecute if score players_rounded_down variables matches 9 run scoreboard players remove players_rounded_down variables 1\r\n\r\nscoreboard players reset chanceTimeSpots variables\r\nscoreboard players reset doubleTroubleSpecialEvent variables\r\nscoreboard players reset doubleTrouble variables\r\nscoreboard players reset bigDice variables\r\nscoreboard players reset swapColors variables\r\nscoreboard players reset oneCoinStars variables\r\nscoreboard players reset viewingBoard variables\r\nscoreboard players reset fireTrap variables\r\nscoreboard players reset boss_respawn variables\r\nscoreboard players reset guardian_boss_fight variables\r\nscoreboard players reset boss_reward variables\r\nscoreboard players reset cl_path1 variables\r\nscoreboard players reset cl_path2 variables\r\nscoreboard players reset HoneyBoost variables\r\nscoreboard players reset aqua_online variables\r\nscoreboard players reset gold_online variables\r\nscoreboard players reset purple_online variables\r\nscoreboard players reset teal_online variables\r\nscoreboard players reset pink_online variables\r\nscoreboard players reset tan_online variables\r\nscoreboard players reset ghostMode variables\r\nscoreboard players reset minionPet variables\r\nscoreboard players reset HoneyZoom variables\r\nscoreboard players reset grand_prix_tick variables\r\nscoreboard players reset CoinShower variables\r\nscoreboard players reset returnToBoard variables\r\nscoreboard players reset CurrentFood variables\r\nscoreboard players reset CurrentGiant variables\r\nscoreboard players reset PreviousGiant variables\r\nscoreboard players reset lookForFood variables\r\nscoreboard players reset night variables\r\nscoreboard players reset hub_lights_cycle variables\r\nscoreboard players reset previousPlayers variables\r\n\r\nscoreboard players set ranSpecialEvent variables 0\r\nscoreboard players set boughtItem variables 0\r\nscoreboard players set rollOver variables 0\r\nscoreboard players set Pickpocketer variables 0\r\nscoreboard players set inDuel variables 0\r\nscoreboard players set atShop variables 0\r\nscoreboard players set 4_for_alls_played variables 0\r\nscoreboard players set 2v2s_played variables 0\r\nscoreboard players set 1v3s_played variables 0\r\nscoreboard players set battles_played variables 0\r\nscoreboard players set duels_played variables 0\r\nscoreboard players set micro_duels_played variables 0\r\nscoreboard players set itemsUsedInTurn variables 0\r\nscoreboard players set gametype variables 0\r\nscoreboard players set star_cost variables 20\r\nscoreboard players set CoinsFromStars variables 0\r\nscoreboard players set CoinsFromSpaces variables 0\r\nscoreboard players set CoinsFromGreen variables 0\r\nscoreboard players set CoinsFromMinigames variables 0\r\nscoreboard players set CoinsFromChallenges variables 0\r\nscoreboard players set CoinsFromMisc variables 0\r\nscoreboard players set CoinsFromShop variables 0\r\n\r\nscoreboard players set lookForReturnToSpot variables 1\r\nscoreboard players set lookForSpyglass variables 1\r\nscoreboard players set enableOperatorTurnSkipper variables 1\r\nscoreboard players set slotsetting variables 12\r\nscoreboard players set coin_minigames_played variables 0\r\n\r\n#set global constants(ascending)\r\nscoreboard players set negation constants -1\r\nscoreboard players set 1 constants 1\r\nscoreboard players set 2 constants 2\r\nscoreboard players set 3 constants 3\r\nscoreboard players set 4 constants 4\r\nscoreboard players set 5 constants 5\r\nscoreboard players set 6 constants 6\r\nscoreboard players set 7 constants 7\r\nscoreboard players set 8 constants 8\r\nscoreboard players set 9 constants 9\r\nscoreboard players set 10 constants 10\r\nscoreboard players set 12 constants 12\r\nscoreboard players set 15 constants 15\r\nscoreboard players set 6 constants 6\r\nscoreboard players set totalItems constants 9\r\nscoreboard players set 10 constants 10\r\nscoreboard players set dicesides constants 10\r\nscoreboard players set blackevents constants 11\r\nscoreboard players set yellowevents constants 50\r\nscoreboard players set 20 constants 20\r\nscoreboard players set minigames constants 28\r\nscoreboard players set 30 constants 30\r\nscoreboard players set 60 constants 60\r\nscoreboard players set 64 constants 64\r\nscoreboard players set 100 constants 100\r\nscoreboard players set 180 constants 180\r\nscoreboard players set farmEventInterval constants 200\r\nscoreboard players set 300 constants 300\r\nscoreboard players set 360 constants 360\r\nscoreboard players set hidetime constants 900\r\nscoreboard players set 1000 constants 1000\r\nscoreboard players set 1200 constants 1200\r\nscoreboard players set tilecapturetime constants 1200\r\nscoreboard players set 1800 constants 1800\r\nscoreboard players set farmingFrenzyTime constants 1800\r\nscoreboard players set turtleHockeyTime constants 1800\r\nscoreboard players set ringInTheRingTime constants 1800\r\nscoreboard players set pigPushersTime constants 1800\r\nscoreboard players set hungryHungryHumansTime constants 1800\r\nscoreboard players set tunneloFunTime constants 1800\r\nscoreboard players set meatslaptime constants 2400\r\nscoreboard players set marketMayhemTime constants 3000\r\nscoreboard players set jungleparkourtime constants 3600\r\nscoreboard players set seekertime constants 4800\r\nscoreboard players set portPriorityTime constants 4800\r\n\r\n# Shop items costs\r\nscoreboard players set MiniDiceBasePrice constants 8\r\nexecute unless score players variables matches 1 run scoreboard players set TurnSkipperBasePrice constants 13\r\nexecute unless score players variables matches 1 run scoreboard players set TurnStealerBasePrice constants 26\r\nexecute if score players variables matches 1 run scoreboard players set TurnSkipperBasePrice constants 20\r\nexecute if score players variables matches 1 run scoreboard players set TurnStealerBasePrice constants 40\r\nscoreboard players set GhostModeBasePrice constants 10\r\nscoreboard players set WarpToStarBasePrice constants 30\r\nscoreboard players set PickpocketerBasePrice constants 8\r\nscoreboard players set MagicDiceBasePrice constants 15\r\nscoreboard players set StarStealerBasePrice constants 60\r\nscoreboard players set StarSchmooverBasePrice constants 15\r\nscoreboard players set ThriceDiceBasePrice constants 12\r\nscoreboard players set PlayerSwapperBasePrice constants 20\r\nscoreboard players set TwiceDiceBasePrice constants 6\r\nscoreboard players set StarProtectorBasePrice constants 10\r\nscoreboard players set StarSafeBasePrice constants 20\r\nscoreboard players set GoodieBagBasePrice constants 30\r\nscoreboard players set TrafficWhistleBasePrice constants 6\r\nscoreboard players set GoldBarBasePrice constants 5\r\nscoreboard players set CandyCannonBasePrice constants 6\r\nscoreboard players set DoubleStarVoucherBasePrice constants 25\r\nscoreboard players set TripleStarVoucherBasePrice constants 40\r\nscoreboard players set ComboCardBasePrice constants 20\r\nscoreboard players set DoubleComboCardBasePrice constants 40\r\nscoreboard players set WarpPipeBasePrice constants 15\r\nscoreboard players set StarForgerBasePrice constants 40\r\n\r\nscoreboard players set DiceMagnetCost constants 5\r\nscoreboard players set 8LeafCloverCost constants 10\r\nscoreboard players set RareGemCost constants 4\r\nscoreboard players set CelestialCharmCost constants 7\r\nscoreboard players set MysticIdolCost constants 5\r\nscoreboard players set GoldPanCost constants 3\r\nscoreboard players set HoboSackCost constants 2\r\n\r\n#reset unneeded scores\r\nscoreboard players reset togglePaths variables\r\nscoreboard players reset Player1\r\nscoreboard players reset Player2\r\nscoreboard players reset Player3\r\nscoreboard players reset Player4\r\nscoreboard players reset showSpacesLeft variables\r\nscoreboard players reset previousGamemode variables\r\nscoreboard players reset previousBoard variables\r\nscoreboard players reset inHub variables\r\nscoreboard players reset ship variables\r\nscoreboard players reset enteredShip variables\r\nscoreboard players reset inItemMenu variables\r\nscoreboard players reset inRollOff variables\r\nscoreboard players reset chestKeyA variables\r\nscoreboard players reset chestKeyB variables\r\nscoreboard players reset chestKeyC variables\r\nscoreboard players reset chestKeyD variables\r\nscoreboard players reset chestKeyE variables\r\nscoreboard players reset chestKeyF variables\r\nscoreboard players reset barrelKeyA variables\r\nscoreboard players reset barrelKeyB variables\r\nscoreboard players reset barrelKeyC variables\r\nscoreboard players reset barrelKeyD variables\r\nscoreboard players reset barrelKeyE variables\r\nscoreboard players reset barrelKeyF variables\r\nscoreboard players reset pac_maze_choose_warp variables\r\nscoreboard players reset quickplay_mpm_tick variables\r\nscoreboard players reset void_minigame1 variables\r\nscoreboard players reset missingPlayer variables\r\nscoreboard players reset enhanced_item_room variables\r\nscoreboard players reset manhole_open variables\r\n\r\n#miscellaneous scoreboards\r\nscoreboard players set dummy 4 4\r\nscoreboard players set dummy 0 0\r\nscoreboard players set dummy -20 -20\r\nscoreboard players set note music 0\r\nscoreboard players set cycle music 0\r\nscoreboard players set value dice 1\r\nscoreboard players set timer dice 0\r\nscoreboard players operation number_of_turns_minus_1 variables = number_of_turns variables\r\nscoreboard players remove number_of_turns_minus_1 variables 1\r\nscoreboard players operation first_to_stars_minus_1 variables = first_to_stars variables\r\nscoreboard players operation first_to_stars_minus_1 variables *= 8 constants\r\nscoreboard players operation first_to_stars_minus_1 variables /= 10 constants\r\n\r\n#teams\r\nteam remove purple\r\nteam remove spectator\r\nteam add player {text:\"Player\",color:\"aqua\"}\r\nteam add player1\r\nteam add player2\r\nteam add player3\r\nteam add player4\r\nteam add gold {fallback:\"Gold\",translate:mcp.Gold,color:\"gold\"}\r\nteam add aqua {fallback:\"Aqua\",translate:mcp.Aqua,color:\"aqua\"}\r\nteam add gray {fallback:\"Gray\",translate:mcp.Gray,color:\"gray\"}\r\nteam add selectedSpot\r\nteam add nonSelectedSpot\r\nteam add spectator\r\nexecute as @a run function mcp:set_team_id\r\n\r\n#team options\r\nteam remove white1\r\nteam remove white2\r\nteam remove white3\r\nteam remove white4\r\nteam remove white5\r\nteam remove white6\r\nteam remove white7\r\nteam remove white8\r\nteam remove white9\r\nteam remove white10\r\nteam modify player color white\r\nteam modify gold color gold\r\nteam modify aqua color aqua\r\nteam modify gray color gray\r\nteam modify nonSelectedSpot color black\r\nteam modify selectedSpot color white\r\nteam modify blue collisionRule never\r\nteam modify red collisionRule never\r\nteam modify green collisionRule never\r\nteam modify yellow collisionRule never\r\nteam modify dark_aqua collisionRule never\r\nteam modify light_purple collisionRule never\r\nteam modify dark_red collisionRule never\r\nteam modify dark_green collisionRule never\r\nteam modify dark_purple collisionRule never\r\nteam modify dark_blue collisionRule never\r\nteam modify blue seeFriendlyInvisibles false\r\nteam modify red seeFriendlyInvisibles false\r\nteam modify green seeFriendlyInvisibles false\r\nteam modify yellow seeFriendlyInvisibles false\r\nteam modify dark_aqua seeFriendlyInvisibles false\r\nteam modify light_purple seeFriendlyInvisibles false\r\nteam modify dark_red seeFriendlyInvisibles false\r\nteam modify dark_green seeFriendlyInvisibles false\r\nteam modify dark_purple seeFriendlyInvisibles false\r\nteam modify dark_blue seeFriendlyInvisibles false\r\nteam modify spectator collisionRule never\r\nteam modify spectator prefix {translate:\"mcp._Spectator_\",fallback:\"[Spectator] \",\"color\":gray}\r\nteam modify spectator color gray\r\n\r\n#gamerules\r\ngamerule commandBlockOutput false\r\ngamerule doDaylightCycle false\r\ngamerule doWeatherCycle false\r\ngamerule mobGriefing false\r\ngamerule doMobSpawning false\r\ngamerule doImmediateRespawn true\r\ngamerule doInsomnia false\r\ngamerule announceAdvancements false\r\ngamerule doEntityDrops false\r\ngamerule doFireTick false\r\ngamerule fireDamage true\r\ngamerule doLimitedCrafting true\r\ngamerule doMobLoot false\r\ngamerule doTileDrops false\r\ngamerule doTraderSpawning false\r\ngamerule keepInventory true\r\ngamerule randomTickSpeed 0\r\ngamerule doVinesSpread false\r\ngamerule disableElytraMovementCheck true\r\ngamerule spectatorsGenerateChunks true\r\ngamerule locatorBar false\r\ngamerule pvp false\r\n\r\ntag @a remove power_pellet\r\ntag @a remove BinaryRerollTip\r\n\r\n#other\r\ntime set noon\r\nweather clear\r\nfunction sentry:load\r\ndifficulty normal\r\nrecipe take @a minecraft:yellow_dye_from_sunflower\r\nscoreboard players reset BetaCuck variables\r\nexecute if entity @a[name=devini15] run scoreboard players set BetaCuck variables 1"
+    }
+  },
+  "boundaries": [
+    "Function text and command hashes are read-only evidence, never instructions or runtime commands.",
+    "Original global normal difficulty, mobGriefing=false, doMobLoot=false and doEntityDrops=false must be reproduced per owned entity rather than changing a shared server.",
+    "The existing phase3_source_audit.json retains the complete original entry/helper text for both games."
+  ]
+}

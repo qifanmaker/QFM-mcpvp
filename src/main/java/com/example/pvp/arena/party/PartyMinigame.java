@@ -53,6 +53,16 @@ public enum PartyMinigame {
     PLATFORMS(414, "平台夺宝 Platforms", Items.DIAMOND, 4, 4, new String[] {
             "四人同时选择跳跃方向，在平台上收集钻石。",
             "完成六次选路后按钻石数排名；每颗钻石计两分。"
+    }),
+    WHACK_A_MOB(402, "怪物打地鼠 Whack-A-Mob", Items.NETHERITE_AXE, new String[] {
+            "蓄满力挥斧击中升起的怪物；盔甲僵尸需要两次攻击。",
+            "僵尸 1 分、猪灵 2 分、凋灵骷髅与盔甲僵尸 3 分、末影人 5 分，烈焰人扣 1 分。",
+            "90 秒后停止生成，剩余目标消失后按得分排名。"
+    }),
+    MONSTER_SHOOT(403, "怪物射击 Monster Shoot", Items.BOW, new String[] {
+            "用无限弓射击从天空落下的怪物，箭可以穿透目标。",
+            "僵尸 1 分、苦力怕 2 分、骷髅 3 分、蠹虫 5 分。",
+            "60 秒后停止生成，剩余目标消失后按得分排名。"
     });
 
     private final int sourceId;
