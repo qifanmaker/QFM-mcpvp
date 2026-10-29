@@ -391,14 +391,20 @@ public final class Match {
             // OP 强制开赛可指定主题：消费一次性的强制主题；否则由 seed 随机抽取
             SkyWarsTheme forced = manager.consumePendingSkywarsTheme();
             int seed = id;
-            if (forced != null) {
-                this.skywarsTheme = forced;
-                seed = SkyWarsTheme.alignSeed(seed, forced); // 地图布局仍随 id 变化
-            } else {
-                this.skywarsTheme = SkyWarsTheme.pick(seed);
-            }
+            if (forced != null) seed = SkyWarsTheme.alignSeed(seed, forced);
+            // 必须先选图再计算出生点，保证出生笼、初始物资、补货和清场使用同一张真实地图。
+            var imported = forced == null
+                    ? com.example.pvp.arena.skywars.SkyWarsMapPool.pick(seed, this.players.size()) : null;
+            this.skywarsTheme = imported != null ? SkyWarsTheme.OVERWORLD
+                    : forced != null ? forced : SkyWarsTheme.pick(seed);
             this.skywarsSeed = seed;
-            this.skywarsLayout = SkyWarsLayout.compute(template.getCenter(regionIndex), seed, this.players.size());
+            this.skywarsLayout = imported == null
+                    ? SkyWarsLayout.compute(template.getCenter(regionIndex), seed, this.players.size())
+                    : SkyWarsLayout.imported(template.getCenter(regionIndex), seed, this.players.size(), imported);
+            LOGGER.info("[PvP] 本局空岛地图：{}（{}），{} 人，{} 出生槽，{} 箱位，半径 {}",
+                    this.skywarsLayout.displayName(), this.skywarsLayout.mapId(), this.players.size(),
+                    this.skywarsLayout.spawnIslands().size(), this.skywarsLayout.extraChests().size(),
+                    this.skywarsLayout.maxRadius());
             if (type == MatchType.SKYWARS_GUNS) {
                 this.skywarsGunSession = new SkyWarsGunSession(this, seed);
             }
@@ -3482,7 +3488,7 @@ public final class Match {
         Set<UUID> winners = this.computeWinners();
         if (this.type == MatchType.SKYWARS) {
             this.skywarsMetrics.finish(this.id, this.skywarsSeed, this.skywarsTheme.name(),
-                    this.skywarsLayout.mapStyle().name(), this.activeElapsedTicks(),
+                    this.skywarsLayout.mapId(), this.activeElapsedTicks(),
                     this.activeElapsedTicks() >= PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20, winners);
         }
         this.announceResult(winners);
@@ -3830,7 +3836,10 @@ public final class Match {
     /** 该场比赛区域的实际清理半径（各模式布局给出；床战/村庄保卫战按各自地图范围）。 */
     private int arenaClearRadius() {
         if (this.skywarsLayout != null) {
-            return this.skywarsLayout.maxRadius();
+            // 外部紧凑图只有 51～72 格半径，但玩家可向外搭桥；赛后回收整个独占区域，
+            // 避免地图外搭建或掉落物留给下一局。缩圈仍使用布局的实际地图半径。
+            return this.skywarsLayout.importedMap() == null ? this.skywarsLayout.maxRadius()
+                    : ArenaTemplate.REGION_SPACING / 2 - 16;
         }
         if (this.bridgeLayout != null) {
             return this.bridgeLayout.maxRadius();
@@ -4582,17 +4591,24 @@ public final class Match {
                 }
             }
         }
+        if (skywars && this.skywarsLayout.importedMap() != null) {
+            var map = this.skywarsLayout.importedMap();
+            this.broadcast(Messages.info("地图作者：" + map.author() + " ").append(
+                    Text.literal("[原作页面]").styled(style -> style.withColor(Formatting.AQUA)
+                            .withUnderline(true).withClickEvent(new net.minecraft.text.ClickEvent(
+                                    net.minecraft.text.ClickEvent.Action.OPEN_URL, map.source())))));
+        }
         if (bridge) {
             this.broadcast(Messages.info("战桥开始！冲进对方球门得分，先得 "
                     + PvPConfig.INSTANCE.bridgeWinScore + " 分获胜！（1.8 低版本战斗）"));
         } else if (skywars && gunSkywars) {
             String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
-            String variantName = "§d" + this.skywarsLayout.mapStyle().getDisplayName();
+            String variantName = "§d" + this.skywarsLayout.displayName();
             this.broadcast(Messages.info("枪械空岛开始！" + variantName + "，主题：§e" + themeName
                     + "§r。出生只有战术刀，枪械和弹药请搜索箱子！"));
         } else if (skywars) {
             String themeName = this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界";
-            String variantName = "§d" + this.skywarsLayout.mapStyle().getDisplayName();
+            String variantName = "§d" + this.skywarsLayout.displayName();
             this.broadcast(Messages.info("空岛战争开始！" + variantName + "，主题：§e" + themeName
                     + "§r。搜刮空岛，成为最后幸存者！（1.8 低版本战斗）"));
         } else if (luckyPillar) {
@@ -5200,7 +5216,7 @@ public final class Match {
     private String mapLine() {
         return switch (this.type) {
             case SKYWARS, SKYWARS_GUNS -> "§7地图: §e" + (this.skywarsTheme != null ? this.skywarsTheme.getDisplayName() : "主世界")
-                    + "·" + (this.skywarsLayout != null ? this.skywarsLayout.mapStyle().getDisplayName() : "随机");
+                    + "·" + (this.skywarsLayout != null ? this.skywarsLayout.displayName() : "随机");
             case LUCKY_PILLAR -> "§7地图: §e" + (this.luckyPillarLayout != null
                     ? this.luckyPillarLayout.platformStyle().getDisplayName() : "随机");
             case HEARTBEAT -> "§7地图: §e" + (this.heartbeatLayout != null
