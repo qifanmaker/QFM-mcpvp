@@ -1,0 +1,1099 @@
+{
+  "sourceId": 418,
+  "sourceVersion": "1.21.10",
+  "functionSha256": {
+    "endss": "6b48b8f46f337406ca11b04f317fbbb69a80406ab4adcb4a0b37cf94d0774a0b",
+    "ssarmorputon": "8cd8a3009f008f67334ac2934b011b886d080e47b5ac72a00254e4c045202b6e",
+    "ssclickchat": "40b24af94e40a14fb112510c6c64982fb8523b4bf875701c89ef5b87be2e5c6e",
+    "ssendceiling": "b12b573ce3d08ce1d0e03fa18efe1cf5591245338f253b2f2df51aa31fa982ed",
+    "ssendclickchat": "85388def2ccba2c7a2e10375eab3666295286c39e68e9656461b88e867fe4ecf",
+    "ssendcrouch": "514711f9e71068882e1c5fec68f5ba9ad3676ae87fbfccd0164b389d9130c93d",
+    "ssenddesk": "64fe58c6dcce38ecd7e8e813b52dbd6b670b8883c4e114f5e78e8510515a22d4",
+    "ssenddrop": "63212aa25b5c8e85915c07cdee1896d8cb40b5ea6794d67c4ad7ae47701672be",
+    "ssenddropconcrete": "c9908c206304c9417387a0d01e40170b9b925fcfd069e56e34f5a6d2dfe79950",
+    "ssendjump": "f662dc3332cf4c0982c828aca2a8751f08807dc023c9fd80835e85698c82a354",
+    "ssendnoteblocks": "8fc57f2664ee91c46c0cadc2e2a9dcf874d0552cdd98f3a381d11be65f3ee611",
+    "ssendpunch": "5a176d6516e10cc40707f1b339493e87c4cc0e30313a07277283a6835afe3215",
+    "ssendstaystill": "ef24e7d4cb41383b7fabd5353953de06d60b3060e4ad2ae1599a31372bc0c04c",
+    "ssnexttask": "94c1ff0ca3f22a8d72f3a02d3adee7cb0099b0b39ff1db7f46bb62cf2d50445b",
+    "ssnexttask2": "8e2a45a18836aab92b7129d0f65a965c69eefc96242405cb39fbf2e73ccc1276",
+    "steve_says": "a8a6fb08c80c5c94b98a0327dbbfd962dd8fe7625b8cb169134a9dc1e878b144",
+    "steve_says_rules": "a951399fd99a2fdc8cf0a68ac670721fc944ff75d6fea746bdaf644c981ba3db",
+    "steve_says_start": "699d05a742b897b3679ea9377f739ef1fd9c9a11c6026589186d8e9ccbe50ce0",
+    "steve_says_tick": "3bf853efa12bd2fd02e86b0d8e2dd320483410ffee0de43691e6d92ed0423ff1"
+  },
+  "functions": {
+    "endss": "scoreboard players reset playingSteveSays variables\r\nexecute store result score playersOnline variables if entity @a[scores={Player=1..}]\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run title @a actionbar {fallback:\"All players must be online to continue\",translate:\"mcp.MissingPlayerActionBarAlert\",type:\"translatable\"}\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run schedule function mcp:endss 1t\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run return 0\r\nscoreboard players reset playersOnline variables\r\n\r\ngamerule pvp false\r\nkill @e[type=interaction,tag=ss_interaction]\r\nkill @e[type=minecraft:item,tag=SteveSays2]\r\nkill @e[type=minecraft:item,tag=SSrandomizer]\r\nkill @e[type=minecraft:item,tag=SteveSays]\r\nkill @e[type=minecraft:item,tag=SStask]\r\nkill @e[type=mannequin,tag=SteveSays]\r\nscoreboard objectives remove ingame\r\ngamerule sendCommandFeedback true\r\nscoreboard objectives remove SStask\r\nscoreboard objectives remove tasktype\r\nscoreboard objectives remove firstplayer\r\nscoreboard objectives remove SStaskID\r\nscoreboard objectives remove ingame\r\nscoreboard objectives remove SSrandomizer\r\nscoreboard objectives remove SStaskcomplete\r\nscoreboard objectives remove SSfalsecomplete\r\nscoreboard objectives remove SSground\r\nscoreboard objectives remove SSfail\r\nscoreboard objectives remove SSplaynoteblock\r\nscoreboard objectives remove SStunenoteblock\r\nscoreboard objectives remove SSpunch\r\nscoreboard objectives remove SScrouch\r\nscoreboard objectives remove SSjump\r\nscoreboard objectives remove SSjumpOP\r\nscoreboard objectives remove SSclickchat\r\nscoreboard objectives remove SSdrop\r\nscoreboard objectives remove SSdropyellow\r\nscoreboard objectives remove SSdroporange\r\nscoreboard objectives remove SSdropred\r\nscoreboard objectives remove SSeatcake\r\nscoreboard players reset stevesaysstart variables\r\nscoreboard players reset SStaskID variables\r\nscoreboard players reset SStask1 variables\r\nscoreboard players reset SStask2 variables\r\nscoreboard players reset SStask3 variables\r\nscoreboard players reset SStask4 variables\r\nscoreboard players reset SStask5 variables\r\nscoreboard players reset SStask6 variables\r\nscoreboard players reset SStask7 variables\r\nscoreboard players reset SStask8 variables\r\nscoreboard players reset SStask9 variables\r\nscoreboard players reset SStask10 variables\r\nscoreboard players reset SStask11 variables\r\nscoreboard players reset ss_req variables\r\ntag @a remove looked_at_ceiling\r\ntag @a remove on_desk\r\n\r\nschedule clear mcp:ssnexttask\r\nschedule clear mcp:ssenddesk\r\nschedule clear mcp:ssendclickchat\r\nschedule clear mcp:ssendcrouch\r\nschedule clear mcp:ssenddrop\r\nschedule clear mcp:ssenddropconcrete\r\nschedule clear mcp:ssendeatcake\r\nschedule clear mcp:ssendjump\r\nschedule clear mcp:ssendceiling\r\nschedule clear mcp:ssendnoteblocks\r\nschedule clear mcp:ssendpunch\r\nschedule clear mcp:ssendstaystill\r\nschedule clear mcp:ssnexttask\r\nschedule clear mcp:ssnexttask2\r\neffect clear @a minecraft:hunger\r\nexecute unless score void_minigame variables matches 1 as @a[gamemode=adventure,scores={Points=69}] run function mcp:advancement_nice\r\nexecute unless score void_minigame variables matches 1 run function mcp:placements\r\nexecute unless score void_minigame variables matches 1 as @a at @s run playsound mcp:finish voice @s ~ ~ ~ 1 1 1",
+    "ssarmorputon": "scoreboard players add @a[scores={ingame=1,tasktype=1,SStaskcomplete=1,firstplayer=1}] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SStaskcomplete=1,firstplayer=0}] Points 3\r\nexecute at @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] run summon minecraft:lightning_bolt\r\nschedule function mcp:ssnexttask 1s\r\nclear @a\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=0,firstplayer=0}] Points 3\r\ngamemode spectator @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}]\r\ntellraw @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] {fallback:\"Steve did not say to put on armor\",translate:\"mcp.ssarmorputon.1\",color:\"red\",type:\"translatable\"}\r\nscoreboard players set @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] ingame 0\r\neffect give @a minecraft:resistance 1 20 true",
+    "ssclickchat": "execute if score @s SSclickchat matches 0 run playsound minecraft:entity.experience_orb.pickup master @s ~ ~ ~ 10 2 1\r\nscoreboard players add @s SSclickchat 1",
+    "ssendceiling": "scoreboard players set @a[scores={ingame=1,tasktype=2..3},tag=looked_at_ceiling] SSfalsecomplete 1\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SSfalsecomplete=0,firstplayer=1},tag=looked_at_ceiling] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SSfalsecomplete=0,firstplayer=0},tag=looked_at_ceiling] Points 3\r\nexecute at @a[scores={ingame=1,SSfalsecomplete=1}] run summon minecraft:lightning_bolt\r\nschedule function mcp:ssnexttask 1s\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=0,firstplayer=0}] Points 3\r\ntp @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}] -73.0 41 -114.0\r\ntellraw @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] {fallback:\"Steve did not say to look at the ceiling\",translate:\"mcp.ssendjumpop.1\",color:\"red\",type:\"translatable\"}\r\n\r\ntag @a remove looked_at_ceiling\r\nscoreboard objectives remove SSPitch\r\nscoreboard players set @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}] ingame 0",
+    "ssendclickchat": "scoreboard players add @a[scores={ingame=1,tasktype=1,SSclickchat=1,firstplayer=1}] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SSclickchat=1,firstplayer=0}] Points 3\r\nscoreboard players set @a[scores={ingame=1,tasktype=2..3,SSclickchat=1..}] SSfalsecomplete 1\r\nscoreboard players set @a[scores={ingame=1,tasktype=1,SSclickchat=2..}] SSfalsecomplete 1\r\nexecute at @a[scores={ingame=1,SSfalsecomplete=1}] run summon minecraft:lightning_bolt\r\nschedule function mcp:ssnexttask 1s\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SSclickchat=0,firstplayer=0}] Points 3\r\ngamemode spectator @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}]\r\ntellraw @a[scores={ingame=1,tasktype=2..3,SSclickchat=1,SSfalsecomplete=1}] {fallback:\"Steve did not say to click the sign\",translate:\"mcp.ssendclickchat.1\",color:\"red\",type:\"translatable\"}\r\ntellraw @a[scores={ingame=1,tasktype=1,SSclickchat=2..,SSfalsecomplete=1}] {fallback:\"Steve did not say to click the sign more than once\",translate:\"mcp.ssendclickchat.2\",color:\"red\",type:\"translatable\"}\r\nscoreboard players set @a[scores={ingame=1,tasktype=2..3,SSclickchat=1}] ingame 0\r\nscoreboard objectives remove SSclickchat\r\nfill -644 33 -11 -670 33 -34 light[level=0] replace minecraft:dark_oak_sign\r\ngamerule sendCommandFeedback true",
+    "ssendcrouch": "scoreboard players add @a[scores={ingame=1,tasktype=1,SScrouch=1..,firstplayer=1}] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SScrouch=1..,firstplayer=0}] Points 3\r\nexecute at @a[scores={ingame=1,tasktype=2..3,SScrouch=1..}] run summon minecraft:lightning_bolt\r\ntellraw @a[scores={ingame=1,tasktype=2..3,SScrouch=1..}] {fallback:\"Steve did not say to crouch\",translate:\"mcp.ssendcrouch.1\",color:\"red\",type:\"translatable\"}\r\ngamemode spectator @a[scores={ingame=1,tasktype=2..3,SScrouch=1..}]\r\nschedule function mcp:ssnexttask 1s\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SScrouch=0,firstplayer=0}] Points 3\r\nscoreboard players set @a[scores={ingame=1,tasktype=2..3,SScrouch=1..}] ingame 0\r\nscoreboard objectives remove SScrouch\r\neffect give @a minecraft:resistance 1 20 true",
+    "ssenddesk": "scoreboard players add @a[scores={ingame=1,tasktype=1,firstplayer=1},tag=on_desk] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,firstplayer=0},tag=on_desk] Points 3\r\nexecute at @a[scores={ingame=1,SSfalsecomplete=1},tag=on_desk] run summon minecraft:lightning_bolt\r\nschedule function mcp:ssnexttask 1s\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=0,firstplayer=0},tag=!on_desk] Points 3\r\ngamemode spectator @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}]\r\ntellraw @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] {fallback:\"Steve did not say to stand on the desk.\",translate:\"mcp.ssendeatcake.1\",color:\"red\",type:\"translatable\"}\r\ntag @a remove on_desk\r\n\r\nscoreboard players set @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}] ingame 0\r\nscoreboard objectives remove SSeatcake\r\n#add saturation\r\nscoreboard players set saturation variables 1",
+    "ssenddrop": "execute at @a[scores={SSrandomizer=1,tasktype=1}] unless entity @p[distance=0,scores={ingame=1,SStaskID=8,tasktype=1,SSrandomizer=1},nbt={Inventory:[{id:\"minecraft:cobblestone\"}]}] run scoreboard players set @p[distance=0] SSfalsecomplete 1\r\nexecute at @a[scores={SSrandomizer=2,tasktype=1}] unless entity @p[distance=0,scores={ingame=1,SStaskID=8,tasktype=1,SSrandomizer=2},nbt={Inventory:[{id:\"minecraft:dripstone_block\"}]}] run scoreboard players set @p[distance=0] SSfalsecomplete 1\r\nexecute at @a[scores={SSrandomizer=3,tasktype=1}] unless entity @p[distance=0,scores={ingame=1,SStaskID=8,tasktype=1,SSrandomizer=3},nbt={Inventory:[{id:\"minecraft:stone\"}]}] run scoreboard players set @p[distance=0] SSfalsecomplete 1\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SStaskcomplete=1,firstplayer=1}] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SStaskcomplete=1,firstplayer=0}] Points 3\r\nscoreboard players set @a[scores={ingame=1,tasktype=2..3,SStaskcomplete=0,SSdrop=1..}] SSfalsecomplete 1\r\nexecute at @a[scores={ingame=1,SSfalsecomplete=1}] run summon minecraft:lightning_bolt\r\nschedule function mcp:ssnexttask 1s\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=0,SSdrop=0,firstplayer=0}] Points 3\r\ntellraw @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}] {fallback:\"Steve did not say to drop that\",translate:\"mcp.ssenddrop.1\",color:\"red\",type:\"translatable\"}\r\ngamemode spectator @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}]\r\nscoreboard players set @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] ingame 0\r\nscoreboard objectives remove SSdrop\r\nclear @a minecraft:dripstone_block\r\nclear @a minecraft:stone\r\nclear @a minecraft:cobblestone",
+    "ssenddropconcrete": "scoreboard players set @a[scores={tasktype=2..3,SSdrop=1..}] SSfalsecomplete 1\r\nscoreboard players set @a[scores={tasktype=1,SSdropyellow=1..,SSrandomizer=1}] SSfalsecomplete 1\r\nscoreboard players set @a[scores={tasktype=1,SSdropred=1..,SSrandomizer=1}] SSfalsecomplete 1\r\nscoreboard players set @a[scores={tasktype=1,SSdropred=1..,SSrandomizer=2}] SSfalsecomplete 1\r\nscoreboard players set @a[scores={tasktype=1,SSdroporange=1..,SSrandomizer=2}] SSfalsecomplete 1\r\nscoreboard players set @a[scores={tasktype=1,SSdropyellow=1..,SSrandomizer=3}] SSfalsecomplete 1\r\nscoreboard players set @a[scores={tasktype=1,SSdroporange=1..,SSrandomizer=3}] SSfalsecomplete 1\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SSfalsecomplete=0,SStaskcomplete=1,firstplayer=1}] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SSfalsecomplete=0,SStaskcomplete=1,firstplayer=0}] Points 3\r\nexecute at @a[scores={ingame=1,SSfalsecomplete=1}] run summon minecraft:lightning_bolt\r\nschedule function mcp:ssnexttask 1s\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=0,firstplayer=0}] Points 3\r\ntellraw @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}] {fallback:\"Steve did not say to drop that\",translate:\"mcp.ssenddropconcrete.1\",color:\"red\",type:\"translatable\"}\r\ngamemode spectator @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}]\r\nscoreboard players set @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}] ingame 0\r\nclear @a minecraft:yellow_concrete\r\nclear @a minecraft:red_concrete\r\nclear @a minecraft:orange_concrete\r\nscoreboard objectives remove SSdrop\r\nscoreboard objectives remove SSdroporange\r\nscoreboard objectives remove SSdropred\r\nscoreboard objectives remove SSdropyellow",
+    "ssendjump": "scoreboard players add @a[scores={ingame=1,tasktype=1,SSjump=1,firstplayer=1}] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SSjump=1,firstplayer=0}] Points 3\r\nscoreboard players set @a[scores={ingame=1,tasktype=2..3,SSjump=1..}] SSfalsecomplete 1\r\nexecute at @a[scores={ingame=1,SSfalsecomplete=1}] run summon minecraft:lightning_bolt\r\nschedule function mcp:ssnexttask 1s\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=0,SSjump=0,firstplayer=0}] Points 3\r\ntellraw @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] {fallback:\"Steve did not say to jump\",translate:\"mcp.ssendjump.1\",color:\"red\",type:\"translatable\"}\r\n\r\ngamemode spectator @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}]\r\nscoreboard players set @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] ingame 0\r\nscoreboard objectives remove SSjump",
+    "ssendnoteblocks": "scoreboard players set @a SSrandomizer 2\r\nexecute as @a[scores={ingame=1,SStaskID=7,tasktype=1,SSrandomizer=1,SSplaynoteblock=3,SStunenoteblock=0}] run scoreboard players set @s SStaskcomplete 1\r\nexecute as @a[scores={ingame=1,SStaskID=7,tasktype=1,SSrandomizer=2..3,SSplaynoteblock=0,SStunenoteblock=3}] run scoreboard players set @s SStaskcomplete 1\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SStaskcomplete=1,firstplayer=1}] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SStaskcomplete=1,firstplayer=0}] Points 3\r\nscoreboard players set @a[scores={ingame=1,tasktype=1,SStunenoteblock=4..}] SSfalsecomplete 1\r\nscoreboard players set @a[scores={ingame=1,tasktype=1,SSplaynoteblock=4..}] SSfalsecomplete 1\r\nexecute at @a[scores={ingame=1,SSfalsecomplete=1}] run summon minecraft:lightning_bolt\r\nschedule function mcp:ssnexttask 1s\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=0,firstplayer=0}] Points 3\r\ntellraw @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] {fallback:\"Steve did not say to tune noteblocks\",translate:\"mcp.ssendnoteblocks.1\",color:\"red\",type:\"translatable\"}\r\ntellraw @a[scores={ingame=1,tasktype=1,SSfalsecomplete=1}] {fallback:\"You did not tune the noteblocks exactly three times.\",translate:\"mcp.ssendnoteblocks.2\",color:\"red\",type:\"translatable\"}\r\n\r\ngamemode spectator @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}]\r\nscoreboard players set @a[scores={ingame=1,SSfalsecomplete=1}] ingame 0\r\nscoreboard objectives remove SStunenoteblock\r\nscoreboard objectives remove SSplaynoteblock\r\nfill -644 33 -11 -670 33 -34 light[level=0] replace note_block\r\nclear @a minecraft:stick",
+    "ssendpunch": "effect give @a minecraft:weakness 999999 255 true\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SSpunch=1..,firstplayer=1}] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SSpunch=1..,firstplayer=0}] Points 3\r\nexecute at @a[scores={ingame=1,tasktype=2..3,SSpunch=1..}] run summon minecraft:lightning_bolt ~ ~ ~\r\nschedule function mcp:ssnexttask 1s\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SSpunch=0}] Points 3\r\ngamemode spectator @a[scores={ingame=1,tasktype=2..3,SSpunch=1..}]\r\ntellraw @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] {fallback:\"Steve did not say to punch anyone\",translate:\"mcp.ssendpunch.1\",color:\"red\",type:\"translatable\"}\r\n\r\nscoreboard players set @a[scores={ingame=1,tasktype=2..3,SSpunch=1..}] ingame 0\r\neffect give @a minecraft:resistance 1 20 true\r\nscoreboard objectives remove SSpunch",
+    "ssendstaystill": "execute at @e[type=minecraft:armor_stand,tag=player1staystill] run scoreboard players set @a[distance=0,scores={Player=1,ingame=1,tasktype=2..3,SStaskcomplete=0}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player2staystill] run scoreboard players set @a[distance=0,scores={Player=2,ingame=1,tasktype=2..3,SStaskcomplete=0}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player3staystill] run scoreboard players set @a[distance=0,scores={Player=3,ingame=1,tasktype=2..3,SStaskcomplete=0}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player4staystill] run scoreboard players set @a[distance=0,scores={Player=4,ingame=1,tasktype=2..3,SStaskcomplete=0}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player5staystill] run scoreboard players set @a[distance=0,scores={Player=5,ingame=1,tasktype=2..3,SStaskcomplete=0}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player6staystill] run scoreboard players set @a[distance=0,scores={Player=6,ingame=1,tasktype=2..3,SStaskcomplete=0}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player7staystill] run scoreboard players set @a[distance=0,scores={Player=7,ingame=1,tasktype=2..3,SStaskcomplete=0}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player8staystill] run scoreboard players set @a[distance=0,scores={Player=8,ingame=1,tasktype=2..3,SStaskcomplete=0}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player9staystill] run scoreboard players set @a[distance=0,scores={Player=9,ingame=1,tasktype=2..3,SStaskcomplete=0}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player10staystill] run scoreboard players set @a[distance=0,scores={Player=10,ingame=1,tasktype=2..3,SStaskcomplete=0}] SSfalsecomplete 1\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SStaskcomplete=1,firstplayer=1}] Points 4\r\nscoreboard players add @a[scores={ingame=1,tasktype=2..3,SStaskcomplete=1,firstplayer=0}] Points 3\r\nscoreboard players add @a[scores={ingame=1,tasktype=1,SSfalsecomplete=0,SStaskcomplete=0,firstplayer=0}] Points 3\r\nexecute at @a[scores={ingame=1,SSfalsecomplete=1}] run summon minecraft:lightning_bolt\r\nschedule function mcp:ssnexttask 1s\r\ntellraw @a[scores={ingame=1,tasktype=2..3,SSfalsecomplete=1}] {fallback:\"Steve did not say to stay still.\",translate:\"mcp.ssendstaystill.1\",color:\"red\",type:\"translatable\"}\r\ntellraw @a[scores={ingame=1,tasktype=1,SSfalsecomplete=1}] {fallback:\"Steve did not say to move.\",translate:\"mcp.ssendstaystill.2\",color:\"red\",type:\"translatable\"}\r\n\r\ngamemode spectator @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}]\r\nscoreboard players set @a[scores={ingame=1,tasktype=1..3,SSfalsecomplete=1}] ingame 0\r\nkill @e[type=minecraft:armor_stand,x=-73.0,y=39,z=-104.0,distance=0..10]\r\nkill @e[type=minecraft:armor_stand,tag=player1staystill]\r\nkill @e[type=minecraft:armor_stand,tag=player2staystill]\r\nkill @e[type=minecraft:armor_stand,tag=player3staystill]\r\nkill @e[type=minecraft:armor_stand,tag=player4staystill]\r\nkill @e[type=minecraft:armor_stand,tag=player5staystill]\r\nkill @e[type=minecraft:armor_stand,tag=player6staystill]\r\nkill @e[type=minecraft:armor_stand,tag=player7staystill]\r\nkill @e[type=minecraft:armor_stand,tag=player8staystill]\r\nkill @e[type=minecraft:armor_stand,tag=player9staystill]\r\nkill @e[type=minecraft:armor_stand,tag=player10staystill]\r\nteam modify blue collisionRule always\r\nteam modify red collisionRule always\r\nteam modify green collisionRule always\r\nteam modify yellow collisionRule always",
+    "ssnexttask": "scoreboard players add @a[gamemode=adventure] SStask 1\r\nexecute as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {NoGravity:1b,Age:-32768,Tags:[\"SteveSays\",\"SteveSays2\",\"type1\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {NoGravity:1b,Age:-32768,Tags:[\"SteveSays\",\"SteveSays2\",\"type1\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {NoGravity:1b,Age:-32768,Tags:[\"SteveSays\",\"SteveSays2\",\"type1\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {NoGravity:1b,Age:-32768,Tags:[\"SteveSays\",\"SteveSays2\",\"type2\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute as @a[gamemode=adventure,limit=1] if entity @a[scores={SStask=12}] run summon minecraft:item ~ ~15 ~ {NoGravity:1b,Age:-32768,Tags:[\"SteveSays\",\"SteveSays2\",\"type3\"],Item:{id:\"minecraft:stone\",count:1}}\r\ntag @e[type=minecraft:item,tag=SteveSays,sort=random,limit=1] add temp\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=type1] run scoreboard players set @a tasktype 1\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=type2] run scoreboard players set @a tasktype 2\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=type3] run scoreboard players set @a tasktype 3\r\nkill @e[type=minecraft:item,tag=SteveSays]\r\nscoreboard players set deadcount variables 0\r\nexecute at @a[gamemode=spectator,scores={minigameplayer=1..}] run scoreboard players add deadcount variables 1\r\nscoreboard players set @a[gamemode=adventure] winning 0\r\nexecute as @a[gamemode=adventure] if score @s Points > @p[scores={minigameplayer=1}] Points run scoreboard players add @s winning 1\r\nexecute as @a[gamemode=adventure] if score @s Points > @p[scores={minigameplayer=2}] Points run scoreboard players add @s winning 1\r\nexecute as @a[gamemode=adventure] if score @s Points > @p[scores={minigameplayer=3}] Points run scoreboard players add @s winning 1\r\nexecute as @a[gamemode=adventure] if score @s Points > @p[scores={minigameplayer=4}] Points run scoreboard players add @s winning 1\r\nexecute as @a[gamemode=adventure] if score @s Points > @p[scores={minigameplayer=5}] Points run scoreboard players add @s winning 1\r\nexecute as @a[gamemode=adventure] if score @s Points > @p[scores={minigameplayer=6}] Points run scoreboard players add @s winning 1\r\nexecute as @a[gamemode=adventure] if score @s Points > @p[scores={minigameplayer=7}] Points run scoreboard players add @s winning 1\r\nexecute as @a[gamemode=adventure] if score @s Points > @p[scores={minigameplayer=8}] Points run scoreboard players add @s winning 1\r\nexecute as @a[gamemode=adventure] if score @s Points > @p[scores={minigameplayer=9}] Points run scoreboard players add @s winning 1\r\nexecute as @a[gamemode=adventure] if score @s Points > @p[scores={minigameplayer=10}] Points run scoreboard players add @s winning 1\r\nexecute if score deadcount variables >= players_minus_1 variables if score @a[scores={ingame=1},limit=1] winning >= players_minus_1 variables run scoreboard players set @a[gamemode=adventure] SStask 23\r\nexecute unless entity @a[scores={ingame=1}] run scoreboard players set @a[gamemode=adventure] SStask 23\r\nexecute if entity @a[scores={SStask=23..}] run function mcp:endss\r\nexecute if score players variables matches 4 if score deadcount variables matches 2 as @a[tag=aqua,scores={ingame=0,winning=0..1},limit=1] at @s if entity @a[distance=0.1..,tag=aqua,scores={ingame=0,winning=0..1}] if entity @a[tag=gold,scores={ingame=1,winning=2}] run function mcp:endss\r\nexecute if score players variables matches 4 if score deadcount variables matches 2 as @a[tag=gold,scores={ingame=0,winning=0..1},limit=1] at @s if entity @a[distance=0.1..,tag=gold,scores={ingame=0,winning=0..1}] if entity @a[tag=aqua,scores={ingame=1,winning=2}] run function mcp:endss\r\nscoreboard players set @a[gamemode=adventure] firstplayer 0\r\nscoreboard players set @a[gamemode=adventure] SStaskcomplete 0\r\nscoreboard players set @a[gamemode=adventure] SSfalsecomplete 0\r\neffect give @a[gamemode=adventure] minecraft:weakness 999999 20 true\r\nscoreboard players set @a[gamemode=adventure] SSground 0\r\nscoreboard players set @a[gamemode=adventure] SSfail 0\r\n#clears air on top of platform\r\nfill -73 39 -105 -74 39 -104 minecraft:air\r\nexecute as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {NoGravity:1b,Age:-32768,Tags:[\"SSrandomizer\",\"SSrandomizer1\",\"type1\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {NoGravity:1b,Age:-32768,Tags:[\"SSrandomizer\",\"SSrandomizer2\",\"type1\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {NoGravity:1b,Age:-32768,Tags:[\"SSrandomizer\",\"SSrandomizer3\",\"type1\"],Item:{id:\"minecraft:stone\",count:1}}\r\ntag @e[type=minecraft:item,tag=SSrandomizer,sort=random,limit=1] add temp\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SSrandomizer1] run scoreboard players set @a SSrandomizer 1\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SSrandomizer2] run scoreboard players set @a SSrandomizer 2\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SSrandomizer3] run scoreboard players set @a SSrandomizer 3\r\nkill @e[type=minecraft:item,tag=SSrandomizer]\r\neffect give @a[gamemode=adventure] minecraft:weakness 99999 255 true\r\nclear @a[gamemode=adventure] minecraft:structure_void\r\nitem replace entity @a[gamemode=adventure] inventory.0 with minecraft:structure_void[custom_data={void_minigame:1b},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"End Minigame\",translate:mcp.EndMinigame},minecraft:enchantments={\"minecraft:vanishing_curse\":1},tooltip_display={hidden_components:[\"enchantments\"]},enchantment_glint_override=false,minecraft:lore=[{fallback:\"Drop to end current minigame in progress\",translate:mcp.DropToEndMinigame}]]\r\nschedule function mcp:ssnexttask2 20t",
+    "ssnexttask2": "execute if entity @a[scores={SStask=12}] run scoreboard players set SStask1 variables 0\r\nexecute if entity @a[scores={SStask=12}] run scoreboard players set SStask2 variables 0\r\nexecute if entity @a[scores={SStask=12}] run scoreboard players set SStask3 variables 0\r\nexecute if entity @a[scores={SStask=12}] run scoreboard players set SStask4 variables 0\r\nexecute if entity @a[scores={SStask=12}] run scoreboard players set SStask5 variables 0\r\nexecute if entity @a[scores={SStask=12}] run scoreboard players set SStask6 variables 0\r\nexecute if entity @a[scores={SStask=12}] run scoreboard players set SStask7 variables 0\r\nexecute if entity @a[scores={SStask=12}] run scoreboard players set SStask8 variables 0\r\nexecute if entity @a[scores={SStask=12}] run scoreboard players set SStask9 variables 0\r\nexecute if entity @a[scores={SStask=12}] run scoreboard players set SStask10 variables 0\r\nexecute if entity @a[scores={SStask=12}] run scoreboard players set SStask11 variables 0\r\nexecute if score SStask1 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask1\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute if score SStask2 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask2\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute if score SStask3 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask3\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute if score SStask4 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask4\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute if score SStask5 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask5\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute if score SStask6 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask6\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute if score SStask7 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask7\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute if score SStask8 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask8\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute if score SStask9 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask9\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute if score SStask10 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask10\"],Item:{id:\"minecraft:stone\",count:1}}\r\nexecute if score SStask11 variables matches 0 as @a[gamemode=adventure,limit=1] run summon minecraft:item ~ ~15 ~ {Age:-32768,Tags:[\"SStask\",\"SStask11\"],Item:{id:\"minecraft:stone\",count:1}}\r\ntag @e[type=minecraft:item,tag=SStask,sort=random,limit=1] add temp\r\n#execute if entity @a[scores={SStask=1}] run tag @e remove temp\r\n#execute if entity @a[scores={SStask=1}] run tag @e[type=item,tag=SStask9] add temp\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask1] run scoreboard players set @a[scores={ingame=1}] SStaskID 1\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask2] run scoreboard players set @a[scores={ingame=1}] SStaskID 2\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask3] run scoreboard players set @a[scores={ingame=1}] SStaskID 3\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask4] run scoreboard players set @a[scores={ingame=1}] SStaskID 4\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask5] run scoreboard players set @a[scores={ingame=1}] SStaskID 5\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask6] run scoreboard players set @a[scores={ingame=1}] SStaskID 6\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask7] run scoreboard players set @a[scores={ingame=1}] SStaskID 7\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask8] run scoreboard players set @a[scores={ingame=1}] SStaskID 8\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask9] run scoreboard players set @a[scores={ingame=1}] SStaskID 9\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask10] run scoreboard players set @a[scores={ingame=1}] SStaskID 10\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask11] run scoreboard players set @a[scores={ingame=1}] SStaskID 11\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask1] run scoreboard players set SStaskID variables 1\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask2] run scoreboard players set SStaskID variables 2\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask3] run scoreboard players set SStaskID variables 3\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask4] run scoreboard players set SStaskID variables 4\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask5] run scoreboard players set SStaskID variables 5\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask6] run scoreboard players set SStaskID variables 6\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask7] run scoreboard players set SStaskID variables 7\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask8] run scoreboard players set SStaskID variables 8\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask9] run scoreboard players set SStaskID variables 9\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask10] run scoreboard players set SStaskID variables 10\r\nexecute if entity @e[type=minecraft:item,tag=temp,tag=SStask11] run scoreboard players set SStaskID variables 11\r\nkill @e[type=minecraft:item,tag=SStask]\r\n#scoreboard players set SStaskID variables 5\r\n#scoreboard players set @a[scores={minigameplayer=1..}] SStaskID 5\r\nexecute if score SStaskID variables matches 1 run scoreboard players set SStask1 variables 1\r\nexecute if score SStaskID variables matches 2 run scoreboard players set SStask2 variables 1\r\nexecute if score SStaskID variables matches 3 run scoreboard players set SStask3 variables 1\r\nexecute if score SStaskID variables matches 4 run scoreboard players set SStask4 variables 1\r\nexecute if score SStaskID variables matches 5 run scoreboard players set SStask5 variables 1\r\nexecute if score SStaskID variables matches 6 run scoreboard players set SStask6 variables 1\r\nexecute if score SStaskID variables matches 7 run scoreboard players set SStask7 variables 1\r\nexecute if score SStaskID variables matches 8 run scoreboard players set SStask8 variables 1\r\nexecute if score SStaskID variables matches 9 run scoreboard players set SStask9 variables 1\r\nexecute if score SStaskID variables matches 10 run scoreboard players set SStask10 variables 1\r\nexecute if score SStaskID variables matches 11 run scoreboard players set SStask11 variables 1\r\n\r\n\r\nexecute if score SStaskID variables matches 1..11 run playsound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 1 1\r\nexecute if score SStaskID variables matches 1 if score @p tasktype matches 1 run tellraw @a {fallback:\"Steve says punch another player\",translate:\"mcp.ssnexttask2.1\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 1 if score @p tasktype matches 2 run tellraw @a {fallback:\"Punch another player\",translate:\"mcp.ssnexttask2.2\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 1 if score @p tasktype matches 3 run tellraw @a {fallback:\"Punch another player\",translate:\"mcp.ssnexttask2.3\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 1 run scoreboard objectives add SSpunch minecraft.custom:minecraft.damage_dealt\r\nexecute if score SStaskID variables matches 1 run scoreboard players add @a[gamemode=adventure] SSpunch 0\r\nexecute if score SStaskID variables matches 1 run effect clear @a minecraft:weakness\r\nexecute if score SStaskID variables matches 1 run schedule function mcp:ssendpunch 2s\r\nexecute if score SStaskID variables matches 1 run effect clear @a minecraft:weakness\r\n\r\nexecute if score SStaskID variables matches 2 if score @p tasktype matches 1 run tellraw @a {fallback:\"Steve says crouch\",translate:\"mcp.ssnexttask2.4\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 2 if score @p tasktype matches 2 run tellraw @a {fallback:\"Crouch\",translate:\"mcp.Crouch\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 2 if score @p tasktype matches 3 run tellraw @a {fallback:\"Crouch\",translate:\"mcp.Crouch\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 2 run playsound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 1 1\r\nexecute if score SStaskID variables matches 2 run scoreboard objectives add SScrouch minecraft.custom:minecraft.sneak_time\r\nexecute if score SStaskID variables matches 2 run scoreboard players add @a[gamemode=adventure] SScrouch 0\r\nexecute if score SStaskID variables matches 2 run schedule function mcp:ssendcrouch 30t\r\n\r\nexecute if score SStaskID variables matches 3 if score @p tasktype matches 1 run tellraw @a[scores={SSrandomizer=1}] {fallback:\"Steve says put on diamond boots\",translate:\"mcp.ssnexttask2.5\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 3 if score @p tasktype matches 1 run tellraw @a[scores={SSrandomizer=2}] {fallback:\"Steve says put on golden boots\",translate:\"mcp.ssnexttask2.6\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 3 if score @p tasktype matches 1 run tellraw @a[scores={SSrandomizer=3}] {fallback:\"Steve says put on leather boots\",translate:\"mcp.ssnexttask2.7\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 3 if score @p tasktype matches 2 run tellraw @a[scores={SSrandomizer=1}] {fallback:\"Put on diamond boots\",translate:\"mcp.ssnexttask2.8\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 3 if score @p tasktype matches 2 run tellraw @a[scores={SSrandomizer=2}] {fallback:\"Put on golden boots\",translate:\"mcp.ssnexttask2.9\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 3 if score @p tasktype matches 2 run tellraw @a[scores={SSrandomizer=3}] {fallback:\"Put on leather boots\",translate:\"mcp.ssnexttask2.10\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 3 if score @p tasktype matches 3 run tellraw @a[scores={SSrandomizer=1}] {fallback:\"Steve says put on diamond boots\",translate:\"mcp.ssnexttask2.11\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 3 if score @p tasktype matches 3 run tellraw @a[scores={SSrandomizer=2}] {fallback:\"Steve says put on golden boots\",translate:\"mcp.ssnexttask2.12\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 3 if score @p tasktype matches 3 run tellraw @a[scores={SSrandomizer=3}] {fallback:\"Steve says put on leather boots\",translate:\"mcp.ssnexttask2.13\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 3 run give @a[scores={ingame=1,SSrandomizer=1,tasktype=1..2}] minecraft:diamond_boots\r\nexecute if score SStaskID variables matches 3 run give @a[scores={ingame=1,SSrandomizer=2,tasktype=3}] minecraft:diamond_boots\r\nexecute if score SStaskID variables matches 3 run give @a[scores={ingame=1,SSrandomizer=2,tasktype=1..2}] minecraft:golden_boots\r\nexecute if score SStaskID variables matches 3 run give @a[scores={ingame=1,SSrandomizer=3,tasktype=3}] minecraft:golden_boots\r\nexecute if score SStaskID variables matches 3 run give @a[scores={ingame=1,SSrandomizer=3,tasktype=1..2}] minecraft:leather_boots\r\nexecute if score SStaskID variables matches 3 run give @a[scores={ingame=1,SSrandomizer=1,tasktype=3}] minecraft:leather_boots\r\nexecute if score SStaskID variables matches 3 run schedule function mcp:ssarmorputon 2s\r\n\r\nexecute if score SStaskID variables matches 4 if score @p tasktype matches 1 run tellraw @a {fallback:\"Steve says jump\",translate:\"mcp.ssnexttask2.14\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 4 if score @p tasktype matches 2 run tellraw @a {fallback:\"Jump\",translate:\"mcp.Jump\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 4 if score @p tasktype matches 3 run tellraw @a {fallback:\"Jump\",translate:\"mcp.Jump\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 4 run scoreboard objectives add SSjump minecraft.custom:minecraft.jump\r\nexecute if score SStaskID variables matches 4 run scoreboard players add @a[gamemode=adventure] SSjump 0\r\nexecute if score SStaskID variables matches 4 run schedule function mcp:ssendjump 30t\r\n\r\nexecute if score SStaskID variables matches 5 if score @p tasktype matches 1 run tellraw @a {fallback:\"Steve says look at the ceiling\",translate:\"mcp.ssnexttask2.15\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 5 if score @p tasktype matches 2 run tellraw @a {fallback:\"Look at the ceiling\",translate:\"mcp.ssnexttask2.16\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 5 if score @p tasktype matches 3 run tellraw @a {fallback:\"Look at the ceiling\",translate:\"mcp.ssnexttask2.17\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 5 run playsound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 1 1\r\nexecute if score SStaskID variables matches 5 run scoreboard objectives add SSPitch dummy\r\nexecute if score SStaskID variables matches 5 run schedule function mcp:ssendceiling 3s\r\n\r\nexecute if score SStaskID variables matches 6 if score @p tasktype matches 1 run tellraw @a {fallback:\"Steve says click the sign once\",translate:\"mcp.ssnexttask2.18\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 6 if score @p tasktype matches 2 run tellraw @a {fallback:\"Click the sign once\",translate:\"mcp.ssnexttask2.19\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 6 if score @p tasktype matches 3 run tellraw @a {fallback:\"Click the sign once\",translate:\"mcp.ssnexttask2.20\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 6 run scoreboard objectives add SSclickchat dummy\r\nexecute if score SStaskID variables matches 6 run scoreboard players add @a[gamemode=adventure] SSclickchat 0\r\nexecute if score SStaskID variables matches 6 run schedule function mcp:ssendclickchat 3s\r\nexecute if score SStaskID variables matches 6 if entity @a[scores={SSrandomizer=1..2}] run fill -644 33 -11 -670 33 -34 minecraft:dark_oak_sign[rotation=12]{front_text:{has_glowing_text:1b,messages:[{text:\"\"},{fallback:\"CLICK ME\",translate:\"mcp.CLICKME\",bold:1b,click_event:{action:\"run_command\",command:\"/function mcp:ssclickchat\"}},{text:\"\"},{text:\"\"}]},back_text:{has_glowing_text:1b,messages:[{text:\"\"},{fallback:\"CLICK ME\",translate:\"mcp.CLICKME\",bold:1b,click_event:{action:\"run_command\",command:\"/function mcp:ssclickchat\"}},{text:\"\"},{text:\"\"}]}} replace light[level=0]\r\nexecute if score SStaskID variables matches 6 if entity @a[scores={SSrandomizer=3}] run fill -644 33 -11 -670 33 -34 minecraft:dark_oak_sign[rotation=12]{front_text:{has_glowing_text:1b,messages:[{text:\"\"},{fallback:\"CLICK ME\",translate:\"mcp.CLICKME\",bold:1b,click_event:{action:\"run_command\",command:\"/function mcp:ssclickchat\"}},{text:\"\"},{text:\"\"}]},back_text:{has_glowing_text:1b,messages:[{text:\"\"},{fallback:\"CLICK ME\",translate:\"mcp.CLICKME\",bold:1b,click_event:{action:\"run_command\",command:\"/function mcp:ssclickchat\"}},{text:\"\"},{text:\"\"}]}} replace light[level=0]\r\n\r\nexecute if score SStaskID variables matches 7 run scoreboard players set @a SSrandomizer 2\r\nexecute if score SStaskID variables matches 7 if score @p tasktype matches 1 run tellraw @a[scores={SSrandomizer=1..3}] {fallback:\"Steve says tune the noteblock 3 times\",translate:\"mcp.ssnexttask2.21\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 7 if score @p tasktype matches 2 run tellraw @a[scores={SSrandomizer=1..3}] {fallback:\"Tune the noteblock 3 times\",translate:\"mcp.ssnexttask2.22\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 7 if score @p tasktype matches 3 run tellraw @a[scores={SSrandomizer=1..3}] {fallback:\"Tune the noteblock 3 times\",translate:\"mcp.ssnexttask2.23\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 7 run scoreboard objectives add SSplaynoteblock minecraft.custom:minecraft.play_noteblock\r\nexecute if score SStaskID variables matches 7 run scoreboard objectives add SStunenoteblock minecraft.custom:minecraft.tune_noteblock\r\nexecute if score SStaskID variables matches 7 run scoreboard players add @a[gamemode=adventure] SStunenoteblock 0\r\nexecute if score SStaskID variables matches 7 run scoreboard players add @a[gamemode=adventure] SSplaynoteblock 0\r\nexecute if score SStaskID variables matches 7 run schedule function mcp:ssendnoteblocks 4s\r\n#fills platform with note bocks\r\nexecute if score SStaskID variables matches 7 run fill -644 33 -11 -670 33 -34 note_block replace light[level=0]\r\nexecute if score SStaskID variables matches 7 run effect give @a[gamemode=adventure] minecraft:mining_fatigue 5 20 true\r\n\r\nexecute if score SStaskID variables matches 8 if score @p tasktype matches 1 run tellraw @a[scores={SSrandomizer=1}] {fallback:\"Steve says drop the stone block\",translate:\"mcp.ssnexttask2.24\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 8 if score @p tasktype matches 1 run tellraw @a[scores={SSrandomizer=2}] {fallback:\"Steve says drop the cobblestone block\",translate:\"mcp.ssnexttask2.25\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 8 if score @p tasktype matches 1 run tellraw @a[scores={SSrandomizer=3}] {fallback:\"Steve says drop the dripstone block\",translate:\"mcp.ssnexttask2.26\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 8 if score @p tasktype matches 2 run tellraw @a[scores={SSrandomizer=1}] {fallback:\"Drop the stone block\",translate:\"mcp.ssnexttask2.27\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 8 if score @p tasktype matches 2 run tellraw @a[scores={SSrandomizer=2}] {fallback:\"Drop the cobblestone block.\",translate:\"mcp.ssnexttask2.28\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 8 if score @p tasktype matches 2 run tellraw @a[scores={SSrandomizer=3}] {fallback:\"Drop the dripstone block\",translate:\"mcp.ssnexttask2.29\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 8 if score @p tasktype matches 3 run tellraw @a[scores={SSrandomizer=1}] {fallback:\"Steve says drop the dripstone block\",translate:\"mcp.ssnexttask2.30\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 8 if score @p tasktype matches 3 run tellraw @a[scores={SSrandomizer=2}] {fallback:\"Steve says drop the stone block.\",translate:\"mcp.ssnexttask2.31\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 8 if score @p tasktype matches 3 run tellraw @a[scores={SSrandomizer=3}] {fallback:\"Steve says drop the cobblestone block\",translate:\"mcp.ssnexttask2.32\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 8 run give @a[scores={SSrandomizer=1,ingame=1}] minecraft:stone\r\nexecute if score SStaskID variables matches 8 run give @a[scores={SSrandomizer=3,ingame=1}] minecraft:stone\r\nexecute if score SStaskID variables matches 8 run give @a[scores={SSrandomizer=1..2,ingame=1}] minecraft:cobblestone\r\nexecute if score SStaskID variables matches 8 run give @a[scores={SSrandomizer=2..3,ingame=1}] minecraft:dripstone_block\r\nexecute if score SStaskID variables matches 8 run scoreboard objectives add SSdrop minecraft.custom:minecraft.drop\r\nexecute if score SStaskID variables matches 8 run schedule function mcp:ssenddrop 50t\r\n#gets rid of auto-saturation\r\nexecute if score SStaskID variables matches 8 run scoreboard players add @a[gamemode=adventure] SSdrop 0\r\n\r\nexecute if score SStaskID variables matches 9 run tag @a remove on_desk\r\nexecute if score SStaskID variables matches 9 if score @p tasktype matches 1 run tellraw @a {fallback:\"Steve says stand on a desk\",translate:\"mcp.ssnexttask2.33\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 9 if score @p tasktype matches 2 run tellraw @a {fallback:\"Stand on a desk\",translate:\"mcp.ssnexttask2.34\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 9 if score @p tasktype matches 3 run tellraw @a {fallback:\"Stand on a desk\",translate:\"mcp.ssnexttask2.35\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 9 run schedule function mcp:ssenddesk 90t\r\n\r\n\r\nexecute if score SStaskID variables matches 10 if score @p tasktype matches 1 run tellraw @a[scores={SSrandomizer=1}] [{fallback:\"Steve says drop the %1$s concrete\",translate:\"mcp.ssnexttask2.36\",color:\"dark_green\",type:\"translatable\",with:[{fallback:\"orange\",translate:\"mcp.ssnexttask2.36.1\",color:\"dark_red\",type:\"translatable\",bold:0b}]}]\r\nexecute if score SStaskID variables matches 10 if score @p tasktype matches 1 run tellraw @a[scores={SSrandomizer=2}] [{fallback:\"Steve says drop the %1$s concrete\",translate:\"mcp.ssnexttask2.37\",color:\"dark_green\",type:\"translatable\",with:[{fallback:\"yellow\",translate:\"mcp.ssnexttask2.37.1\",color:\"#FF8000\",type:\"translatable\",bold:0b}]}]\r\nexecute if score SStaskID variables matches 10 if score @p tasktype matches 1 run tellraw @a[scores={SSrandomizer=3}] [{fallback:\"Steve says drop the %1$s concrete\",translate:\"mcp.ssnexttask2.38\",color:\"dark_green\",type:\"translatable\",with:[{fallback:\"red\",translate:\"mcp.ssnexttask2.38.1\",color:\"yellow\",type:\"translatable\",bold:0b}]}]\r\nexecute if score SStaskID variables matches 10 if score @p tasktype matches 2 run tellraw @a[scores={SSrandomizer=1}] [{fallback:\"Drop the %1$s concrete\",translate:\"mcp.ssnexttask2.39\",color:\"dark_green\",type:\"translatable\",with:[{fallback:\"orange\",translate:\"mcp.ssnexttask2.39.1\",color:\"dark_red\",type:\"translatable\",bold:0b}]}]\r\nexecute if score SStaskID variables matches 10 if score @p tasktype matches 2 run tellraw @a[scores={SSrandomizer=2}] [{fallback:\"Drop the %1$s concrete\",translate:\"mcp.ssnexttask2.40\",color:\"dark_green\",type:\"translatable\",with:[{fallback:\"yellow\",translate:\"mcp.ssnexttask2.40.1\",color:\"#FF8000\",type:\"translatable\",bold:0b}]}]\r\nexecute if score SStaskID variables matches 10 if score @p tasktype matches 2 run tellraw @a[scores={SSrandomizer=3}] [{fallback:\"Drop the %1$s concrete\",translate:\"mcp.ssnexttask2.41\",color:\"dark_green\",type:\"translatable\",with:[{fallback:\"red\",translate:\"mcp.ssnexttask2.41.1\",color:\"yellow\",type:\"translatable\",bold:0b}]}]\r\nexecute if score SStaskID variables matches 10 if score @p tasktype matches 3 run tellraw @a[scores={SSrandomizer=1}] [{fallback:\"Steve says drop the %1$s wool\",translate:\"mcp.ssnexttask2.42\",color:\"dark_green\",type:\"translatable\",with:[{fallback:\"orange\",translate:\"mcp.ssnexttask2.42.1\",color:\"dark_red\",type:\"translatable\",bold:0b}]}]\r\nexecute if score SStaskID variables matches 10 if score @p tasktype matches 3 run tellraw @a[scores={SSrandomizer=2}] [{fallback:\"Steve says drop the %1$s wool\",translate:\"mcp.ssnexttask2.43\",color:\"dark_green\",type:\"translatable\",with:[{fallback:\"yellow\",translate:\"mcp.ssnexttask2.43.1\",color:\"#FF8000\",type:\"translatable\",bold:0b}]}]\r\nexecute if score SStaskID variables matches 10 if score @p tasktype matches 3 run tellraw @a[scores={SSrandomizer=3}] [{fallback:\"Steve says drop the %1$s wool\",translate:\"mcp.ssnexttask2.44\",color:\"dark_green\",type:\"translatable\",with:[{fallback:\"red\",translate:\"mcp.ssnexttask2.44.1\",color:\"yellow\",type:\"translatable\",bold:0b}]}]\r\nexecute if score SStaskID variables matches 10 run give @a[scores={ingame=1}] minecraft:orange_concrete\r\nexecute if score SStaskID variables matches 10 run give @a[scores={ingame=1}] minecraft:yellow_concrete\r\nexecute if score SStaskID variables matches 10 run give @a[scores={ingame=1}] minecraft:red_concrete\r\nexecute if score SStaskID variables matches 10 run scoreboard objectives add SSdroporange minecraft.dropped:minecraft.orange_concrete\r\nexecute if score SStaskID variables matches 10 run scoreboard objectives add SSdropyellow minecraft.dropped:minecraft.yellow_concrete\r\nexecute if score SStaskID variables matches 10 run scoreboard objectives add SSdropred minecraft.dropped:minecraft.red_concrete\r\nexecute if score SStaskID variables matches 10 run scoreboard players add @a[gamemode=adventure] SSdroporange 0\r\nexecute if score SStaskID variables matches 10 run scoreboard players add @a[gamemode=adventure] SSdropyellow 0\r\nexecute if score SStaskID variables matches 10 run scoreboard players add @a[gamemode=adventure] SSdropred 0\r\nexecute if score SStaskID variables matches 10 run schedule function mcp:ssenddropconcrete 2s\r\nexecute if score SStaskID variables matches 10 run scoreboard objectives add SSdrop minecraft.custom:minecraft.drop\r\nexecute if score SStaskID variables matches 10 run scoreboard players add @a[gamemode=adventure] SSdrop 0\r\n\r\nexecute if score SStaskID variables matches 11 if score @p tasktype matches 1 run tellraw @a {fallback:\"Steve says stay still\",translate:\"mcp.ssnexttask2.45\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 11 if score @p tasktype matches 2 run tellraw @a {fallback:\"Stay Still\",translate:\"mcp.ssnexttask2.46\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 11 if score @p tasktype matches 3 run tellraw @a {fallback:\"Stay Still\",translate:\"mcp.ssnexttask2.47\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=3,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player3staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=4,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player4staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=1,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player1staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=2,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player2staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=4,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player4staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=5,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player5staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=6,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player6staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=7,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player7staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=8,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player8staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=9,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player9staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 at @a[scores={Player=10,ingame=1}] run summon minecraft:armor_stand ~ ~ ~ {Tags:[\"player10staystill\"],NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,PersistenceRequired:1b}\r\nexecute if score SStaskID variables matches 11 run schedule function mcp:ssendstaystill 40t\r\nexecute if score SStaskID variables matches 11 run team modify blue collisionRule never\r\nexecute if score SStaskID variables matches 11 run team modify red collisionRule never\r\nexecute if score SStaskID variables matches 11 run team modify green collisionRule never\r\nexecute if score SStaskID variables matches 11 run team modify yellow collisionRule never",
+    "steve_says": "scoreboard players set minigame variables 418\r\nscoreboard players set music variables 11\r\nscoreboard objectives add SStask dummy\r\nscoreboard objectives add tasktype dummy\r\nscoreboard objectives add firstplayer dummy\r\nscoreboard objectives add SStaskID dummy\r\nscoreboard objectives add ingame dummy\r\nscoreboard players set @a[gamemode=adventure] ingame 1\r\nscoreboard players set @a[gamemode=adventure] Points 0\r\nscoreboard objectives add winning dummy\r\ntellraw @a {fallback:\"Do exactly what Steve tells you to do.\",translate:\"mcp.steve_says.1\",color:\"dark_green\",type:\"translatable\"}\r\ntitle @a title {fallback:\"Steve Says\",translate:\"mcp.steve_says\",color:\"dark_green\",bold:1b,type:\"translatable\"}\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1\r\nscoreboard players set currentRule variables 0\r\nscoreboard objectives add SSrandomizer dummy\r\nscoreboard objectives add SStaskcomplete dummy\r\nscoreboard objectives add SSfalsecomplete dummy\r\nscoreboard objectives add SSground dummy\r\nscoreboard objectives add SSfail dummy\r\nscoreboard objectives setdisplay sidebar Points\r\ntp @a -658.0 33 -22.5\r\ngamerule sendCommandFeedback false\r\ngamerule pvp true\r\nscoreboard players set playingSteveSays variables 1\r\nscoreboard players set SStask1 variables 0\r\nscoreboard players set SStask2 variables 0\r\nscoreboard players set SStask3 variables 0\r\nscoreboard players set SStask4 variables 0\r\nscoreboard players set SStask5 variables 0\r\nscoreboard players set SStask6 variables 0\r\nscoreboard players set SStask7 variables 0\r\nscoreboard players set SStask8 variables 0\r\nscoreboard players set SStask9 variables 0\r\nscoreboard players set SStask10 variables 0\r\nscoreboard players set SStask11 variables 0\r\neffect give @a[gamemode=adventure] minecraft:weakness 999999 99 true\r\nschedule function mcp:steve_says_rules 3s",
+    "steve_says_rules": "scoreboard players add currentRule variables 1\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1\r\nexecute if score currentRule variables matches 1 run summon mannequin -674.5 33.5 -22.0 {Tags:[\"SteveSays\"],Invulnerable:1b,hide_description:true,CustomNameVisible:1b,Rotation:[-90F,0F],CustomName:{\"color\":\"aqua\",\"fallback\":\"Steve\",\"translate\":\"mcp.Steve\"},equipment:{mainhand:{id:\"minecraft:book\",count:1},offhand:{id:\"minecraft:apple\",count:1}},profile:{texture:\"entity/player/wide/steve\"}}\r\nexecute if score currentRule variables matches 1 unless score stevesaysstart variables matches 1 run tellraw @a {fallback:\"You must do the action in chat only if Steve says so.\",translate:\"mcp.steve_says_rules.1\",color:\"dark_aqua\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 2 unless score stevesaysstart variables matches 1 run tellraw @a {fallback:\"If you do an action that you are not supposed to, then you get kicked out of the game!\",translate:\"mcp.steve_says_rules.2\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 3 unless score stevesaysstart variables matches 1 run tellraw @a {fallback:\"You earn 3 Points for completing each action on time, 4 Points for completing the action first and 0 Points for not completing the action at all.\",translate:\"mcp.steve_says_rules.3\",color:\"dark_aqua\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 4 unless score stevesaysstart variables matches 1 run tellraw @a {fallback:\"The game ends after 22 actions. Earn the most points to win!\",translate:\"mcp.steve_says_rules.4\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 1..4 unless score stevesaysstart variables matches 1 run schedule function mcp:steve_says_rules 3s\r\nexecute if score currentRule variables matches 5 unless score stevesaysstart variables matches 1 run function mcp:ready_up_tellraw\r\n\r\nexecute unless score currentRule variables matches 1 run return 0\r\nfunction mcp:give_ready_ups\r\nsummon interaction -665.0 33 -13.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -665.0 33 -19.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -665.0 33 -25.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -665.0 33 -31.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\n\r\nsummon interaction -660.0 33 -13.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -660.0 33 -19.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -660.0 33 -25.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -660.0 33 -31.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\n\r\nsummon interaction -655.0 33 -13.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -655.0 33 -19.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -655.0 33 -25.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -655.0 33 -31.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\n\r\nsummon interaction -650.0 33 -13.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -650.0 33 -19.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -650.0 33 -25.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}\r\nsummon interaction -650.0 33 -31.5 {width:3.1f,height:1.5f,Tags:[\"ss_interaction\"]}",
+    "steve_says_start": "title @a title {fallback:\"Start!\",translate:\"mcp.start\",color:\"green\",type:\"translatable\"}\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1\r\ntellraw @a {fallback:\"Steve says the game has begun!\",translate:\"mcp.steve_says_start.1\",color:\"dark_green\",type:\"translatable\"}\r\nscoreboard players add @a[gamemode=adventure,scores={Player=1..}] Points 0\r\nscoreboard players set saturation variables 1\r\neffect clear @a[scores={Player=1..}] minecraft:resistance\r\nschedule function mcp:ssnexttask 1s\r\nscoreboard players set stevesaysstart variables 1\r\nscoreboard players set playingSteveSays variables 2\r\n\r\n#toughest difficulty you must complete all the tasks with no errors\r\nexecute if score players variables matches 1 if score difficulty variables matches 1 run scoreboard players set ss_req variables 72\r\nexecute if score players variables matches 1 if score difficulty variables matches 2 run scoreboard players set ss_req variables 80\r\nexecute if score players variables matches 1 if score difficulty variables matches 3 run scoreboard players set ss_req variables 88",
+    "steve_says_tick": "kill @e[type=minecraft:item,nbt=!{Item:{id:\"minecraft:structure_void\"}}]\r\neffect give @a minecraft:regeneration 1 20 true\r\nexecute if score saturation variables matches 1 run effect give @a minecraft:saturation 1 99 true\r\nexecute if score saturation variables matches 0 run effect clear @a minecraft:saturation\r\nexecute if score playingSteveSays variables matches 1 run effect give @a[gamemode=adventure] minecraft:weakness 1 99 true\r\nexecute if score gamemode variables matches 3 if score gp_minigame_active variables matches 1 as @a[gamemode=adventure,scores={Player=1..,ingame=0}] run scoreboard players add @s observation_time 1\r\n\r\nscoreboard players set @a[gamemode=spectator,scores={minigameplayer=1..}] ingame 0\r\nexecute as @a[scores={ingame=1,SStaskID=1,tasktype=1,SSpunch=1..}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\n\r\nexecute as @a[scores={ingame=1,SStaskID=2,tasktype=1,SScrouch=1..}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\n\r\nexecute as @a[scores={ingame=1,SStaskID=3,tasktype=1,SSrandomizer=1},nbt={equipment:{feet:{id:\"minecraft:diamond_boots\"}}}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={ingame=1,SStaskID=3,tasktype=1,SSrandomizer=2},nbt={equipment:{feet:{id:\"minecraft:golden_boots\"}}}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={ingame=1,SStaskID=3,tasktype=1,SSrandomizer=3},nbt={equipment:{feet:{id:\"minecraft:leather_boots\"}}}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nscoreboard players set @a[scores={ingame=1,SStaskID=3,tasktype=1,SSrandomizer=1},nbt={equipment:{feet:{id:\"minecraft:diamond_boots\"}}}] SStaskcomplete 1\r\nscoreboard players set @a[scores={ingame=1,SStaskID=3,tasktype=2..3},nbt={equipment:{feet:{id:\"minecraft:diamond_boots\"}}}] SSfalsecomplete 1\r\nscoreboard players set @a[scores={ingame=1,SStaskID=3,tasktype=1,SSrandomizer=2},nbt={equipment:{feet:{id:\"minecraft:golden_boots\"}}}] SStaskcomplete 1\r\nscoreboard players set @a[scores={ingame=1,SStaskID=3,tasktype=2..3},nbt={equipment:{feet:{id:\"minecraft:golden_boots\"}}}] SSfalsecomplete 1\r\nscoreboard players set @a[scores={ingame=1,SStaskID=3,tasktype=1,SSrandomizer=3},nbt={equipment:{feet:{id:\"minecraft:leather_boots\"}}}] SStaskcomplete 1\r\nscoreboard players set @a[scores={ingame=1,SStaskID=3,tasktype=2..3},nbt={equipment:{feet:{id:\"minecraft:leather_boots\"}}}] SSfalsecomplete 1\r\n\r\nexecute as @a[scores={ingame=1,SStaskID=4,tasktype=1,SSjump=1}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\n\r\nexecute as @a store result score @s SSPitch run data get entity @s Rotation[1]\r\nexecute as @a[scores={ingame=1,SStaskID=5,SSPitch=-90}] run tag @s add looked_at_ceiling\r\nexecute as @a[scores={ingame=1,SStaskID=5,tasktype=1,SSPitch=-90}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={ingame=1,SStaskID=5,tasktype=2..3,SSPitch=-90}] run scoreboard players set @s SSfalsecomplete 1\r\n\r\nexecute as @a[scores={ingame=1,SStaskID=6,tasktype=1,SSclickchat=1}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\n\r\nexecute as @a[scores={ingame=1,SStaskID=7,tasktype=1,SSrandomizer=1,SSplaynoteblock=3,SStunenoteblock=0}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={ingame=1,SStaskID=7,tasktype=1,SSrandomizer=2..3,SSplaynoteblock=0,SStunenoteblock=3}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={SStunenoteblock=1..}] unless entity @a[scores={tasktype=1,SSrandomizer=2..3}] run scoreboard players set @s SSfalsecomplete 1\r\nexecute as @a[scores={SSplaynoteblock=1..}] unless entity @a[scores={tasktype=1,SSrandomizer=1}] run scoreboard players set @s SSfalsecomplete 1\r\n\r\nexecute as @a[scores={ingame=1,SStaskID=8,tasktype=1,SSrandomizer=1,SSdrop=1},nbt={Inventory:[{id:\"minecraft:cobblestone\"}]}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={ingame=1,SStaskID=8,tasktype=1,SSrandomizer=1,SSdrop=1},nbt={Inventory:[{id:\"minecraft:cobblestone\"}]}] run scoreboard players set @s SStaskcomplete 1\r\nexecute as @a[scores={ingame=1,SStaskID=8,tasktype=1,SSrandomizer=2,SSdrop=1},nbt={Inventory:[{id:\"minecraft:dripstone_block\"}]}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={ingame=1,SStaskID=8,tasktype=1,SSrandomizer=2,SSdrop=1},nbt={Inventory:[{id:\"minecraft:dripstone_block\"}]}] run scoreboard players set @s SStaskcomplete 1\r\nexecute as @a[scores={ingame=1,SStaskID=8,tasktype=1,SSrandomizer=3,SSdrop=1},nbt={Inventory:[{id:\"minecraft:stone\"}]}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={ingame=1,SStaskID=8,tasktype=1,SSrandomizer=3,SSdrop=1},nbt={Inventory:[{id:\"minecraft:stone\"}]}] run scoreboard players set @s SStaskcomplete 1\r\n\r\nexecute as @a[scores={ingame=1,SStaskID=9,tasktype=1,SStaskcomplete=1}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={SStaskID=9,ingame=1},nbt={OnGround:1b}] at @s if block ~ ~-0.1 ~ minecraft:spruce_trapdoor run tag @s add on_desk\r\nexecute as @a[scores={SStaskID=9,ingame=1},nbt={OnGround:1b}] at @s if block ~ ~-0.1 ~0.3 minecraft:spruce_trapdoor run tag @s add on_desk\r\nexecute as @a[scores={SStaskID=9,ingame=1},nbt={OnGround:1b}] at @s if block ~ ~-0.1 ~-0.3 minecraft:spruce_trapdoor run tag @s add on_desk\r\nexecute as @a[scores={SStaskID=9,ingame=1},nbt={OnGround:1b}] at @s if block ~0.3 ~-0.1 ~ minecraft:spruce_trapdoor run tag @s add on_desk\r\nexecute as @a[scores={SStaskID=9,ingame=1},nbt={OnGround:1b}] at @s if block ~-0.3 ~-0.1 ~ minecraft:spruce_trapdoor run tag @s add on_desk\r\nexecute as @a[tag=on_desk,scores={SStaskID=9,tasktype=1}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[tag=on_desk,scores={SStaskID=9,tasktype=2..3}] run scoreboard players set @s SSfalsecomplete 1\r\n\r\nexecute as @a[scores={ingame=1,SStaskID=10,tasktype=1,SSrandomizer=1,SSdroporange=1,SSdropred=0,SSdropyellow=0}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={ingame=1,SStaskID=10,tasktype=1,SSrandomizer=1,SSdroporange=1,SSdropred=0,SSdropyellow=0}] run scoreboard players set @s SStaskcomplete 1\r\nexecute as @a[scores={ingame=1,SStaskID=10,tasktype=1,SSrandomizer=2,SSdroporange=0,SSdropred=0,SSdropyellow=1}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={ingame=1,SStaskID=10,tasktype=1,SSrandomizer=2,SSdroporange=0,SSdropred=0,SSdropyellow=1}] run scoreboard players set @s SStaskcomplete 1\r\nexecute as @a[scores={ingame=1,SStaskID=10,tasktype=1,SSrandomizer=3,SSdroporange=0,SSdropred=1,SSdropyellow=0}] unless entity @a[scores={firstplayer=1}] run scoreboard players set @s firstplayer 1\r\nexecute as @a[scores={ingame=1,SStaskID=10,tasktype=1,SSrandomizer=3,SSdroporange=0,SSdropred=1,SSdropyellow=0}] run scoreboard players set @s SStaskcomplete 1\r\n\r\nexecute at @e[type=minecraft:armor_stand,tag=player1staystill] run scoreboard players set @a[distance=0.01..,scores={Player=1,ingame=1,tasktype=2..3}] SStaskcomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player1staystill] unless entity @a[scores={firstplayer=1}] run scoreboard players set @a[scores={Player=1,ingame=1,tasktype=2..3,SStaskcomplete=1}] firstplayer 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player1staystill] run scoreboard players set @a[distance=0.01..,scores={Player=1,ingame=1,tasktype=1}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player2staystill] run scoreboard players set @a[distance=0.01..,scores={Player=2,ingame=1,tasktype=2..3}] SStaskcomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player2staystill] unless entity @a[scores={firstplayer=1}] run scoreboard players set @a[scores={Player=2,ingame=1,tasktype=2..3,SStaskcomplete=1}] firstplayer 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player2staystill] run scoreboard players set @a[distance=0.01..,scores={Player=2,ingame=1,tasktype=1}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player3staystill] run scoreboard players set @a[distance=0.01..,scores={Player=3,ingame=1,tasktype=2..3}] SStaskcomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player3staystill] unless entity @a[scores={firstplayer=1}] run scoreboard players set @a[scores={Player=3,ingame=1,tasktype=2..3,SStaskcomplete=1}] firstplayer 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player3staystill] run scoreboard players set @a[distance=0.01..,scores={Player=3,ingame=1,tasktype=1}] SSfalsecomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player4staystill] run scoreboard players set @a[distance=0.01..,scores={Player=4,ingame=1,tasktype=2..3}] SStaskcomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player4staystill] unless entity @a[scores={firstplayer=1}] run scoreboard players set @a[scores={Player=4,ingame=1,tasktype=2..3,SStaskcomplete=1}] firstplayer 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player4staystill] run scoreboard players set @a[distance=0.01..,scores={Player=4,ingame=1,tasktype=1}] SSfalsecomplete 1\r\n\r\nexecute at @e[type=minecraft:armor_stand,tag=player5staystill] run scoreboard players set @a[distance=0.01..,scores={Player=5,ingame=1,tasktype=2..3}] SStaskcomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player5staystill] unless entity @a[scores={firstplayer=1}] run scoreboard players set @a[scores={Player=5,ingame=1,tasktype=2..3,SStaskcomplete=1}] firstplayer 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player5staystill] run scoreboard players set @a[distance=0.01..,scores={Player=5,ingame=1,tasktype=1}] SSfalsecomplete 1\r\n\r\nexecute at @e[type=minecraft:armor_stand,tag=player6staystill] run scoreboard players set @a[distance=0.01..,scores={Player=6,ingame=1,tasktype=2..3}] SStaskcomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player6staystill] unless entity @a[scores={firstplayer=1}] run scoreboard players set @a[scores={Player=6,ingame=1,tasktype=2..3,SStaskcomplete=1}] firstplayer 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player6staystill] run scoreboard players set @a[distance=0.01..,scores={Player=6,ingame=1,tasktype=1}] SSfalsecomplete 1\r\n\r\nexecute at @e[type=minecraft:armor_stand,tag=player7staystill] run scoreboard players set @a[distance=0.01..,scores={Player=7,ingame=1,tasktype=2..3}] SStaskcomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player7staystill] unless entity @a[scores={firstplayer=1}] run scoreboard players set @a[scores={Player=7,ingame=1,tasktype=2..3,SStaskcomplete=1}] firstplayer 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player7staystill] run scoreboard players set @a[distance=0.01..,scores={Player=7,ingame=1,tasktype=1}] SSfalsecomplete 1\r\n\r\nexecute at @e[type=minecraft:armor_stand,tag=player8staystill] run scoreboard players set @a[distance=0.01..,scores={Player=8,ingame=1,tasktype=2..3}] SStaskcomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player8staystill] unless entity @a[scores={firstplayer=1}] run scoreboard players set @a[scores={Player=8,ingame=1,tasktype=2..3,SStaskcomplete=1}] firstplayer 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player8staystill] run scoreboard players set @a[distance=0.01..,scores={Player=8,ingame=1,tasktype=1}] SSfalsecomplete 1\r\n\r\nexecute at @e[type=minecraft:armor_stand,tag=player9staystill] run scoreboard players set @a[distance=0.01..,scores={Player=9,ingame=1,tasktype=2..3}] SStaskcomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player9staystill] unless entity @a[scores={firstplayer=1}] run scoreboard players set @a[scores={Player=9,ingame=1,tasktype=2..3,SStaskcomplete=1}] firstplayer 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player9staystill] run scoreboard players set @a[distance=0.01..,scores={Player=9,ingame=1,tasktype=1}] SSfalsecomplete 1\r\n\r\nexecute at @e[type=minecraft:armor_stand,tag=player10staystill] run scoreboard players set @a[distance=0.01..,scores={Player=10,ingame=1,tasktype=2..3}] SStaskcomplete 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player10staystill] unless entity @a[scores={firstplayer=1}] run scoreboard players set @a[scores={Player=10,ingame=1,tasktype=2..3,SStaskcomplete=1}] firstplayer 1\r\nexecute at @e[type=minecraft:armor_stand,tag=player10staystill] run scoreboard players set @a[distance=0.01..,scores={Player=10,ingame=1,tasktype=1}] SSfalsecomplete 1"
+  },
+  "bounds": {
+    "min": [
+      -679,
+      32,
+      -35
+    ],
+    "max": [
+      -640,
+      43,
+      -10
+    ]
+  },
+  "banners": [
+    {
+      "position": [
+        -677,
+        34,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -677,
+        35,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -677,
+        36,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -677,
+        37,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -677,
+        38,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -677,
+        39,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -677,
+        40,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -673,
+        33,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -673,
+        34,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -673,
+        35,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -673,
+        36,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -673,
+        37,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -673,
+        38,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -673,
+        39,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -673,
+        40,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -669,
+        33,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -669,
+        34,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -669,
+        35,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -669,
+        36,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -669,
+        37,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -669,
+        38,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -669,
+        39,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -669,
+        40,
+        -34
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "Letter C"
+    },
+    {
+      "position": [
+        -669,
+        40,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -668,
+        40,
+        -34
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "Letter L"
+    },
+    {
+      "position": [
+        -667,
+        40,
+        -34
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "Letter A"
+    },
+    {
+      "position": [
+        -666,
+        40,
+        -34
+      ],
+      "patterns": [
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "Letter S"
+    },
+    {
+      "position": [
+        -665,
+        33,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -665,
+        34,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -665,
+        35,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -665,
+        36,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -665,
+        37,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -665,
+        38,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -665,
+        39,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -665,
+        40,
+        -34
+      ],
+      "patterns": [
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "Letter S"
+    },
+    {
+      "position": [
+        -665,
+        40,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -663,
+        40,
+        -34
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "Number 2"
+    },
+    {
+      "position": [
+        -662,
+        40,
+        -34
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "Number 0"
+    },
+    {
+      "position": [
+        -661,
+        33,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -661,
+        34,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -661,
+        35,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -661,
+        36,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -661,
+        37,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -661,
+        38,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -661,
+        39,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -661,
+        40,
+        -34
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "Number 2"
+    },
+    {
+      "position": [
+        -661,
+        40,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -660,
+        40,
+        -34
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "light_blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "Number 6"
+    },
+    {
+      "position": [
+        -657,
+        33,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -657,
+        34,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -657,
+        35,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -657,
+        36,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -657,
+        37,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -657,
+        38,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -657,
+        39,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -657,
+        40,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -653,
+        33,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -653,
+        34,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -653,
+        35,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -653,
+        36,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -653,
+        37,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -653,
+        38,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -653,
+        39,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -653,
+        40,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -649,
+        33,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -649,
+        34,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -649,
+        35,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -649,
+        36,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -649,
+        37,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -649,
+        38,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -649,
+        39,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -649,
+        40,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -645,
+        34,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -645,
+        35,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -645,
+        36,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -645,
+        37,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -645,
+        38,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -645,
+        39,
+        -11
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -645,
+        40,
+        -11
+      ],
+      "patterns": []
+    }
+  ],
+  "dynamicSlots": [
+    [
+      -666,
+      33,
+      -29
+    ],
+    [
+      -666,
+      33,
+      -23
+    ],
+    [
+      -666,
+      33,
+      -17
+    ],
+    [
+      -661,
+      33,
+      -29
+    ],
+    [
+      -661,
+      33,
+      -23
+    ],
+    [
+      -661,
+      33,
+      -17
+    ],
+    [
+      -656,
+      33,
+      -29
+    ],
+    [
+      -656,
+      33,
+      -23
+    ],
+    [
+      -656,
+      33,
+      -17
+    ],
+    [
+      -651,
+      33,
+      -29
+    ],
+    [
+      -651,
+      33,
+      -23
+    ],
+    [
+      -651,
+      33,
+      -17
+    ]
+  ],
+  "desks": [
+    [
+      -665,
+      33,
+      -13.5
+    ],
+    [
+      -665,
+      33,
+      -19.5
+    ],
+    [
+      -665,
+      33,
+      -25.5
+    ],
+    [
+      -665,
+      33,
+      -31.5
+    ],
+    [
+      -660,
+      33,
+      -13.5
+    ],
+    [
+      -660,
+      33,
+      -19.5
+    ],
+    [
+      -660,
+      33,
+      -25.5
+    ],
+    [
+      -660,
+      33,
+      -31.5
+    ],
+    [
+      -655,
+      33,
+      -13.5
+    ],
+    [
+      -655,
+      33,
+      -19.5
+    ],
+    [
+      -655,
+      33,
+      -25.5
+    ],
+    [
+      -655,
+      33,
+      -31.5
+    ],
+    [
+      -650,
+      33,
+      -13.5
+    ],
+    [
+      -650,
+      33,
+      -19.5
+    ],
+    [
+      -650,
+      33,
+      -25.5
+    ],
+    [
+      -650,
+      33,
+      -31.5
+    ]
+  ],
+  "host": {
+    "position": [
+      -674.5,
+      33.5,
+      -22.0
+    ],
+    "yaw": -90,
+    "profile": "entity/player/wide/steve",
+    "mainhand": "book",
+    "offhand": "apple"
+  },
+  "rules": {
+    "actions": 22,
+    "poolSize": 11,
+    "durations": [
+      40,
+      30,
+      40,
+      30,
+      60,
+      60,
+      80,
+      50,
+      90,
+      40,
+      40
+    ],
+    "tasks": [
+      "Punch another player",
+      "Crouch",
+      "Put on boots",
+      "Jump",
+      "Look at the ceiling",
+      "Click the sign once",
+      "Tune a note block three times",
+      "Drop the named stone",
+      "Stand on a desk",
+      "Drop matching concrete",
+      "Stay still"
+    ],
+    "typeWeights": "type1=3,type2=1; exactly action12 additionally type3=1",
+    "randomizer": "Global1..3; note task forces2 (tune only).",
+    "score": "Correct requested action3, first4; correct refraining3. Requested but not completed0. Wrong action eliminates, retained points rank normally.",
+    "earlyEnd": "Between actions: all eliminated, or sole survivor strictly ahead of every original participant. Otherwise continue to22 actions.",
+    "timing": "Initial20ticks;20tick setup and20tick gap around each action; full source cycle ends at about2020ticks."
+  },
+  "sourceCorrections": [
+    "False ceiling command teleports to old unrelated coordinates and forgets spectator; eliminate within this arena.",
+    "Return immediately after end; source ssnexttask continues and schedules another task after endss removes objectives.",
+    "Cancel all owned scheduled phases, including armor callback omitted by source cleanup.",
+    "Desk InteractionEntity has no callback in source; keep its native right-click consumption, completion is physical OnGround+trapdoor only."
+  ],
+  "adaptations": [
+    "Scoped player statistics deltas, effects, entities, collisions and cleanup replace global objectives/selectors/world gamerules.",
+    "Same-tick valid first completions share the4-point bonus instead of source selector iteration order.",
+    "1.21.1 lacks Mannequin: send an owned native PLAYER display with deterministic wide/steve fallback, book and apple, at original position/yaw, without registering a live player.",
+    "Lightning is an owned cosmetic native bolt for elimination feedback; no unrelated world or player damage.",
+    "The source sends only setup dialogue before ready-up. Existing Party intro replaces ready-up; all22 actions and40ticks of per-action pacing remain.",
+    "Original solo score thresholds/team-board achievements and source resource-pack sounds are not an additional action mode."
+  ],
+  "geometry": {
+    "blocks": 4547,
+    "replacements": {},
+    "omitted": {},
+    "omittedBlockEntityNbt": {
+      "minecraft:banner": 79
+    },
+    "restoredBannerPayloads": 79
+  }
+}

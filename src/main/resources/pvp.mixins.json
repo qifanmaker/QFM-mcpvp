@@ -37,6 +37,7 @@
     "PartyCreeperCloudMixin",
     "PartyEffectCloudMixin",
     "PartyCraftingMixin",
+    "PartyBlockLootMixin",
     "ScreenHandlerMixin",
     "registry.DimensionOptionsMixin",
     "registry.SimpleRegistryMixin",

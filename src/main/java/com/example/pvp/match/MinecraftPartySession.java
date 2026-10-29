@@ -24,6 +24,9 @@ import com.example.pvp.arena.party.RaftRacersRound;
 import com.example.pvp.arena.party.WeaponDevolutionRound;
 import com.example.pvp.arena.party.TediousTasksRound;
 import com.example.pvp.arena.party.HorseRaceRound;
+import com.example.pvp.arena.party.SpeedBuildersRound;
+import com.example.pvp.arena.party.SteveSaysRound;
+import com.example.pvp.arena.party.PowerTowersRound;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.block.Block;
@@ -359,6 +362,9 @@ public final class MinecraftPartySession implements PortedGameSession {
             case WEAPON_DEVOLUTION -> new WeaponDevolutionRound();
             case TEDIOUS_TASKS -> new TediousTasksRound();
             case HORSE_RACE -> new HorseRaceRound();
+            case SPEED_BUILDERS -> new SpeedBuildersRound();
+            case STEVE_SAYS -> new SteveSaysRound();
+            case POWER_TOWERS -> new PowerTowersRound();
             default -> null;
         };
         try {
@@ -893,6 +899,22 @@ public final class MinecraftPartySession implements PortedGameSession {
     }
 
     @Override
+    public boolean canPlace(ServerPlayerEntity player, BlockPos pos) {
+        return this.phase == Phase.PLAY && this.round != null && this.isParticipant(player.getUuid())
+                && !this.out.contains(player.getUuid()) && !this.completed.contains(player.getUuid())
+                && !this.outOfRegion(player) && Math.abs(pos.getX() - this.center.getX()) <= MAP_RADIUS
+                && Math.abs(pos.getZ() - this.center.getZ()) <= MAP_RADIUS
+                && pos.getY() >= this.arena().getBottomY() && pos.getY() < this.arena().getTopY()
+                && this.round.canPlace(this.roundContext, player, pos);
+    }
+
+    @Override
+    public void onPlaced(ServerPlayerEntity player, BlockPos pos) {
+        // 模板原本为空气的格也必须登记，否则 Speed Builders 的玩家建筑会留到下一局。
+        if (this.canPlace(player, pos)) this.roundBlocks.add(pos.asLong());
+    }
+
+    @Override
     public boolean canBreak(ServerPlayerEntity player, BlockPos pos) {
         if (this.round != null) return this.phase == Phase.PLAY && this.isParticipant(player.getUuid())
                 && !this.out.contains(player.getUuid()) && this.round.canBreak(this.roundContext, player, pos);
@@ -1187,6 +1209,10 @@ public final class MinecraftPartySession implements PortedGameSession {
 
     public boolean allowsNaturalRegeneration() {
         return this.phase != Phase.PLAY || this.round == null || this.round.allowsNaturalRegeneration();
+    }
+
+    public boolean allowsBlockDrops() {
+        return this.phase == Phase.PLAY && this.round != null && this.round.allowsBlockDrops();
     }
 
     public boolean playerCombatEnabled() {

@@ -1,0 +1,3089 @@
+{
+  "sourceId": 417,
+  "sourceVersion": "1.21.10",
+  "minimumPlayers": 2,
+  "maximumPlayers": 10,
+  "functions": {
+    "speed_builders": "scoreboard players add currentRule variables 1\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 1 2 1\r\nexecute if score currentRule variables matches 1 run function mcp:assign_finish_threshold\r\nexecute if score currentRule variables matches 1 run scoreboard players set minigame variables 417\r\nexecute if score currentRule variables matches 1 run scoreboard players set music variables 5\r\nexecute if score currentRule variables matches 1 run scoreboard players set @a[scores={Player=1..}] Points 0\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add buildsCopied dummy {text:\"Builds Copied\",color:\"dark_aqua\",bold:1b}\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add checkpoint dummy\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add checkpoint_generic dummy {fallback:\"Builds Copied\",bold:1b,color:\"dark_aqua\",translate:\"mcp.BuildsCopied\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 1 run scoreboard players set @a[scores={Player=1..}] checkpoint_generic 0\r\nexecute if score currentRule variables matches 1 run scoreboard objectives setdisplay sidebar checkpoint_generic\r\nexecute if score currentRule variables matches 1 run scoreboard players set @a[scores={Player=1..}] buildsCopied 0\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=1}] -372.0 34 -166.0 180 0\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=2}] -349.0 34 -166.0 180 0\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=3}] -372.0 34 -151.0 180 0\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=4}] -349.0 34 -151.0 180 0\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=5}] -372.0 34 -136.0 180 0\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=6}] -349.0 34 -136.0 180 0\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=7}] -372.0 34 -121.0 180 0\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=8}] -349.0 34 -121.0 180 0\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=9}] -372.0 34 -106.0 180 0\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=10}] -349.0 34 -106.0 180 0\r\nexecute if score currentRule variables matches 1 run tp @a[gamemode=spectator] -361 45 -163\r\nexecute if score currentRule variables matches 1 run effect give @a[scores={minigameplayer=1..}] minecraft:jump_boost infinite 2 true\r\nexecute if score currentRule variables matches 1 run effect give @a[scores={minigameplayer=1..}] minecraft:weakness infinite 255 true\r\nexecute if score currentRule variables matches 1 run title @a title [{fallback:\"Speed Builders\",translate:\"mcp.speed_builders\",color:\"dark_green\",bold:1b,type:\"translatable\"}]\r\nexecute if score currentRule variables matches 2 if score players variables matches ..4 run fill -384 43 -148 -338 52 -148 minecraft:deepslate_bricks replace minecraft:air\r\nexecute if score currentRule variables matches 2 unless score players variables matches ..4 run fill -384 43 -148 -338 52 -148 minecraft:air replace minecraft:deepslate_bricks\r\nexecute if score currentRule variables matches 2 if score players variables matches 5..6 run fill -384 43 -133 -338 52 -133 minecraft:deepslate_bricks replace minecraft:air\r\nexecute if score currentRule variables matches 2 unless score players variables matches 5..6 run fill -384 43 -133 -338 52 -133 minecraft:air replace minecraft:deepslate_bricks\r\nexecute if score currentRule variables matches 2 if score players variables matches 7..8 run fill -384 43 -118 -338 52 -118 minecraft:deepslate_bricks replace minecraft:air\r\nexecute if score currentRule variables matches 2 unless score players variables matches 7..8 run fill -384 43 -118 -338 52 -118 minecraft:air replace minecraft:deepslate_bricks\r\nexecute if score currentRule variables matches 2 run function mcp:give_ready_ups\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=1}] run summon minecraft:interaction -380 38 -175 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=1}] run summon minecraft:interaction -380 38 -166 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=3}] run summon minecraft:interaction -380 38 -160 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=3}] run summon minecraft:interaction -380 38 -151 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=5}] run summon minecraft:interaction -380 38 -145 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=5}] run summon minecraft:interaction -380 38 -136 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=7}] run summon minecraft:interaction -380 38 -130 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=7}] run summon minecraft:interaction -380 38 -121 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=9}] run summon minecraft:interaction -380 38 -115 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=9}] run summon minecraft:interaction -380 38 -106 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=2}] run summon minecraft:interaction -365 38 -175 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=2}] run summon minecraft:interaction -365 38 -166 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=4}] run summon minecraft:interaction -365 38 -160 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=4}] run summon minecraft:interaction -365 38 -151 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=6}] run summon minecraft:interaction -365 38 -145 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=6}] run summon minecraft:interaction -365 38 -136 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=8}] run summon minecraft:interaction -365 38 -130 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=8}] run summon minecraft:interaction -365 38 -121 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=10}] run summon minecraft:interaction -365 38 -115 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=10}] run summon minecraft:interaction -365 38 -106 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=2}] run summon minecraft:interaction -357 38 -175 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=2}] run summon minecraft:interaction -357 38 -166 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=4}] run summon minecraft:interaction -357 38 -160 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=4}] run summon minecraft:interaction -357 38 -151 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=6}] run summon minecraft:interaction -357 38 -145 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=6}] run summon minecraft:interaction -357 38 -136 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=8}] run summon minecraft:interaction -357 38 -130 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=8}] run summon minecraft:interaction -357 38 -121 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=10}] run summon minecraft:interaction -357 38 -115 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=10}] run summon minecraft:interaction -357 38 -106 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=2}] run summon minecraft:interaction -342 38 -175 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=2}] run summon minecraft:interaction -342 38 -166 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=4}] run summon minecraft:interaction -342 38 -160 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=4}] run summon minecraft:interaction -342 38 -151 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=6}] run summon minecraft:interaction -342 38 -145 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=6}] run summon minecraft:interaction -342 38 -136 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=8}] run summon minecraft:interaction -342 38 -130 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=8}] run summon minecraft:interaction -342 38 -121 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=10}] run summon minecraft:interaction -342 38 -115 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 if entity @a[scores={minigameplayer=10}] run summon minecraft:interaction -342 38 -106 {Tags:[\"FlowerBlocker\"]}\r\nexecute if score currentRule variables matches 2 run function mcp:speed_builders_make_builds\r\nexecute if score currentRule variables matches 2 unless score playersReady variables matches 4 run tellraw @a {fallback:\"A design will spawn on the one of the white squares.\",translate:\"mcp.speed_builders.1\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 3 unless score playersReady variables matches 4 run tellraw @a {fallback:\"Copy the build on to the other concrete square.\",translate:\"mcp.speed_builders.2\",color:\"dark_aqua\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 4 unless score playersReady variables matches 4 run tellraw @a {fallback:\"DO NOT MIRROR THE BUILD!\",translate:\"mcp.speed_builders.3\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 5 unless score playersReady variables matches 4 run tellraw @a {fallback:\"If you get stuck, you can push the button to reset your build.\",translate:\"mcp.speed_builders.4\",color:\"dark_aqua\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 6 unless score playersReady variables matches 4 run tellraw @a {fallback:\"First player to copy 4 builds wins.\",translate:\"mcp.speed_builders.5\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 6 unless score playersReady variables matches 4 run schedule function mcp:ready_up_tellraw 3s\r\nexecute if score currentRule variables matches 6 run scoreboard players reset currentRule variables\r\nexecute if score currentRule variables matches 1..5 run schedule function mcp:speed_builders 3s",
+    "speed_builders_start": "title @a title [{fallback:\"Build!\",translate:\"mcp.speed_builders_start.1\",color:\"dark_red\",bold:1b,type:\"translatable\"}]\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1\r\nscoreboard players set playingSpeedBuilders variables 1\r\nscoreboard players set @a[gamemode=adventure] Points 3\r\nscoreboard players operation finishThreshold variables = players variables\r\nexecute unless score doubles_mode variables matches 1 if score players variables matches ..7 run scoreboard players remove finishThreshold variables 1\r\nexecute unless score doubles_mode variables matches 1 if score players variables matches 8.. run scoreboard players remove finishThreshold variables 2\r\nexecute if score doubles_mode variables matches 1 run scoreboard players operation finishThreshold variables /= 2 constants\r\nscoreboard players set timeLeft variables 3600\r\nexecute if score players variables matches 1 if score difficulty variables matches 1 run scoreboard players operation timeLeft variables *= 8 constants\r\nexecute if score players variables matches 1 if score difficulty variables matches 2 run scoreboard players operation timeLeft variables *= 7 constants\r\nexecute if score players variables matches 1 if score difficulty variables matches 3 run scoreboard players operation timeLeft variables *= 6 constants\r\nexecute if score players variables matches 1 run scoreboard players operation timeLeft variables /= 10 constants\r\nscoreboard objectives add CheckpointPoints dummy",
+    "speed_builders_tick": "item replace entity @a[gamemode=adventure,scores={buildsCopied=0..3}] hotbar.0 with minecraft:golden_pickaxe[minecraft:can_break={blocks:[\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:magenta_concrete\",\"minecraft:gray_concrete\"]},minecraft:unbreakable={}] 1\r\nitem replace entity @a[gamemode=adventure,scores={buildsCopied=0..3}] hotbar.1 with minecraft:red_concrete[minecraft:can_place_on={blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}] 64\r\nitem replace entity @a[gamemode=adventure,scores={buildsCopied=0..3}] hotbar.2 with minecraft:orange_concrete[minecraft:can_place_on={blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}] 64\r\nitem replace entity @a[gamemode=adventure,scores={buildsCopied=0..3}] hotbar.3 with minecraft:yellow_concrete[minecraft:can_place_on={blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}] 64\r\nitem replace entity @a[gamemode=adventure,scores={buildsCopied=0..3}] hotbar.4 with minecraft:lime_concrete[minecraft:can_place_on={blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}] 64\r\nitem replace entity @a[gamemode=adventure,scores={buildsCopied=0..3}] hotbar.5 with minecraft:light_blue_concrete[minecraft:can_place_on={blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}] 64\r\nitem replace entity @a[gamemode=adventure,scores={buildsCopied=0..3}] hotbar.6 with minecraft:blue_concrete[minecraft:can_place_on={blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}] 64\r\nitem replace entity @a[gamemode=adventure,scores={buildsCopied=0..3}] hotbar.7 with minecraft:magenta_concrete[minecraft:can_place_on={blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}] 64\r\nitem replace entity @a[gamemode=adventure,scores={buildsCopied=0..3}] hotbar.8 with minecraft:gray_concrete[minecraft:can_place_on={blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}] 64\r\n\r\nexecute if entity @a[scores={minigameplayer=1,buildsCopied=0}] unless blocks -336 28 -153 -331 31 -148 -371 34 -173 all run clone -336 28 -153 -331 31 -148 -371 34 -173\r\nexecute if entity @a[scores={minigameplayer=2,buildsCopied=0}] unless blocks -336 28 -153 -331 31 -148 -348 34 -173 all run clone -336 28 -153 -331 31 -148 -348 34 -173\r\nexecute if entity @a[scores={minigameplayer=3,buildsCopied=0}] unless blocks -336 28 -153 -331 31 -148 -371 34 -158 all run clone -336 28 -153 -331 31 -148 -371 34 -158\r\nexecute if entity @a[scores={minigameplayer=4,buildsCopied=0}] unless blocks -336 28 -153 -331 31 -148 -348 34 -158 all run clone -336 28 -153 -331 31 -148 -348 34 -158\r\nexecute if entity @a[scores={minigameplayer=5,buildsCopied=0}] unless blocks -336 28 -153 -331 31 -148 -371 34 -143 all run clone -336 28 -153 -331 31 -148 -371 34 -143\r\nexecute if entity @a[scores={minigameplayer=6,buildsCopied=0}] unless blocks -336 28 -153 -331 31 -148 -348 34 -143 all run clone -336 28 -153 -331 31 -148 -348 34 -143\r\nexecute if entity @a[scores={minigameplayer=7,buildsCopied=0}] unless blocks -336 28 -153 -331 31 -148 -371 34 -128 all run clone -336 28 -153 -331 31 -148 -371 34 -128\r\nexecute if entity @a[scores={minigameplayer=8,buildsCopied=0}] unless blocks -336 28 -153 -331 31 -148 -348 34 -128 all run clone -336 28 -153 -331 31 -148 -348 34 -128\r\nexecute if entity @a[scores={minigameplayer=9,buildsCopied=0}] unless blocks -336 28 -153 -331 31 -148 -371 34 -113 all run clone -336 28 -153 -331 31 -148 -371 34 -113\r\nexecute if entity @a[scores={minigameplayer=10,buildsCopied=0}] unless blocks -336 28 -153 -331 31 -148 -348 34 -113 all run clone -336 28 -153 -331 31 -148 -348 34 -113\r\n\r\nexecute if entity @a[scores={minigameplayer=1,buildsCopied=1}] unless blocks -336 28 -160 -331 31 -155 -371 34 -173 all run clone -336 28 -160 -331 31 -155 -371 34 -173\r\nexecute if entity @a[scores={minigameplayer=2,buildsCopied=1}] unless blocks -336 28 -160 -331 31 -155 -348 34 -173 all run clone -336 28 -160 -331 31 -155 -348 34 -173\r\nexecute if entity @a[scores={minigameplayer=3,buildsCopied=1}] unless blocks -336 28 -160 -331 31 -155 -371 34 -158 all run clone -336 28 -160 -331 31 -155 -371 34 -158\r\nexecute if entity @a[scores={minigameplayer=4,buildsCopied=1}] unless blocks -336 28 -160 -331 31 -155 -348 34 -158 all run clone -336 28 -160 -331 31 -155 -348 34 -158\r\nexecute if entity @a[scores={minigameplayer=5,buildsCopied=1}] unless blocks -336 28 -160 -331 31 -148 -371 34 -143 all run clone -336 28 -160 -331 31 -155 -371 34 -143\r\nexecute if entity @a[scores={minigameplayer=6,buildsCopied=1}] unless blocks -336 28 -160 -331 31 -155 -348 34 -143 all run clone -336 28 -160 -331 31 -155 -348 34 -143\r\nexecute if entity @a[scores={minigameplayer=7,buildsCopied=1}] unless blocks -336 28 -160 -331 31 -155 -371 34 -128 all run clone -336 28 -160 -331 31 -155 -371 34 -128\r\nexecute if entity @a[scores={minigameplayer=8,buildsCopied=1}] unless blocks -336 28 -160 -331 31 -155 -348 34 -128 all run clone -336 28 -160 -331 31 -155 -348 34 -128\r\nexecute if entity @a[scores={minigameplayer=9,buildsCopied=1}] unless blocks -336 28 -160 -331 31 -155 -371 34 -113 all run clone -336 28 -160 -331 31 -155 -371 34 -113\r\nexecute if entity @a[scores={minigameplayer=10,buildsCopied=1}] unless blocks -336 28 -160 -331 31 -155 -348 34 -113 all run clone -336 28 -160 -331 31 -155 -348 34 -113\r\n\r\nexecute if entity @a[scores={minigameplayer=1,buildsCopied=2}] unless blocks -336 28 -167 -331 31 -162 -371 34 -173 all run clone -336 28 -167 -331 31 -162 -371 34 -173\r\nexecute if entity @a[scores={minigameplayer=2,buildsCopied=2}] unless blocks -336 28 -167 -331 31 -162 -348 34 -173 all run clone -336 28 -167 -331 31 -162 -348 34 -173\r\nexecute if entity @a[scores={minigameplayer=3,buildsCopied=2}] unless blocks -336 28 -167 -331 31 -162 -371 34 -158 all run clone -336 28 -167 -331 31 -162 -371 34 -158\r\nexecute if entity @a[scores={minigameplayer=4,buildsCopied=2}] unless blocks -336 28 -167 -331 31 -162 -348 34 -158 all run clone -336 28 -167 -331 31 -162 -348 34 -158\r\nexecute if entity @a[scores={minigameplayer=5,buildsCopied=2}] unless blocks -336 28 -167 -331 31 -162 -371 34 -143 all run clone -336 28 -167 -331 31 -162 -371 34 -143\r\nexecute if entity @a[scores={minigameplayer=6,buildsCopied=2}] unless blocks -336 28 -167 -331 31 -162 -348 34 -143 all run clone -336 28 -167 -331 31 -162 -348 34 -143\r\nexecute if entity @a[scores={minigameplayer=7,buildsCopied=2}] unless blocks -336 28 -167 -331 31 -162 -371 34 -128 all run clone -336 28 -167 -331 31 -162 -371 34 -128\r\nexecute if entity @a[scores={minigameplayer=8,buildsCopied=2}] unless blocks -336 28 -167 -331 31 -162 -348 34 -128 all run clone -336 28 -167 -331 31 -162 -348 34 -128\r\nexecute if entity @a[scores={minigameplayer=9,buildsCopied=2}] unless blocks -336 28 -167 -331 31 -162 -371 34 -113 all run clone -336 28 -167 -331 31 -162 -371 34 -113\r\nexecute if entity @a[scores={minigameplayer=10,buildsCopied=2}] unless blocks -336 28 -167 -331 31 -162 -348 34 -113 all run clone -336 28 -167 -331 31 -162 -348 34 -113\r\n\r\nexecute if entity @a[scores={minigameplayer=1,buildsCopied=3}] unless blocks -336 28 -174 -331 31 -169 -371 34 -173 all run clone -336 28 -174 -331 31 -169 -371 34 -173\r\nexecute if entity @a[scores={minigameplayer=2,buildsCopied=3}] unless blocks -336 28 -174 -331 31 -169 -348 34 -173 all run clone -336 28 -174 -331 31 -169 -348 34 -173\r\nexecute if entity @a[scores={minigameplayer=3,buildsCopied=3}] unless blocks -336 28 -174 -331 31 -169 -371 34 -158 all run clone -336 28 -174 -331 31 -169 -371 34 -158\r\nexecute if entity @a[scores={minigameplayer=4,buildsCopied=3}] unless blocks -336 28 -174 -331 31 -169 -348 34 -158 all run clone -336 28 -174 -331 31 -169 -348 34 -158\r\nexecute if entity @a[scores={minigameplayer=5,buildsCopied=3}] unless blocks -336 28 -174 -331 31 -169 -371 34 -143 all run clone -336 28 -174 -331 31 -169 -371 34 -143\r\nexecute if entity @a[scores={minigameplayer=6,buildsCopied=3}] unless blocks -336 28 -174 -331 31 -169 -348 34 -143 all run clone -336 28 -174 -331 31 -169 -348 34 -143\r\nexecute if entity @a[scores={minigameplayer=7,buildsCopied=3}] unless blocks -336 28 -174 -331 31 -169 -371 34 -128 all run clone -336 28 -174 -331 31 -169 -371 34 -128\r\nexecute if entity @a[scores={minigameplayer=8,buildsCopied=3}] unless blocks -336 28 -174 -331 31 -169 -348 34 -128 all run clone -336 28 -174 -331 31 -169 -348 34 -128\r\nexecute if entity @a[scores={minigameplayer=9,buildsCopied=3}] unless blocks -336 28 -174 -331 31 -169 -371 34 -113 all run clone -336 28 -174 -331 31 -169 -371 34 -113\r\nexecute if entity @a[scores={minigameplayer=10,buildsCopied=3}] unless blocks -336 28 -174 -331 31 -169 -348 34 -113 all run clone -336 28 -174 -331 31 -169 -348 34 -113\r\n\r\nexecute if blocks -371 34 -173 -366 37 -168 -379 34 -173 all as @a[scores={minigameplayer=1,buildsCopied=..3}] run function mcp:speed_builders_next_build\r\nexecute if blocks -348 34 -173 -343 37 -168 -356 34 -173 all as @a[scores={minigameplayer=2,buildsCopied=..3}] run function mcp:speed_builders_next_build\r\nexecute if blocks -371 34 -158 -366 37 -153 -379 34 -158 all as @a[scores={minigameplayer=3,buildsCopied=..3}] run function mcp:speed_builders_next_build\r\nexecute if blocks -348 34 -158 -343 37 -153 -356 34 -158 all as @a[scores={minigameplayer=4,buildsCopied=..3}] run function mcp:speed_builders_next_build\r\nexecute if blocks -371 34 -143 -366 37 -138 -379 34 -143 all as @a[scores={minigameplayer=5,buildsCopied=..3}] run function mcp:speed_builders_next_build\r\nexecute if blocks -348 34 -143 -343 37 -138 -356 34 -143 all as @a[scores={minigameplayer=6,buildsCopied=..3}] run function mcp:speed_builders_next_build\r\nexecute if blocks -371 34 -128 -366 37 -123 -379 34 -128 all as @a[scores={minigameplayer=7,buildsCopied=..3}] run function mcp:speed_builders_next_build\r\nexecute if blocks -348 34 -128 -343 37 -123 -356 34 -128 all as @a[scores={minigameplayer=8,buildsCopied=..3}] run function mcp:speed_builders_next_build\r\nexecute if blocks -371 34 -113 -366 37 -108 -379 34 -113 all as @a[scores={minigameplayer=9,buildsCopied=..3}] run function mcp:speed_builders_next_build\r\nexecute if blocks -348 34 -113 -343 37 -108 -356 34 -113 all as @a[scores={minigameplayer=10,buildsCopied=..3}] run function mcp:speed_builders_next_build\r\n\r\nfunction mcp:timer_decrement\r\nexecute if score timeLeft variables matches 0 run function mcp:speed_builders_end\r\nexecute if score playersFinished variables >= finishThreshold variables run function mcp:speed_builders_end\r\nkill @e[nbt={Item:{id:\"minecraft:netherite_pickaxe\",components:{\"minecraft:can_break\":{blocks:[\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:magenta_concrete\",\"minecraft:gray_concrete\"]},\"minecraft:damage\":0,\"minecraft:unbreakable\":{}},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:red_concrete\",components:{\"minecraft:can_place_on\":{blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:orange_concrete\",components:{\"minecraft:can_place_on\":{blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:yellow_concrete\",components:{\"minecraft:can_place_on\":{blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:lime_concrete\",components:{\"minecraft:can_place_on\":{blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:light_blue_concrete\",components:{\"minecraft:can_place_on\":{blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:blue_concrete\",components:{\"minecraft:can_place_on\":{blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:magenta_concrete\",components:{\"minecraft:can_place_on\":{blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:gray_concrete\",components:{\"minecraft:can_place_on\":{blocks:[\"minecraft:white_concrete_powder\",\"minecraft:red_concrete\",\"minecraft:orange_concrete\",\"minecraft:yellow_concrete\",\"minecraft:lime_concrete\",\"minecraft:green_concrete\",\"minecraft:cyan_concrete\",\"minecraft:light_blue_concrete\",\"minecraft:blue_concrete\",\"minecraft:purple_concrete\",\"minecraft:magenta_concrete\",\"minecraft:pink_concrete\",\"minecraft:brown_concrete\",\"minecraft:gray_concrete\",\"minecraft:light_gray_concrete\",\"minecraft:white_concrete\"]}},count:1}}]\r\n\r\nexecute if score gamemode variables matches 3 if score gp_minigame_active variables matches 1 as @a[gamemode=adventure,scores={Player=1..,buildsCopied=4}] run scoreboard players add @s observation_time 1",
+    "speed_builders_end": "scoreboard players reset playingSpeedBuilders variables\r\nexecute store result score playersOnline variables if entity @a[scores={Player=1..}]\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run title @a actionbar {fallback:\"All players must be online to continue\",translate:\"mcp.MissingPlayerActionBarAlert\",type:\"translatable\"}\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run schedule function mcp:speed_builders_end 1t\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run return 0\r\nscoreboard players reset playersOnline variables\r\n\r\nkill @e[type=minecraft:armor_stand,tag=paintbrushcolor]\r\nkill @e[type=minecraft:armor_stand,tag=buildselector]\r\nkill @e[tag=FlowerBlocker]\r\nscoreboard players reset playersFinished variables\r\nscoreboard players reset finishThreshold variables\r\nclear @a\r\neffect clear @a minecraft:jump_boost\r\nfill -381 34 -106 -341 42 -175 minecraft:air replace minecraft:red_concrete\r\nfill -381 34 -106 -341 42 -175 minecraft:air replace minecraft:orange_concrete\r\nfill -381 34 -106 -341 42 -175 minecraft:air replace minecraft:yellow_concrete\r\nfill -381 34 -106 -341 42 -175 minecraft:air replace minecraft:lime_concrete\r\nfill -381 34 -106 -341 42 -175 minecraft:air replace minecraft:light_blue_concrete\r\nfill -381 34 -106 -341 42 -175 minecraft:air replace minecraft:blue_concrete\r\nfill -381 34 -106 -341 42 -175 minecraft:air replace minecraft:magenta_concrete\r\nfill -381 34 -106 -341 42 -175 minecraft:air replace minecraft:gray_concrete\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s buildsCopied *= players variables\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s Points += @s buildsCopied\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s buildsCopied /= players variables\r\ntitle @a actionbar [{fallback:\"Time Left: 0:00\",translate:\"mcp.speed_builders_end.2\",color:\"#FF0000\",type:\"translatable\"}]\r\nscoreboard objectives remove buildsCopied\r\nscoreboard objectives remove checkpoint_generic\r\nscoreboard objectives remove checkpoint\r\nschedule clear mcp:speed_builders\r\nexecute unless score void_minigame variables matches 1 run schedule function mcp:placements 3s\r\nexecute unless score void_minigame variables matches 1 if score timeLeft variables matches 0 as @a at @s run playsound mcp:time_up voice @s ~ ~ ~ 1 1 1\r\nexecute unless score void_minigame variables matches 1 unless score timeLeft variables matches 0 as @a at @s run playsound mcp:finish voice @s ~ ~ ~ 1 1 1",
+    "speed_builders_make_builds": "summon minecraft:armor_stand -343 28 -153 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -350 28 -153 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -357 28 -153 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -364 28 -153 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -371 28 -153 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -378 28 -153 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -385 28 -153 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -343 28 -160 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -350 28 -160 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -357 28 -160 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -364 28 -160 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -371 28 -160 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -378 28 -160 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -385 28 -160 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -343 28 -167 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -350 28 -167 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -357 28 -167 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -364 28 -167 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -371 28 -167 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -378 28 -167 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -385 28 -167 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -343 28 -174 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -350 28 -174 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -357 28 -174 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -364 28 -174 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -371 28 -174 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -378 28 -174 {Tags:[\"buildselector\"]}\r\nsummon minecraft:armor_stand -385 28 -174 {Tags:[\"buildselector\"]}\r\nscoreboard players set buildsCloned variables -1\r\nsummon minecraft:armor_stand -336 28 -146 {CustomName:\"Paintbrush\"}\r\nfunction mcp:speed_builders_move_paint_brush\r\nfunction mcp:speed_builders_build_maker",
+    "speed_builders_build_maker": "scoreboard players add currentColor variables 1\r\nexecute if score currentColor variables matches 1 at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:glass replace minecraft:oak_planks\r\nexecute if score currentColor variables matches 2 at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:glass replace minecraft:spruce_planks\r\nexecute if score currentColor variables matches 3 at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:glass replace minecraft:birch_planks\r\nexecute if score currentColor variables matches 4 at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:glass replace minecraft:jungle_planks\r\nexecute if score currentColor variables matches 5 at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:glass replace minecraft:acacia_planks\r\nexecute if score currentColor variables matches 6 at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:glass replace minecraft:dark_oak_planks\r\nexecute if score currentColor variables matches 7 at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:glass replace minecraft:crimson_planks\r\nexecute if score currentColor variables matches 8 at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:glass replace minecraft:warped_planks\r\ntag @e[tag=paintbrushcolor,sort=random,limit=1] add currentColor\r\nexecute as @e[tag=currentColor,tag=red] at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:red_concrete replace minecraft:glass\r\nexecute as @e[tag=currentColor,tag=orange] at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:orange_concrete replace minecraft:glass\r\nexecute as @e[tag=currentColor,tag=yellow] at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:yellow_concrete replace minecraft:glass\r\nexecute as @e[tag=currentColor,tag=lime] at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:lime_concrete replace minecraft:glass\r\nexecute as @e[tag=currentColor,tag=light_blue] at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:light_blue_concrete replace minecraft:glass\r\nexecute as @e[tag=currentColor,tag=blue] at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:blue_concrete replace minecraft:glass\r\nexecute as @e[tag=currentColor,tag=magenta] at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:magenta_concrete replace minecraft:glass\r\nexecute as @e[tag=currentColor,tag=black] at @e[type=minecraft:armor_stand,name=\"Paintbrush\"] run fill ~ ~ ~ ~6 ~6 ~6 minecraft:gray_concrete replace minecraft:glass\r\nkill @e[tag=currentColor]\r\nexecute if score buildsCloned variables matches 0..3 if score currentColor variables matches 8 run function mcp:speed_builders_move_paint_brush\r\nexecute if score buildsCloned variables matches 0..3 run function mcp:speed_builders_build_maker\r\nexecute unless score buildsCloned variables matches 0..3 run kill @e[type=minecraft:armor_stand,tag=paintbrushcolor]\r\nexecute unless score buildsCloned variables matches 0..3 run kill @e[type=minecraft:armor_stand,tag=buildselector]\r\nexecute unless score buildsCloned variables matches 0..3 run kill @e[type=minecraft:armor_stand,name=Paintbrush]\r\nexecute unless score buildsCloned variables matches 0..3 run scoreboard players reset currentColor variables\r\nexecute unless score buildsCloned variables matches 0..3 run scoreboard players reset buildsCloned variables",
+    "speed_builders_move_paint_brush": "execute as @e[type=minecraft:armor_stand,name=\"Paintbrush\"] at @s run tp @s ~ ~ ~-7\r\nkill @e[type=minecraft:armor_stand,tag=paintbrushcolor]\r\nexecute positioned -337 28 -148 run function mcp:speed_builders_summon_colors\r\ntag @e[tag=buildselector,sort=random,limit=1] add currentBuild\r\nscoreboard players add buildsCloned variables 1\r\nexecute if score buildsCloned variables matches 0 at @e[tag=currentBuild] run clone ~ ~ ~ ~5 ~3 ~5 -336 28 -153\r\nexecute if score buildsCloned variables matches 1 at @e[tag=currentBuild] run clone ~ ~ ~ ~5 ~3 ~5 -336 28 -160\r\nexecute if score buildsCloned variables matches 2 at @e[tag=currentBuild] run clone ~ ~ ~ ~5 ~3 ~5 -336 28 -167\r\nexecute if score buildsCloned variables matches 3 at @e[tag=currentBuild] run clone ~ ~ ~ ~5 ~3 ~5 -336 28 -174\r\nkill @e[tag=currentBuild]\r\nscoreboard players set currentColor variables 0",
+    "speed_builders_summon_colors": "summon minecraft:armor_stand ~ ~ ~ {Tags:[\"paintbrushcolor\",\"red\"]}\r\nsummon minecraft:armor_stand ~ ~ ~ {Tags:[\"paintbrushcolor\",\"orange\"]}\r\nsummon minecraft:armor_stand ~ ~ ~ {Tags:[\"paintbrushcolor\",\"yellow\"]}\r\nsummon minecraft:armor_stand ~ ~ ~ {Tags:[\"paintbrushcolor\",\"lime\"]}\r\nsummon minecraft:armor_stand ~ ~ ~ {Tags:[\"paintbrushcolor\",\"light_blue\"]}\r\nsummon minecraft:armor_stand ~ ~ ~ {Tags:[\"paintbrushcolor\",\"blue\"]}\r\nsummon minecraft:armor_stand ~ ~ ~ {Tags:[\"paintbrushcolor\",\"magenta\"]}\r\nsummon minecraft:armor_stand ~ ~ ~ {Tags:[\"paintbrushcolor\",\"black\"]}",
+    "speed_builders_next_build": "scoreboard players add @s buildsCopied 1\r\nplaysound minecraft:entity.player.levelup master @s ~ ~ ~ 1 0 1\r\nexecute if entity @s[scores={minigameplayer=1}] run fill -380 34 -174 -373 41 -167 minecraft:air\r\nexecute if entity @s[scores={minigameplayer=2}] run fill -357 34 -174 -350 41 -167 minecraft:air\r\nexecute if entity @s[scores={minigameplayer=3}] run fill -380 34 -159 -373 41 -152 minecraft:air\r\nexecute if entity @s[scores={minigameplayer=4}] run fill -357 34 -159 -350 41 -152 minecraft:air\r\nexecute if entity @s[scores={minigameplayer=5}] run fill -380 34 -144 -373 41 -137 minecraft:air\r\nexecute if entity @s[scores={minigameplayer=6}] run fill -357 34 -144 -350 41 -137 minecraft:air\r\nexecute if entity @s[scores={minigameplayer=7}] run fill -380 34 -129 -373 41 -122 minecraft:air\r\nexecute if entity @s[scores={minigameplayer=8}] run fill -357 34 -129 -350 41 -122 minecraft:air\r\nexecute if entity @s[scores={minigameplayer=9}] run fill -380 34 -114 -373 41 -107 minecraft:air\r\nexecute if entity @s[scores={minigameplayer=10}] run fill -357 34 -114 -350 41 -107 minecraft:air\r\nexecute if score @s buildsCopied matches 4.. at @s run tp @s ~ 44 ~\r\nexecute if score @s buildsCopied matches 4.. run scoreboard players add playersFinished variables 1\r\nexecute if score @s buildsCopied matches 4.. run effect clear @s minecraft:jump_boost\r\nexecute if score @s buildsCopied matches 4.. run gamemode spectator\r\nexecute if entity @s[scores={buildsCopied=4..}] run tellraw @a [{fallback:\"%1$s has finished!\",translate:\"mcp.speed_builders_next_build.1\",color:\"gray\",type:\"translatable\",bold:0b,with:[{selector:\"@s\",type:\"selector\"}]}]\r\nclear @s[gamemode=adventure,scores={buildsCopied=4..}]\r\nfunction mcp:checkpoint",
+    "checkpoint": "scoreboard players add @a[scores={Player=1..}] Points 1\r\nscoreboard players set @s Points 0\r\nscoreboard players set @a[scores={Player=1..}] CheckpointPoints 0\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=1},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=2},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=3},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=4},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=5},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=6},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=7},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=8},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=9},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=10},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nscoreboard players set @a[scores={CheckpointPoints=0,Player=1..}] Points 0\r\nscoreboard players set @a[scores={CheckpointPoints=1,Player=1..}] Points 1\r\nscoreboard players set @a[scores={CheckpointPoints=2,Player=1..}] Points 2\r\nscoreboard players set @a[scores={CheckpointPoints=3,Player=1..}] Points 3\r\nscoreboard players set @a[scores={CheckpointPoints=4,Player=1..}] Points 4\r\nscoreboard players set @a[scores={CheckpointPoints=5,Player=1..}] Points 5\r\nscoreboard players set @a[scores={CheckpointPoints=6,Player=1..}] Points 6\r\nscoreboard players set @a[scores={CheckpointPoints=7,Player=1..}] Points 7\r\nscoreboard players set @a[scores={CheckpointPoints=8,Player=1..}] Points 8\r\nscoreboard players set @a[scores={CheckpointPoints=9,Player=1..}] Points 9\r\ntag @s add temp_checkpoint_tie\r\nexecute if score temp_checkpoint_tie variables = timer dice run scoreboard players set @a[tag=temp_checkpoint_tie] Points 0\r\nscoreboard players operation temp_checkpoint_tie variables = timer dice\r\n\r\nschedule function mcp:checkpoint2 1t",
+    "checkpoint2": "scoreboard players set @a[scores={Player=1..}] checkpoint_generic 0\r\nexecute if score minigame variables matches 401 as @a run scoreboard players operation @s checkpoint = @s max_blocks_fallen\r\nexecute if score minigame variables matches 405 as @a run scoreboard players operation @s checkpoint = @s lapscompleted\r\nexecute if score minigame variables matches 410 as @a run scoreboard players operation @s checkpoint = @s weapon_minus_1\r\nexecute if score minigame variables matches 411 as @a run scoreboard players operation @s checkpoint = @s taskscompleted\r\nexecute if score minigame variables matches 291 as @a run scoreboard players operation @s checkpoint = @s taskscompleted\r\nexecute if score minigame variables matches 416 as @a run scoreboard players operation @s checkpoint = @s totalcheckpoints\r\nexecute if score minigame variables matches 417 as @a run scoreboard players operation @s checkpoint = @s buildsCopied\r\nexecute if score minigame variables matches 421 as @a run scoreboard players operation @s checkpoint = @s ItemsFound\r\nexecute if score minigame variables matches 425 as @a run scoreboard players operation @s checkpoint = @s wall\r\nexecute if score minigame variables matches 427 as @a run scoreboard players operation @s checkpoint = @s lapscompleted\r\nexecute if score minigame variables matches 435 as @a run scoreboard players operation @s checkpoint = @s hog_riders_place\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic += @s checkpoint\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic *= players variables\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic += @s Points\r\nscoreboard players display numberformat @a[scores={checkpoint=0}] checkpoint_generic fixed {text:\"0\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=1}] checkpoint_generic fixed {text:\"1\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=2}] checkpoint_generic fixed {text:\"2\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=3}] checkpoint_generic fixed {text:\"3\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=4}] checkpoint_generic fixed {text:\"4\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=5}] checkpoint_generic fixed {text:\"5\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=6}] checkpoint_generic fixed {text:\"6\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=7}] checkpoint_generic fixed {text:\"7\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=8}] checkpoint_generic fixed {text:\"8\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=9}] checkpoint_generic fixed {text:\"9\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=10}] checkpoint_generic fixed {text:\"10\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=11}] checkpoint_generic fixed {text:\"11\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=12}] checkpoint_generic fixed {text:\"12\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=13}] checkpoint_generic fixed {text:\"13\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=14}] checkpoint_generic fixed {text:\"14\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=15}] checkpoint_generic fixed {text:\"15\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=16}] checkpoint_generic fixed {text:\"16\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=17}] checkpoint_generic fixed {text:\"17\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=18}] checkpoint_generic fixed {text:\"18\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=19}] checkpoint_generic fixed {text:\"19\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=20}] checkpoint_generic fixed {text:\"20\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=21}] checkpoint_generic fixed {text:\"21\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=22}] checkpoint_generic fixed {text:\"22\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=23}] checkpoint_generic fixed {text:\"23\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=24}] checkpoint_generic fixed {text:\"24\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=25}] checkpoint_generic fixed {text:\"25\",color:\"red\"}\r\n\r\nexecute as @a[gamemode=spectator] unless score @s Player matches 1.. run scoreboard players reset @s checkpoint_generic\r\nexecute unless score minigame variables matches 101..199 run scoreboard players display numberformat @a[gamemode=spectator,scores={Player=1..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 401 run scoreboard players display numberformat @a[gamemode=adventure,scores={Player=1..,max_blocks_fallen=382..},tag=1st_attempt] checkpoint_generic fixed {text:\"☑\",color:\"gold\"}\r\nexecute if score minigame variables matches 401 run scoreboard players display numberformat @a[gamemode=adventure,scores={Player=1..,max_blocks_fallen=382..},tag=!1st_attempt] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 417 run scoreboard players display numberformat @a[scores={Player=1..,buildsCopied=4..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 425 run scoreboard players display numberformat @a[scores={Player=1..,wall=15..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 101..199 as @a unless score @s duelplayer matches 1..2 run scoreboard players reset @s checkpoint_generic\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=0}] checkpoint_generic fixed {text:\"0\",color:\"red\"}\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=1}] checkpoint_generic fixed {text:\"1\",color:\"red\"}\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=2}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\n\r\nscoreboard players reset temp_checkpoint_tie variables\r\ntag @a remove temp_checkpoint_tie",
+    "assign_finish_threshold": "scoreboard players operation finishThreshold variables = players_minus_1 variables\r\nexecute if score gamemode variables matches 3 if score modified variables matches 1 run scoreboard players set finishThreshold variables 1\r\nexecute if score gamemode variables matches 1..2 if score players variables matches ..4 if score coin_distribution variables matches 1 run scoreboard players set finishThreshold variables 1\r\nexecute unless score gamemode variables matches 0 if score doubles_mode variables matches 1 run scoreboard players operation finishThreshold variables = half_players variables\r\nexecute unless score gamemode variables matches 0 unless score doubles_mode variables matches 1 if score players variables matches 8.. run scoreboard players remove finishThreshold variables 1\r\n\r\nscoreboard players set remainingThreshold variables 1\r\nexecute if score gamemode variables matches 3 if score modified variables matches 1 run scoreboard players operation remainingThreshold variables = players_minus_1 variables\r\nexecute if score doubles_mode variables matches 1 unless score gamemode variables matches 0 run scoreboard players operation remainingThreshold variables = half_players variables",
+    "timer_decrement": "scoreboard players remove timeLeft variables 1\r\nscoreboard players operation TimeLeftMin variables = timeLeft variables\r\nscoreboard players add TimeLeftMin variables 20\r\nscoreboard players operation TimeLeftMin variables /= 1200 constants\r\nscoreboard players operation TimeLeftSec variables = timeLeft variables\r\nscoreboard players operation TimeLeftSec variables /= 20 constants\r\nscoreboard players add TimeLeftSec variables 1\r\nscoreboard players operation TimeLeftSec variables %= 60 constants\r\nexecute if score TimeLeftSec variables matches 10.. run title @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{score:{name:\"TimeLeftMin\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"},{text:\":\",color:\"#FF0000\"},{score:{name:\"TimeLeftSec\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"}]\r\nexecute unless score TimeLeftSec variables matches 10.. run title @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{score:{name:\"TimeLeftMin\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"},{text:\":0\",color:\"#FF0000\"},{score:{name:\"TimeLeftSec\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"}]\r\nexecute if score timeLeft variables matches 0 run schedule function mcp:last_timer_title 1t"
+  },
+  "functionSha256": {
+    "speed_builders": "0c260e533165dbf2fa863c948ed8aaaaa2929c1d8b07cb626eca9f8319e32162",
+    "speed_builders_start": "841fa37bc4d5829fef8aea3123e797804a6ec9d1da76c439a853d17e161d3c9c",
+    "speed_builders_tick": "d693253d9b75e057222f74d24b8669f8646b9111d0d0a7374c7ecb68489137f4",
+    "speed_builders_end": "a8be10e987776191ab8b99c49924baa4d3e60c1ae1789f6cb660408cc0ef5c4c",
+    "speed_builders_make_builds": "15ed86eed89578288765ba3775e15a5df07cd8e53712c5c99b8ddba2dd544b44",
+    "speed_builders_build_maker": "31dbea8b4e111ba41207ca63b8768358f168b648226ba9ebd1822dbadfe21fda",
+    "speed_builders_move_paint_brush": "65c4c360f5fa64677c590493b7af6efda57e6da24decd89247f3b100da173f0b",
+    "speed_builders_summon_colors": "25a2e7bf9ecafd2bb189cc205f655a7d5b5bd1b62045bedc39751f2db35214b7",
+    "speed_builders_next_build": "d420ddf98f5c2d6b28ef369e7c4752ab8468e493200fb86e7cf11a87f920e98d",
+    "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+    "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+    "assign_finish_threshold": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+    "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706"
+  },
+  "templates": [
+    {
+      "name": "speed_builders_pattern_1",
+      "origin": [
+        -343,
+        28,
+        -153
+      ],
+      "cells": 144,
+      "nonAir": 22
+    },
+    {
+      "name": "speed_builders_pattern_2",
+      "origin": [
+        -350,
+        28,
+        -153
+      ],
+      "cells": 144,
+      "nonAir": 24
+    },
+    {
+      "name": "speed_builders_pattern_3",
+      "origin": [
+        -357,
+        28,
+        -153
+      ],
+      "cells": 144,
+      "nonAir": 7
+    },
+    {
+      "name": "speed_builders_pattern_4",
+      "origin": [
+        -364,
+        28,
+        -153
+      ],
+      "cells": 144,
+      "nonAir": 24
+    },
+    {
+      "name": "speed_builders_pattern_5",
+      "origin": [
+        -371,
+        28,
+        -153
+      ],
+      "cells": 144,
+      "nonAir": 32
+    },
+    {
+      "name": "speed_builders_pattern_6",
+      "origin": [
+        -378,
+        28,
+        -153
+      ],
+      "cells": 144,
+      "nonAir": 8
+    },
+    {
+      "name": "speed_builders_pattern_7",
+      "origin": [
+        -385,
+        28,
+        -153
+      ],
+      "cells": 144,
+      "nonAir": 42
+    },
+    {
+      "name": "speed_builders_pattern_8",
+      "origin": [
+        -343,
+        28,
+        -160
+      ],
+      "cells": 144,
+      "nonAir": 28
+    },
+    {
+      "name": "speed_builders_pattern_9",
+      "origin": [
+        -350,
+        28,
+        -160
+      ],
+      "cells": 144,
+      "nonAir": 16
+    },
+    {
+      "name": "speed_builders_pattern_10",
+      "origin": [
+        -357,
+        28,
+        -160
+      ],
+      "cells": 144,
+      "nonAir": 32
+    },
+    {
+      "name": "speed_builders_pattern_11",
+      "origin": [
+        -364,
+        28,
+        -160
+      ],
+      "cells": 144,
+      "nonAir": 26
+    },
+    {
+      "name": "speed_builders_pattern_12",
+      "origin": [
+        -371,
+        28,
+        -160
+      ],
+      "cells": 144,
+      "nonAir": 12
+    },
+    {
+      "name": "speed_builders_pattern_13",
+      "origin": [
+        -378,
+        28,
+        -160
+      ],
+      "cells": 144,
+      "nonAir": 16
+    },
+    {
+      "name": "speed_builders_pattern_14",
+      "origin": [
+        -385,
+        28,
+        -160
+      ],
+      "cells": 144,
+      "nonAir": 36
+    },
+    {
+      "name": "speed_builders_pattern_15",
+      "origin": [
+        -343,
+        28,
+        -167
+      ],
+      "cells": 144,
+      "nonAir": 24
+    },
+    {
+      "name": "speed_builders_pattern_16",
+      "origin": [
+        -350,
+        28,
+        -167
+      ],
+      "cells": 144,
+      "nonAir": 12
+    },
+    {
+      "name": "speed_builders_pattern_17",
+      "origin": [
+        -357,
+        28,
+        -167
+      ],
+      "cells": 144,
+      "nonAir": 16
+    },
+    {
+      "name": "speed_builders_pattern_18",
+      "origin": [
+        -364,
+        28,
+        -167
+      ],
+      "cells": 144,
+      "nonAir": 48
+    },
+    {
+      "name": "speed_builders_pattern_19",
+      "origin": [
+        -371,
+        28,
+        -167
+      ],
+      "cells": 144,
+      "nonAir": 44
+    },
+    {
+      "name": "speed_builders_pattern_20",
+      "origin": [
+        -378,
+        28,
+        -167
+      ],
+      "cells": 144,
+      "nonAir": 40
+    },
+    {
+      "name": "speed_builders_pattern_21",
+      "origin": [
+        -385,
+        28,
+        -167
+      ],
+      "cells": 144,
+      "nonAir": 24
+    },
+    {
+      "name": "speed_builders_pattern_22",
+      "origin": [
+        -343,
+        28,
+        -174
+      ],
+      "cells": 144,
+      "nonAir": 24
+    },
+    {
+      "name": "speed_builders_pattern_23",
+      "origin": [
+        -350,
+        28,
+        -174
+      ],
+      "cells": 144,
+      "nonAir": 36
+    },
+    {
+      "name": "speed_builders_pattern_24",
+      "origin": [
+        -357,
+        28,
+        -174
+      ],
+      "cells": 144,
+      "nonAir": 16
+    },
+    {
+      "name": "speed_builders_pattern_25",
+      "origin": [
+        -364,
+        28,
+        -174
+      ],
+      "cells": 144,
+      "nonAir": 4
+    },
+    {
+      "name": "speed_builders_pattern_26",
+      "origin": [
+        -371,
+        28,
+        -174
+      ],
+      "cells": 144,
+      "nonAir": 40
+    },
+    {
+      "name": "speed_builders_pattern_27",
+      "origin": [
+        -378,
+        28,
+        -174
+      ],
+      "cells": 144,
+      "nonAir": 27
+    },
+    {
+      "name": "speed_builders_pattern_28",
+      "origin": [
+        -385,
+        28,
+        -174
+      ],
+      "cells": 144,
+      "nonAir": 20
+    }
+  ],
+  "rules": {
+    "timeLimitTicks": 3600,
+    "builds": 4,
+    "templatePool": 28,
+    "selection": "Uniform without replacement; consume the source's unused fifth template after four palettes.",
+    "palette": "Independently permute8 concrete colors for the8 plank species per build; same four models for every player.",
+    "comparison": "All144 cells including air; target is preview translatedX-8, no reflection.",
+    "tickOrder": "Due1tick reset fill, replenish native items, restore all active previews, compare all active targets, rank/finish.",
+    "rawScore": "initialPoints3; after any checkpoint: builds*N plus number of later most-recent completions; same tick ties.",
+    "finishThreshold": "N-1 whenN<=7, N-2 whenN>=8",
+    "jumpBoostAmplifier": 2,
+    "weaknessAmplifier": 255,
+    "reset": {
+      "commandRelativeMin": [
+        -7,
+        -1,
+        -10
+      ],
+      "commandRelativeMax": [
+        8,
+        6,
+        -3
+      ],
+      "buttonTicks": 30
+    },
+    "blockLoot": "Source defaults doTileDrops=false; suppress only native mined block drops in this round, without world gamerule mutation."
+  },
+  "flowerBlockers": [
+    {
+      "seat": 0,
+      "pos": [
+        -380,
+        38,
+        -175
+      ]
+    },
+    {
+      "seat": 0,
+      "pos": [
+        -380,
+        38,
+        -166
+      ]
+    },
+    {
+      "seat": 2,
+      "pos": [
+        -380,
+        38,
+        -160
+      ]
+    },
+    {
+      "seat": 2,
+      "pos": [
+        -380,
+        38,
+        -151
+      ]
+    },
+    {
+      "seat": 4,
+      "pos": [
+        -380,
+        38,
+        -145
+      ]
+    },
+    {
+      "seat": 4,
+      "pos": [
+        -380,
+        38,
+        -136
+      ]
+    },
+    {
+      "seat": 6,
+      "pos": [
+        -380,
+        38,
+        -130
+      ]
+    },
+    {
+      "seat": 6,
+      "pos": [
+        -380,
+        38,
+        -121
+      ]
+    },
+    {
+      "seat": 8,
+      "pos": [
+        -380,
+        38,
+        -115
+      ]
+    },
+    {
+      "seat": 8,
+      "pos": [
+        -380,
+        38,
+        -106
+      ]
+    },
+    {
+      "seat": 1,
+      "pos": [
+        -365,
+        38,
+        -175
+      ]
+    },
+    {
+      "seat": 1,
+      "pos": [
+        -365,
+        38,
+        -166
+      ]
+    },
+    {
+      "seat": 3,
+      "pos": [
+        -365,
+        38,
+        -160
+      ]
+    },
+    {
+      "seat": 3,
+      "pos": [
+        -365,
+        38,
+        -151
+      ]
+    },
+    {
+      "seat": 5,
+      "pos": [
+        -365,
+        38,
+        -145
+      ]
+    },
+    {
+      "seat": 5,
+      "pos": [
+        -365,
+        38,
+        -136
+      ]
+    },
+    {
+      "seat": 7,
+      "pos": [
+        -365,
+        38,
+        -130
+      ]
+    },
+    {
+      "seat": 7,
+      "pos": [
+        -365,
+        38,
+        -121
+      ]
+    },
+    {
+      "seat": 9,
+      "pos": [
+        -365,
+        38,
+        -115
+      ]
+    },
+    {
+      "seat": 9,
+      "pos": [
+        -365,
+        38,
+        -106
+      ]
+    },
+    {
+      "seat": 1,
+      "pos": [
+        -357,
+        38,
+        -175
+      ]
+    },
+    {
+      "seat": 1,
+      "pos": [
+        -357,
+        38,
+        -166
+      ]
+    },
+    {
+      "seat": 3,
+      "pos": [
+        -357,
+        38,
+        -160
+      ]
+    },
+    {
+      "seat": 3,
+      "pos": [
+        -357,
+        38,
+        -151
+      ]
+    },
+    {
+      "seat": 5,
+      "pos": [
+        -357,
+        38,
+        -145
+      ]
+    },
+    {
+      "seat": 5,
+      "pos": [
+        -357,
+        38,
+        -136
+      ]
+    },
+    {
+      "seat": 7,
+      "pos": [
+        -357,
+        38,
+        -130
+      ]
+    },
+    {
+      "seat": 7,
+      "pos": [
+        -357,
+        38,
+        -121
+      ]
+    },
+    {
+      "seat": 9,
+      "pos": [
+        -357,
+        38,
+        -115
+      ]
+    },
+    {
+      "seat": 9,
+      "pos": [
+        -357,
+        38,
+        -106
+      ]
+    },
+    {
+      "seat": 1,
+      "pos": [
+        -342,
+        38,
+        -175
+      ]
+    },
+    {
+      "seat": 1,
+      "pos": [
+        -342,
+        38,
+        -166
+      ]
+    },
+    {
+      "seat": 3,
+      "pos": [
+        -342,
+        38,
+        -160
+      ]
+    },
+    {
+      "seat": 3,
+      "pos": [
+        -342,
+        38,
+        -151
+      ]
+    },
+    {
+      "seat": 5,
+      "pos": [
+        -342,
+        38,
+        -145
+      ]
+    },
+    {
+      "seat": 5,
+      "pos": [
+        -342,
+        38,
+        -136
+      ]
+    },
+    {
+      "seat": 7,
+      "pos": [
+        -342,
+        38,
+        -130
+      ]
+    },
+    {
+      "seat": 7,
+      "pos": [
+        -342,
+        38,
+        -121
+      ]
+    },
+    {
+      "seat": 9,
+      "pos": [
+        -342,
+        38,
+        -115
+      ]
+    },
+    {
+      "seat": 9,
+      "pos": [
+        -342,
+        38,
+        -106
+      ]
+    }
+  ],
+  "resetCommands": [
+    {
+      "pos": [
+        -373,
+        35,
+        -164
+      ],
+      "source": "fill ~-7 ~-1 ~-10 ~8 ~6 ~-3 minecraft:air",
+      "sha256": "eef833219db55014b9aff6ba51f3981aa566a88ab1beda7313ff01c8a6380399"
+    },
+    {
+      "pos": [
+        -373,
+        35,
+        -149
+      ],
+      "source": "fill ~-7 ~-1 ~-10 ~8 ~6 ~-3 minecraft:air",
+      "sha256": "eef833219db55014b9aff6ba51f3981aa566a88ab1beda7313ff01c8a6380399"
+    },
+    {
+      "pos": [
+        -373,
+        35,
+        -134
+      ],
+      "source": "fill ~-7 ~-1 ~-10 ~8 ~6 ~-3 minecraft:air",
+      "sha256": "eef833219db55014b9aff6ba51f3981aa566a88ab1beda7313ff01c8a6380399"
+    },
+    {
+      "pos": [
+        -373,
+        35,
+        -119
+      ],
+      "source": "fill ~-7 ~-1 ~-10 ~8 ~6 ~-3 minecraft:air",
+      "sha256": "eef833219db55014b9aff6ba51f3981aa566a88ab1beda7313ff01c8a6380399"
+    },
+    {
+      "pos": [
+        -373,
+        35,
+        -104
+      ],
+      "source": "fill ~-7 ~-1 ~-10 ~8 ~6 ~-3 minecraft:air",
+      "sha256": "eef833219db55014b9aff6ba51f3981aa566a88ab1beda7313ff01c8a6380399"
+    },
+    {
+      "pos": [
+        -350,
+        35,
+        -164
+      ],
+      "source": "fill ~-7 ~-1 ~-10 ~8 ~6 ~-3 minecraft:air",
+      "sha256": "eef833219db55014b9aff6ba51f3981aa566a88ab1beda7313ff01c8a6380399"
+    },
+    {
+      "pos": [
+        -350,
+        35,
+        -149
+      ],
+      "source": "fill ~-7 ~-1 ~-10 ~8 ~6 ~-3 minecraft:air",
+      "sha256": "eef833219db55014b9aff6ba51f3981aa566a88ab1beda7313ff01c8a6380399"
+    },
+    {
+      "pos": [
+        -350,
+        35,
+        -134
+      ],
+      "source": "fill ~-7 ~-1 ~-10 ~8 ~6 ~-3 minecraft:air",
+      "sha256": "eef833219db55014b9aff6ba51f3981aa566a88ab1beda7313ff01c8a6380399"
+    },
+    {
+      "pos": [
+        -350,
+        35,
+        -119
+      ],
+      "source": "fill ~-7 ~-1 ~-10 ~8 ~6 ~-3 minecraft:air",
+      "sha256": "eef833219db55014b9aff6ba51f3981aa566a88ab1beda7313ff01c8a6380399"
+    },
+    {
+      "pos": [
+        -350,
+        35,
+        -104
+      ],
+      "source": "fill ~-7 ~-1 ~-10 ~8 ~6 ~-3 minecraft:air",
+      "sha256": "eef833219db55014b9aff6ba51f3981aa566a88ab1beda7313ff01c8a6380399"
+    }
+  ],
+  "signs": [
+    {
+      "pos": [
+        -372,
+        28,
+        -161
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Big Blox"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -372,
+        28,
+        -168
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Tugboat"
+        },
+        {
+          "text": "->"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -379,
+        28,
+        -161
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Column Mania"
+        },
+        {
+          "text": "->"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -379,
+        28,
+        -168
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Bow and arrow"
+        },
+        {
+          "text": "->"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -372,
+        35,
+        -166
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Reset ➝"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -372,
+        28,
+        -147
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "The Return of the Cube"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -379,
+        28,
+        -147
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "MCP2"
+        },
+        {
+          "text": "->"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -372,
+        28,
+        -154
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Sword"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -372,
+        35,
+        -151
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Reset ➝"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -372,
+        35,
+        -136
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Reset ➝"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -372,
+        35,
+        -121
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Reset ➝"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -372,
+        35,
+        -106
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Reset ➝"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -358,
+        28,
+        -161
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Prismology"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -365,
+        28,
+        -168
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Nonaim"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -365,
+        28,
+        -161
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "A-Maze-in'"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -358,
+        28,
+        -168
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Diagonal Line"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -365,
+        28,
+        -154
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Halo"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -358,
+        28,
+        -147
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Snake 2.0"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -365,
+        28,
+        -147
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Tini Home"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -358,
+        28,
+        -154
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Beach Day"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -351,
+        28,
+        -168
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Our Lord And Savior"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -337,
+        28,
+        -168
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Adorabowl"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -344,
+        28,
+        -161
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Canvas"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -349,
+        35,
+        -166
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Reset ➝"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -351,
+        28,
+        -161
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Stairway To The Aether"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -344,
+        28,
+        -168
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Hoops"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -337,
+        28,
+        -161
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "The Bridge"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -337,
+        28,
+        -154
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Round The Post"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -344,
+        28,
+        -147
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "The X and The O"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -349,
+        35,
+        -151
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Reset ➝"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -351,
+        28,
+        -154
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Devin"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -337,
+        28,
+        -147
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Amoguy"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -344,
+        28,
+        -154
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Scattered 'Bout"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -351,
+        28,
+        -147
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "?"
+        },
+        {
+          "text": "→"
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -349,
+        35,
+        -136
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Reset ➝"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -349,
+        35,
+        -121
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Reset ➝"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        -349,
+        35,
+        -106
+      ],
+      "front": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Reset ➝"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "frontColor": "black",
+      "frontGlowing": false,
+      "back": [
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": ""
+        }
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    }
+  ],
+  "banners": [
+    {
+      "pos": [
+        -386,
+        39,
+        -162
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -163
+      ],
+      "patterns": [
+        {
+          "color": "yellow",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -161
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -164
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -165
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -154
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -155
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -153
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -158
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -156
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -157
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "pos": [
+        -386,
+        39,
+        -160
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "yellow",
+          "pattern": "minecraft:border"
+        }
+      ]
+    }
+  ],
+  "sourceCorrections": [
+    "Player5/build2 unless-blocks has wrongZmax-148; restore the correct144 preview cells, preserving its effective visible result.",
+    "Source drop cleanup names netherite_pickaxe although golden_pickaxe is supplied; remove owned round items reliably.",
+    "Source switches finishers to spectator before adventure-only clear; clear their owned inventory at finish."
+  ],
+  "adaptations": [
+    "Source selectors/scoreboards/gamerules and commands are data only; native gameplay is scoped to this round's players/geometry/entities.",
+    "Native oak button controls sound and30tick powered state; interpret audited fill one tick after an accepted rising-edge click.",
+    "Preserve native Adventure CAN_BREAK/CAN_PLACE_ON, real mining/placement and preview editing; onPlaced tracks initial-air positions for cleanup.",
+    "Rebuild37 safe signs and12 banner pattern lists from display-only data; no click/hover/NBT commands imported.",
+    "Compact active players into source seats0..9; same-tick completion preserves tied checkpoint rank."
+  ],
+  "geometry": {
+    "speed_builders_arena": {
+      "bounds": {
+        "min": [
+          -389,
+          27,
+          -180
+        ],
+        "max": [
+          -337,
+          54,
+          -100
+        ]
+      },
+      "nonAir": 26511,
+      "replacements": {},
+      "omitted": {
+        "minecraft:command_block": 10
+      },
+      "omittedBlockEntityNbt": {
+        "minecraft:banner": 12,
+        "minecraft:bell": 40,
+        "minecraft:sign": 37,
+        "minecraft:command_block": 10
+      }
+    },
+    "speed_builders_pattern_1": {
+      "bounds": {
+        "min": [
+          -343,
+          28,
+          -153
+        ],
+        "max": [
+          -338,
+          31,
+          -148
+        ]
+      },
+      "nonAir": 22,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_2": {
+      "bounds": {
+        "min": [
+          -350,
+          28,
+          -153
+        ],
+        "max": [
+          -345,
+          31,
+          -148
+        ]
+      },
+      "nonAir": 24,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_3": {
+      "bounds": {
+        "min": [
+          -357,
+          28,
+          -153
+        ],
+        "max": [
+          -352,
+          31,
+          -148
+        ]
+      },
+      "nonAir": 7,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_4": {
+      "bounds": {
+        "min": [
+          -364,
+          28,
+          -153
+        ],
+        "max": [
+          -359,
+          31,
+          -148
+        ]
+      },
+      "nonAir": 24,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_5": {
+      "bounds": {
+        "min": [
+          -371,
+          28,
+          -153
+        ],
+        "max": [
+          -366,
+          31,
+          -148
+        ]
+      },
+      "nonAir": 32,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_6": {
+      "bounds": {
+        "min": [
+          -378,
+          28,
+          -153
+        ],
+        "max": [
+          -373,
+          31,
+          -148
+        ]
+      },
+      "nonAir": 8,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_7": {
+      "bounds": {
+        "min": [
+          -385,
+          28,
+          -153
+        ],
+        "max": [
+          -380,
+          31,
+          -148
+        ]
+      },
+      "nonAir": 42,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_8": {
+      "bounds": {
+        "min": [
+          -343,
+          28,
+          -160
+        ],
+        "max": [
+          -338,
+          31,
+          -155
+        ]
+      },
+      "nonAir": 28,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_9": {
+      "bounds": {
+        "min": [
+          -350,
+          28,
+          -160
+        ],
+        "max": [
+          -345,
+          31,
+          -155
+        ]
+      },
+      "nonAir": 16,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_10": {
+      "bounds": {
+        "min": [
+          -357,
+          28,
+          -160
+        ],
+        "max": [
+          -352,
+          31,
+          -155
+        ]
+      },
+      "nonAir": 32,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_11": {
+      "bounds": {
+        "min": [
+          -364,
+          28,
+          -160
+        ],
+        "max": [
+          -359,
+          31,
+          -155
+        ]
+      },
+      "nonAir": 26,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_12": {
+      "bounds": {
+        "min": [
+          -371,
+          28,
+          -160
+        ],
+        "max": [
+          -366,
+          31,
+          -155
+        ]
+      },
+      "nonAir": 12,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_13": {
+      "bounds": {
+        "min": [
+          -378,
+          28,
+          -160
+        ],
+        "max": [
+          -373,
+          31,
+          -155
+        ]
+      },
+      "nonAir": 16,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_14": {
+      "bounds": {
+        "min": [
+          -385,
+          28,
+          -160
+        ],
+        "max": [
+          -380,
+          31,
+          -155
+        ]
+      },
+      "nonAir": 36,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_15": {
+      "bounds": {
+        "min": [
+          -343,
+          28,
+          -167
+        ],
+        "max": [
+          -338,
+          31,
+          -162
+        ]
+      },
+      "nonAir": 24,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_16": {
+      "bounds": {
+        "min": [
+          -350,
+          28,
+          -167
+        ],
+        "max": [
+          -345,
+          31,
+          -162
+        ]
+      },
+      "nonAir": 12,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_17": {
+      "bounds": {
+        "min": [
+          -357,
+          28,
+          -167
+        ],
+        "max": [
+          -352,
+          31,
+          -162
+        ]
+      },
+      "nonAir": 16,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_18": {
+      "bounds": {
+        "min": [
+          -364,
+          28,
+          -167
+        ],
+        "max": [
+          -359,
+          31,
+          -162
+        ]
+      },
+      "nonAir": 48,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_19": {
+      "bounds": {
+        "min": [
+          -371,
+          28,
+          -167
+        ],
+        "max": [
+          -366,
+          31,
+          -162
+        ]
+      },
+      "nonAir": 44,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_20": {
+      "bounds": {
+        "min": [
+          -378,
+          28,
+          -167
+        ],
+        "max": [
+          -373,
+          31,
+          -162
+        ]
+      },
+      "nonAir": 40,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_21": {
+      "bounds": {
+        "min": [
+          -385,
+          28,
+          -167
+        ],
+        "max": [
+          -380,
+          31,
+          -162
+        ]
+      },
+      "nonAir": 24,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_22": {
+      "bounds": {
+        "min": [
+          -343,
+          28,
+          -174
+        ],
+        "max": [
+          -338,
+          31,
+          -169
+        ]
+      },
+      "nonAir": 24,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_23": {
+      "bounds": {
+        "min": [
+          -350,
+          28,
+          -174
+        ],
+        "max": [
+          -345,
+          31,
+          -169
+        ]
+      },
+      "nonAir": 36,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_24": {
+      "bounds": {
+        "min": [
+          -357,
+          28,
+          -174
+        ],
+        "max": [
+          -352,
+          31,
+          -169
+        ]
+      },
+      "nonAir": 16,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_25": {
+      "bounds": {
+        "min": [
+          -364,
+          28,
+          -174
+        ],
+        "max": [
+          -359,
+          31,
+          -169
+        ]
+      },
+      "nonAir": 4,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_26": {
+      "bounds": {
+        "min": [
+          -371,
+          28,
+          -174
+        ],
+        "max": [
+          -366,
+          31,
+          -169
+        ]
+      },
+      "nonAir": 40,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_27": {
+      "bounds": {
+        "min": [
+          -378,
+          28,
+          -174
+        ],
+        "max": [
+          -373,
+          31,
+          -169
+        ]
+      },
+      "nonAir": 27,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "speed_builders_pattern_28": {
+      "bounds": {
+        "min": [
+          -385,
+          28,
+          -174
+        ],
+        "max": [
+          -380,
+          31,
+          -169
+        ]
+      },
+      "nonAir": 20,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    }
+  }
+}

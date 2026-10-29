@@ -93,6 +93,20 @@ public enum PartyMinigame {
             "驾驶自己的亡灵马穿过随机下界要塞赛道，按空格蓄力跳过障碍。",
             "经过金块保存检查点，右键或丢出回位旗返回检查点，完成两圈。",
             "按路线限时进行，按检查点进度与取得进度的先后排名。"
+    }),
+    SPEED_BUILDERS(417, "速建专家 Speed Builders", Items.GOLDEN_PICKAXE, new String[] {
+            "对照旁边的彩色模型，在建造区按原方向完整复制。",
+            "四幅模型随机且不重复，每幅颜色独立随机；金镐可拆除混凝土。",
+            "按钮清空并重试当前模型，限时三分钟，按完成数量和进度先后排名。"
+    }),
+    STEVE_SAYS(418, "史蒂夫说 Steve Says", Items.APPLE, new String[] {
+            "听清史蒂夫的指令，只有带有正确前缀的指令才应执行。",
+            "在教室完成跳跃、蹲下、调音、切换道具等随机动作。",
+            "完成二十二条指令后，按累计得分排名。"
+    }),
+    POWER_TOWERS(419, "速度之巅 Power Towers", Items.NOTE_BLOCK, new String[] {
+            "面向自己的音符盒连续右键调音，十秒内尽量升高彩色塔。",
+            "倒计时结束后拆塔，按真实落下的彩色方块计分。"
     });
 
     private final int sourceId;

@@ -109,14 +109,14 @@
 | 阶段 | 内容 | 当前状态 |
 |---|---|---|
 | 1：Quick Play 基础 | Spleef、Tile Capture、红灯绿灯，以及投票、独立场地、排名结算 | 已实现 |
-| 2：补齐小游戏 | 已增加 Dropper、Meat Slap、Rainbow Run、Runner、Memory Lane、One Shot Wonder、Cave Parkour、Platforms、Whack-A-Mob、Monster Shoot、Raft Racers、Knockout、Hoopin’ n’ Swoopin’、Weapon Devolution、Tedious Tasks、Horse Race；其余 83 项待后续移植 | 进行中（19/102） |
+| 2：补齐小游戏 | 已增加 Dropper、Meat Slap、Rainbow Run、Runner、Memory Lane、One Shot Wonder、Cave Parkour、Platforms、Whack-A-Mob、Monster Shoot、Raft Racers、Knockout、Hoopin’ n’ Swoopin’、Weapon Devolution、Tedious Tasks、Horse Race、Speed Builders、Steve Says、Power Towers；其余 80 项待后续移植 | 进行中（22/102） |
 | 3：棋盘核心 | 原版棋盘与路径、回合和骰子、金币与星星、商店、道具与陷阱、格子事件 | 待移植 |
 | 4：完整玩法模式 | Turn Mode、Star Race、Grand Prix、Doubles、Mega Party、Mini Party，以及对应胜负与奖励流程 | 待移植 |
 | 5：表现与细节 | 原资源包视听效果、装饰实体与方块实体数据、成就及其余原版细节 | 待移植 |
 
-**原图几何保留范围**：随 Mod 打包 **45 份场景与模板**：前 33 份保持逐字节不变，本批新增武器降级竞技场及四塔、繁琐任务场景及五份任务模板、完整赛马要塞，共 12 份。保留裁剪区域内的方块及状态，按对局平移加载；Dropper 使用原起台、16 层彩环模板和水池，按原规则随机生成高塔，Runner 按人数选用两种双层木板模板。洞穴保留 1,031,051 个方块及内部实心岩层，随机路线按原命令链的顺序执行原生方块操作。几何提取脚本为 `tools/extract_party_geometry.py`；`tools/extract_party_phase3_rules.py` 从原命令方块读取分支与平台生成规则并记录源哈希，生成可审计的数据；`tools/extract_party_mob_rules.py` 记录怪物权重、出生位置、房间复制和计分时序。`tools/extract_party_raft_rules.py`、`tools/extract_party_knockout.py` 和 `tools/extract_party_sky_fly.py` 分别提取三项新增玩法的原图、随机生成操作与源函数哈希。资源位于 `src/main/resources/pvp/party/`，玩法由服务端 Java 实现，原命令方块与数据包命令不随场景执行。
+**原图几何保留范围**：随 Mod 打包 **78 份场景与模板**：前 45 份保持逐字节不变，本批新增速建场景及 28 幅模板、史蒂夫课堂、速度之巅场景及两份座位模板，共 33 份。保留裁剪区域内的方块及状态，按对局平移加载；Dropper 使用原起台、16 层彩环模板和水池，按原规则随机生成高塔，Runner 按人数选用两种双层木板模板。洞穴保留 1,031,051 个方块及内部实心岩层，随机路线按原命令链的顺序执行原生方块操作。几何提取脚本为 `tools/extract_party_geometry.py`；`tools/extract_party_phase3_rules.py` 从原命令方块读取分支与平台生成规则并记录源哈希，生成可审计的数据；`tools/extract_party_mob_rules.py` 记录怪物权重、出生位置、房间复制和计分时序。`tools/extract_party_raft_rules.py`、`tools/extract_party_knockout.py` 和 `tools/extract_party_sky_fly.py` 分别提取三项新增玩法的原图、随机生成操作与源函数哈希。资源位于 `src/main/resources/pvp/party/`，玩法由服务端 Java 实现，原命令方块与数据包命令不随场景执行。
 
-**当前缺失与差异**：裁剪区域外的建筑、原资源包纹理与音效、装饰实体、木桶物品及营火数据等方块实体 NBT 尚未复现；红灯绿灯中的头颅保留方块但缺少原自定义皮肤。Tile Capture 中 9 个新版本装饰植物替换为 1.21.1 可用方块，替换记录保存在资源元数据中。同一 tick 到达或淘汰的玩家按并列处理。裁剪场景中的装饰水与熔岩保持静态，防止从截断边缘流出；此限制仅在 Party 场地区域生效。
+**当前缺失与差异**：裁剪区域外的建筑、原资源包纹理与音效、装饰实体、木桶物品及营火数据等方块实体 NBT 尚未完整复现；红灯绿灯中的头颅保留方块但缺少原自定义皮肤。Tile Capture 中 9 个新版本装饰植物替换为 1.21.1 可用方块，替换记录保存在资源元数据中。同一 tick 到达或淘汰的玩家按并列处理。裁剪场景中的装饰水与熔岩保持静态，防止从截断边缘流出；此限制仅在 Party 场地区域生效。
 
 洞穴中的 28 个、打地鼠房间中的 20 个 `iron_chain` 使用 1.21.1 的同种方块名 `chain`，保留朝向与含水状态；上一批 11 份资源没有新增替换。原装饰 NBT 仍未完整复现：Memory Lane 缺少 10 面旗帜图案及 20 块原标牌文本，Meat Slap 缺少 8 面旗帜图案、12 块标牌文本和 4 处营火数据。洞穴的 64 块箭头指路标牌及 14 块克隆源标牌提取为纯文本，由 Java 按随机路线恢复；平台末两次选择所需的 12 块标牌由 Java 重建文本和交互。当前不提供原版难度选择，使用普通难度及多人时限；Runner 使用常规 10 tick 停步检查，尚未移植原包的高延迟 20 tick 选项。玩家断线或主动退赛按本服弃权处理，从尚未公布的排名中移除，对局继续；不足两人时结束，公布后的成绩保持不变。原包部分结算会等待所有玩家重新上线，本服不采用该等待流程；Meat Slap 持肉者退赛时由剩余玩家接棒。
 
@@ -125,6 +125,8 @@
 筏艇原图为 **313×71×383 格**，沿用四条现行末地路线；旧六条主世界路线仅记录源哈希。竞技场间距扩大至 512 格、Party 场地半径 200 格，等候台移至区域角落，完整保留赛道且避免跨场清理；其他玩法地图尺寸保持原值。1.21.1 竹筏须让玩家坐第一座、隐形兔子第二座才能原生操控，并处理旧版本船摔碎与原第十座召回物品不一致的兼容问题。滑翔场景按原 fill/clone 数据重建，保留 36 环的所有转角、模板切换和随机偏移范围，环模板的空气也会覆盖墙面；新增模板中的铁链使用同状态 `chain`。擂台上层六个装饰头颅资料、筏艇一面装饰旗帜图案尚未恢复。
 
 武器降级使用当前 `weapon_devolution` 入口，保留五阶段现代战斗及门栏逐层开放；原包遗留的 `gladiators` 旧入口不代替此玩法。激光使用速度 10 和伤害系数 1.25 的原生箭，锐利雪球绑定自己的一支原生穿透箭，按 UUID 配对以避免多人并发串线。繁琐任务修正原 P1 检查点误指 P2 和不存在的回血函数调用；原本未建立的 `taskplayer` 奖励不虚构分数。珍珠在移植模式内保留原版 20 tick 冷却与 5 点落点伤害；任务合成只对本场生效，不改世界 `doLimitedCrafting`。赛马完整保留 **178×97×183 格、2,241,582 方块**的自然场景和全部三路检查点，包含路线一的备用检查点及源 Y0 起的原始基岩/碎石支撑，避免切断重力柱使导航牌坠落；1.21.1 未着火时的负 `Fire` 冷却不触发回位。赛马的 86 块静态标牌及三条路线克隆后的导航箭头已恢复安全正反面文本、颜色、发光与蜡化；归属牌替换为本场玩家纯文字，剥离选择器和点击命令。5 个箱子与 4 个头颅的原方块实体数据仍未恢复。新提取工具为 `extract_party_weapon_devolution.py`、`extract_party_tedious.py`、`extract_party_horse_race.py`，均记录完整源函数哈希与兼容差异。
+
+速建专家保留 28 幅 6×4×6 原模板、每幅独立随机配色、冒险模式真实混凝土搭建/金镐采掘与包含空气的整幅比较，按钮沿用原生 30 tick 按压和下一 tick 清空。史蒂夫说保留 11 动作各洗牌两次的 22 条指令、真假前缀与原判分细节，恢复完整课堂及 79 面旗帜；主持人使用仅向本场玩家发送的 1.21.1 原生玩家实体数据包，生命周期不进入在线玩家统计，尚未完成渲染客户端画面检查。速度之巅沿用 10 秒原生音符盒调音、每 tick 1～7 次增量规则及真实落块计分，包含完整末地远景、原零点击基线和最多两块补偿。默认方块掉落关闭、繁琐任务打开的原规则现已按 Party 所属区域覆盖原生物品及经验掉落，不改共享世界规则；新放置方块也登记赛后清理。三项新工具分别为 `extract_party_speed_builders.py`、`extract_party_steve_says.py`、`extract_party_power_towers.py`，原命令仅作审计数据。
 
 ### 海岛攻防 (Island Siege)
 

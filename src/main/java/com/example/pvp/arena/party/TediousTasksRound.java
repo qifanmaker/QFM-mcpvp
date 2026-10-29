@@ -371,6 +371,7 @@ public final class TediousTasksRound implements PartyRound {
     @Override public boolean playerCombatEnabled() { return this.started && !this.closed; }
     @Override public boolean allowsNaturalRegeneration() { return false; }
     @Override public boolean allowsUndiscoveredRecipes() { return true; }
+    @Override public boolean allowsBlockDrops() { return true; }
     @Override public boolean allowsDamage(PartyRoundContext context,LivingEntity victim,DamageSource source) {
         if (!(victim instanceof ServerPlayerEntity player) || !this.active(context,player)) return false;
         TaskPlayer state=this.tasks.get(player.getUuid());

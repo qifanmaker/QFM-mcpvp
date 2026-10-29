@@ -41,6 +41,17 @@ public final class PortedGameEvents {
         return isPorted(matchOf(entity));
     }
 
+    /** null 沿用原世界规则；只有 Party 所属区域的原生方块掉落使用当前回合规则。 */
+    public static Boolean blockDropOverride(World world, BlockPos pos) {
+        if (PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return null;
+        for (Match match : PvPMod.MATCH.getMatches()) {
+            if (match.ownsPortedPosition(pos) && match.portedSession() instanceof MinecraftPartySession session) {
+                return session.allowsBlockDrops();
+            }
+        }
+        return null;
+    }
+
     /** 其他场次的玩家也不能进入移植区域拆图或使用容器。 */
     public static boolean canAccessPosition(Entity player, World world, BlockPos pos) {
         var training = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();

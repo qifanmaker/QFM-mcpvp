@@ -11,7 +11,7 @@
       "assets/minecraft/lang/zh_cn.json"
     ]
   },
-  "scope": "Native port with 19 of 102 catalogued games implemented. Migration continues in source-audited batches; the server runs a five-minigame ranked series. Remaining 83 games, boards and original Party modes are not implemented.",
+  "scope": "Native port with 22 of 102 catalogued games implemented. Migration continues in source-audited batches; the server runs a five-minigame ranked series. Remaining 80 games, boards and original Party modes are not implemented.",
   "entryCount": 102,
   "implementedGameIds": [
     401,
@@ -30,6 +30,9 @@
     414,
     415,
     416,
+    417,
+    418,
+    419,
     424,
     425,
     428
@@ -79,7 +82,7 @@
     {
       "name": "Remaining minigames",
       "status": "in_progress",
-      "remainingCount": 83
+      "remainingCount": 80
     },
     {
       "name": "Custom resource-pack audiovisuals",
@@ -98,14 +101,14 @@
       "status": "planned"
     },
     {
-      "name": "Scoped block-drop rules outside Tedious Tasks",
-      "status": "planned"
+      "name": "Scoped native block-drop rules",
+      "status": "implemented"
     }
   ],
   "knownDifferences": [
     "Difficulty selection is not exposed. Normal difficulty is used where source difficulty branches apply: Dropper ring spacing 10+2*min(level,5), red-light reaction window 19 ticks; multiplayer time limits are used.",
     "Same-tick finishes or falls are tied rather than resolved by selector order.",
-    "Scene extraction excludes entities and block-entity NBT; original decorative barrel inventories, custom skull textures, banner patterns and campfire contents are not reproduced. Functional Cave Parkour/Platforms/Horse Race sign text is restored separately as safe text; decorative sign data remains incomplete.",
+    "Scene extraction itself excludes entities and block-entity NBT. Some modules separately restore safe literal sign text and banner patterns; remaining decorative barrel inventories, custom skull textures, campfire contents and other original decorative NBT are still incomplete.",
     "Nine newer decorative plants in Tile Capture medium are replaced by 1.21.1 counterparts; resource metadata records exact replacements. The 11 phase-2 crops require no additional block substitutions.",
     "Decorative water and lava remain static inside Party scenes to prevent cropped channels from flowing into other arenas.",
     "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
@@ -115,7 +118,7 @@
     "Cave Parkour retains the complete 1,031,051-block cave terrain, 39 checkpoint anchors and a linked random route graph with 22 branches across 11 nodes. Its 28 iron_chain blocks use the 1.21.1 chain name with the same axis and waterlogged properties.",
     "Whack-A-Mob and Monster Shoot use scoped native target subclasses to retain targets on a Peaceful host and suppress original-map-disabled loot and XP, without changing shared-world difficulty, gamerules or ordinary mobs. Scoped explosion and silverfish protections reproduce the original mobGriefing=false behavior.",
     "Native PvP collision is selected per Party round: noncombat games keep the original pvp=false arrow pass-through, while Meat Slap, One Shot Wonder, Knockout, Weapon Devolution and Tedious Tasks retain player combat. This does not change the shared server PvP setting.",
-    "End/Nether scenes are rebased into the shared arena dimension. Original dimension atmosphere remains pending. Per-round tile-drop suppression from scoreboard_data/end_minigame remains to be scoped outside Tedious Tasks; the task game preserves native harvest drops."
+    "End/Nether scenes are rebased into the shared arena dimension. Original dimension atmosphere remains pending. Source tile-drop rules are scoped to each Party region, including native items and XP: disabled by default and enabled for Tedious Tasks, without modifying the shared world gamerule."
   ],
   "games": [
     {
@@ -968,24 +971,131 @@
       "name": "Speed Builders (SB)",
       "category": "free_for_all",
       "sourceFunction": "speed_builders",
-      "status": "planned",
-      "nameZhSource": "速建专家"
+      "status": "implemented_phase_2",
+      "nameZhSource": "速建专家",
+      "implementationBatch": 7,
+      "geometryResources": [
+        "speed_builders_arena",
+        "speed_builders_pattern_1",
+        "speed_builders_pattern_2",
+        "speed_builders_pattern_3",
+        "speed_builders_pattern_4",
+        "speed_builders_pattern_5",
+        "speed_builders_pattern_6",
+        "speed_builders_pattern_7",
+        "speed_builders_pattern_8",
+        "speed_builders_pattern_9",
+        "speed_builders_pattern_10",
+        "speed_builders_pattern_11",
+        "speed_builders_pattern_12",
+        "speed_builders_pattern_13",
+        "speed_builders_pattern_14",
+        "speed_builders_pattern_15",
+        "speed_builders_pattern_16",
+        "speed_builders_pattern_17",
+        "speed_builders_pattern_18",
+        "speed_builders_pattern_19",
+        "speed_builders_pattern_20",
+        "speed_builders_pattern_21",
+        "speed_builders_pattern_22",
+        "speed_builders_pattern_23",
+        "speed_builders_pattern_24",
+        "speed_builders_pattern_25",
+        "speed_builders_pattern_26",
+        "speed_builders_pattern_27",
+        "speed_builders_pattern_28"
+      ],
+      "implementationNotes": [
+        "Four distinct builds sampled from28 original six-by-four-by-six patterns with independently shuffled eight-color palettes. Native adventure can_place_on/can_break components, golden-pickaxe mining and per-tick real supplies preserve editing both preview and target. Preview restore precedes complete144-cell air-inclusive comparisons;3600ticks and source progress ordering are retained.",
+        "Ten original oak reset buttons keep native30tick power, sound and main-hand/sneaking restrictions. A successful rising edge queues the original fill one tick later, clearing preview and target before preview restore.40 original FlowerBlocker summons retain per-seat conditions; the older50-entity audit count was incorrect.",
+        "The full source scene retains26511 non-command blocks,37 safe literal signs and12 banner patterns. Command blocks are data-only witnesses, never executable. At eight or more players the original finish threshold is N-2; otherwise N-1."
+      ],
+      "sourceAuditResource": "speed_builders_rules.json",
+      "sourceFunctionSha256": {
+        "speed_builders": "0c260e533165dbf2fa863c948ed8aaaaa2929c1d8b07cb626eca9f8319e32162",
+        "speed_builders_start": "841fa37bc4d5829fef8aea3123e797804a6ec9d1da76c439a853d17e161d3c9c",
+        "speed_builders_tick": "d693253d9b75e057222f74d24b8669f8646b9111d0d0a7374c7ecb68489137f4",
+        "speed_builders_end": "a8be10e987776191ab8b99c49924baa4d3e60c1ae1789f6cb660408cc0ef5c4c",
+        "speed_builders_make_builds": "15ed86eed89578288765ba3775e15a5df07cd8e53712c5c99b8ddba2dd544b44",
+        "speed_builders_build_maker": "31dbea8b4e111ba41207ca63b8768358f168b648226ba9ebd1822dbadfe21fda",
+        "speed_builders_move_paint_brush": "65c4c360f5fa64677c590493b7af6efda57e6da24decd89247f3b100da173f0b",
+        "speed_builders_summon_colors": "25a2e7bf9ecafd2bb189cc205f655a7d5b5bd1b62045bedc39751f2db35214b7",
+        "speed_builders_next_build": "d420ddf98f5c2d6b28ef369e7c4752ab8468e493200fb86e7cf11a87f920e98d",
+        "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "assign_finish_threshold": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706"
+      }
     },
     {
       "id": 418,
       "name": "Steve Says (SS)",
       "category": "free_for_all",
       "sourceFunction": "steve_says",
-      "status": "planned",
-      "nameZhSource": "史蒂夫说——"
+      "status": "implemented_phase_2",
+      "nameZhSource": "史蒂夫说——",
+      "implementationBatch": 7,
+      "geometryResources": [
+        "steve_says"
+      ],
+      "implementationNotes": [
+        "Eleven original actions are independently shuffled twice for22 instructions, preserving valid/fake weighting and the extra wrong-item type only on action12. Real jump/sneak/tune statistics, sign opens, drops, player position/rotation and sixteen native interaction desks drive deadline scoring and elimination.",
+        "The full4547-block classroom and79 original banner payloads are retained. A match-scoped packet PLAYER presents the original visible Steve host with native book/apple equipment; the1.21.1 default wide-Steve UUID is selected without adding a real online player or fetching external skins. Client-list/spawn/equipment/removal packets are independently validated; headless tests do not prove rendered pixels.",
+        "Original surprising rules are retained: ignoring most fake instructions earns3points; fake stay-still requires movement, tiny displacement can earn0without elimination, and the stone action can award points before its later wrong-drop elimination. Tables consume clicks rather than opening the wooden trapdoors. All host/entity/team/player-state cleanup is scoped."
+      ],
+      "sourceAuditResource": "steve_says_rules.json",
+      "sourceFunctionSha256": {
+        "endss": "6b48b8f46f337406ca11b04f317fbbb69a80406ab4adcb4a0b37cf94d0774a0b",
+        "ssarmorputon": "8cd8a3009f008f67334ac2934b011b886d080e47b5ac72a00254e4c045202b6e",
+        "ssclickchat": "40b24af94e40a14fb112510c6c64982fb8523b4bf875701c89ef5b87be2e5c6e",
+        "ssendceiling": "b12b573ce3d08ce1d0e03fa18efe1cf5591245338f253b2f2df51aa31fa982ed",
+        "ssendclickchat": "85388def2ccba2c7a2e10375eab3666295286c39e68e9656461b88e867fe4ecf",
+        "ssendcrouch": "514711f9e71068882e1c5fec68f5ba9ad3676ae87fbfccd0164b389d9130c93d",
+        "ssenddesk": "64fe58c6dcce38ecd7e8e813b52dbd6b670b8883c4e114f5e78e8510515a22d4",
+        "ssenddrop": "63212aa25b5c8e85915c07cdee1896d8cb40b5ea6794d67c4ad7ae47701672be",
+        "ssenddropconcrete": "c9908c206304c9417387a0d01e40170b9b925fcfd069e56e34f5a6d2dfe79950",
+        "ssendjump": "f662dc3332cf4c0982c828aca2a8751f08807dc023c9fd80835e85698c82a354",
+        "ssendnoteblocks": "8fc57f2664ee91c46c0cadc2e2a9dcf874d0552cdd98f3a381d11be65f3ee611",
+        "ssendpunch": "5a176d6516e10cc40707f1b339493e87c4cc0e30313a07277283a6835afe3215",
+        "ssendstaystill": "ef24e7d4cb41383b7fabd5353953de06d60b3060e4ad2ae1599a31372bc0c04c",
+        "ssnexttask": "94c1ff0ca3f22a8d72f3a02d3adee7cb0099b0b39ff1db7f46bb62cf2d50445b",
+        "ssnexttask2": "8e2a45a18836aab92b7129d0f65a965c69eefc96242405cb39fbf2e73ccc1276",
+        "steve_says": "a8a6fb08c80c5c94b98a0327dbbfd962dd8fe7625b8cb169134a9dc1e878b144",
+        "steve_says_rules": "a951399fd99a2fdc8cf0a68ac670721fc944ff75d6fea746bdaf644c981ba3db",
+        "steve_says_start": "699d05a742b897b3679ea9377f739ef1fd9c9a11c6026589186d8e9ccbe50ce0",
+        "steve_says_tick": "3bf853efa12bd2fd02e86b0d8e2dd320483410ffee0de43691e6d92ed0423ff1"
+      }
     },
     {
       "id": 419,
       "name": "Power Towers (PT)",
       "category": "free_for_all",
       "sourceFunction": "power_towers",
-      "status": "planned",
-      "nameZhSource": "速度之巅"
+      "status": "implemented_phase_2",
+      "nameZhSource": "速度之巅",
+      "implementationBatch": 7,
+      "geometryResources": [
+        "power_towers",
+        "power_towers_east",
+        "power_towers_west"
+      ],
+      "implementationNotes": [
+        "Ten seconds of native tune_noteblock statistics move original colored-powder tower markers only for per-tick deltas1..7. A delta greater than7 updates the previous counter but moves no marker; it is not clamped. Seats, eight-player outer remap, zero-click baseline and original source End height rejection are preserved.",
+        "Score comes from actual scoped native falling-block entities passing the original height threshold, plus the source min(total tuning, 2) compensation. A click-total shortcut would count rejected growth and is deliberately not used. Native falling physics and tripwire destruction are retained with per-entity dropItem=false; no shared game rule is changed.",
+        "The complete258-by243-by229 source End scene contains68871 nonair blocks, including distant scenery, plus two complete4-by3-by3 seat templates. End markers are removed before the dependent barrier commands exactly as in the source. The empty-falling counter accumulates15ticks before final scoring and does not reset."
+      ],
+      "sourceAuditResource": "power_towers_rules.json",
+      "sourceFunctionSha256": {
+        "power_towers": "f91dd1ae7cd3a140a31b211cda0822f6872e73f896ed9dbb9142e825a4068f9a",
+        "power_towers_start": "d1ab9bec467122f87d908ba186d8f8cae8c0b6f7ff641e046b7c4fa0bb338927",
+        "power_towers_tick": "59fe08842504e52956ffb026bdfc9781273de116a76248f77ac9aa4526a3a5f3",
+        "power_towers_end": "2f729b910c2625e214ae3673469fc857dae8dfaa9a0d0b208b76a1b122eee887",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+        "minigame_points_ranking": "694f723546973a88f3b6d617525719872f02eb3ce1faeca0b975d19753e5d78a",
+        "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+        "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+        "last_timer_title": "2c967d524c537de08bf4ceab74493197d214295ccc7589c0af1b20ac2af191fa"
+      }
     },
     {
       "id": 420,
@@ -1353,9 +1463,9 @@
     }
   ],
   "progress": {
-    "implementedGames": 19,
-    "remainingGames": 83,
-    "geometryResources": 45,
+    "implementedGames": 22,
+    "remainingGames": 80,
+    "geometryResources": 78,
     "phase2": "in_progress"
   },
   "tournamentRules": {
