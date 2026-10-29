@@ -40,14 +40,17 @@ OMIT_BLOCKS = {
     "minecraft:repeating_command_block", "minecraft:structure_block",
     "minecraft:jigsaw",
 }
-# Only Tile Capture's medium crop contains newer decorative plants. Retain the
-# original collision role as closely as 1.21.1 permits; every replaced block is
-# counted in the resource metadata so these nine approximations stay visible.
+# Explicit compatibility substitutions. Retain collision properties wherever
+# possible and count every replaced block in metadata. Tile Capture's newer
+# decorative plants are approximations; the iron-chain entry is only a rename.
 REPLACEMENTS: dict[str, str] = {
     "minecraft:wildflowers": "minecraft:pink_petals",
     "minecraft:firefly_bush": "minecraft:fern",
     "minecraft:pale_moss_carpet": "minecraft:moss_carpet",
     "minecraft:pale_hanging_moss": "minecraft:hanging_roots",
+    # 1.21.9 renamed the original chain when copper chains were introduced.
+    # This is the same collision/appearance block and retains all properties.
+    "minecraft:iron_chain": "minecraft:chain",
 }
 
 
@@ -278,6 +281,47 @@ def next_stage_specifications():
     }
 
 
+def third_stage_specifications():
+    # Why: Cave Parkour chooses paths through command-block mutations and
+    # Platforms constructs gem markers outside its playfield. Preserve their
+    # complete collision geometry separately from the native Java rules. The
+    # cave retains buried stone too; a surface approximation could reveal void
+    # when an original branch removes a wall or a checkpoint resets a player.
+    return {
+        "cave_parkour": {
+            "min": (125, -24, -290), "max": (270, 24, -125),
+            "functions": ["parkour", "parkour_randomize_path", "parkour_randomize_path2",
+                          "parkour_randomize_path3", "parkour_start", "parkour_tick", "end_parkour"],
+            "notes": ["Complete cave terrain crop, including all 39 checkpoint anchors, start, finish, lava and branch destinations.",
+                      "Keeps the original solid interior rather than replacing the cave by a surface shell.",
+                      "The cave terrain occupies source Y=-24..24; branch command machinery at Y=26 is outside this crop.",
+                      "The 22 command-block branches across 11 nodes are reproduced from cave_parkour_routes.json; commands never execute."],
+        },
+        "cave_parkour_templates": {
+            "min": (227, 22, -187), "max": (237, 25, -169),
+            "functions": ["parkour_randomize_path", "parkour_randomize_path2"],
+            "notes": ["All immutable clone sources referenced by the 22 parkour branch chains.",
+                      "Missing palette entries are air: clone operations must overwrite destination air as well as non-air blocks.",
+                      "This palette is read by Java, not staged at its original machinery location."],
+        },
+        "platforms": {
+            "min": (-18, 39, -60), "max": (4, 55, -35),
+            "functions": ["platforms", "platforms_start", "platforms_round_start", "platforms_round_start3",
+                          "platforms_jump", "platforms_jump2", "end_platforms"],
+            "notes": ["Original live playfield, lower supports, surrounding pillars and upper trim.",
+                      "Initial glass at [-9,48,-49]..[-5,52,-45] is removed by the Java start rule, as in platforms_start.",
+                      "Gem and player constructors outside this crop are audited in phase3_source_audit.json and reproduced by Java."],
+        },
+        "platforms_hidden": {
+            "min": (-13, 36, -24), "max": (-1, 36, -12),
+            "functions": ["platforms_round_start3", "platforms_a_left", "platforms_a_mid", "platforms_a_right"],
+            "notes": ["Exact rounds 5 and 6 clone layer; destination [-13,46,-53], translation [0,10,-29].",
+                      "Contains barriers and 12 selection signs. Java supplies safe sign text and choice callbacks without source click-event commands.",
+                      "Clone includes air cells; clear the entire destination layer before overlaying this resource."],
+        },
+    }
+
+
 def supported_block_names(source_jar: Path) -> set[str]:
     with zipfile.ZipFile(source_jar) as archive:
         source = archive.read("net/minecraft/block/Blocks.java").decode("utf-8")
@@ -298,8 +342,9 @@ def extract(world, name, spec, data_pack, supported):
         state = dict(original)
         if block_name in REPLACEMENTS:
             state = {"Name": REPLACEMENTS[block_name]}
-            if block_name == "minecraft:wildflowers" and "Properties" in original:
-                # Both flowers use facing and flower_amount in their blockstate.
+            if block_name in {"minecraft:wildflowers", "minecraft:iron_chain"} and "Properties" in original:
+                # Flowers share facing/flower_amount; the chain rename shares
+                # the exact axis/waterlogged state schema.
                 state["Properties"] = original["Properties"]
             replaced[block_name + " -> " + state["Name"]] += 1
         if state["Name"] not in supported:
@@ -351,7 +396,7 @@ def main():
         source_jar = candidates[0]
     supported = supported_block_names(source_jar)
     world = AnvilWorld(args.world)
-    specs = specifications() | next_stage_specifications()
+    specs = specifications() | next_stage_specifications() | third_stage_specifications()
     if args.only:
         unknown = sorted(set(args.only) - specs.keys())
         if unknown:

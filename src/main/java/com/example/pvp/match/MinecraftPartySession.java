@@ -14,6 +14,8 @@ import com.example.pvp.arena.party.RunnerRound;
 import com.example.pvp.arena.party.MemoryLaneRound;
 import com.example.pvp.arena.party.PartyCombatRound;
 import com.example.pvp.arena.party.PartyTournamentScores;
+import com.example.pvp.arena.party.CaveParkourRound;
+import com.example.pvp.arena.party.PlatformsRound;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.block.Block;
@@ -337,6 +339,8 @@ public final class MinecraftPartySession implements PortedGameSession {
             case RUNNER -> new RunnerRound();
             case MEMORY_LANE -> new MemoryLaneRound();
             case MEAT_SLAP, ONE_SHOT_WONDER -> new PartyCombatRound(this.game);
+            case CAVE_PARKOUR -> new CaveParkourRound();
+            case PLATFORMS -> new PlatformsRound();
             default -> null;
         };
         try {
@@ -1167,8 +1171,9 @@ public final class MinecraftPartySession implements PortedGameSession {
     /** 菜单、快捷栏与服务器投票校验共用剩余列表，旧物品不能重选已经玩过的项目。 */
     public List<PartyMinigame> selectionChoices() {
         List<PartyMinigame> choices = new ArrayList<>();
+        int count = this.eligiblePlayers().size();
         for (PartyMinigame choice : PartyMinigame.values()) {
-            if (!this.playedGames.contains(choice)) choices.add(choice);
+            if (!this.playedGames.contains(choice) && choice.supportsPlayers(count)) choices.add(choice);
         }
         return List.copyOf(choices);
     }

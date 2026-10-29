@@ -18,7 +18,8 @@ const GAMES = {
   spleef: { slot: 0, source: 408 }, tile: { slot: 1, source: 412 }, rlgl: { slot: 2, source: 424 },
   dropper: { slot: 3, source: 401 }, rainbow: { slot: 4, source: 413 },
   runner: { slot: 5, source: 415 }, memory: { slot: 6, source: 425 },
-  meat: { slot: 7, source: 409 }, oitq: { slot: 8, source: 428 }
+  meat: { slot: 7, source: 409 }, oitq: { slot: 8, source: 428 },
+  parkour: { source: 404 }, platforms: { source: 414, players: 4 }
 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const json = value => JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item);

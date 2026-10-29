@@ -11,14 +11,16 @@
       "assets/minecraft/lang/zh_cn.json"
     ]
   },
-  "scope": "Native port with 9 of 102 catalogued games implemented. Further minigame migration is paused by request; the server runs a five-minigame ranked series. Remaining games, boards and original Party modes are not implemented.",
+  "scope": "Native port with 11 of 102 catalogued games implemented. Migration continues in source-audited batches; the server runs a five-minigame ranked series. Remaining 91 games, boards and original Party modes are not implemented.",
   "entryCount": 102,
   "implementedGameIds": [
     401,
+    404,
     408,
     409,
     412,
     413,
+    414,
     415,
     424,
     425,
@@ -68,8 +70,8 @@
     },
     {
       "name": "Remaining minigames",
-      "status": "paused",
-      "remainingCount": 93
+      "status": "in_progress",
+      "remainingCount": 91
     },
     {
       "name": "Custom resource-pack audiovisuals",
@@ -88,7 +90,9 @@
     "Decorative water and lava remain static inside Party scenes to prevent cropped channels from flowing into other arenas.",
     "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
     "Runner follows the active source functions: falling colored blocks can damage lower-floor players and are removed after landing; lower oak-plank floors are not destroyed by the falling blocks. The normal 10-tick stillness check is used; the source high-ping 20-tick setting is not exposed.",
-    "The new crops omit original NBT for 10 banners in Memory Lane first, 20 signs in Memory Lane second, and 8 banners, 12 signs and 4 campfires in Meat Slap. Generated gameplay labels do not restore these original decorative contents."
+    "The new crops omit original NBT for 10 banners in Memory Lane first, 20 signs in Memory Lane second, and 8 banners, 12 signs and 4 campfires in Meat Slap. Generated gameplay labels do not restore these original decorative contents.",
+    "Platforms retains the original exactly-four-player constraint and six internal gem rounds; it is offered only while four participants remain eligible. Hidden-round signs are generated with native scoped callbacks instead of copying source run-command click events.",
+    "Cave Parkour retains the complete 1,031,051-block cave terrain, 39 checkpoint anchors and a linked random route graph with 22 branches across 11 nodes. Its 28 iron_chain blocks use the 1.21.1 chain name with the same axis and waterlogged properties."
   ],
   "games": [
     {
@@ -473,7 +477,29 @@
       "name": "Cave Parkour (ACP)",
       "category": "free_for_all",
       "sourceFunction": "parkour",
-      "status": "planned"
+      "status": "implemented_phase_2",
+      "implementationBatch": 3,
+      "geometryResources": [
+        "cave_parkour",
+        "cave_parkour_templates"
+      ],
+      "sourceFunctionSha256": {
+        "end_parkour": "7292d7dcb23f7fd62664450463523ff3e55032c9c9134bf9530a91a64470061d",
+        "parkour": "a7ac1910f2819f2260f0cc1b2393c7762a10e1486e8c3a764dd31811093453bc",
+        "parkour_randomize_path": "5e2600ce62634ea87b3ad1b5efae534b96ed2534cefda2573a958055517c7dd3",
+        "parkour_randomize_path2": "120b6066366f245dc82fa524412141da6d907aed71c17e659f7fbaa4fa5695d1",
+        "parkour_randomize_path3": "16846b307eb88d117da4d8e41251ae76e378b5dfb088e95b45617dcce9d0edf9",
+        "parkour_rules": "b6f8fe2c7985fb51032a868faebc1acb79571bec402b3c19bd029bbb3ce0cf2b",
+        "parkour_start": "f8032c735fdf6bd79bffacd2f1d072a661a981e0f74f5823f69502a6a66ce09b",
+        "parkour_tick": "3a033d5215b525c0aba8ec4d5c37ca134734e90ad113b431bb8f182a096f3c8d"
+      },
+      "sourceAuditResource": "phase3_source_audit.json",
+      "implementationNotes": [
+        "Original 200-second multiplayer parkour with 15 progression stages and 39 possible checkpoint anchors. A checkpoint requires the original radius and redstone-lamp check; the finish requires the original beacon check.",
+        "The 22 original command-block branch chains are converted into ordered typed set/fill/clone data in cave_parkour_routes.json. Only the selected branch successor is visited, preserving linked random routes and terminal shortcuts.",
+        "Right-clicking the checkpoint reset item or dying retries from the last saved checkpoint. Source environmental damage, hunger saturation and invisibility are scoped to participants. Ranking combines checkpoint progress with order of reaching that progress.",
+        "The 64 original arrow signs and 14 clone-source sign texts are extracted as whitelisted literal strings; native text updates preserve wayfinding without copying click events or arbitrary block-entity NBT."
+      ]
     },
     {
       "id": 405,
@@ -593,8 +619,54 @@
       "name": "Platforms (Pl)",
       "category": "free_for_all",
       "sourceFunction": "platforms",
-      "status": "planned",
-      "nameZhSource": "抉择平台"
+      "status": "implemented_phase_2",
+      "nameZhSource": "抉择平台",
+      "implementationBatch": 3,
+      "geometryResources": [
+        "platforms",
+        "platforms_hidden"
+      ],
+      "sourceFunctionSha256": {
+        "end_platforms": "1c17afb6af0336671a252323a309e806ade94131eb61c0d8f54ee08f74e382b8",
+        "platforms": "98d72639636681f83ccfac90c96306339f8974e6c244f8c3155a258a91f43d75",
+        "platforms2": "115a03aa19737c49cb1acd0e64e9a65d410aa0697742c4395127dc6d3591e092",
+        "platforms3": "ceb73acb1e0fa1d0bda60d32ea443800d3172330a44e7afaea89822ba3a42e67",
+        "platforms4": "7bec55c4f0cdafb8b4cb3f1bec1ee2677701016fabe2108c79de5c4aec2f7483",
+        "platforms_a_left": "4434def544ce878addefd0b3ba3b1fc13e43f967d784586fa3f0c1d0aa735526",
+        "platforms_a_mid": "63af633000dc2782a1e31b27813d3894215d2938e9b77c03d2f1dc09f0fd1e11",
+        "platforms_a_right": "dfb8f12089aaf9d59fdb4d438c54a1a3937742a6ab5f5d193b724691be8cc8bf",
+        "platforms_b_left": "95a2ea464d9a4741f7a00dfb4df140a417cafb2607122f2bc29eb20f5c598c78",
+        "platforms_b_mid": "7fd7b16abe630fd19696472107c2b2aa6b5cbf8176b691eaf719e714724770b2",
+        "platforms_b_right": "8862d23565d14f4429b4a94fd2e0e4eeaad4094805cec5b28c7a9d7fd643594a",
+        "platforms_c_left": "eacae5a33c39f0853e93e2a0253260dae9873206d87f9e4dd3d9988f14f7f24f",
+        "platforms_c_mid": "6d19d0fcbe849249d6d405c2d16d175d0d6c0929f38266daab8fb568f2e57e81",
+        "platforms_c_right": "37e66598a3b9cba09d564ca4958af870d025988f8718be7511057be6f4ba74e9",
+        "platforms_d_left": "c4804249f4517813310e74f9eaad9c8b47b167055c7b26878df70500450d9f12",
+        "platforms_d_mid": "9de09c65f92d01017cf21121356d601d85d2aea3fcd964999fc02622fe49d7c5",
+        "platforms_d_right": "cc52f2e755f43e4ea13b2c75763c3774705ceee9470888a137b6f8c731d4e498",
+        "platforms_jump": "415e36c2697d502f5c0cba9f6ccb352ee3b8d2e088be1e9d6a07c6a7457d4fed",
+        "platforms_jump2": "feb167c5474af58315f81ffa0b9ebce08a56a4e976379cadd2bd791d1e8f76c1",
+        "platforms_jump3": "a2ca88b0a5e06e3e10eca316f8238271c27b397379e5fb4dfb65d29b1331948e",
+        "platforms_jump4": "142c92ac69d7f9b95781438f377164c426d020f2765543c6d1f27f137970289f",
+        "platforms_round_start": "68441dd075f0f028409ee444004b1d79ba5b622887bc4ba78328fe22cab1ca33",
+        "platforms_round_start2": "14655698af729d9223740772b18c4927ecfc9f652e4d621ef2ee8e183e9a27a5",
+        "platforms_round_start3": "91c94facb73e2531074217d927cb00688cb98ad14e8685d13ae19f000b7ff747",
+        "platforms_round_start4": "2c283c8e8ac8e394cdb580e4b8ed04c59d783fd0e087ba91720982fb6ca172f8",
+        "platforms_rules": "35b5fe64156a97edeadf07b68f9919ed7516a1fc9a4dca2afe33bbb167acdb9e",
+        "platforms_start": "7bc8eee4796d67a692df7bf7d5af00be5922d919697e3684d41dc622682f4cab",
+        "platforms_tick": "5fffa169f4d2a2b2b6a8b5907fa9dbdb4866a3eeed7a3ec2d4c49bd33dace262"
+      },
+      "sourceAuditResource": "phase3_source_audit.json",
+      "playerCount": {
+        "min": 4,
+        "max": 4
+      },
+      "implementationNotes": [
+        "Original exactly-four-player game of six internal rounds. Each player chooses left/middle/right, then armor-stand motion carries the player to a target platform. Players reaching the same platform receive no gems.",
+        "Outer-platform gem count ranges by internal round: [1,2], [1,2,3], [2,3,4], [2,3,4,5], [3,4,5], [4,5]. The central platform ranges are [3,4], [4,5,6], [5,6,7], [6,7,8], [7,8,9], [8,9]. Each diamond uses one of the original nine markers for that platform.",
+        "The last two internal rounds hide players while choosing and use the original twelve sign positions. Native sign text and callbacks replace source command events. Raw minigame score is total gems multiplied by two; the outer five-round series converts the resulting rank to tournament points.",
+        "Gem tally preserves platforms_jump3's full-Inventory queries, including offhand: each stack count from 1 through 9 is awarded once when present. Manually splitting gems into duplicate equal-sized stacks does not award that count twice. Dropped diamonds within the original 11-block sphere are cleared between internal rounds."
+      ]
     },
     {
       "id": 415,
@@ -1023,9 +1095,9 @@
     }
   ],
   "progress": {
-    "implementedGames": 9,
-    "remainingGames": 93,
-    "geometryResources": 18,
+    "implementedGames": 11,
+    "remainingGames": 91,
+    "geometryResources": 22,
     "phase2": "in_progress"
   },
   "tournamentRules": {

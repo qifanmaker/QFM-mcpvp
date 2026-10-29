@@ -45,22 +45,44 @@ public enum PartyMinigame {
     ONE_SHOT_WONDER(428, "一箭奇迹 One Shot Wonder", Items.BOW, new String[] {
             "每次复活获得铁剑、弓和一支箭，箭命中即致死。",
             "击杀会补一支箭；射空就要用剑，90 秒内击杀最多者获胜。"
+    }),
+    CAVE_PARKOUR(404, "洞穴跑酷 Cave Parkour", Items.CARROT_ON_A_STICK, new String[] {
+            "穿过随机生成的洞穴路线，踩过检查点灯保存进度。",
+            "右键回位棒或丢出它返回检查点；限时 200 秒，先到终点者排名更高。"
+    }),
+    PLATFORMS(414, "平台夺宝 Platforms", Items.DIAMOND, 4, 4, new String[] {
+            "四人同时选择跳跃方向，在平台上收集钻石。",
+            "完成六次选路后按钻石数排名；每颗钻石计两分。"
     });
 
     private final int sourceId;
     private final String title;
     private final Item selectionItem;
+    private final int minimumPlayers;
+    private final int maximumPlayers;
     private final String[] rules;
 
     PartyMinigame(int sourceId, String title, Item selectionItem, String[] rules) {
+        this(sourceId, title, selectionItem, 2, 10, rules);
+    }
+
+    PartyMinigame(int sourceId, String title, Item selectionItem, int minimumPlayers, int maximumPlayers, String[] rules) {
         this.sourceId = sourceId;
         this.title = title;
         this.selectionItem = selectionItem;
+        this.minimumPlayers = minimumPlayers;
+        this.maximumPlayers = maximumPlayers;
         this.rules = rules;
     }
 
     public int sourceId() { return this.sourceId; }
     public String title() { return this.title; }
     public Item selectionItem() { return this.selectionItem; }
+    // Platforms 的原命令链只有四个座位；人数不足不能作为可投票项目，否则会等不到第四次选择。
+    public boolean supportsPlayers(int count) { return count >= this.minimumPlayers && count <= this.maximumPlayers; }
+    public String playerRequirement() {
+        return this.minimumPlayers == this.maximumPlayers ? this.minimumPlayers + " 人"
+                : this.minimumPlayers + "~" + this.maximumPlayers + " 人";
+    }
     public String[] rules() { return this.rules.clone(); }
 }

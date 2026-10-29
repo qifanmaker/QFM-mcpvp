@@ -304,9 +304,10 @@ public final class PvpGuiManager {
                 MatchType.PORTED_MIN_PLAYERS + "~" + MatchType.PORTED_MAX_PLAYERS + " 人，凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛",
                 "人数不足 " + MatchType.PORTED_START_PLAYERS + " 人时等待 " + MatchType.PORTED_FILL_SECONDS + " 秒",
-                "分阶段移植：首批 3 个小游戏 Quick Play",
-                "Spleef / Tile Capture / Red Light Green Light",
-                "棋盘与其余子游戏待移植，点击直接加入"));
+                // 首页也使用当前目录，避免菜单重排后仍显示首批三个项目的旧规则。
+                "分阶段移植：已实现 " + PartyMinigame.values().length + " 个小游戏",
+                "每局五轮不重复项目，累计积分决定排名",
+                "每轮按人数提供可玩项目，点击直接加入"));
         inv.setStack(17, queueButton(Items.RED_BANNER, "§cIsland Siege", player, MatchType.ISLAND_SIEGE,
                 MatchType.PORTED_MIN_PLAYERS + "~" + MatchType.PORTED_MAX_PLAYERS + " 人，凑齐 "
                         + MatchType.PORTED_START_PLAYERS + " 人立即开赛",
