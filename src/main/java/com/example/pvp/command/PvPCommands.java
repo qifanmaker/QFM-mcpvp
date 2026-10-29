@@ -42,6 +42,8 @@ import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.practice.PracticeSession;
 import com.example.pvp.practice.PracticeType;
+import com.example.pvp.practice.BotDifficulty;
+import com.example.pvp.practice.PracticeManager;
 import com.example.pvp.text.Messages;
 import net.minecraft.text.Text;
 import com.mojang.brigadier.CommandDispatcher;
@@ -74,9 +76,18 @@ public final class PvPCommands {
     private static final SuggestionProvider<ServerCommandSource> KIT_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(KitManager.getKitIds(), builder);
 
+    // 人机练习保留完整命令入口，便于无菜单操作及服务器回归验证五档难度和套件选择。
     private static final SuggestionProvider<ServerCommandSource> PRACTICE_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(
-                    new String[]{"bridge", "pearl"}, builder);
+                    new String[]{"bridge", "pearl", "pvp"}, builder);
+
+    private static final SuggestionProvider<ServerCommandSource> BOT_DIFFICULTY_SUGGESTIONS =
+            (ctx, builder) -> CommandSource.suggestMatching(
+                    java.util.Arrays.stream(BotDifficulty.values()).map(BotDifficulty::getId).toList(), builder);
+
+    private static final SuggestionProvider<ServerCommandSource> PRACTICE_KIT_SUGGESTIONS =
+            (ctx, builder) -> CommandSource.suggestMatching(
+                    PracticeManager.getPvpKits().stream().map(Kit::getId).toList(), builder);
 
     private static final SuggestionProvider<ServerCommandSource> THEME_SUGGESTIONS =
             (ctx, builder) -> CommandSource.suggestMatching(
@@ -138,6 +149,17 @@ public final class PvPCommands {
                                 .executes(ctx -> practiceStatus(ctx.getSource()))
                                 .then(CommandManager.literal("leave")
                                         .executes(ctx -> practiceLeave(ctx.getSource())))
+                                .then(CommandManager.literal("pvp")
+                                        .executes(ctx -> practicePvp(ctx.getSource(), "normal", "sword"))
+                                        .then(CommandManager.argument("difficulty", StringArgumentType.word())
+                                                .suggests(BOT_DIFFICULTY_SUGGESTIONS)
+                                                .executes(ctx -> practicePvp(ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "difficulty"), "sword"))
+                                                .then(CommandManager.argument("kit", StringArgumentType.word())
+                                                        .suggests(PRACTICE_KIT_SUGGESTIONS)
+                                                        .executes(ctx -> practicePvp(ctx.getSource(),
+                                                                StringArgumentType.getString(ctx, "difficulty"),
+                                                                StringArgumentType.getString(ctx, "kit"))))))
                                 .then(CommandManager.argument("type", StringArgumentType.word())
                                         .suggests(PRACTICE_SUGGESTIONS)
                                         .executes(ctx -> practice(ctx.getSource(),
@@ -372,6 +394,9 @@ public final class PvPCommands {
                         + "§e/pvp join minecraftparty§r 加入 Minecraft Party 2（移植中：首批 3 个小游戏 Quick Play）\n"
                         + "§e/pvp join islandsiege§r 加入海岛攻防（无需套件，红队进攻、蓝队防守）\n"
                         + "§e/pvp leave§r 离开队列\n"
+                        + "§e/pvp practice <bridge|pearl>§r 进入搭路或珍珠练习\n"
+                        + "§e/pvp practice pvp [beginner|easy|normal|hard|expert] [套件]§r 人机 1v1（默认普通、剑战）\n"
+                        + "§e/pvp practice leave§r 退出练习\n"
                         + "§e/pvp tpout§r 从竞技场返回主城（活跃玩家视为弃权退出本场）\n"
                         + "§e/pvp tpin§r 从主城进入竞技场（有对局回对局，无对局访客观看）\n"
                         + "§e/pvp start [主题/地图]§r OP 专用：立即用当前队列人数开赛（MyGO 可选地图，否则随机）\n"
@@ -513,7 +538,7 @@ public final class PvPCommands {
         return 1;
     }
 
-    /** /pvp practice <bridge|pearl>：进入单人练习。 */
+    /** /pvp practice <bridge|pearl|pvp>：进入单人练习。 */
     private static int practice(ServerCommandSource source, String typeId) throws CommandSyntaxException {
         ServerPlayerEntity player = source.getPlayer();
         if (player == null) {
@@ -526,10 +551,39 @@ public final class PvPCommands {
         }
         PracticeType type = PracticeType.byId(typeId);
         if (type == null) {
-            source.sendError(Text.literal("未知练习类型: " + typeId + "（可用: bridge, pearl）"));
+            source.sendError(Text.literal("未知练习类型: " + typeId + "（可用: bridge, pearl, pvp）"));
             return 0;
         }
+        if (type == PracticeType.PVP) {
+            return practicePvp(source, "normal", "sword");
+        }
         return PvPMod.PRACTICE.startPractice(player, type) ? 1 : 0;
+    }
+
+    private static int practicePvp(ServerCommandSource source, String difficultyId, String kitId) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.literal("该命令只能由玩家执行"));
+            return 0;
+        }
+        if (PvPMod.PRACTICE == null) {
+            source.sendError(Text.literal("服务器尚未就绪"));
+            return 0;
+        }
+        BotDifficulty difficulty = BotDifficulty.byId(difficultyId);
+        if (difficulty == null) {
+            source.sendError(Text.literal("未知人机难度: " + difficultyId
+                    + "（可用: beginner, easy, normal, hard, expert；或 1~5）"));
+            return 0;
+        }
+        Kit kit = KitManager.get(kitId);
+        if (!PracticeManager.isPvpKit(kit)) {
+            source.sendError(Text.literal("人机练习不支持该套件: " + kitId + "（可用: "
+                    + String.join(", ", PracticeManager.getPvpKits().stream().map(Kit::getId).toList()) + "）"));
+            return 0;
+        }
+        player.closeHandledScreen();
+        return PvPMod.PRACTICE.startPvpPractice(player, difficulty, kit) ? 1 : 0;
     }
 
     /** /pvp practice：查看当前练习状态。 */
@@ -545,12 +599,18 @@ public final class PvPCommands {
         }
         PracticeSession session = PvPMod.PRACTICE.getSession(player);
         if (session == null) {
-            player.sendMessage(Messages.info("你不在练习模式中。§7用 §f/pvp practice <bridge|pearl> §7进入"), false);
+            player.sendMessage(Messages.info("你不在练习模式中。§7用 §f/pvp practice <bridge|pearl|pvp> §7进入"), false);
             return 0;
         }
-        int best = session.getBestTicks();
-        player.sendMessage(Messages.info("当前练习: §f" + session.getType().getDisplayName()
-                + "§a，最佳成绩: §f" + (best < 0 ? "暂无" : String.format("%.2f 秒", best / 20.0))), false);
+        if (session.getType() == PracticeType.PVP) {
+            player.sendMessage(Messages.info("当前练习: §fPvP 人机 1v1 §7| §e"
+                    + session.getBotDifficulty().getDisplayName() + " §7| 套件: §f"
+                    + session.getPvpKit().getDisplayName()), false);
+        } else {
+            int best = session.getBestTicks();
+            player.sendMessage(Messages.info("当前练习: §f" + session.getType().getDisplayName()
+                    + "§a，最佳成绩: §f" + (best < 0 ? "暂无" : String.format("%.2f 秒", best / 20.0))), false);
+        }
         player.sendMessage(Messages.info("§7用 §f/pvp practice leave §7退出"), false);
         return 1;
     }
@@ -576,6 +636,9 @@ public final class PvPCommands {
     /** 竞技场 → 主城：幽灵走旁观离开流程；活跃玩家视为弃权退出本场；访客移除访客身份。 */
     private static int tpOut(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        if (PvPMod.PRACTICE != null && PvPMod.PRACTICE.exitPractice(player)) {
+            return 1;
+        }
         if (PvPMod.MATCH == null || PvPMod.MATCH.getArenaManager().getWorld() == null) {
             player.sendMessage(Messages.error("服务器尚未就绪"), false);
             return 0;

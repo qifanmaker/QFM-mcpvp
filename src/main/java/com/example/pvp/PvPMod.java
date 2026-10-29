@@ -107,6 +107,8 @@ public final class PvPMod implements ModInitializer {
     public static final AutoClickerDetector AUTO_CLICKER_DETECTOR = new AutoClickerDetector();
 
     public static void onAttackAttempt(ServerPlayerEntity player) {
+        // 人机按服务器 tick 驱动，不能将 AI 的攻击节奏上报为真人连点器。
+        if (com.example.pvp.practice.PracticeBot.isBot(player)) return;
         AUTO_CLICKER_DETECTOR.recordAttack(player);
     }
 
@@ -223,6 +225,8 @@ public final class PvPMod implements ModInitializer {
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            // 先撤销练习机器人和临时区域，避免停服存盘留下练习装备/访客。
+            if (PRACTICE != null) PRACTICE.shutdown();
             // 在玩家存盘和删除临时竞技场之前归还枪战快照，正常停服不能留下南瓜和玩法背包。
             if (MATCH != null && MATCH.getServer() == server) {
                 for (Match match : List.copyOf(MATCH.getMatches())) {
@@ -239,6 +243,7 @@ public final class PvPMod implements ModInitializer {
         // 实体被加载进世界时清掉残留在存档里的血量标签（上次没正常关服留下的）。
         // 不能在 SERVER_STARTED 时扫世界：那一刻区块刚准备好，实体还没进实体管理器，扫不到任何东西。
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            PracticeManager.handleProjectileLoad(entity);
             // MyGO 装饰也会跨区块卸载持久化，不能仅清理最初生成时保存的对象引用。
             com.example.pvp.mygo.MyGoArena.handleEntityLoad(entity);
             HealthTagManager manager = HealthTagManager.get();
@@ -605,6 +610,8 @@ public final class PvPMod implements ModInitializer {
         });
         // 幽灵造成的伤害全部拦截（含箭/投掷物，源攻击者为幽灵）
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            // 人机练习不属于 Match，需要在所有普通伤害逻辑前单独隔离并保护倒计时。
+            if (PRACTICE != null && !PRACTICE.allowsDamage(entity, source)) return false;
             if (source.getAttacker() instanceof ServerPlayerEntity attacker
                     && MATCH != null && MATCH.isEliminated(attacker.getUuid())) {
                 return false;
@@ -649,6 +656,8 @@ public final class PvPMod implements ModInitializer {
         // 对局中拦截致死伤害：不弹死亡界面——战桥由对局下 tick 原地重生；其余模式直接淘汰转隐身幽灵。
         // 不在对局中的玩家（主城/竞技场访客）也取消原生死亡处理：满血送回复活点，由 Mod 自己处理。
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
+            if (entity instanceof ServerPlayerEntity practiceVictim && PRACTICE != null
+                    && PRACTICE.onDeath(practiceVictim)) return false;
             if (entity instanceof ServerPlayerEntity sp && MATCH != null) {
                 Match match = MATCH.getMatchFor(sp);
                 if (match != null) {

@@ -47,6 +47,8 @@ public final class PortedGameEvents {
 
     /** 额外速度注入绕过 ALLOW_DAMAGE；移植模式保留自己的原版机制，禁用 PvP 额外击退。 */
     public static boolean allowsExtraKnockback(Entity attacker, Entity victim) {
+        // 人机练习不创建 Match，零伤害的鱼竿/雪球也不能越场干扰或跳过准备阶段。
+        if (PvPMod.PRACTICE != null && !PvPMod.PRACTICE.allowsCombatInteraction(attacker, victim)) return false;
         return !isPorted(matchOf(attacker)) && !isPorted(matchOf(victim));
     }
 
