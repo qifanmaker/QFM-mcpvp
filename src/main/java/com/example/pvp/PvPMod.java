@@ -108,7 +108,8 @@ public final class PvPMod implements ModInitializer {
 
     public static void onAttackAttempt(ServerPlayerEntity player) {
         // 人机按服务器 tick 驱动，不能将 AI 的攻击节奏上报为真人连点器。
-        if (com.example.pvp.practice.PracticeBot.isBot(player)) return;
+        if (com.example.pvp.practice.PracticeBot.isBot(player)
+                || com.example.pvp.mygo.practice.MyGoBotPlayer.isBot(player)) return;
         AUTO_CLICKER_DETECTOR.recordAttack(player);
     }
 
@@ -208,9 +209,11 @@ public final class PvPMod implements ModInitializer {
             QUEUE = new QueueManager(server);
             DUEL = new DuelManager(server);
             PRACTICE = PracticeManager.get();
+            com.example.pvp.mygo.practice.MyGoPracticeManager.init(server);
             HealthTagManager.init(server);
             com.example.pvp.mygo.MyGoResourcePack.start(server);
             com.example.pvp.mygo.MyGoResourcePack.setFailureHandler(player -> {
+                if (com.example.pvp.mygo.practice.MyGoPracticeManager.get().leave(player)) return;
                 Match match = MATCH == null ? null : MATCH.getMatchFor(player);
                 if (match != null && (match.getType() == MatchType.MYGO
                         || match.getType() == MatchType.SKYWARS_GUNS)) {
@@ -225,6 +228,9 @@ public final class PvPMod implements ModInitializer {
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            // 固定十席房间包含不在在线名单中的人机，需在临时维度删除和玩家存盘前归还状态。
+            var myGoPractice = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+            if (myGoPractice != null) myGoPractice.shutdown();
             // 先撤销练习机器人和临时区域，避免停服存盘留下练习装备/访客。
             if (PRACTICE != null) PRACTICE.shutdown();
             // 在玩家存盘和删除临时竞技场之前归还枪战快照，正常停服不能留下南瓜和玩法背包。
@@ -259,6 +265,7 @@ public final class PvPMod implements ModInitializer {
                 QUEUE.tick(MATCH);
                 DUEL.tick();
                 PRACTICE.tick();
+                com.example.pvp.mygo.practice.MyGoPracticeManager.get().tick();
             }
             PvpGuiManager.get().tick(); // 每秒刷新打开的 GUI，实时显示各模式排队人数
             BedWarsEditor.tickParticles(); // 持续显示床战标记粒子
@@ -656,6 +663,11 @@ public final class PvPMod implements ModInitializer {
         // 对局中拦截致死伤害：不弹死亡界面——战桥由对局下 tick 原地重生；其余模式直接淘汰转隐身幽灵。
         // 不在对局中的玩家（主城/竞技场访客）也取消原生死亡处理：满血送回复活点，由 Mod 自己处理。
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
+            if (entity instanceof ServerPlayerEntity myGoPlayer) {
+                var training = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+                var session = training == null ? null : training.session(myGoPlayer);
+                if (session != null) { session.onDeath(myGoPlayer); return false; }
+            }
             if (entity instanceof ServerPlayerEntity practiceVictim && PRACTICE != null
                     && PRACTICE.onDeath(practiceVictim)) return false;
             if (entity instanceof ServerPlayerEntity sp && MATCH != null) {
@@ -799,6 +811,8 @@ public final class PvPMod implements ModInitializer {
             server.execute(() -> {
                 if (server.isStopped()) return;
                 com.example.pvp.mygo.MyGoResourcePack.remove(handler.player);
+                var myGoPractice = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+                if (myGoPractice != null) myGoPractice.onDisconnect(handler.player);
                 AUTO_CLICKER_DETECTOR.clear(handler.player.getUuid());
                 if (PRACTICE != null) {
                     // 玩家正在断线，不能再用它做传送：只清场并回收区域

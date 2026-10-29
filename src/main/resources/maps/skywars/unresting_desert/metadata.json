@@ -1,0 +1,387 @@
+{
+  "id": "unresting_desert",
+  "name": "不眠沙漠",
+  "author": "Lord_Therd",
+  "source": "https://www.planetminecraft.com/project/free-download-skywars-map-the-unresting-desert/",
+  "license": "Author states FREE FOR EVERYONE TO USE; credit Lord_Therd when used on a server.",
+  "sourceSha256": "ca8d464f63a727bf6138ac1a6bec02a173eb24abdcdc92f7d7d81b543adc49aa",
+  "maxRadius": 72,
+  "finalRadius": 8,
+  "spawns": [
+    {
+      "x": 49,
+      "y": 1,
+      "z": 14
+    },
+    {
+      "x": 47,
+      "y": 1,
+      "z": 37
+    },
+    {
+      "x": 29,
+      "y": 1,
+      "z": 45
+    },
+    {
+      "x": -31,
+      "y": 1,
+      "z": 45
+    },
+    {
+      "x": -49,
+      "y": 1,
+      "z": 37
+    },
+    {
+      "x": -51,
+      "y": 1,
+      "z": 14
+    },
+    {
+      "x": -51,
+      "y": 1,
+      "z": -14
+    },
+    {
+      "x": -49,
+      "y": 1,
+      "z": -37
+    },
+    {
+      "x": -31,
+      "y": 1,
+      "z": -45
+    },
+    {
+      "x": 29,
+      "y": 1,
+      "z": -45
+    },
+    {
+      "x": 47,
+      "y": 1,
+      "z": -37
+    },
+    {
+      "x": 49,
+      "y": 1,
+      "z": -14
+    }
+  ],
+  "chests": [
+    {
+      "x": -52,
+      "y": 1,
+      "z": -15,
+      "tier": "SPAWN",
+      "spawnIndex": 6
+    },
+    {
+      "x": -52,
+      "y": 1,
+      "z": 15,
+      "tier": "SPAWN",
+      "spawnIndex": 5
+    },
+    {
+      "x": -51,
+      "y": -3,
+      "z": -15,
+      "tier": "SPAWN",
+      "spawnIndex": 6
+    },
+    {
+      "x": -51,
+      "y": -3,
+      "z": 15,
+      "tier": "SPAWN",
+      "spawnIndex": 5
+    },
+    {
+      "x": -50,
+      "y": -3,
+      "z": -12,
+      "tier": "SPAWN",
+      "spawnIndex": 6
+    },
+    {
+      "x": -50,
+      "y": -3,
+      "z": 12,
+      "tier": "SPAWN",
+      "spawnIndex": 5
+    },
+    {
+      "x": -50,
+      "y": 1,
+      "z": -38,
+      "tier": "SPAWN",
+      "spawnIndex": 7
+    },
+    {
+      "x": -50,
+      "y": 1,
+      "z": 38,
+      "tier": "SPAWN",
+      "spawnIndex": 4
+    },
+    {
+      "x": -49,
+      "y": -3,
+      "z": -38,
+      "tier": "SPAWN",
+      "spawnIndex": 7
+    },
+    {
+      "x": -49,
+      "y": -3,
+      "z": 38,
+      "tier": "SPAWN",
+      "spawnIndex": 4
+    },
+    {
+      "x": -48,
+      "y": -3,
+      "z": -35,
+      "tier": "SPAWN",
+      "spawnIndex": 7
+    },
+    {
+      "x": -48,
+      "y": -3,
+      "z": 35,
+      "tier": "SPAWN",
+      "spawnIndex": 4
+    },
+    {
+      "x": -33,
+      "y": -3,
+      "z": -44,
+      "tier": "SPAWN",
+      "spawnIndex": 8
+    },
+    {
+      "x": -33,
+      "y": -3,
+      "z": 44,
+      "tier": "SPAWN",
+      "spawnIndex": 3
+    },
+    {
+      "x": -30,
+      "y": -3,
+      "z": -45,
+      "tier": "SPAWN",
+      "spawnIndex": 8
+    },
+    {
+      "x": -30,
+      "y": -3,
+      "z": 45,
+      "tier": "SPAWN",
+      "spawnIndex": 3
+    },
+    {
+      "x": -30,
+      "y": 1,
+      "z": -46,
+      "tier": "SPAWN",
+      "spawnIndex": 8
+    },
+    {
+      "x": -30,
+      "y": 1,
+      "z": 46,
+      "tier": "SPAWN",
+      "spawnIndex": 3
+    },
+    {
+      "x": -21,
+      "y": 1,
+      "z": -22,
+      "tier": "CENTER",
+      "spawnIndex": -1
+    },
+    {
+      "x": -21,
+      "y": 1,
+      "z": 22,
+      "tier": "CENTER",
+      "spawnIndex": -1
+    },
+    {
+      "x": -1,
+      "y": 1,
+      "z": 0,
+      "tier": "CENTER",
+      "spawnIndex": -1
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": -1,
+      "tier": "CENTER",
+      "spawnIndex": -1
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "z": 1,
+      "tier": "CENTER",
+      "spawnIndex": -1
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "z": 0,
+      "tier": "CENTER",
+      "spawnIndex": -1
+    },
+    {
+      "x": 19,
+      "y": 1,
+      "z": -22,
+      "tier": "CENTER",
+      "spawnIndex": -1
+    },
+    {
+      "x": 19,
+      "y": 1,
+      "z": 22,
+      "tier": "CENTER",
+      "spawnIndex": -1
+    },
+    {
+      "x": 28,
+      "y": -3,
+      "z": -45,
+      "tier": "SPAWN",
+      "spawnIndex": 9
+    },
+    {
+      "x": 28,
+      "y": -3,
+      "z": 45,
+      "tier": "SPAWN",
+      "spawnIndex": 2
+    },
+    {
+      "x": 28,
+      "y": 1,
+      "z": -46,
+      "tier": "SPAWN",
+      "spawnIndex": 9
+    },
+    {
+      "x": 28,
+      "y": 1,
+      "z": 46,
+      "tier": "SPAWN",
+      "spawnIndex": 2
+    },
+    {
+      "x": 31,
+      "y": -3,
+      "z": -44,
+      "tier": "SPAWN",
+      "spawnIndex": 9
+    },
+    {
+      "x": 31,
+      "y": -3,
+      "z": 44,
+      "tier": "SPAWN",
+      "spawnIndex": 2
+    },
+    {
+      "x": 46,
+      "y": -3,
+      "z": -35,
+      "tier": "SPAWN",
+      "spawnIndex": 10
+    },
+    {
+      "x": 46,
+      "y": -3,
+      "z": 35,
+      "tier": "SPAWN",
+      "spawnIndex": 1
+    },
+    {
+      "x": 47,
+      "y": -3,
+      "z": -38,
+      "tier": "SPAWN",
+      "spawnIndex": 10
+    },
+    {
+      "x": 47,
+      "y": -3,
+      "z": 38,
+      "tier": "SPAWN",
+      "spawnIndex": 1
+    },
+    {
+      "x": 48,
+      "y": -3,
+      "z": -12,
+      "tier": "SPAWN",
+      "spawnIndex": 11
+    },
+    {
+      "x": 48,
+      "y": -3,
+      "z": 12,
+      "tier": "SPAWN",
+      "spawnIndex": 0
+    },
+    {
+      "x": 48,
+      "y": 1,
+      "z": -38,
+      "tier": "SPAWN",
+      "spawnIndex": 10
+    },
+    {
+      "x": 48,
+      "y": 1,
+      "z": 38,
+      "tier": "SPAWN",
+      "spawnIndex": 1
+    },
+    {
+      "x": 49,
+      "y": -3,
+      "z": -15,
+      "tier": "SPAWN",
+      "spawnIndex": 11
+    },
+    {
+      "x": 49,
+      "y": -3,
+      "z": 15,
+      "tier": "SPAWN",
+      "spawnIndex": 0
+    },
+    {
+      "x": 50,
+      "y": 1,
+      "z": -15,
+      "tier": "SPAWN",
+      "spawnIndex": 11
+    },
+    {
+      "x": 50,
+      "y": 1,
+      "z": 15,
+      "tier": "SPAWN",
+      "spawnIndex": 0
+    }
+  ],
+  "adaptations": [
+    "移除原始实体、方块实体 NBT 和箱子物资，由模组统一刷新全部箱子。",
+    "森林原有床已移除；银鱼方块转为同外观普通方块，树叶保留不衰减。",
+    "原图无玻璃出生笼，使用模组的十格玻璃笼与五秒倒计时。"
+  ]
+}

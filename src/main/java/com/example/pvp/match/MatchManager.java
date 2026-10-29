@@ -561,6 +561,11 @@ public final class MatchManager {
 
         for (ServerPlayerEntity player : players) {
             // 决斗接受/管理员强开也必须遵守练习互斥，不能只依赖 GUI 的忙碌检查。
+            var myGo = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+            if (myGo != null && myGo.contains(player)) {
+                player.sendMessage(Messages.error("请先退出 MyGO 人机练习"), false);
+                return false;
+            }
             if (PvPMod.PRACTICE != null && PvPMod.PRACTICE.isInPractice(player)) {
                 player.sendMessage(Messages.error("请先退出练习模式"), false);
                 return false;

@@ -20,12 +20,19 @@ public final class MyGoCommands {
     private MyGoCommands() { }
 
     public static MyGoSession session(ServerPlayerEntity player) {
+        // 练习房由固定席位宿主管理，不进入正式 Match；真人与假玩家仍走同一枪械入口。
+        var practice = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+        MyGoSession training = practice == null ? null : practice.session(player);
+        if (training != null) return training;
         Match match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
         return match != null && match.portedSession() instanceof MyGoSession session ? session : null;
     }
 
     /** Resolve either the Dust II session or the independent gun-SkyWars runtime. */
     public static WeaponSession weaponSession(ServerPlayerEntity player) {
+        var practice = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+        MyGoSession training = practice == null ? null : practice.session(player);
+        if (training != null) return training;
         Match match = PvPMod.MATCH == null ? null : PvPMod.MATCH.getMatchFor(player);
         if (match == null) return null;
         if (match.portedSession() instanceof WeaponSession session) return session;
@@ -106,6 +113,14 @@ public final class MyGoCommands {
                                             ? "MyGO 无进行中会话；resourcePackReady=" + MyGoResourcePack.isReady(player)
                                             : session.debugState(player)), false);
                                     return 1;
+                                }))
+                        .then(CommandManager.literal("practiceinfo")
+                                .requires(source -> source.hasPermissionLevel(2))
+                                .executes(ctx -> {
+                                    var practice = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+                                    ctx.getSource().sendFeedback(() -> Text.literal(practice == null ? "MyGOPractice {}"
+                                            : practice.debugState(ctx.getSource().getPlayer())), false);
+                                    return 1;
                                 }))));
     }
 
@@ -117,6 +132,11 @@ public final class MyGoCommands {
     }
 
     private static int chooseTeam(ServerPlayerEntity player, String rawChoice) {
+        var practice = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+        if (practice != null && practice.contains(player)) {
+            MyGoTeamPreference preference = MyGoTeamPreference.parse(rawChoice);
+            return preference != null && practice.selectTeam(player, preference) ? 1 : 0;
+        }
         QueueEntry entry = PvPMod.QUEUE == null ? null : PvPMod.QUEUE.getEntry(player);
         if (entry == null || entry.getType() != com.example.pvp.match.MatchType.MYGO) {
             player.sendMessage(Text.literal("§e请先加入 MyGO 队列，再选择 T、CT 或自动平衡。"), false);

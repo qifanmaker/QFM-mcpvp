@@ -88,12 +88,20 @@ public final class SkyWarsMapGenerator {
     public static SkyWarsLayout generate(ArenaWorld world, int regionIndex, int seed, int playerCount,
                                          List<ServerPlayerEntity> players, SkyWarsMapVariant variant,
                                          SkyWarsLayout precomputedLayout) {
+        if (precomputedLayout != null && precomputedLayout.importedMap() != null) {
+            precomputedLayout.importedMap().paste(world, precomputedLayout, players, false);
+            return precomputedLayout;
+        }
         return SkyWarsBetaMapGenerator.generate(world, regionIndex, seed, playerCount, players, precomputedLayout, false);
     }
 
     /** 生成枪械空岛：地形和布局完全复用普通空岛，只切换箱子战利品表。 */
     public static SkyWarsLayout generateGunSkywars(ArenaWorld world, int regionIndex, int seed, int playerCount,
                                                    List<ServerPlayerEntity> players, SkyWarsLayout precomputedLayout) {
+        if (precomputedLayout != null && precomputedLayout.importedMap() != null) {
+            precomputedLayout.importedMap().paste(world, precomputedLayout, players, true);
+            return precomputedLayout;
+        }
         return SkyWarsBetaMapGenerator.generate(world, regionIndex, seed, playerCount, players,
                 precomputedLayout, true);
     }
