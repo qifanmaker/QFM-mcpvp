@@ -201,7 +201,8 @@ public final class SkyWarsLayout {
         // 给扩大后的中岛让位，同时保留外围岛尺寸/桥距，并限制在本局暂存区域内。
         int outerAllowance = (compact ? 6 : 8) + 2 * transitRadius + 2 * spawnRadius
                 + (compact ? 12 : 18) + 9 + MAX_RADIUS_MARGIN;
-        return Math.min(wanted, ArenaTemplate.REGION_SPACING / 2 - 16 - outerAllowance);
+        // Party 2 扩大区域间距用于完整原图，不应同时放大空岛极端配置的岛距和清场需求。
+        return Math.min(wanted, Math.min(176, ArenaTemplate.REGION_SPACING / 2 - 16) - outerAllowance);
     }
 
     private static Island buildIsland(Random random, BlockPos center, int radius, int chestCount, double rotation) {

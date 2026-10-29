@@ -20,7 +20,8 @@ const GAMES = {
   runner: { slot: 5, source: 415 }, memory: { slot: 6, source: 425 },
   meat: { slot: 7, source: 409 }, oitq: { slot: 8, source: 428 },
   parkour: { source: 404 }, platforms: { source: 414, players: 4 },
-  whack: { source: 402 }, monster: { source: 403 }
+  whack: { source: 402 }, monster: { source: 403 },
+  raft: { source: 405 }, knockout: { source: 406 }, skyfly: { source: 407 }
 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const json = value => JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item);

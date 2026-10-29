@@ -102,7 +102,12 @@ public final class PortedGameEvents {
                 session.useItem(sp, hand);
                 return ActionResult.FAIL;
             }
-            return isPorted(match) || isPorted(matchOf(entity)) ? ActionResult.FAIL : ActionResult.PASS;
+            Match owner = matchOf(entity);
+            if (!isPorted(match) && !isPorted(owner)) return ActionResult.PASS;
+            // 原生船必须保留登乘入口；目标、玩家和场次仍须一一对应，不能借载具跨场交互。
+            if (!(player instanceof ServerPlayerEntity sp) || !isPorted(match) || owner != match
+                    || match.getState() != MatchState.ACTIVE || match.isEliminated(sp.getUuid())) return ActionResult.FAIL;
+            return match.portedSession().useEntity(sp, hand, entity);
         });
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             Match attackerMatch = matchOf(player);

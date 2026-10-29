@@ -18,6 +18,9 @@ import com.example.pvp.arena.party.CaveParkourRound;
 import com.example.pvp.arena.party.PlatformsRound;
 import com.example.pvp.arena.party.WhackAMobRound;
 import com.example.pvp.arena.party.MonsterShootRound;
+import com.example.pvp.arena.party.KnockoutRound;
+import com.example.pvp.arena.party.SkyFlyRound;
+import com.example.pvp.arena.party.RaftRacersRound;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.block.Block;
@@ -83,7 +86,8 @@ public final class MinecraftPartySession implements PortedGameSession {
     private static final int SELECT_TICKS = 200;
     private static final int INTRO_TICKS = 160;
     private static final int RESULT_TICKS = 120;
-    private static final int MAP_RADIUS = 168;
+    private static final int MAP_RADIUS = 200;
+    private static final int LOBBY_OFFSET = 224;
     private static final Block[] PLAYER_COLORS = {
             Blocks.BLUE_CONCRETE, Blocks.RED_CONCRETE, Blocks.LIME_CONCRETE, Blocks.YELLOW_CONCRETE,
             Blocks.CYAN_CONCRETE, Blocks.MAGENTA_CONCRETE, Blocks.BROWN_CONCRETE, Blocks.GREEN_CONCRETE,
@@ -147,8 +151,8 @@ public final class MinecraftPartySession implements PortedGameSession {
         this.match = match;
         this.center = template.getCenter(regionIndex);
         // 观战/选择平台高于原版小人数 Spleef 的整个模板，避免与其上层地形重叠。
-        // 新增 Dropper 占满世界高度；等待平台移到区域角落，避免铺图覆盖仍在等候的玩家。
-        this.lobby = this.center.add(144, 54, 144);
+        // 原版筏艇赛占用 383 格长的赛道，等待台须在完整场景之外且仍位于区域保护内。
+        this.lobby = this.center.add(LOBBY_OFFSET, 54, LOBBY_OFFSET);
         this.random = new Random(seed * 0x9E3779B97F4A7C15L + 31);
         int count = Math.max(1, match.players().size());
         for (int i = 0; i < match.players().size(); i++) {
@@ -346,6 +350,9 @@ public final class MinecraftPartySession implements PortedGameSession {
             case PLATFORMS -> new PlatformsRound();
             case WHACK_A_MOB -> new WhackAMobRound();
             case MONSTER_SHOOT -> new MonsterShootRound();
+            case KNOCKOUT -> new KnockoutRound();
+            case SKY_FLY -> new SkyFlyRound();
+            case RAFT_RACERS -> new RaftRacersRound();
             default -> null;
         };
         try {
@@ -771,8 +778,9 @@ public final class MinecraftPartySession implements PortedGameSession {
         ArenaWorld world = this.arena();
         if (world == null) return;
         // 单小游戏以前由 Match 最终清场回收掉落；五轮中途也要清理，但只限本区域物品实体。
-        Box bounds = new Box(this.center.getX() - MAP_RADIUS, world.getBottomY(), this.center.getZ() - MAP_RADIUS,
-                this.center.getX() + MAP_RADIUS, world.getTopY(), this.center.getZ() + MAP_RADIUS);
+        int radius = LOBBY_OFFSET + 7;
+        Box bounds = new Box(this.center.getX() - radius, world.getBottomY(), this.center.getZ() - radius,
+                this.center.getX() + radius, world.getTopY(), this.center.getZ() + radius);
         for (ItemEntity item : world.getEntitiesByClass(ItemEntity.class, bounds, entity -> true)) item.discard();
     }
 
@@ -826,6 +834,14 @@ public final class MinecraftPartySession implements PortedGameSession {
         Set<UUID> eligible = new HashSet<>();
         for (UUID uuid : this.slots.keySet()) if (this.isParticipant(uuid)) eligible.add(uuid);
         return eligible;
+    }
+
+    @Override
+    public ActionResult useEntity(ServerPlayerEntity player, Hand hand, Entity entity) {
+        if (this.phase != Phase.PLAY || this.round == null || !this.isParticipant(player.getUuid())
+                || this.out.contains(player.getUuid()) || this.completed.contains(player.getUuid())
+                || this.outOfRegion(player) || this.outOfRegion(entity) || !this.round.ownsEntity(entity)) return ActionResult.FAIL;
+        return this.round.useEntity(this.roundContext, player, hand, entity);
     }
 
     @Override

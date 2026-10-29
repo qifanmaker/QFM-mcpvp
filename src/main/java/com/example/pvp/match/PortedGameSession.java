@@ -42,6 +42,7 @@ public interface PortedGameSession {
     default boolean canBreak(ServerPlayerEntity player, BlockPos pos) { return false; }
     default boolean canPlace(ServerPlayerEntity player, BlockPos pos) { return false; }
     default void onPlaced(ServerPlayerEntity player, BlockPos pos) { }
+    default ActionResult useEntity(ServerPlayerEntity player, Hand hand, Entity entity) { return ActionResult.FAIL; }
     default ActionResult useItem(ServerPlayerEntity player, Hand hand) { return ActionResult.PASS; }
     default ActionResult useBlock(ServerPlayerEntity player, Hand hand, BlockHitResult hit) {
         return ActionResult.PASS;

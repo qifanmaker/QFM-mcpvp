@@ -11,13 +11,16 @@
       "assets/minecraft/lang/zh_cn.json"
     ]
   },
-  "scope": "Native port with 13 of 102 catalogued games implemented. Migration continues in source-audited batches; the server runs a five-minigame ranked series. Remaining 89 games, boards and original Party modes are not implemented.",
+  "scope": "Native port with 16 of 102 catalogued games implemented. Migration continues in source-audited batches; the server runs a five-minigame ranked series. Remaining 86 games, boards and original Party modes are not implemented.",
   "entryCount": 102,
   "implementedGameIds": [
     401,
     402,
     403,
     404,
+    405,
+    406,
+    407,
     408,
     409,
     412,
@@ -73,7 +76,7 @@
     {
       "name": "Remaining minigames",
       "status": "in_progress",
-      "remainingCount": 89
+      "remainingCount": 86
     },
     {
       "name": "Custom resource-pack audiovisuals",
@@ -554,22 +557,95 @@
       "name": "Raft Racers (RRs)",
       "category": "free_for_all",
       "sourceFunction": "boat_race",
-      "status": "planned"
+      "status": "implemented_phase_2",
+      "implementationBatch": 5,
+      "geometryResources": [
+        "raft_racers"
+      ],
+      "implementationNotes": [
+        "Current source entry uses boat_race_generate_mpm in the End, with four routes 11..14; the obsolete six Overworld routes are preserved only as source hashes. Complete active course is 313x71x383 and is never compressed or folded.",
+        "Native bamboo raft, packed-ice physics and bubble columns; sequential source light markers at player Y+10, finish coral at Y-1.5, two laps, 3600 ticks and N-1 finish threshold. Unfinished racers rank by laps times initial count plus original last-lap recency order; intermediate waypoints do not add points.",
+        "Owner-scoped recall item works by right-click or drop, with 200-tick cooldown. Native boat/player leash, packed-ice safe marker and below-Y44 replacement follow the source; all boats, rabbits, arrows and tagged drops are scoped and removed on close.",
+        "1.21.1 steering requires player as first passenger and invisible source rabbit second. Invulnerable source rafts also suppress legacy 1.21.1 fall destruction while retaining native movement. The source player-10 reset-token mismatch is adapted to UUID ownership."
+      ],
+      "sourceAuditResource": "raft_racers_rules.json",
+      "sourceFunctionSha256": {
+        "boat_race": "2f55a0fc9f8591ebb7e7844b46899ecc19685a9ff5802187e68d5f4d77ae78c4",
+        "boat_race_generate": "2942d4e04bff1ec3f2dad59022c426101ab38b8f84a33b930478bdd201fbd357",
+        "boat_race_generate2": "ae26ed149477aa54e8218601202ea9fdf104b54352586f319c74ba8dc635a3ac",
+        "boat_race_generate3": "3236976d5aee96d3bd590fbf6745778019c155006fc4f0f85d7869903bfdf09a",
+        "boat_race_generate4": "e1e92961832e4a4f984b7e6dbb86236c0055338455881ea06bad3f624de81882",
+        "boat_race_generate_mpm": "f51e5e53864490ed6813deefb6f08449452c8cc1a564419d0a1b6e7c2ba5c436",
+        "boat_race_item_tick": "293342782b6334706e4fcbb7eb5b1bf0cab706200a2365270e3e469b06f9b9c0",
+        "boat_race_new_boat": "8cc148ef400be220c0a1da946d333d36f4722c5a702befd2799f9e9620cb2e9d",
+        "boat_race_rules": "112cfaa654240f09d0340f727c08fe80bc8fe209c9771ec36a2d733e3124f71f",
+        "boat_race_start": "d9da03f2c9419285c99622fa52803712a38f37d1cc9c04fca89f56351ea957e4",
+        "boat_race_tick": "a33e3d3bf43b1e98f031b328268a0923050f6b1ea2ac47a4384bfe2b2ede3305",
+        "end_boat_race": "9bfc28965bdd27484ee48da2cc8dd7c72829843424ad4d4c38e28dd495db72eb"
+      }
     },
     {
       "id": 406,
       "name": "Knockout (KO)",
       "category": "free_for_all",
       "sourceFunction": "knockout",
-      "status": "planned",
-      "nameZhSource": "击退大乱战"
+      "status": "implemented_phase_2",
+      "nameZhSource": "击退大乱战",
+      "implementationBatch": 5,
+      "geometryResources": [
+        "knockout",
+        "knockout_upper"
+      ],
+      "implementationNotes": [
+        "Original multi-level volcanic arena and separate 11x10x11 upper clone, including clone air. Each player has three lives, native Knockback I stick and immediate first-playerKillCount upgrade to Knockback II.",
+        "Native getPrimeAdversary supplies kill attribution including recent knockoffs; recycled player entities clear both attacker references on each new life. Feet-in-lava forces death; native environmental damage remains enabled. One randomly chosen pending player respawns per tick at one of nine original markers.",
+        "Regeneration amplifier44 refreshes every tick; 300 ticks with no actual damage dealt or taken enables glowing, reset on actual damage. Native 60-tick respawn protection excludes fall and invulnerability-bypassing damage. There is no timer; the final surviving player ends the round.",
+        "Death interception reuses the player entity instead of executing original global scoreboard, spawnpoint, team or game-rule commands. Doubles is not exposed in this server free-for-all series."
+      ],
+      "sourceAuditResource": "knockout_source_audit.json",
+      "sourceFunctionSha256": {
+        "knockout": "30fa380511bb4459b8fd26eeaf81326f6bd287242306d0272428d539a9c0cd13",
+        "knockout2": "e056d624411f64f8389b968a5018e92e989af5f91b93e70288158453fed47f2a",
+        "knockout3": "690c5e4be93da47cd8bbdd239d20b5008f4cfcaea880e3a0c22e5f4fb30f8561",
+        "knockout4": "cf5ffb82eeaa92a23d7975bd03c3368a521901bda9e5a4abcdd7be3f61abb51e",
+        "knockout_respawn": "1c36c1832578e22fd470665b9f8348db1e29c1a9699a0dd71b1eec7518319f9a",
+        "knockout_tick": "947d0627a2d186b7e86bfdaf5f390ac3170362de593e594868978d395bfb5d33",
+        "knockout_end": "8a4261727e734bb6c1d1470fa0e4c187011551c461b37e7cf016b1c5c60c05a8"
+      }
     },
     {
       "id": 407,
       "name": "Hoopin' n' Swoopin' (SF)",
       "category": "free_for_all",
       "sourceFunction": "sky_fly",
-      "status": "planned"
+      "status": "implemented_phase_2",
+      "implementationBatch": 5,
+      "geometryResources": [
+        "sky_fly_base",
+        "sky_fly_ring_large",
+        "sky_fly_ring_medium",
+        "sky_fly_ring_medium_chain",
+        "sky_fly_ring_small",
+        "sky_fly_ring_small_chain"
+      ],
+      "implementationNotes": [
+        "Original 36-ring descending spiral is rebuilt from literal fill/clone geometry and five air-inclusive ring templates, with exact corner turns, template changes and random offset ranges; saved random holes are not copied.",
+        "Native unbreakable Binding Elytra, one attempt, source resistance99 and weakness99. Landing on iron bars or descending to source Y<=-32 removes the Elytra; cached previous-tick Y=-40..-32 suppresses jumping.",
+        "Score reads the 37 original floor materials at source Y=-42 under current X/Z, retaining prior score when no material matches. There is no timer; all remaining players must reach the dead-bubble-coral floor detector, and final scores freeze before observer/lobby teleport.",
+        "The 1.21.10 iron_chain state is translated to 1.21.1 chain with the same axis and waterlogged properties. Original global schedules, selectors and rules are not executed."
+      ],
+      "sourceAuditResource": "sky_fly_source_audit.json",
+      "sourceFunctionSha256": {
+        "sky_fly": "21d651069fa3a1741de1ed85cef09e0dab77e1d53e00999964bbf7bbccbe2434",
+        "sky_fly_generate": "2e66c10534871aaafa7ef58c6b930903b79c2564f501af0251f776fba779c8dc",
+        "sky_fly_generate2": "4c9c0b51e0adb52149a0aa26dc81adcf269b5bda65adc7d9ce335fe9925d6768",
+        "sky_fly_rules": "7fadd72bdfebfdbb22b537722586cf1a50ca2498debf21ab86cb31260e25dabc",
+        "sky_fly_start": "2d505fd456ccffc819150a9a892d080d559fc4e7b4b452c1eb6adeb1e9b0da6e",
+        "sky_fly_tick": "c0344f2191b9fa2a2414599c93f6323da44d479c30f6df96e8e8964c4d942dd0",
+        "sky_fly_score": "e350783afc6fc4feb9bb2022309127b7fe7ce86f7eaa3cf88e6e66fc37e8c070",
+        "end_sky_fly": "e0b98e09fc62d3beeed1316fc82b3bfd9a265050e4f5c1c153f0e78f217df9ec",
+        "cleanup_skyfly": "57ccb16b6cb003175aa623d95c827a016babfc3c151b08f3671a98fccfacb7e0"
+      }
     },
     {
       "id": 408,
@@ -1143,9 +1219,9 @@
     }
   ],
   "progress": {
-    "implementedGames": 13,
-    "remainingGames": 89,
-    "geometryResources": 24,
+    "implementedGames": 16,
+    "remainingGames": 86,
+    "geometryResources": 33,
     "phase2": "in_progress"
   },
   "tournamentRules": {

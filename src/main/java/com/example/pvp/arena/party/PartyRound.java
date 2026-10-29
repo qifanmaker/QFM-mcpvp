@@ -43,6 +43,8 @@ public interface PartyRound {
     default boolean handlesTimeLimit() { return false; }
     /** 原图 pvp=false 还影响原生箭的碰撞判断；只有战斗项目主动开启。 */
     default boolean playerCombatEnabled() { return false; }
+    /** 筏艇赛使用原生载具；只由当前模块允许玩家登上自己所属的船。 */
+    default ActionResult useEntity(PartyRoundContext context, ServerPlayerEntity player, Hand hand, Entity entity) { return ActionResult.FAIL; }
     default ActionResult useItem(PartyRoundContext context, ServerPlayerEntity player, Hand hand) { return ActionResult.FAIL; }
     default ActionResult useBlock(PartyRoundContext context, ServerPlayerEntity player, Hand hand, BlockHitResult hit) { return ActionResult.FAIL; }
     default ActionResult attackBlock(PartyRoundContext context, ServerPlayerEntity player, BlockPos pos) { return ActionResult.FAIL; }

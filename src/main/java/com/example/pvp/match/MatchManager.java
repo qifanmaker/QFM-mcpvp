@@ -950,12 +950,12 @@ public final class MatchManager {
             case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseSize;
             case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindSize;
             case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchSize;
-            // 亦可赛艇：区域边长必须满足 size/2 + 16 <= REGION_SPACING/2 = 192（实体清扫盒不串场），
+            // 亦可赛艇：区域边长必须满足 size/2 + 16 <= REGION_SPACING/2（实体清扫盒不串场），
             // 且要容得下 RaceTrackValidator.MAX_BOUNDING_RADIUS 的赛道外沿
             case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceSize;
             case ISLAND_SIEGE -> 160;
             case MINECRAFT_PARTY -> 176;
-            case MYGO -> 320; // 真实 Dust II 与独立阵亡室的实体清扫范围，仍小于 384 分区间距。
+            case MYGO -> 320; // 真实 Dust II 与独立阵亡室的实体清扫范围。
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO -> ArenaTemplate.Layout.DUEL_1V1;
