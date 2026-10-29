@@ -118,6 +118,11 @@ public final class QueueManager {
     }
 
     public boolean join(ServerPlayerEntity player, MatchType type, Kit kit, SkyWarsMapVariant skyWarsVariant) {
+        // 命令/GUI/重新排队入口统一互斥，防止练习中被匹配传走留下机器人。
+        if (com.example.pvp.PvPMod.PRACTICE != null && com.example.pvp.PvPMod.PRACTICE.isInPractice(player)) {
+            player.sendMessage(Messages.error("请先退出练习模式"), false);
+            return false;
+        }
         if (this.contains(player.getUuid())) {
             return false;
         }

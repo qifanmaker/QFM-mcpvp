@@ -6,6 +6,7 @@ import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.kit.HotbarSync;
+import com.example.pvp.kit.Kit;
 import com.example.pvp.text.Messages;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
@@ -29,10 +30,11 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 单人练习会话：在一个独占的竞技场区域里做「从出发点抵达目标台」的计时挑战。
+ * 单人练习会话：在独占区域里完成位移计时挑战或与玩家形态的人机进行 1v1 对练。
  *
- * <p>两种练习共用同一套流程，只是补给不同：搭路给 64 个方块，珍珠给 16 颗末影珍珠。
+ * <p>位移练习共用计时流程，只是补给不同：搭路给 64 个方块，珍珠给 16 颗末影珍珠。
  * 失败（掉出场地）自动重置，成功记录用时并 2 秒后自动重开。
+ * PvP 委托给独立的 {@link PvpPracticeDuel}，共用区域分配与离场清理。
  *
  * <p><b>场地保护</b>：练习玩家不在任何 {@code Match} 里，所以必须注册为竞技场访客
  * （{@link ArenaWorldManager#addVisitor}），否则 {@code MatchManager.sweepArenaWorld}
@@ -62,6 +64,7 @@ public final class PracticeSession {
     private final UUID uuid;
     private final PracticeType type;
     private final int regionIndex;
+    private final PvpPracticeDuel pvpDuel;
 
     /** 出发点与目标台的地面中心（Y = GROUND_Y）。 */
     private final BlockPos startPad;
@@ -85,9 +88,15 @@ public final class PracticeSession {
     private long lastVisitorRefresh = Long.MIN_VALUE;
 
     public PracticeSession(UUID uuid, PracticeType type, int regionIndex) {
+        this(uuid, type, regionIndex, null, null);
+    }
+
+    /** PvP 复用练习区域与退出流程，但用独立决斗状态机替代位移计时。 */
+    public PracticeSession(UUID uuid, PracticeType type, int regionIndex, BotDifficulty difficulty, Kit kit) {
         this.uuid = uuid;
         this.type = type;
         this.regionIndex = regionIndex;
+        this.pvpDuel = type == PracticeType.PVP ? new PvpPracticeDuel(uuid, regionIndex, difficulty, kit) : null;
 
         BlockPos origin = new BlockPos(regionIndex * ArenaTemplate.REGION_SPACING,
                 ArenaTemplate.PLATFORM_Y, 0);
@@ -100,6 +109,10 @@ public final class PracticeSession {
 
     /** 铺出发点与目标台。必须在传送玩家之前调用。 */
     public void buildArena() {
+        if (pvpDuel != null) {
+            pvpDuel.buildArena();
+            return;
+        }
         ArenaWorld arena = arena();
         if (arena == null) {
             return;
@@ -122,6 +135,10 @@ public final class PracticeSession {
 
     /** 清掉本练习区域内的方块与实体（范围按补给量收敛，不做全场扫描）。 */
     public void clearArena() {
+        if (pvpDuel != null) {
+            pvpDuel.clearArena();
+            return;
+        }
         ArenaWorld arena = arena();
         if (arena == null) {
             return;
@@ -163,6 +180,10 @@ public final class PracticeSession {
         }
 
         registerVisitor(player, true);
+        if (pvpDuel != null) {
+            pvpDuel.start(player);
+            return;
+        }
         resetRun(player);
 
         player.sendMessage(Messages.gold("§6已进入 §e" + type.getDisplayName() + " §6练习"), false);
@@ -181,6 +202,10 @@ public final class PracticeSession {
         }
 
         registerVisitor(player, false);
+        if (pvpDuel != null) {
+            pvpDuel.tick(player);
+            return;
+        }
 
         if (pearlCooldown > 0) {
             pearlCooldown--;
@@ -383,7 +408,7 @@ public final class PracticeSession {
 
     /** 该方块是否属于练习场地（不可破坏）。 */
     public boolean isProtected(BlockPos pos) {
-        return protectedBlocks.contains(pos);
+        return pvpDuel != null || protectedBlocks.contains(pos);
     }
 
     // ---------- 退出 ----------
@@ -409,8 +434,12 @@ public final class PracticeSession {
             player.setFireTicks(0);
             player.fallDistance = 0;
             player.clearStatusEffects();
+            player.setAbsorptionAmount(0);
             player.getHungerManager().setFoodLevel(20);
             player.getInventory().clear();
+            player.setInvulnerable(false);
+            player.stopUsingItem();
+            if (PvPMod.MATCH != null) PvPMod.MATCH.applyLobbyProtectionTo(player);
             PvpGuiManager.get().giveMenuItem(player);
             player.currentScreenHandler.sendContentUpdates();
             player.sendMessage(Messages.info("§6已退出练习模式"), false);
@@ -450,6 +479,7 @@ public final class PracticeSession {
 
     /** 供 Manager 每 tick 调用的计时 HUD（动作栏实时显示用时）。 */
     public void tickTimerHud(long serverTicks) {
+        if (pvpDuel != null) return;
         if (!running || finished) {
             return;
         }
@@ -497,5 +527,17 @@ public final class PracticeSession {
 
     public int getPearlCount() {
         return pearlCount;
+    }
+
+    public BotDifficulty getBotDifficulty() {
+        return pvpDuel == null ? null : pvpDuel.getDifficulty();
+    }
+
+    public Kit getPvpKit() {
+        return pvpDuel == null ? null : pvpDuel.getKit();
+    }
+
+    public PvpPracticeDuel getPvpDuel() {
+        return pvpDuel;
     }
 }

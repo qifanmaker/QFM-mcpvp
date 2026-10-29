@@ -18,11 +18,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * PvP 钓鱼竿：命中时把目标向远离施法者的方向击退，并取消原版"拉向自己"；
- * 仅在对局中生效，且幸运之柱例外——保留原版钓鱼拉回，不做命中击退。
+ * 仅在正式对局或 PvP 人机对练中生效；幸运之柱保留原版钓鱼拉回。
  */
 @Mixin(FishingBobberEntity.class)
 public abstract class FishingBobberEntityMixin {
     @Unique private boolean pvp$knockbackHook;
+
+    /** 原版鱼钩先挂住实体、收杆时再拉取；在挂钩之前隔离练习，不能只拦截伤害。 */
+    @Inject(method = "onEntityHit", at = @At("HEAD"), cancellable = true)
+    private void pvp$protectPractice(EntityHitResult hit, CallbackInfo ci) {
+        FishingBobberEntity bobber = (FishingBobberEntity) (Object) this;
+        PlayerEntity owner = bobber.getPlayerOwner();
+        if (owner != null && com.example.pvp.PvPMod.PRACTICE != null
+                && !com.example.pvp.PvPMod.PRACTICE.allowsCombatInteraction(owner, hit.getEntity())) {
+            bobber.discard();
+            ci.cancel();
+        }
+    }
 
     /**
      * 低版本钓鱼竿在鱼钩命中时击退；等待 pullHookedEntity 会拖到收杆才触发。
@@ -42,7 +54,12 @@ public abstract class FishingBobberEntityMixin {
             return;
         }
         Match match = matchManager.getMatchFor(caster.getUuid());
-        if (match == null || match.getType() == MatchType.LUCKY_PILLAR) {
+        // 人机对练复用正式 PvP 的命中击退；双方使用同一鱼竿机制。
+        var practice = com.example.pvp.PvPMod.PRACTICE == null ? null
+                : com.example.pvp.PvPMod.PRACTICE.getCombatSession(caster.getUuid());
+        boolean practiceDuel = practice != null && practice.getPvpDuel() != null && practice.getPvpDuel().isActive()
+                && practice.getPvpDuel().contains(victim.getUuid());
+        if ((match == null && !practiceDuel) || (match != null && match.getType() == MatchType.LUCKY_PILLAR)) {
             return; // 幸运之柱：保留原版钓鱼拉回，不做命中击退
         }
         if (!com.example.pvp.match.PortedGameEvents.allowsExtraKnockback(caster, victim)) return;

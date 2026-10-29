@@ -13,6 +13,7 @@ import com.example.pvp.match.MatchType;
 import com.example.pvp.match.VillageDefenseKitGui;
 import com.example.pvp.practice.PracticeManager;
 import com.example.pvp.practice.PracticeType;
+import com.example.pvp.practice.BotDifficulty;
 import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.queue.MyGoTeamPreference;
 import com.example.pvp.text.Messages;
@@ -519,7 +520,7 @@ public final class PvpGuiManager {
                 "进攻方完成三项目标中的两项获胜",
                 "装备由玩法统一发放，点击直接加入"));
         inv.setStack(16, makeButton(Items.WHITE_WOOL, "§a§l练习模式",
-                "搭桥练习 / 末影珍珠练习", "单人练习，点击选择项目"));
+                "PvP 人机 1v1 / 搭桥 / 末影珍珠", "单人练习，点击选择项目"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
@@ -580,6 +581,7 @@ public final class PvpGuiManager {
         }
     }
 
+    // 人机练习需要先选难度和双方共用套件，避免在进入竞技场后才发现配置不符合预期。
     /** 练习模式分类页。 */
     private void openPracticeCategory(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
@@ -607,6 +609,12 @@ public final class PvpGuiManager {
                 "§7抵达目标台计时，掉下去自动重来",
                 "§a点击开始练习"));
 
+        inv.setStack(15, makeButton(Items.DIAMOND_SWORD, "§6§lPvP 人机 1v1",
+                "§7使用正式 1v1 竞技场与双方相同的套件",
+                "§7五档难度：新手 → 专家",
+                "§7练习走位、攻击节奏与攻防应对",
+                "§a点击选择人机难度"));
+
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回其他游戏"));
     }
 
@@ -616,15 +624,107 @@ public final class PvpGuiManager {
             this.openOtherGames(player);
             return;
         }
+        if (slot == 15) {
+            this.openPracticeDifficulty(player);
+            return;
+        }
         PracticeType type = switch (slot) {
             case 11 -> PracticeType.BRIDGE;
             case 13 -> PracticeType.ENDER_PEARL;
             default -> null;
         };
-        // 必须先关界面再传送：跨维度传送时界面还开着，客户端会残留一个鬼影容器
-        player.closeHandledScreen();
         if (type != null) {
+            // 必须先关界面再传送：跨维度传送时界面还开着，客户端会残留一个鬼影容器
+            player.closeHandledScreen();
             PracticeManager.get().startPractice(player, type);
+        }
+    }
+
+    private void openPracticeDifficulty(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.PRACTICE_DIFFICULTY;
+        this.openPage(player, ctx, "§6PvP 练习 · 选择难度", inv -> {
+            Item[] icons = {Items.WOODEN_SWORD, Items.STONE_SWORD, Items.IRON_SWORD,
+                    Items.DIAMOND_SWORD, Items.NETHERITE_SWORD};
+            inv.setStack(4, makeButton(Items.PLAYER_HEAD, "§e玩家 vs 人机 · 1v1",
+                    "§7难度影响反应、瞄准、走位与战术选择",
+                    "§7双方使用同一套装备，练习不计正式战绩",
+                    "§7退出：/pvp practice leave 或 /hub"));
+            for (BotDifficulty difficulty : BotDifficulty.values()) {
+                int index = difficulty.ordinal();
+                inv.setStack(11 + index, makeButton(icons[index],
+                        "§e" + difficulty.getLevel() + " / 5 · " + difficulty.getDisplayName(),
+                        difficulty.getDescription(), "§a点击选择套件"));
+            }
+            inv.setStack(26, makeButton(Items.ARROW, "§c← 返回练习模式"));
+        });
+    }
+
+    private void onClickPracticeDifficulty(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 26) {
+            this.openPracticeCategory(player);
+            return;
+        }
+        int index = slot - 11;
+        if (index >= 0 && index < BotDifficulty.values().length) {
+            ctx.practiceDifficulty = BotDifficulty.values()[index];
+            ctx.practiceKitPage = 0;
+            this.openPracticeKit(player);
+        }
+    }
+
+    private void openPracticeKit(ServerPlayerEntity player) {
+        GuiContext ctx = getContext(player);
+        ctx.page = Page.PRACTICE_KIT;
+        List<Kit> kits = PracticeManager.getPvpKits();
+        int perPage = 17;
+        int lastPage = Math.max(0, (kits.size() - 1) / perPage);
+        ctx.practiceKitPage = Math.min(ctx.practiceKitPage, lastPage);
+        this.openPage(player, ctx, "§6PvP 练习 · 选择套件", inv -> {
+            inv.setStack(4, makeButton(Items.PLAYER_HEAD,
+                    "§e难度 " + ctx.practiceDifficulty.getLevel() + " / 5 · "
+                            + ctx.practiceDifficulty.getDisplayName(),
+                    "§7你与人机使用相同装备", "§7选择套件后立即进入独立竞技场"));
+            int start = ctx.practiceKitPage * perPage;
+            for (int i = start; i < kits.size() && i < start + perPage; i++) {
+                Kit kit = kits.get(i);
+                inv.setStack(9 + i - start, makeButton(iconFor(kit), "§b" + kit.getDisplayName(),
+                        "§7套件：" + kit.getId(),
+                        "§7人机难度：" + ctx.practiceDifficulty.getDisplayName(),
+                        "§a点击开始人机 1v1"));
+            }
+            inv.setStack(27, makeButton(Items.ARROW, "§c← 返回难度选择"));
+            if (ctx.practiceKitPage > 0) {
+                inv.setStack(30, makeButton(Items.ARROW, "§e上一页"));
+            }
+            inv.setStack(31, makeButton(Items.PAPER,
+                    "§7第 " + (ctx.practiceKitPage + 1) + " / " + (lastPage + 1) + " 页"));
+            if (ctx.practiceKitPage < lastPage) {
+                inv.setStack(32, makeButton(Items.ARROW, "§e下一页"));
+            }
+        });
+    }
+
+    private void onClickPracticeKit(ServerPlayerEntity player, GuiContext ctx, int slot) {
+        if (slot == 27) {
+            this.openPracticeDifficulty(player);
+            return;
+        }
+        List<Kit> kits = PracticeManager.getPvpKits();
+        if (slot == 30 && ctx.practiceKitPage > 0) {
+            ctx.practiceKitPage--;
+            this.openPracticeKit(player);
+        } else if (slot == 32 && (ctx.practiceKitPage + 1) * 17 < kits.size()) {
+            ctx.practiceKitPage++;
+            this.openPracticeKit(player);
+        } else if (slot >= 9 && slot <= 25) {
+            int index = ctx.practiceKitPage * 17 + slot - 9;
+            if (index < kits.size()) {
+                Kit kit = kits.get(index);
+                BotDifficulty difficulty = ctx.practiceDifficulty;
+                player.closeHandledScreen();
+                PracticeManager.get().startPvpPractice(player, difficulty, kit);
+            }
         }
     }
 
@@ -875,6 +975,8 @@ public final class PvpGuiManager {
             case MYGO_MAP -> this.onClickMyGoMap(player, ctx, slotIndex);
             case MYGO_TEAM -> this.onClickMyGoTeam(player, ctx, slotIndex);
             case PRACTICE_CATEGORY -> this.onClickPracticeCategory(player, ctx, slotIndex);
+            case PRACTICE_DIFFICULTY -> this.onClickPracticeDifficulty(player, ctx, slotIndex);
+            case PRACTICE_KIT -> this.onClickPracticeKit(player, ctx, slotIndex);
             case STATS -> {
                 if (slotIndex == 27) {
                     this.openMainMenu(player);
@@ -1387,7 +1489,7 @@ public final class PvpGuiManager {
     private enum Page {
         MAIN, PVP_CATEGORY, BRIDGE_CATEGORY, OTHER_GAMES, BED_WARS_CATEGORY,
         KIT, DUEL_TARGET, STATS, KIT_INFO, THEME, LUCKY_PILLAR_MAP, BEDWARS_MAP, MYGO_MAP, MYGO_TEAM,
-        PRACTICE_CATEGORY
+        PRACTICE_CATEGORY, PRACTICE_DIFFICULTY, PRACTICE_KIT
     }
 
     private static final class GuiContext {
@@ -1397,6 +1499,8 @@ public final class PvpGuiManager {
         UUID duelTargetUuid;
         int duelTargetPage;
         int statsPage; // 战绩排行榜当前页码
+        BotDifficulty practiceDifficulty = BotDifficulty.NORMAL;
+        int practiceKitPage;
         boolean navigating;
     }
 }

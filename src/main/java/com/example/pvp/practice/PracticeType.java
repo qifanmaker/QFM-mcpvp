@@ -1,14 +1,15 @@
 package com.example.pvp.practice;
 
 /**
- * 练习模式类型。两种练习都是「从出发点抵达目标台」的计时挑战，
- * 区别在于可用的手段：搭桥用方块铺路，末影珍珠用珍珠位移。
+ * 练习模式类型：位移计时挑战，以及复用决斗竞技场的单人人机 PvP。
  */
 public enum PracticeType {
     /** 搭路练习：给 64 个方块，从出发点铺到 30 格外的目标台，全程计时。 */
     BRIDGE("bridge", "搭路练习", 30, 64),
     /** 末影珍珠练习：给 16 颗珍珠，用珍珠位移到 25 格外的目标台，珠间 2 秒冷却。 */
-    ENDER_PEARL("pearl", "末影珍珠", 25, 16);
+    ENDER_PEARL("pearl", "末影珍珠", 25, 16),
+    // 人机对练需要独立回合流程，不能误走搭桥/珍珠的目标台计时逻辑。
+    PVP("pvp", "PvP 人机对练", 0, 0);
 
     private final String id;
     private final String displayName;

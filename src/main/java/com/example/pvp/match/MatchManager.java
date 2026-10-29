@@ -1,5 +1,6 @@
 package com.example.pvp.match;
 
+import com.example.pvp.PvPMod;
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
@@ -13,6 +14,7 @@ import com.example.pvp.gui.PvpGuiManager;
 import com.example.pvp.hud.HealthTagManager;
 import com.example.pvp.kit.InventorySnapshot;
 import com.example.pvp.kit.Kit;
+import com.example.pvp.kit.KitManager;
 import com.example.pvp.queue.QueueEntry;
 import com.example.pvp.text.Messages;
 import com.mojang.logging.LogUtils;
@@ -558,6 +560,11 @@ public final class MatchManager {
         }
 
         for (ServerPlayerEntity player : players) {
+            // 决斗接受/管理员强开也必须遵守练习互斥，不能只依赖 GUI 的忙碌检查。
+            if (PvPMod.PRACTICE != null && PvPMod.PRACTICE.isInPractice(player)) {
+                player.sendMessage(Messages.error("请先退出练习模式"), false);
+                return false;
+            }
             if (this.getMatchFor(player.getUuid()) != null) {
                 LOGGER.warn("[PvP] 玩家 {} 已在比赛中，无法开新赛", player.getGameProfile().getName());
                 return false;
@@ -676,6 +683,11 @@ public final class MatchManager {
      * </ul>
      */
     public boolean usesLegacyCombat(ServerPlayerEntity player) {
+        // 人机双方使用同一套 1.8 经典规则；练习不创建 Match，需查会话中的套件。
+        if (PvPMod.PRACTICE != null) {
+            var practice = PvPMod.PRACTICE.getCombatSession(player.getUuid());
+            if (practice != null && KitManager.isLegacy18Kit(practice.getPvpKit())) return true;
+        }
         Match match = this.getMatchFor(player);
         if (match == null) {
             return false;
@@ -921,7 +933,8 @@ public final class MatchManager {
         return baseId; // 兜底：重试耗尽也按原 id 开（概率极低）
     }
 
-    private ArenaTemplate createTemplate(MatchType type) {
+    /** 正式比赛与人机对练共享配置、围墙和出生点模板，避免两套场地规则漂移。 */
+    public ArenaTemplate createTemplate(MatchType type) {
         int size = switch (type) {
             case DUEL_1V1 -> PvPConfig.INSTANCE.duel1v1Size;
             case DUEL_2V2 -> PvPConfig.INSTANCE.duel2v2Size;
