@@ -36,6 +36,7 @@
     "PartySilverfishHelpMixin",
     "PartyCreeperCloudMixin",
     "PartyEffectCloudMixin",
+    "PartyCraftingMixin",
     "ScreenHandlerMixin",
     "registry.DimensionOptionsMixin",
     "registry.SimpleRegistryMixin",

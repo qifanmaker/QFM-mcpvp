@@ -110,7 +110,8 @@ class TournamentProbe extends PartyProbe {
     const sourceIds = choices.map(choice => choice.source);
     // A forfeit can also remove a game requiring exactly four players. Verify
     // the complete eligible catalogue, not only the previous menu's length.
-    const expected = Object.values(GAMES).filter(game => (!game.players || game.players === this.activeIds.length)
+    const expected = Object.values(GAMES).filter(game => (this.activeIds.length >= (game.minimumPlayers ?? game.players ?? 2)
+      && this.activeIds.length <= (game.maximumPlayers ?? game.players ?? 10))
       && !this.played.has(game.source)).map(game => game.source);
     this.check(`Round ${round} ${id} menu excludes previously played games`, [...this.played].every(played => !sourceIds.includes(played))
       && sourceIds.length === expected.length && expected.every(source => sourceIds.includes(source)),

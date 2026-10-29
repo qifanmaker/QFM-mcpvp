@@ -11,7 +11,7 @@
       "assets/minecraft/lang/zh_cn.json"
     ]
   },
-  "scope": "Native port with 16 of 102 catalogued games implemented. Migration continues in source-audited batches; the server runs a five-minigame ranked series. Remaining 86 games, boards and original Party modes are not implemented.",
+  "scope": "Native port with 19 of 102 catalogued games implemented. Migration continues in source-audited batches; the server runs a five-minigame ranked series. Remaining 83 games, boards and original Party modes are not implemented.",
   "entryCount": 102,
   "implementedGameIds": [
     401,
@@ -23,10 +23,13 @@
     407,
     408,
     409,
+    410,
+    411,
     412,
     413,
     414,
     415,
+    416,
     424,
     425,
     428
@@ -76,7 +79,7 @@
     {
       "name": "Remaining minigames",
       "status": "in_progress",
-      "remainingCount": 86
+      "remainingCount": 83
     },
     {
       "name": "Custom resource-pack audiovisuals",
@@ -85,12 +88,24 @@
     {
       "name": "Achievements",
       "status": "planned"
+    },
+    {
+      "name": "Difficulty selection and original variants",
+      "status": "planned"
+    },
+    {
+      "name": "Original dimension atmosphere",
+      "status": "planned"
+    },
+    {
+      "name": "Scoped block-drop rules outside Tedious Tasks",
+      "status": "planned"
     }
   ],
   "knownDifferences": [
     "Difficulty selection is not exposed. Normal difficulty is used where source difficulty branches apply: Dropper ring spacing 10+2*min(level,5), red-light reaction window 19 ticks; multiplayer time limits are used.",
     "Same-tick finishes or falls are tied rather than resolved by selector order.",
-    "Scene extraction excludes entities and block-entity NBT; original decorative barrel inventories, custom skull textures, banner patterns, sign text and campfire contents are not reproduced.",
+    "Scene extraction excludes entities and block-entity NBT; original decorative barrel inventories, custom skull textures, banner patterns and campfire contents are not reproduced. Functional Cave Parkour/Platforms/Horse Race sign text is restored separately as safe text; decorative sign data remains incomplete.",
     "Nine newer decorative plants in Tile Capture medium are replaced by 1.21.1 counterparts; resource metadata records exact replacements. The 11 phase-2 crops require no additional block substitutions.",
     "Decorative water and lava remain static inside Party scenes to prevent cropped channels from flowing into other arenas.",
     "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
@@ -99,7 +114,8 @@
     "Platforms retains the original exactly-four-player constraint and six internal gem rounds; it is offered only while four participants remain eligible. Hidden-round signs are generated with native scoped callbacks instead of copying source run-command click events.",
     "Cave Parkour retains the complete 1,031,051-block cave terrain, 39 checkpoint anchors and a linked random route graph with 22 branches across 11 nodes. Its 28 iron_chain blocks use the 1.21.1 chain name with the same axis and waterlogged properties.",
     "Whack-A-Mob and Monster Shoot use scoped native target subclasses to retain targets on a Peaceful host and suppress original-map-disabled loot and XP, without changing shared-world difficulty, gamerules or ordinary mobs. Scoped explosion and silverfish protections reproduce the original mobGriefing=false behavior.",
-    "Native PvP collision is selected per Party round: noncombat games keep the original pvp=false arrow pass-through, while Meat Slap and One Shot Wonder retain player combat. This does not change the shared server PvP setting."
+    "Native PvP collision is selected per Party round: noncombat games keep the original pvp=false arrow pass-through, while Meat Slap, One Shot Wonder, Knockout, Weapon Devolution and Tedious Tasks retain player combat. This does not change the shared server PvP setting.",
+    "End/Nether scenes are rebased into the shared arena dimension. Original dimension atmosphere remains pending. Per-round tile-drop suppression from scoreboard_data/end_minigame remains to be scoped outside Tedious Tasks; the task game preserves native harvest drops."
   ],
   "games": [
     {
@@ -688,16 +704,106 @@
       "name": "Weapon Devolution (Gl)",
       "category": "free_for_all",
       "sourceFunction": "weapon_devolution",
-      "status": "planned",
-      "nameZhSource": "全能武器王"
+      "status": "implemented_phase_2",
+      "nameZhSource": "全能武器王",
+      "implementationBatch": 6,
+      "geometryResources": [
+        "weapon_devolution_arena",
+        "weapon_devolution_tower_1",
+        "weapon_devolution_tower_2",
+        "weapon_devolution_tower_3",
+        "weapon_devolution_tower_4"
+      ],
+      "implementationNotes": [
+        "Authoritative Weapon Devolution entry, with five sequential weapons: laser gun, netherite axe, trident, wooden sword, sharp snowballs. The obsolete gladiators entry is not used. Native playerKillCount attribution advances at most one stage per source tick; death retries retain the stage and apply native new-life protection.",
+        "Original 2400-tick limit, N-1 finish threshold with a two-tick ending delay, no natural regeneration, initial Regeneration I and stage-specific Weakness. Finite laser and snowball supply, native modern melee/trident combat and native cooldowns are retained.",
+        "Laser uses original eye offset, quantized direction, velocity 10 and arrow damage coefficient 1.25; damage remains native speed-dependent arrow damage. Sharp snowballs each own an independently paired invisible native PierceLevel100 arrow. Global nearest-projectile pairing is adapted to exact UUIDs to prevent cross-player attribution.",
+        "Complete source arena and four full air-inclusive tower clones are preserved. Gate light/barrier cells release in three layers at ticks16/32/48 without overwriting stone gate frames; original block-display bars and four-tick laser beams are scoped and cleaned."
+      ],
+      "sourceAuditResource": "weapon_devolution_rules.json",
+      "sourceFunctionSha256": {
+        "data/mcp/function/weapon_devolution.mcfunction": "d738223dac81deea3baabe29aad45491969cc098cfa72a2f411815bea5cddbae",
+        "data/mcp/function/weapon_devolution_rules.mcfunction": "da4c7c79a4d35f18101a1ecc1b1a90c261c64f9c1d9b438d67ed8d503bce1887",
+        "data/mcp/function/weapon_devolution_start.mcfunction": "eee4de9c2276fb76ef0553d23f5cce79f7f086e6797aba2490816f763bb1f108",
+        "data/mcp/function/weapon_devolution_tick.mcfunction": "1b8fd405f682853f14d28ca0b1055e453dacadaeeae47933358712d0b6f86f22",
+        "data/mcp/function/weapon_devolution_set_up_bars.mcfunction": "72b0dad27dfb8b9c13a0d6b299f046b4942ab3be4dd80584f352a62f65af7ad4",
+        "data/mcp/function/weapon_devolution_release_players.mcfunction": "34bae25d57b56ea0a3ab3020b3201088558335f75a9da9419ef0c92bd9196c6c",
+        "data/mcp/function/end_gladiators.mcfunction": "b6894c162eef0e8bb31dc3dc1dab2b7f237d79db9d14544a772ab6eab03edbbc",
+        "data/mcp/function/checkpoint.mcfunction": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "data/mcp/function/checkpoint2.mcfunction": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "data/mcp/function/assign_finish_threshold.mcfunction": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+        "data/mcp/function/player_circle.mcfunction": "d18804d0981068e317e7ae65b9554a9168a024ef7a6dcf6c7ef1aa3dce546952",
+        "data/mcp/function/player_circle_place_player.mcfunction": "adc09ffba5a6620792dc12ca8a494a28a43bb92f653b2f903b743f480887ef88",
+        "data/mcp/function/rotate_entity.mcfunction": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801",
+        "data/sentry/function/shoot_arrow_1.mcfunction": "05559894a2d1cfcf421d1bd48752bf87608706637a8eb4f29e85a33899fd8177",
+        "data/sentry/function/add_proj_motion.mcfunction": "3d31ae28b07a2d6e5f2a364699bf414a668440e2560c26b4bf70909c7478481b",
+        "data/sentry/function/trig/cos_rx.mcfunction": "568d591b36d0e9155c6ca7777357b3b7902fc1cb4b36dc725b0616e8e07f3035",
+        "data/sentry/function/trig/sin_rx.mcfunction": "1d9ef25c9c7a2648e58a743a26caa35767913ce89f5ed84c0aa8a7ad37717ba7",
+        "data/sentry/function/trig/cos_ry.mcfunction": "dd24ca17a48e64b5f743ab4b67548dba39db9c8dce3a883d0c6ba80c527190fa",
+        "data/sentry/function/trig/sin_ry.mcfunction": "b2373019d64c815546716c5a24e5d061ffe1d8053e7f239e17fd6f26ae926b57"
+      },
+      "sourceHashKeyFormat": "ZIP entry path"
     },
     {
       "id": 411,
       "name": "Tedious Tasks (TT)",
       "category": "free_for_all",
       "sourceFunction": "tedious_tasks",
-      "status": "planned",
-      "nameZhSource": "繁琐任务"
+      "status": "implemented_phase_2",
+      "nameZhSource": "繁琐任务",
+      "implementationBatch": 6,
+      "geometryResources": [
+        "tedious_tasks",
+        "tedious_tree",
+        "tedious_notes_horizontal",
+        "tedious_notes_vertical",
+        "tedious_goal_horizontal",
+        "tedious_goal_vertical"
+      ],
+      "implementationNotes": [
+        "Original 2-4 player free-for-all Tedious Tasks: eight independent random tasks without replacement, 4800 ticks and N-1 completion threshold. The separate team variant291 is not enabled.",
+        "All eight tasks use native mechanics: a player kill, pearl teleport to central gold roof, exactly30 bell rings checked after20 ticks, harvesting warped stems and crafting a wooden axe, eight villager trade steps to a nether star, visiting all four spawn pads and returning, tuning three note blocks from note1 to note0, and InstantDamageII followed by RegenerationII healing.",
+        "Players may interfere with other participants through the same owned targets; world coordinates and entity UUIDs still isolate the match. Native pearl20-tick cooldown and5-point fall damage are preserved. Unknown recipes are permitted only for this round through the original native crafting workflow, without changing shared world rules.",
+        "Death resets only the current task and returns to the original seat. No natural regeneration; RegenerationII/SaturationII, grace Weakness255, original stat checks and fixed four-times-completed checkpoint scoring are retained.",
+        "Original P1 checkpoint mistakenly targets P2 and reset functions call missing player_regen; these references are corrected for the actual participant. The source taskplayer completion bonus references no created objective and remains ineffective. Decorative block-entity contents are not executed.",
+        "The source evaluates completed goals before death reset. Real axe/star/kill/note goals survive a same-tick lethal hit, while unfulfilled goals and a30-ring check before its20-tick deadline do not. The reused-entity adaptation deterministically checks positional goals at the first home respawn tick and saves pre-revival health to avoid artificial task8 completion."
+      ],
+      "sourceAuditResource": "tedious_tasks_rules.json",
+      "sourceFunctionSha256": {
+        "tedious_tasks": "9ce38cf46c6c28730bd1b86ba88672afe9c10dc6d79b9e446fc0de47e2f5c1d7",
+        "tedious_tasks_start": "486e739e52fb61f5dd1861b6c1e65250dc163c0c6eca4f6fc39f7d8bc79a02e4",
+        "tedious_tasks_tick": "30e35d7b1541ee25f6017f65fc793dbad004e01fed1780c605f581a7b0f3ae56",
+        "tedious_tasks_end": "2da06a9d70fd4a41f58240bddb8e101199a2fc3a936814d966ff0d3236543dbc",
+        "finish_tasks": "9be2a7671e6aae25e12c49de9196c19d12e32ecce63fa8a066f3a63103ab751a",
+        "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+        "player_1_next_task": "5ff5405c2fcdd73a906e07d7d4f8bb00f73f0ced5eb6de96815258ea1c20916d",
+        "player_1_reset_task": "a4cad74cdf8c5ec935b7f78c0493b7b6fef0c56cc8b4a14cc545eaae77463ea2",
+        "player_1_ring_task": "be562a8c4d4b486477bdf157f8042d5cd83c34db87921944c0f84f83b0cfbd62",
+        "player_1_regen": "7f942221f88c56fb4dc83d90a8632b1000de357bc5c5f6f9a585c29dda2a7c78",
+        "player_2_next_task": "e39f74b29a0f990748a7d72c2d930a25a9ae38f9db0af5951970f58cfe5be83e",
+        "player_2_reset_task": "19bc9fe32129b4eb64edf40c8960a9816f9a18a3b95099e5bc779a6c8599a534",
+        "player_2_ring_task": "d240e15cc7e30068e3fe142c0eb38a94ea75bdb47ee265d98f0f93ade26e001c",
+        "player_2_regen": "46e278cd5ed8691497bcef23369d32458c4b9691c555f02624caf4cd68e34767",
+        "player_3_next_task": "84c71a42efaf78685435f7285a11ffc4986feca37359ace5375815ba87a84f20",
+        "player_3_reset_task": "62c6a8a6fdf822629b0224f312dd8b084b4b360819b9b5cf902a9b8d4a4fb58d",
+        "player_3_ring_task": "d40426bc4fa000cd229ec2928e763a1ede82e487e1fa5e2da8c3d52ab5c6eb58",
+        "player_3_regen": "c2a03d660440cdda9cfb291b923e47447686e964798216c65add27985ef99e66",
+        "player_4_next_task": "d698453f80fb15bbdea48aedfea08d9a19ba8ed6fba2e7e9ef3b185fe9e3bd89",
+        "player_4_reset_task": "a5dc2f0ed1584cf9899571dbd3126834ee2e5bfbfbc3985920345f0759cf89ab",
+        "player_4_ring_task": "a1e56a75c35cb19ed992e87588c2f367bf23074234ab2a747da0dc1aeb78dffa",
+        "player_4_regen": "a74357faf2513fb5d5b7344ff0b84e90080dc54bb3a8e2e8a12565e900495c04",
+        "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+        "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+        "last_timer_title": "2c967d524c537de08bf4ceab74493197d214295ccc7589c0af1b20ac2af191fa",
+        "placements": "784cb9dc86bd733c3215f44477b5d464e2bda6fdc5ed5fc859761ea663353494",
+        "team_placements": "a50d015ff965d214998a55175fc92724eccf5bafc40b66e9e9f798e3698fbb99"
+      },
+      "playerRequirement": {
+        "minimum": 2,
+        "maximum": 4
+      }
     },
     {
       "id": 412,
@@ -826,8 +932,36 @@
       "name": "Horse Race (HR)",
       "category": "free_for_all",
       "sourceFunction": "horse_race",
-      "status": "planned",
-      "nameZhSource": "马术大赛"
+      "status": "implemented_phase_2",
+      "nameZhSource": "马术大赛",
+      "implementationBatch": 6,
+      "geometryResources": [
+        "horse_race"
+      ],
+      "implementationNotes": [
+        "Original three Nether-fortress routes with complete 178x97x183 scenery, 2241582 blocks, source gate and wall clones, all checkpoint alternatives and all route heights. Static natural terrain outside the playable/cosmetic crop is not ported; track geometry is not compressed or folded.",
+        "Native alternating zombie/skeleton horses are tame and saddled with movement speed0.23 and jump strength0.85. Native horse movement, charged jumping, saddle inventory and horse collisions are retained; the source no-collision team selected ordinary horses and therefore did not apply to the actual undead racers.",
+        "Two laps; routes1/2 use4200 ticks and route3 uses3500 ticks. Checkpoints read the player feet, preserve source skip/alternative detection order, return positions, five-tick remount, five-block tether and no-cooldown right-click/drop reset. Original progress and recent checkpoint order determine ranking.",
+        "1.21.1 negative Fire values are a non-burning cooldown, so only actual burning triggers checkpoint reset. Native horse loot and experience remain disabled per the source world rule without changing shared difficulty or game rules; all horses, display and reset drops are individually scoped.",
+        "All86 static sign faces and route-dependent cloned navigation arrows are restored as safe literal text, color, glow and waxing. Route sign counts86/86/87, source block orientation and current-player ownership labels are preserved; selectors/click/run_command actions are stripped. Decorative chest/skull data remains deferred.",
+        "The complete original foundation down to sourceY0 is preserved: cropping atY18 cuts849 gravity columns, and successively lower cuts still sever supporting gravel. Bedrock/netherrack support prevents original ownership/navigation signs from falling; no artificial support or gravity override is used."
+      ],
+      "sourceAuditResource": "horse_race_rules.json",
+      "sourceFunctionSha256": {
+        "horse_race": "2d03cfabdb01985100e269cd20e1e416c5499ea84ec2ccb233c9a28240c572a0",
+        "horse_race1": "6fc753ad908295dc56a98ad0206e09e229b6eebcca3b471396b70478686faf79",
+        "horse_race2": "f8fb7e0c462521d52620f9747dd20ad6f255f02ef3c06add4afbe6454e0ee366",
+        "horse_race_generate": "1b99e22e28db0b1e416c32f4bee26592016486a3bf676ef261d7d73e0ad8f4d6",
+        "horse_race_generate2": "f255b92b1202250311bde8de66f08015e8c63c03aa1c6ad6e2cc471a00e056dd",
+        "horse_race_rules": "da3b9a03f037154041cfdde518c975cca3c432e3a5b1e0bed48084941e2fd213",
+        "horse_race_start": "102ed5b5952a228822c406ddd0168bcea59ab3533625ff845f8647ee034e014c",
+        "horse_race_tick": "75140041bcba0fe672cb6ee3369e6f969d70eefb96afda5e2edacfddf0bea111",
+        "end_horse_race": "2b66737e6c8d576eae344e316ecd94e968426a27005ed692755635d0a1569d82",
+        "hr_reset_to_checkpoint": "e2b8ebefc44028edb32e28143cb9f361268c61bd2e4baba10b16f6597fa505cb",
+        "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "assign_finish_threshold": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c"
+      }
     },
     {
       "id": 417,
@@ -1219,9 +1353,9 @@
     }
   ],
   "progress": {
-    "implementedGames": 16,
-    "remainingGames": 86,
-    "geometryResources": 33,
+    "implementedGames": 19,
+    "remainingGames": 83,
+    "geometryResources": 45,
     "phase2": "in_progress"
   },
   "tournamentRules": {

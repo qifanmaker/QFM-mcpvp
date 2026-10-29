@@ -39,6 +39,8 @@ public interface PartyRound {
     default boolean ownsEntity(Entity entity) { return false; }
     default void entityLoaded(PartyRoundContext context, Entity entity) { }
     default boolean allowsNaturalRegeneration() { return true; }
+    /** 原包合成任务不要求预先解锁配方，仅对声明该规则的当前回合放行。 */
+    default boolean allowsUndiscoveredRecipes() { return false; }
     /** 原版打靶倒计时结束后仍需结清在场目标；由模块停止生成并等最后目标离场。 */
     default boolean handlesTimeLimit() { return false; }
     /** 原图 pvp=false 还影响原生箭的碰撞判断；只有战斗项目主动开启。 */

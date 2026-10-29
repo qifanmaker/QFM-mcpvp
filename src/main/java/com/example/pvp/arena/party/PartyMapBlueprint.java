@@ -49,7 +49,8 @@ public final class PartyMapBlueprint {
     }
 
     public static PartyMapBlueprint load(String name) throws IOException {
-        if (!name.matches("[a-z_]+")) {
+        // 武器降级有四个独立编号塔楼模板；允许数字后缀，仍拒绝目录、点号和外部路径。
+        if (!name.matches("[a-z_][a-z0-9_]*")) {
             throw new IOException("Invalid Party 2 map name: " + name);
         }
         PartyMapBlueprint cached = CACHE.get(name);

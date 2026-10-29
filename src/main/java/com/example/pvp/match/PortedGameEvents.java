@@ -36,6 +36,11 @@ public final class PortedGameEvents {
         return match != null && match.portedSession() != null;
     }
 
+    /** 原图以原生物品规则设计；竞技场珍珠等 PvP 兼容补丁不能改写移植玩法。 */
+    public static boolean usesNativeItemRules(Entity entity) {
+        return isPorted(matchOf(entity));
+    }
+
     /** 其他场次的玩家也不能进入移植区域拆图或使用容器。 */
     public static boolean canAccessPosition(Entity player, World world, BlockPos pos) {
         var training = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();

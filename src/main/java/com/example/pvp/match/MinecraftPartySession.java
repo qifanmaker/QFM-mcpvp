@@ -21,6 +21,9 @@ import com.example.pvp.arena.party.MonsterShootRound;
 import com.example.pvp.arena.party.KnockoutRound;
 import com.example.pvp.arena.party.SkyFlyRound;
 import com.example.pvp.arena.party.RaftRacersRound;
+import com.example.pvp.arena.party.WeaponDevolutionRound;
+import com.example.pvp.arena.party.TediousTasksRound;
+import com.example.pvp.arena.party.HorseRaceRound;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.block.Block;
@@ -353,6 +356,9 @@ public final class MinecraftPartySession implements PortedGameSession {
             case KNOCKOUT -> new KnockoutRound();
             case SKY_FLY -> new SkyFlyRound();
             case RAFT_RACERS -> new RaftRacersRound();
+            case WEAPON_DEVOLUTION -> new WeaponDevolutionRound();
+            case TEDIOUS_TASKS -> new TediousTasksRound();
+            case HORSE_RACE -> new HorseRaceRound();
             default -> null;
         };
         try {
@@ -1185,6 +1191,12 @@ public final class MinecraftPartySession implements PortedGameSession {
 
     public boolean playerCombatEnabled() {
         return this.phase == Phase.PLAY && this.round != null && this.round.playerCombatEnabled();
+    }
+
+    public boolean allowsUndiscoveredRecipes(ServerPlayerEntity player) {
+        return this.phase == Phase.PLAY && this.round != null && this.isParticipant(player.getUuid())
+                && !this.out.contains(player.getUuid()) && !this.completed.contains(player.getUuid())
+                && this.round.allowsUndiscoveredRecipes();
     }
 
     public boolean isChoosing(ServerPlayerEntity player) {

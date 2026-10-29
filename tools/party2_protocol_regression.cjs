@@ -21,7 +21,8 @@ const GAMES = {
   meat: { slot: 7, source: 409 }, oitq: { slot: 8, source: 428 },
   parkour: { source: 404 }, platforms: { source: 414, players: 4 },
   whack: { source: 402 }, monster: { source: 403 },
-  raft: { source: 405 }, knockout: { source: 406 }, skyfly: { source: 407 }
+  raft: { source: 405 }, knockout: { source: 406 }, skyfly: { source: 407 },
+  weapon: { source: 410 }, tedious: { source: 411, players: 4, minimumPlayers: 2, maximumPlayers: 4 }, horse: { source: 416 }
 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const json = value => JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item);
