@@ -1,0 +1,5917 @@
+{
+  "sourceId": 421,
+  "sourceVersion": "1.21.10",
+  "bounds": {
+    "min": [
+      -524,
+      -64,
+      -512
+    ],
+    "max": [
+      -297,
+      68,
+      -238
+    ]
+  },
+  "functionSha256": {
+    "port_priority": "8aa174d8b10a89c3ce90c22162c584daa0b35379a9e09fd9e467479870e19daa",
+    "port_priority_assign_item_order": "d7d072f879fe9af767dd7fa7e70dd38dd5c411ac0a3b7aa9b433cbe28ed4cb51",
+    "port_priority_end": "7a25a030ed74f6ab5f8319fbada5bd6070d2acaeeaf7018999093a227f0a9496",
+    "port_priority_next_item": "34aaa08417966af8dddee6bba62f0bb7a644bee387b3f4fd499a04426390d39a",
+    "port_priority_set_chest": "e99fa83531bfbff3f13272ec3174becce665b1a9d53dac2b37c46328bf688626",
+    "port_priority_set_independent_chest": "b70cdf3bbaf2973cc69248165db1a4ddca3cfb2cba76e84426133a88385e857b",
+    "port_priority_start": "fa5dbcc696d26d5a5bf97fdc6d74443ee7176612ffe188b09801715144392bb1",
+    "port_priority_summon_armor_stands": "3133ff1af1b80b1a1af826d03cebe66f78ff5fa8fb4cb4cf555e1ffc42d4b9a0",
+    "port_priority_tick": "84aca7be66c92dcba38b26cf415c4b62a3759c1eea18facb9091ce076b5ad7bf",
+    "assign_finish_threshold": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+    "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+    "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+    "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+    "player_circle": "d18804d0981068e317e7ae65b9554a9168a024ef7a6dcf6c7ef1aa3dce546952",
+    "player_circle_place_player": "adc09ffba5a6620792dc12ca8a494a28a43bb92f653b2f903b743f480887ef88",
+    "rotate_entity": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801"
+  },
+  "functions": {
+    "port_priority": "execute unless score currentRule variables matches 1..8 run scoreboard players reset currentRule variables\r\nscoreboard players add currentRule variables 1\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1\r\nexecute if score currentRule variables matches 1 run gamerule fallDamage true\r\nexecute if score currentRule variables matches 1 run scoreboard players set minigame variables 421\r\nexecute if score currentRule variables matches 1 run scoreboard players set music variables 5\r\nexecute if score currentRule variables matches 1 if score gamemode variables matches 0..3 unless score board variables matches 4 if score ranSpecialEvent variables matches 1.. run scoreboard players set NightTime variables 1\r\nexecute if score currentRule variables matches 1 if score gamemode variables matches 1..2 if score board variables matches 4 if score day_cycle variables matches 4..6 run scoreboard players set NightTime variables 1\r\nexecute if score currentRule variables matches 1 if score gamemode variables matches 1..2 if score board variables matches 15 if score night variables matches 1 run scoreboard players set NightTime variables 1\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=1}] -443 12 -325\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=2}] -445 12 -276\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=3}] -327 12 -315\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=4}] -390 12 -390\r\nexecute if score currentRule variables matches 1 run tp @a[scores={minigameplayer=5..}] -369 12 -301\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add HasItem1 dummy\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add HasItem2 dummy\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add HasItem3 dummy\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add HasItem4 dummy\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add HasItem5 dummy\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add HasItem6 dummy\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add HasItem7 dummy\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add MarkerID dummy\r\nexecute if score currentRule variables matches 1 run tp @a[gamemode=spectator] -368 36 -308\r\nexecute if score currentRule variables matches 1 run spawnpoint @a -368 36 -308\r\nexecute if score currentRule variables matches 1 run function mcp:assign_finish_threshold\r\nexecute if score currentRule variables matches 1 run title @a title {fallback:\"Port Priority\",translate:\"mcp.port_priority\",bold:1b,color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add ItemsFound dummy {fallback:\"Items Found\",color:\"dark_aqua\",bold:1b,translate:\"mcp.ItemsFound\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add checkpoint dummy\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add checkpoint_generic dummy {fallback:\"Items Found\",bold:1b,color:\"dark_aqua\",translate:\"mcp.ItemsFound\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 1 run scoreboard players set @a[scores={Player=1..}] checkpoint_generic 0\r\nexecute if score currentRule variables matches 1 run scoreboard objectives setdisplay sidebar checkpoint_generic\r\nexecute if score currentRule variables matches 1 run scoreboard players set @a[scores={Player=1..}] ItemsFound 0\r\nexecute if score currentRule variables matches 1 run scoreboard objectives add CurrentItem dummy\r\nexecute if score currentRule variables matches 1 run scoreboard players set @a[scores={Player=1..}] CurrentItem 0\r\nexecute if score currentRule variables matches 1 run effect give @a[scores={Player=1..}] minecraft:dolphins_grace infinite 0 true\r\nexecute if score currentRule variables matches 1 run effect give @a[scores={Player=1..}] minecraft:speed infinite 3 true\r\nexecute if score currentRule variables matches 1..2 run effect give @a[scores={Player=1..}] minecraft:weakness infinite 255 true\r\nexecute if score currentRule variables matches 1 run effect give @a[scores={Player=1..}] minecraft:saturation infinite 0 true\r\nexecute if score currentRule variables matches 1 run effect give @a[scores={Player=1..}] minecraft:water_breathing infinite 0 true\r\nexecute if score currentRule variables matches 4 run function mcp:give_ready_ups\r\nexecute if score currentRule variables matches 3 run scoreboard players set radius variables 2\r\nexecute if score currentRule variables matches 3 positioned -367.5 36 -307.5 run function mcp:player_circle\r\nexecute if score currentRule variables matches 3 run kill @e[tag=MarkerID]\r\nexecute if score currentRule variables matches 3 as @a[scores={minigameplayer=1..}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"MarkerID\"]}\r\nexecute if score currentRule variables matches 3 as @a[scores={minigameplayer=1..}] at @s run scoreboard players operation @e[tag=MarkerID,sort=nearest,limit=1] MarkerID = @s minigameplayer\r\nexecute if score currentRule variables matches 3 run tp @a[gamemode=spectator] -368 36 -308\r\nexecute if score currentRule variables matches 3 run scoreboard players set playingPortPriority variables 1\r\nexecute if score currentRule variables matches 3 run forceload add -336 -282\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -336 35 -282 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"north\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -407 -266\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -407 39 -266 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"east\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -489 -284\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -489 37 -284 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"east\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -443 -325\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -443 33 -325 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"east\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -403 -411\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -403 36 -411 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"south\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -374 -373\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -374 37 -373 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"south\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -318 -352\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -318 31 -352 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"south\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -404 -310\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -404 36 -310 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"west\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -454 -266\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -454 36 -266 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"east\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -487 -348\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -487 37 -348 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"east\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -374 -479\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -374 41 -479 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"south\"]}\r\nexecute if score currentRule variables matches 3 run forceload add -343 -403\r\nexecute if score currentRule variables matches 3 run summon minecraft:marker -343 36 -403 {Tags:[\"PortPriorityBeacon\",\"PortPriority\",\"south\"]}\r\nexecute if score currentRule variables matches 3 at @e[tag=PortPriorityBeacon] run fill ~-1 ~-1 ~-1 ~1 ~1 ~1 minecraft:air\r\nexecute if score currentRule variables matches 3 run tag @e[tag=PortPriorityBeacon,sort=random,limit=7] add active\r\nexecute if score currentRule variables matches 3 at @e[tag=active] run setblock ~ ~ ~ minecraft:beacon{}\r\nexecute if score currentRule variables matches 3 at @e[tag=active,tag=north] run setblock ~ ~1 ~ minecraft:chest[facing=north]{}\r\nexecute if score currentRule variables matches 3 at @e[tag=active,tag=south] run setblock ~ ~1 ~ minecraft:chest[facing=south]{}\r\nexecute if score currentRule variables matches 3 at @e[tag=active,tag=east] run setblock ~ ~1 ~ minecraft:chest[facing=east]{}\r\nexecute if score currentRule variables matches 3 at @e[tag=active,tag=west] run setblock ~ ~1 ~ minecraft:chest[facing=west]{}\r\nexecute if score currentRule variables matches 3 at @e[tag=active] run fill ~-1 ~-1 ~-1 ~1 ~-1 ~1 minecraft:iron_block\r\nexecute if score currentRule variables matches 3..4 run function mcp:port_priority_summon_armor_stands\r\nexecute if score currentRule variables matches 3 as @e[tag=active,sort=random] at @s run function mcp:port_priority_set_chest\r\nexecute if score currentRule variables matches 2 run tellraw @a {fallback:\"Each player will be given a key and be prompted with a random item to scavenge for.\",translate:\"mcp.port_priority.1\",color:\"dark_green\",type:\"translatable\"}\r\n#123, 132, 213, 231, 312, 321\r\n#ItemSelection = 0(not selected), 1(first item), 2(second item), or 3(third item)\r\nexecute if score currentRule variables matches 4 run scoreboard objectives add ItemSelection dummy\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[tag=PortPriorityItem] ItemSelection 0\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[scores={ItemSelection=0},sort=random,limit=1] ItemSelection 1\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[scores={ItemSelection=0},sort=random,limit=1] ItemSelection 2\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[scores={ItemSelection=0},sort=random,limit=1] ItemSelection 3\r\n#ItemNumber = 1(Copper Ingot), 2(Netherite Ingot), 3(Prismarine Shard), 4(Quartz), 5(Gold Ingot), 6(Emeralds), 7(Diamond)\r\nexecute if score currentRule variables matches 4 run scoreboard objectives add ItemNumber dummy\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[tag=CopperIngot] ItemNumber 1\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[tag=NetheriteIngot] ItemNumber 2\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[tag=PrismarineShard] ItemNumber 3\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[tag=Quartz] ItemNumber 4\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[tag=GoldIngot] ItemNumber 5\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[tag=Emerald] ItemNumber 6\r\nexecute if score currentRule variables matches 4 run scoreboard players set @e[tag=Diamond] ItemNumber 7\r\nexecute if score currentRule variables matches 4 run scoreboard players operation item1 variables = @e[scores={ItemSelection=1},limit=1] ItemNumber\r\nexecute if score currentRule variables matches 4 run scoreboard players operation item2 variables = @e[scores={ItemSelection=2},limit=1] ItemNumber\r\nexecute if score currentRule variables matches 4 run scoreboard players operation item3 variables = @e[scores={ItemSelection=3},limit=1] ItemNumber\r\nexecute if score currentRule variables matches 4 run scoreboard objectives remove ItemSelection\r\nexecute if score currentRule variables matches 4 run scoreboard objectives remove ItemNumber\r\nexecute if score currentRule variables matches 4 run kill @e[tag=PortPriorityItem]\r\nexecute if score currentRule variables matches 4 run summon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"ItemOrder\",\"1_1\",\"2_2\",\"3_3\"]}\r\nexecute if score currentRule variables matches 4 run summon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"ItemOrder\",\"1_1\",\"2_3\",\"3_2\"]}\r\nexecute if score currentRule variables matches 4 run summon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"ItemOrder\",\"1_2\",\"2_1\",\"3_3\"]}\r\nexecute if score currentRule variables matches 4 run summon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"ItemOrder\",\"1_2\",\"2_3\",\"3_1\"]}\r\nexecute if score currentRule variables matches 4 run summon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"ItemOrder\",\"1_3\",\"2_1\",\"3_2\"]}\r\nexecute if score currentRule variables matches 4 run summon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"ItemOrder\",\"1_3\",\"2_2\",\"3_1\"]}\r\nexecute if score currentRule variables matches 4 run scoreboard objectives add Item1 dummy\r\nexecute if score currentRule variables matches 4 run scoreboard objectives add Item2 dummy\r\nexecute if score currentRule variables matches 4 run scoreboard objectives add Item3 dummy\r\nexecute if score currentRule variables matches 4 as @a[scores={minigameplayer=1..}] run function mcp:port_priority_assign_item_order\r\nexecute if score currentRule variables matches 4 run kill @e[tag=ItemOrder]\r\nexecute if score currentRule variables matches 4 run fill -373 35 -374 -375 35 -372 stone\r\nexecute if score currentRule variables matches 4 unless entity @e[type=item_frame,x=-407,y=39,z=-266,distance=..3] run fill -408 38 -265 -406 38 -267 minecraft:birch_planks\r\nexecute if score currentRule variables matches 3 run tellraw @a {fallback:\"The item will be contained in a chest at one of the seven beacons.\",translate:\"mcp.port_priority.2\",color:\"dark_aqua\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 4 run tellraw @a {fallback:\"The key given will only be able to open that chest.\",translate:\"mcp.port_priority.3\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 5 run tellraw @a {fallback:\"Upon finding the item, the player will be given a new key and prompted for a new item to look for.\",translate:\"mcp.port_priority.4\",color:\"dark_aqua\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 6 run tellraw @a {fallback:\"All players will be tasked with finding the same three items, but the order will vary for each player.\",translate:\"mcp.port_priority.5\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 7 run tellraw @a {fallback:\"The player that finds all three items first wins.\",translate:\"mcp.port_priority.6\",color:\"dark_aqua\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 8 run tellraw @a {fallback:\"Chests are marked with item frames that show the item contained.\",translate:\"mcp.port_priority.7\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 9 run tellraw @a {fallback:\"Use this information to remember the item corresponding to any previous beacons that you have visited.\",translate:\"mcp.port_priority.8\",color:\"dark_aqua\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 9 run scoreboard players reset currentRule variables\r\nexecute if score currentRule variables matches ..8 run schedule function mcp:port_priority 3s\r\n\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_copper_0 {\"text\":\"Copper Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_copper_1 {\"text\":\"Copper Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_copper_2 {\"text\":\"Copper Task\"}\r\n\r\n# --- 1. Copper Ingot ---\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_0 color red\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_1 color red\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_2 color red\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_0 style notched_10\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_1 style notched_10\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_2 style notched_10\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_0 value 0\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_1 value 33\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_2 value 66\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_0 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.1\",type:\"translatable\",with:[{fallback:\"Copper Ingot\",translate:\"mcp.port_priority_next_item.1.1\",color:\"#E47B55\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_1 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.1\",type:\"translatable\",with:[{fallback:\"Copper Ingot\",translate:\"mcp.port_priority_next_item.1.1\",color:\"#E47B55\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_copper_2 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.1\",type:\"translatable\",with:[{fallback:\"Copper Ingot\",translate:\"mcp.port_priority_next_item.1.1\",color:\"#E47B55\",bold:1b,type:\"translatable\"}]}]\r\n\r\n# --- 2. Netherite Ingot ---\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_netherite_0 {\"text\":\"Netherite Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_netherite_1 {\"text\":\"Netherite Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_netherite_2 {\"text\":\"Netherite Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_netherite_0 color purple\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_netherite_1 color purple\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_netherite_2 color purple\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_netherite_0 value 0\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_netherite_1 value 33\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_netherite_2 value 66\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_netherite_0 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.2\",type:\"translatable\",with:[{fallback:\"Netherite Ingot\",translate:\"mcp.port_priority_next_item.2.1\",color:\"#595659\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_netherite_1 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.2\",type:\"translatable\",with:[{fallback:\"Netherite Ingot\",translate:\"mcp.port_priority_next_item.2.1\",color:\"#595659\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_netherite_2 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.2\",type:\"translatable\",with:[{fallback:\"Netherite Ingot\",translate:\"mcp.port_priority_next_item.2.1\",color:\"#595659\",bold:1b,type:\"translatable\"}]}]\r\n\r\n# --- 3. Prismarine Shard ---\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_prismarine_0 {\"text\":\"Prismarine Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_prismarine_1 {\"text\":\"Prismarine Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_prismarine_2 {\"text\":\"Prismarine Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_prismarine_0 color green\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_prismarine_1 color green\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_prismarine_2 color green\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_prismarine_0 value 0\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_prismarine_1 value 33\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_prismarine_2 value 66\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_prismarine_0 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.3\",type:\"translatable\",with:[{fallback:\"Prismarine Shard\",translate:\"mcp.port_priority_next_item.3.1\",color:\"#00FFC0\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_prismarine_1 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.3\",type:\"translatable\",with:[{fallback:\"Prismarine Shard\",translate:\"mcp.port_priority_next_item.3.1\",color:\"#00FFC0\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_prismarine_2 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.3\",type:\"translatable\",with:[{fallback:\"Prismarine Shard\",translate:\"mcp.port_priority_next_item.3.1\",color:\"#00FFC0\",bold:1b,type:\"translatable\"}]}]\r\n\r\n# --- 4. Quartz ---\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_quartz_0 {\"text\":\"Quartz Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_quartz_1 {\"text\":\"Quartz Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_quartz_2 {\"text\":\"Quartz Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_quartz_0 color white\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_quartz_1 color white\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_quartz_2 color white\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_quartz_0 value 0\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_quartz_1 value 33\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_quartz_2 value 66\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_quartz_0 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.4\",type:\"translatable\",with:[{fallback:\"Quartz\",translate:\"mcp.port_priority_next_item.4.1\",color:\"#D0D0D0\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_quartz_1 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.4\",type:\"translatable\",with:[{fallback:\"Quartz\",translate:\"mcp.port_priority_next_item.4.1\",color:\"#D0D0D0\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_quartz_2 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.4\",type:\"translatable\",with:[{fallback:\"Quartz\",translate:\"mcp.port_priority_next_item.4.1\",color:\"#D0D0D0\",bold:1b,type:\"translatable\"}]}]\r\n\r\n# --- 5. Gold Ingot ---\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_gold_0 {\"text\":\"Gold Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_gold_1 {\"text\":\"Gold Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_gold_2 {\"text\":\"Gold Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_gold_0 color yellow\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_gold_1 color yellow\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_gold_2 color yellow\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_gold_0 value 0\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_gold_1 value 33\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_gold_2 value 66\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_gold_0 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.5\",type:\"translatable\",with:[{fallback:\"Gold Ingot\",translate:\"mcp.port_priority_next_item.5.1\",color:\"#FFF000\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_gold_1 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.5\",type:\"translatable\",with:[{fallback:\"Gold Ingot\",translate:\"mcp.port_priority_next_item.5.1\",color:\"#FFF000\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_gold_2 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.5\",type:\"translatable\",with:[{fallback:\"Gold Ingot\",translate:\"mcp.port_priority_next_item.5.1\",color:\"#FFF000\",bold:1b,type:\"translatable\"}]}]\r\n\r\n# --- 6. Emerald ---\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_emerald_0 {\"text\":\"Emerald Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_emerald_1 {\"text\":\"Emerald Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_emerald_2 {\"text\":\"Emerald Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_emerald_0 color green\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_emerald_1 color green\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_emerald_2 color green\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_emerald_0 value 0\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_emerald_1 value 33\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_emerald_2 value 66\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_emerald_0 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.6\",type:\"translatable\",with:[{fallback:\"Emerald\",translate:\"mcp.port_priority_next_item.6.1\",color:\"#40F082\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_emerald_1 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.6\",type:\"translatable\",with:[{fallback:\"Emerald\",translate:\"mcp.port_priority_next_item.6.1\",color:\"#40F082\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_emerald_2 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.6\",type:\"translatable\",with:[{fallback:\"Emerald\",translate:\"mcp.port_priority_next_item.6.1\",color:\"#40F082\",bold:1b,type:\"translatable\"}]}]\r\n\r\n# --- 7. Diamond ---\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_diamond_0 {\"text\":\"Diamond Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_diamond_1 {\"text\":\"Diamond Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar add mcp:pp_diamond_2 {\"text\":\"Diamond Task\"}\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_diamond_0 color blue\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_diamond_1 color blue\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_diamond_2 color blue\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_diamond_0 value 0\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_diamond_1 value 33\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_diamond_2 value 66\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_diamond_0 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.7\",type:\"translatable\",with:[{fallback:\"Diamond\",translate:\"mcp.port_priority_next_item.7.1\",color:\"#00FFFF\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_diamond_1 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.7\",type:\"translatable\",with:[{fallback:\"Diamond\",translate:\"mcp.port_priority_next_item.7.1\",color:\"#00FFFF\",bold:1b,type:\"translatable\"}]}]\r\nexecute if score currentRule variables matches 1 run bossbar set mcp:pp_diamond_2 name [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.7\",type:\"translatable\",with:[{fallback:\"Diamond\",translate:\"mcp.port_priority_next_item.7.1\",color:\"#00FFFF\",bold:1b,type:\"translatable\"}]}]",
+    "port_priority_assign_item_order": "tag @e[tag=ItemOrder,sort=random,limit=1] add temp\r\nexecute if entity @e[tag=temp,tag=1_1] run scoreboard players operation @s Item1 = item1 variables\r\nexecute if entity @e[tag=temp,tag=1_2] run scoreboard players operation @s Item1 = item2 variables\r\nexecute if entity @e[tag=temp,tag=1_3] run scoreboard players operation @s Item1 = item3 variables\r\nexecute if entity @e[tag=temp,tag=2_1] run scoreboard players operation @s Item2 = item1 variables\r\nexecute if entity @e[tag=temp,tag=2_2] run scoreboard players operation @s Item2 = item2 variables\r\nexecute if entity @e[tag=temp,tag=2_3] run scoreboard players operation @s Item2 = item3 variables\r\nexecute if entity @e[tag=temp,tag=3_1] run scoreboard players operation @s Item3 = item1 variables\r\nexecute if entity @e[tag=temp,tag=3_2] run scoreboard players operation @s Item3 = item2 variables\r\nexecute if entity @e[tag=temp,tag=3_3] run scoreboard players operation @s Item3 = item3 variables\r\nexecute if score players variables matches 5.. run kill @e[tag=temp,tag=assigned]\r\nexecute if score players variables matches 5.. run tag @e[tag=temp] add assigned\r\nexecute if score players variables matches 5.. run tag @e[tag=temp] remove temp\r\nexecute unless score players variables matches 5.. run kill @e[tag=temp]",
+    "port_priority_end": "scoreboard players reset playingPortPriority variables\r\nexecute store result score playersOnline variables if entity @a[scores={Player=1..}]\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run title @a actionbar {fallback:\"All players must be online to continue\",translate:\"mcp.MissingPlayerActionBarAlert\",type:\"translatable\"}\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run schedule function mcp:port_priority_end 1t\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run return 0\r\nscoreboard players reset playersOnline variables\r\n\r\nscoreboard players reset playersFinished variables\r\nscoreboard players reset NightTime variables\r\nscoreboard players reset item1 variables\r\nscoreboard players reset item2 variables\r\nscoreboard players reset item3 variables\r\nscoreboard players reset finishThreshold variables\r\ntp @a[gamemode=spectator] -368 36 -308\r\ngamemode adventure @a[scores={minigameplayer=1..}]\r\nclear @a[scores={Player=1..}]\r\nexecute as @a run scoreboard players operation @s ItemsFound *= players variables\r\nexecute as @a run scoreboard players operation @s Points += @s ItemsFound\r\nexecute as @a run scoreboard players operation @s ItemsFound /= players variables\r\nscoreboard objectives remove HasItem1\r\nscoreboard objectives remove HasItem2\r\nscoreboard objectives remove HasItem3\r\nscoreboard objectives remove HasItem4\r\nscoreboard objectives remove HasItem5\r\nscoreboard objectives remove HasItem6\r\nscoreboard objectives remove HasItem7\r\nscoreboard objectives remove ItemsFound\r\nscoreboard objectives remove CurrentItem\r\nscoreboard objectives remove Item1\r\nscoreboard objectives remove Item2\r\nscoreboard objectives remove Item3\r\nscoreboard objectives remove checkpoint\r\nscoreboard objectives remove checkpoint_generic\r\n\r\nbossbar remove mcp:pp_copper_0\r\nbossbar remove mcp:pp_copper_1\r\nbossbar remove mcp:pp_copper_2\r\nbossbar remove mcp:pp_netherite_0\r\nbossbar remove mcp:pp_netherite_1\r\nbossbar remove mcp:pp_netherite_2\r\nbossbar remove mcp:pp_prismarine_0\r\nbossbar remove mcp:pp_prismarine_1\r\nbossbar remove mcp:pp_prismarine_2\r\nbossbar remove mcp:pp_quartz_0\r\nbossbar remove mcp:pp_quartz_1\r\nbossbar remove mcp:pp_quartz_2\r\nbossbar remove mcp:pp_gold_0\r\nbossbar remove mcp:pp_gold_1\r\nbossbar remove mcp:pp_gold_2\r\nbossbar remove mcp:pp_emerald_0\r\nbossbar remove mcp:pp_emerald_1\r\nbossbar remove mcp:pp_emerald_2\r\nbossbar remove mcp:pp_diamond_0\r\nbossbar remove mcp:pp_diamond_1\r\nbossbar remove mcp:pp_diamond_2\r\n\r\nexecute at @e[tag=PortPriorityBeacon] run fill ~-1 ~-1 ~-1 ~1 ~1 ~1 minecraft:air\r\nexecute at @e[tag=PortPriorityBeacon] run fill ~ ~2 ~ ~ ~2 ~ minecraft:air replace minecraft:black_stained_glass_pane\r\nkill @e[tag=PortPriority]\r\neffect clear @a minecraft:dolphins_grace\r\neffect clear @a minecraft:speed\r\neffect clear @a minecraft:weakness\r\neffect clear @a minecraft:water_breathing\r\nforceload remove all\r\nforceload add 0 0\r\ngamerule fallDamage true\r\nfunction mcp:last_timer_title\r\nexecute unless score void_minigame variables matches 1 run function mcp:placements\r\nschedule clear mcp:port_priority\r\nexecute unless score void_minigame variables matches 1 if score timeLeft variables matches 0 as @a at @s run playsound mcp:time_up voice @s ~ ~ ~ 1 1 1\r\nexecute unless score void_minigame variables matches 1 unless score timeLeft variables matches 0 as @a at @s run playsound mcp:finish voice @s ~ ~ ~ 1 1 1",
+    "port_priority_next_item": "scoreboard players add @s ItemsFound 1\r\nexecute if entity @s[scores={CurrentItem=1}] run scoreboard players set @s HasItem1 1\r\nexecute if entity @s[scores={CurrentItem=2}] run scoreboard players set @s HasItem2 1\r\nexecute if entity @s[scores={CurrentItem=3}] run scoreboard players set @s HasItem3 1\r\nexecute if entity @s[scores={CurrentItem=4}] run scoreboard players set @s HasItem4 1\r\nexecute if entity @s[scores={CurrentItem=5}] run scoreboard players set @s HasItem5 1\r\nexecute if entity @s[scores={CurrentItem=6}] run scoreboard players set @s HasItem6 1\r\nexecute if entity @s[scores={CurrentItem=7}] run scoreboard players set @s HasItem7 1\r\nexecute if entity @s[scores={ItemsFound=0}] run scoreboard players operation @s CurrentItem = @s Item1\r\nexecute if entity @s[scores={ItemsFound=1}] run scoreboard players operation @s CurrentItem = @s Item2\r\nexecute if entity @s[scores={ItemsFound=2}] run scoreboard players operation @s CurrentItem = @s Item3\r\nexecute if entity @s[scores={ItemsFound=3..}] run scoreboard players set @s CurrentItem 0\r\ntellraw @s[scores={CurrentItem=1}] [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.1\",type:\"translatable\",with:[{fallback:\"Copper Ingot\",translate:\"mcp.port_priority_next_item.1.1\",color:\"#E47B55\",bold:1b,type:\"translatable\"}]}]\r\ntellraw @s[scores={CurrentItem=2}] [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.2\",type:\"translatable\",with:[{fallback:\"Netherite Ingot\",translate:\"mcp.port_priority_next_item.2.1\",color:\"#595659\",bold:1b,type:\"translatable\"}]}]\r\ntellraw @s[scores={CurrentItem=3}] [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.3\",type:\"translatable\",with:[{fallback:\"Prismarine Shard\",translate:\"mcp.port_priority_next_item.3.1\",color:\"#00FFC0\",bold:1b,type:\"translatable\"}]}]\r\ntellraw @s[scores={CurrentItem=4}] [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.4\",type:\"translatable\",with:[{fallback:\"Quartz\",translate:\"mcp.port_priority_next_item.4.1\",color:\"#D0D0D0\",bold:1b,type:\"translatable\"}]}]\r\ntellraw @s[scores={CurrentItem=5}] [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.5\",type:\"translatable\",with:[{fallback:\"Gold Ingot\",translate:\"mcp.port_priority_next_item.5.1\",color:\"#FFF000\",bold:1b,type:\"translatable\"}]}]\r\ntellraw @s[scores={CurrentItem=6}] [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.6\",type:\"translatable\",with:[{fallback:\"Emerald\",translate:\"mcp.port_priority_next_item.6.1\",color:\"#40F082\",bold:1b,type:\"translatable\"}]}]\r\ntellraw @s[scores={CurrentItem=7}] [{fallback:\"Your next item is: %1$s\",translate:\"mcp.port_priority_next_item.7\",type:\"translatable\",with:[{fallback:\"Diamond\",translate:\"mcp.port_priority_next_item.7.1\",color:\"#00FFFF\",bold:1b,type:\"translatable\"}]}]\r\n\r\nexecute if entity @s[scores={ItemsFound=3..}] run tellraw @a [{fallback:\"%1$s found all the items!\",translate:\"mcp.port_priority_next_item.8\",color:\"white\",bold:0b,type:\"translatable\",with:[{bold:1b,selector:\"@s\",type:\"selector\"}]}]\r\nexecute if entity @s[scores={ItemsFound=3..}] run scoreboard players add playersFinished variables 1\r\nfunction mcp:checkpoint\r\nclear @s[scores={ItemsFound=3..}]\r\ngamemode spectator @s[scores={ItemsFound=3..}]",
+    "port_priority_set_chest": "summon minecraft:item_frame ~1 ~2 ~ {Facing:5,Invulnerable:1b,Invisible:1b,Fixed:1b,Tags:[\"currentItemFrame\",\"PortPriority\"],Item:{}}\r\nsummon minecraft:item_frame ~-1 ~2 ~ {Facing:4,Invulnerable:1b,Invisible:1b,Fixed:1b,Tags:[\"currentItemFrame\",\"PortPriority\"],Item:{}}\r\nsummon minecraft:item_frame ~ ~2 ~1 {Facing:3,Invulnerable:1b,Invisible:1b,Fixed:1b,Tags:[\"currentItemFrame\",\"PortPriority\"],Item:{}}\r\nsummon minecraft:item_frame ~ ~2 ~-1 {Facing:2,Invulnerable:1b,Invisible:1b,Fixed:1b,Tags:[\"currentItemFrame\",\"PortPriority\"],Item:{}}\r\ntag @e[tag=PortPriorityItem,sort=random,limit=1] add temp\r\nexecute if entity @e[tag=temp,tag=CopperIngot] as @e[tag=currentItemFrame] run data merge entity @s {Item:{id:\"minecraft:copper_ingot\",count:1}}\r\nexecute if entity @e[tag=temp,tag=NetheriteIngot] as @e[tag=currentItemFrame] run data merge entity @s {Item:{id:\"minecraft:netherite_ingot\",count:1}}\r\nexecute if entity @e[tag=temp,tag=PrismarineShard] as @e[tag=currentItemFrame] run data merge entity @s {Item:{id:\"minecraft:prismarine_shard\",count:1}}\r\nexecute if entity @e[tag=temp,tag=Quartz] as @e[tag=currentItemFrame] run data merge entity @s {Item:{id:\"minecraft:quartz\",count:1}}\r\nexecute if entity @e[tag=temp,tag=GoldIngot] as @e[tag=currentItemFrame] run data merge entity @s {Item:{id:\"minecraft:gold_ingot\",count:1}}\r\nexecute if entity @e[tag=temp,tag=Emerald] as @e[tag=currentItemFrame] run data merge entity @s {Item:{id:\"minecraft:emerald\",count:1}}\r\nexecute if entity @e[tag=temp,tag=Diamond] as @e[tag=currentItemFrame] run data merge entity @s {Item:{id:\"minecraft:diamond\",count:1}}\r\nexecute positioned ~ ~1 ~ run function mcp:port_priority_set_independent_chest\r\nscoreboard players add currentChest variables 1\r\ntag @s add PortPriority\r\nexecute if score currentChest variables matches 1 run tag @s add 1\r\nexecute if score currentChest variables matches 2 run tag @s add 2\r\nexecute if score currentChest variables matches 3 run tag @s add 3\r\nexecute if score currentChest variables matches 4 run tag @s add 4\r\nexecute if score currentChest variables matches 5 run tag @s add 5\r\nexecute if score currentChest variables matches 6 run tag @s add 6\r\nexecute if score currentChest variables matches 7 run tag @s add 7\r\nexecute if score currentChest variables matches 1 run clone ~ ~1 ~ ~ ~1 ~ -360 13 -308\r\nexecute if score currentChest variables matches 2 run clone ~ ~1 ~ ~ ~1 ~ -362 13 -308\r\nexecute if score currentChest variables matches 3 run clone ~ ~1 ~ ~ ~1 ~ -364 13 -308\r\nexecute if score currentChest variables matches 4 run clone ~ ~1 ~ ~ ~1 ~ -366 13 -308\r\nexecute if score currentChest variables matches 5 run clone ~ ~1 ~ ~ ~1 ~ -368 13 -308\r\nexecute if score currentChest variables matches 6 run clone ~ ~1 ~ ~ ~1 ~ -370 13 -308\r\nexecute if score currentChest variables matches 7 run clone ~ ~1 ~ ~ ~1 ~ -372 13 -308\r\nexecute unless score NightTime variables matches 1 run setblock ~ ~2 ~ minecraft:black_stained_glass_pane\r\ntag @e[tag=currentItemFrame] remove currentItemFrame\r\nkill @e[tag=temp]\r\nexecute if score currentChest variables matches 7 run scoreboard players reset currentChest variables",
+    "port_priority_set_independent_chest": "execute if entity @e[tag=temp,tag=CopperIngot] run data merge block ~ ~ ~ {Items:[{id:\"minecraft:copper_ingot\",count:1,Slot:13b}]}\r\nexecute if entity @e[tag=temp,tag=NetheriteIngot] run data merge block ~ ~ ~ {Items:[{id:\"minecraft:netherite_ingot\",count:1,Slot:13b}]}\r\nexecute if entity @e[tag=temp,tag=PrismarineShard] run data merge block ~ ~ ~ {Items:[{id:\"minecraft:prismarine_shard\",count:1,Slot:13b}]}\r\nexecute if entity @e[tag=temp,tag=Quartz] run data merge block ~ ~ ~ {Items:[{id:\"minecraft:quartz\",count:1,Slot:13b}]}\r\nexecute if entity @e[tag=temp,tag=GoldIngot] run data merge block ~ ~ ~ {Items:[{id:\"minecraft:gold_ingot\",count:1,Slot:13b}]}\r\nexecute if entity @e[tag=temp,tag=Emerald] run data merge block ~ ~ ~ {Items:[{id:\"minecraft:emerald\",count:1,Slot:13b}]}\r\nexecute if entity @e[tag=temp,tag=Diamond] run data merge block ~ ~ ~ {Items:[{id:\"minecraft:diamond\",count:1,Slot:13b}]}\r\nexecute if entity @e[tag=temp,tag=CopperIngot] run data merge block ~ ~ ~ {lock:{components:{\"minecraft:custom_name\":\"Copper Ingot Key\"}}}\r\nexecute if entity @e[tag=temp,tag=NetheriteIngot] run data merge block ~ ~ ~ {lock:{components:{\"minecraft:custom_name\":\"Netherite Ingot Key\"}}}\r\nexecute if entity @e[tag=temp,tag=PrismarineShard] run data merge block ~ ~ ~ {lock:{components:{\"minecraft:custom_name\":\"Prismarine Shard Key\"}}}\r\nexecute if entity @e[tag=temp,tag=Quartz] run data merge block ~ ~ ~ {lock:{components:{\"minecraft:custom_name\":\"Quartz Key\"}}}\r\nexecute if entity @e[tag=temp,tag=GoldIngot] run data merge block ~ ~ ~ {lock:{components:{\"minecraft:custom_name\":\"Gold Ingot Key\"}}}\r\nexecute if entity @e[tag=temp,tag=Emerald] run data merge block ~ ~ ~ {lock:{components:{\"minecraft:custom_name\":\"Emerald Key\"}}}\r\nexecute if entity @e[tag=temp,tag=Diamond] run data merge block ~ ~ ~ {lock:{components:{\"minecraft:custom_name\":\"Diamond Key\"}}}",
+    "port_priority_start": "scoreboard objectives remove MarkerID\r\ntitle @a title {fallback:\"Scavenge!\",translate:\"mcp.port_priority_start.1\",color:\"green\",type:\"translatable\"}\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1\r\nscoreboard players set playingPortPriority variables 2\r\nscoreboard players operation timeLeft variables = portPriorityTime constants\r\nscoreboard players remove @a[scores={Player=1..}] ItemsFound 1\r\nscoreboard players set playersFinished variables 0\r\nfunction mcp:assign_finish_threshold\r\nscoreboard objectives remove MarkerID\r\nscoreboard objectives add CheckpointPoints dummy\r\nexecute as @a[scores={Player=1..}] unless score @s Item1 matches 1.. run scoreboard players set @s Item1 1\r\nexecute as @a[scores={Player=1..}] unless score @s Item2 matches 1.. run scoreboard players set @s Item1 2\r\nexecute as @a[scores={Player=1..}] unless score @s Item3 matches 1.. run scoreboard players set @s Item1 3\r\nexecute as @a[scores={Player=1..}] run function mcp:port_priority_next_item\r\nscoreboard players set @a[gamemode=adventure] Points 3\r\nkill @e[tag=MarkerID]\r\nexecute unless score item1 variables matches 1 unless score item2 variables matches 1 unless score item3 variables matches 1 run scoreboard players set noCopper variables 1\r\nexecute unless score item1 variables matches 2 unless score item2 variables matches 2 unless score item3 variables matches 2 run scoreboard players set noNetherite variables 1\r\nexecute unless score item1 variables matches 3 unless score item2 variables matches 3 unless score item3 variables matches 3 run scoreboard players set noPrismarine variables 1\r\nexecute unless score item1 variables matches 4 unless score item2 variables matches 4 unless score item3 variables matches 4 run scoreboard players set noQuartz variables 1\r\nexecute unless score item1 variables matches 5 unless score item2 variables matches 5 unless score item3 variables matches 5 run scoreboard players set noGoldIngot variables 1\r\nexecute unless score item1 variables matches 6 unless score item2 variables matches 6 unless score item3 variables matches 6 run scoreboard players set noEmerald variables 1\r\nexecute unless score item1 variables matches 7 unless score item2 variables matches 7 unless score item3 variables matches 7 run scoreboard players set noDiamond variables 1\r\ntellraw @a[gamemode=spectator] {fallback:\"Items being search for:\",translate:\"mcp.port_priority_start.2\",color:\"white\",type:\"translatable\"}\r\nexecute unless score noCopper variables matches 1 run tellraw @a[gamemode=spectator] {fallback:\"Copper Ingot\",translate:\"mcp.port_priority_next_item.1.1\",color:\"#E47B55\",bold:1b,type:\"translatable\"}\r\nexecute unless score noNetherite variables matches 1 run tellraw @a[gamemode=spectator] {fallback:\"Netherite Ingot\",translate:\"mcp.port_priority_next_item.2.1\",color:\"#595659\",bold:1b,type:\"translatable\"}\r\nexecute unless score noPrismarine variables matches 1 run tellraw @a[gamemode=spectator] {fallback:\"Prismarine Shard\",translate:\"mcp.port_priority_next_item.3.1\",color:\"#00FFC0\",bold:1b,type:\"translatable\"}\r\nexecute unless score noQuartz variables matches 1 run tellraw @a[gamemode=spectator] {fallback:\"Quartz\",translate:\"mcp.port_priority_next_item.4.1\",color:\"#D0D0D0\",bold:1b,type:\"translatable\"}\r\nexecute unless score noGoldIngot variables matches 1 run tellraw @a[gamemode=spectator] {fallback:\"Gold Ingot\",translate:\"mcp.port_priority_next_item.5.1\",color:\"#FFF000\",bold:1b,type:\"translatable\"}\r\nexecute unless score noEmerald variables matches 1 run tellraw @a[gamemode=spectator] {fallback:\"Emerald\",translate:\"mcp.port_priority_next_item.6.1\",color:\"#40F082\",bold:1b,type:\"translatable\"}\r\nexecute unless score noDiamond variables matches 1 run tellraw @a[gamemode=spectator] {fallback:\"Diamond\",translate:\"mcp.port_priority_next_item.7.1\",color:\"#00FFFF\",bold:1b,type:\"translatable\"}\r\nscoreboard players reset noCopper variables\r\nscoreboard players reset noNetherite variables\r\nscoreboard players reset noPrismarine variables\r\nscoreboard players reset noQuartz variables\r\nscoreboard players reset noGoldIngot variables\r\nscoreboard players reset noEmerald variables\r\nscoreboard players reset noDiamond variables\r\ngamerule fallDamage false",
+    "port_priority_summon_armor_stands": "summon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"PortPriorityItem\",\"CopperIngot\"]}\r\nsummon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"PortPriorityItem\",\"NetheriteIngot\"]}\r\nsummon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"PortPriorityItem\",\"PrismarineShard\"]}\r\nsummon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"PortPriorityItem\",\"Quartz\"]}\r\nsummon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"PortPriorityItem\",\"GoldIngot\"]}\r\nsummon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"PortPriorityItem\",\"Emerald\"]}\r\nsummon minecraft:armor_stand -368 36 -308 {Invisible:1b,Tags:[\"PortPriorityItem\",\"Diamond\"]}",
+    "port_priority_tick": "execute if score playingPortPriority variables matches 1 as @a[gamemode=adventure,scores={minigameplayer=1..}] at @e[tag=MarkerID] if score @e[tag=MarkerID,sort=nearest,limit=1] MarkerID = @s minigameplayer if entity @s[distance=0.5..] run tp @s ~ ~ ~\r\nexecute as @a[gamemode=spectator] if entity @s[x=-421,y=54,z=-357,distance=135..] run tp @s -385 54 -321\r\nexecute at @e[tag=1,tag=PortPriority,limit=1] unless blocks ~ ~1 ~ ~ ~1 ~ -360 13 -308 masked run clone -360 13 -308 -360 13 -308 ~ ~1 ~\r\nexecute at @e[tag=2,tag=PortPriority,limit=1] unless blocks ~ ~1 ~ ~ ~1 ~ -362 13 -308 masked run clone -362 13 -308 -362 13 -308 ~ ~1 ~\r\nexecute at @e[tag=3,tag=PortPriority,limit=1] unless blocks ~ ~1 ~ ~ ~1 ~ -364 13 -308 masked run clone -364 13 -308 -364 13 -308 ~ ~1 ~\r\nexecute at @e[tag=4,tag=PortPriority,limit=1] unless blocks ~ ~1 ~ ~ ~1 ~ -366 13 -308 masked run clone -366 13 -308 -366 13 -308 ~ ~1 ~\r\nexecute at @e[tag=5,tag=PortPriority,limit=1] unless blocks ~ ~1 ~ ~ ~1 ~ -368 13 -308 masked run clone -368 13 -308 -368 13 -308 ~ ~1 ~\r\nexecute at @e[tag=6,tag=PortPriority,limit=1] unless blocks ~ ~1 ~ ~ ~1 ~ -370 13 -308 masked run clone -370 13 -308 -370 13 -308 ~ ~1 ~\r\nexecute at @e[tag=7,tag=PortPriority,limit=1] unless blocks ~ ~1 ~ ~ ~1 ~ -372 13 -308 masked run clone -372 13 -308 -372 13 -308 ~ ~1 ~\r\nexecute as @a[scores={CurrentItem=1},nbt={Inventory:[{id:\"minecraft:copper_ingot\"}]}] run function mcp:port_priority_next_item\r\nexecute as @a[scores={CurrentItem=2},nbt={Inventory:[{id:\"minecraft:netherite_ingot\"}]}] run function mcp:port_priority_next_item\r\nexecute as @a[scores={CurrentItem=3},nbt={Inventory:[{id:\"minecraft:prismarine_shard\"}]}] run function mcp:port_priority_next_item\r\nexecute as @a[scores={CurrentItem=4},nbt={Inventory:[{id:\"minecraft:quartz\"}]}] run function mcp:port_priority_next_item\r\nexecute as @a[scores={CurrentItem=5},nbt={Inventory:[{id:\"minecraft:gold_ingot\"}]}] run function mcp:port_priority_next_item\r\nexecute as @a[scores={CurrentItem=6},nbt={Inventory:[{id:\"minecraft:emerald\"}]}] run function mcp:port_priority_next_item\r\nexecute as @a[scores={CurrentItem=7},nbt={Inventory:[{id:\"minecraft:diamond\"}]}] run function mcp:port_priority_next_item\r\nitem replace entity @a[scores={minigameplayer=1..}] weapon.offhand with air\r\nkill @e[type=minecraft:item,nbt={Item:{id:\"minecraft:copper_ingot\",count:1}}]\r\nkill @e[type=minecraft:item,nbt={Item:{id:\"minecraft:netherite_ingot\",count:1}}]\r\nkill @e[type=minecraft:item,nbt={Item:{id:\"minecraft:prismarine_shard\",count:1}}]\r\nkill @e[type=minecraft:item,nbt={Item:{id:\"minecraft:quartz\",count:1}}]\r\nkill @e[type=minecraft:item,nbt={Item:{id:\"minecraft:gold_ingot\",count:1}}]\r\nkill @e[type=minecraft:item,nbt={Item:{id:\"minecraft:emerald\",count:1}}]\r\nkill @e[type=minecraft:item,nbt={Item:{id:\"minecraft:diamond\",count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Copper Ingot Key\"},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Netherite Ingot Key\"},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Prismarine Shard Key\"},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Quartz Key\"},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Gold Ingot Key\"},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Emerald Key\"},count:1}}]\r\nkill @e[nbt={Item:{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Diamond Key\"},count:1}}]\r\nexecute as @a unless entity @a[scores={HasItem1=1}] run clear @s minecraft:copper_ingot\r\nexecute as @a unless entity @a[scores={HasItem2=1}] run clear @s minecraft:netherite_ingot\r\nexecute as @a unless entity @a[scores={HasItem3=1}] run clear @s minecraft:prismarine_shard\r\nexecute as @a unless entity @a[scores={HasItem4=1}] run clear @s minecraft:quartz\r\nexecute as @a unless entity @a[scores={HasItem5=1}] run clear @s minecraft:gold_ingot\r\nexecute as @a unless entity @a[scores={HasItem6=1}] run clear @s minecraft:emerald\r\nexecute as @a unless entity @a[scores={HasItem7=1}] run clear @s minecraft:diamond\r\nexecute as @a[scores={HasItem1=1}] unless entity @s[nbt={Inventory:[{id:\"minecraft:copper_ingot\"}]}] run give @s minecraft:copper_ingot 1\r\nexecute as @a[scores={HasItem2=1}] unless entity @s[nbt={Inventory:[{id:\"minecraft:netherite_ingot\"}]}] run give @s minecraft:netherite_ingot 1\r\nexecute as @a[scores={HasItem3=1}] unless entity @s[nbt={Inventory:[{id:\"minecraft:prismarine_shard\"}]}] run give @s minecraft:prismarine_shard 1\r\nexecute as @a[scores={HasItem4=1}] unless entity @s[nbt={Inventory:[{id:\"minecraft:quartz\"}]}] run give @s minecraft:quartz 1\r\nexecute as @a[scores={HasItem5=1}] unless entity @s[nbt={Inventory:[{id:\"minecraft:gold_ingot\"}]}] run give @s minecraft:gold_ingot 1\r\nexecute as @a[scores={HasItem6=1}] unless entity @s[nbt={Inventory:[{id:\"minecraft:emerald\"}]}] run give @s minecraft:emerald 1\r\nexecute as @a[scores={HasItem7=1}] unless entity @s[nbt={Inventory:[{id:\"minecraft:diamond\"}]}] run give @s minecraft:diamond 1\r\nexecute as @a unless entity @s[scores={CurrentItem=1}] run clear @s minecraft:tripwire_hook[minecraft:custom_name=\"Copper Ingot Key\"]\r\nexecute as @a unless entity @s[scores={CurrentItem=2}] run clear @s minecraft:tripwire_hook[minecraft:custom_name=\"Netherite Ingot Key\"]\r\nexecute as @a unless entity @s[scores={CurrentItem=3}] run clear @s minecraft:tripwire_hook[minecraft:custom_name=\"Prismarine Shard Key\"]\r\nexecute as @a unless entity @s[scores={CurrentItem=4}] run clear @s minecraft:tripwire_hook[minecraft:custom_name=\"Quartz Key\"]\r\nexecute as @a unless entity @s[scores={CurrentItem=5}] run clear @s minecraft:tripwire_hook[minecraft:custom_name=\"Gold Ingot Key\"]\r\nexecute as @a unless entity @s[scores={CurrentItem=6}] run clear @s minecraft:tripwire_hook[minecraft:custom_name=\"Emerald Key\"]\r\nexecute as @a unless entity @s[scores={CurrentItem=7}] run clear @s minecraft:tripwire_hook[minecraft:custom_name=\"Diamond Key\"]\r\nexecute as @a[scores={CurrentItem=1}] unless entity @s[nbt={Inventory:[{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Copper Ingot Key\"}}]}] run give @s minecraft:tripwire_hook[minecraft:custom_name=\"Copper Ingot Key\"] 1\r\nexecute as @a[scores={CurrentItem=2}] unless entity @s[nbt={Inventory:[{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Netherite Ingot Key\"}}]}] run give @s minecraft:tripwire_hook[minecraft:custom_name=\"Netherite Ingot Key\"] 1\r\nexecute as @a[scores={CurrentItem=3}] unless entity @s[nbt={Inventory:[{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Prismarine Shard Key\"}}]}] run give @s minecraft:tripwire_hook[minecraft:custom_name=\"Prismarine Shard Key\"] 1\r\nexecute as @a[scores={CurrentItem=4}] unless entity @s[nbt={Inventory:[{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Quartz Key\"}}]}] run give @s minecraft:tripwire_hook[minecraft:custom_name=\"Quartz Key\"] 1\r\nexecute as @a[scores={CurrentItem=5}] unless entity @s[nbt={Inventory:[{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Gold Ingot Key\"}}]}] run give @s minecraft:tripwire_hook[minecraft:custom_name=\"Gold Ingot Key\"] 1\r\nexecute as @a[scores={CurrentItem=6}] unless entity @s[nbt={Inventory:[{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Emerald Key\"}}]}] run give @s minecraft:tripwire_hook[minecraft:custom_name=\"Emerald Key\"] 1\r\nexecute as @a[scores={CurrentItem=7}] unless entity @s[nbt={Inventory:[{id:\"minecraft:tripwire_hook\",components:{\"minecraft:custom_name\":\"Diamond Key\"}}]}] run give @s minecraft:tripwire_hook[minecraft:custom_name=\"Diamond Key\"] 1\r\nexecute if score playingPortPriority variables matches 2.. run function mcp:timer_decrement\r\nexecute if score playingPortPriority variables matches 2 if score timeLeft variables matches ..0 run function mcp:port_priority_end\r\nexecute if score playingPortPriority variables matches 2 if score playersFinished variables >= finishThreshold variables run function mcp:port_priority_end\r\n\r\n# --- 1. Copper ---\r\nbossbar set mcp:pp_copper_0 players @a[scores={CurrentItem=1,ItemsFound=0}]\r\nbossbar set mcp:pp_copper_1 players @a[scores={CurrentItem=1,ItemsFound=1}]\r\nbossbar set mcp:pp_copper_2 players @a[scores={CurrentItem=1,ItemsFound=2}]\r\n\r\n# --- 2. Netherite ---\r\nbossbar set mcp:pp_netherite_0 players @a[scores={CurrentItem=2,ItemsFound=0}]\r\nbossbar set mcp:pp_netherite_1 players @a[scores={CurrentItem=2,ItemsFound=1}]\r\nbossbar set mcp:pp_netherite_2 players @a[scores={CurrentItem=2,ItemsFound=2}]\r\n\r\n# --- 3. Prismarine ---\r\nbossbar set mcp:pp_prismarine_0 players @a[scores={CurrentItem=3,ItemsFound=0}]\r\nbossbar set mcp:pp_prismarine_1 players @a[scores={CurrentItem=3,ItemsFound=1}]\r\nbossbar set mcp:pp_prismarine_2 players @a[scores={CurrentItem=3,ItemsFound=2}]\r\n\r\n# --- 4. Quartz ---\r\nbossbar set mcp:pp_quartz_0 players @a[scores={CurrentItem=4,ItemsFound=0}]\r\nbossbar set mcp:pp_quartz_1 players @a[scores={CurrentItem=4,ItemsFound=1}]\r\nbossbar set mcp:pp_quartz_2 players @a[scores={CurrentItem=4,ItemsFound=2}]\r\n\r\n# --- 5. Gold ---\r\nbossbar set mcp:pp_gold_0 players @a[scores={CurrentItem=5,ItemsFound=0}]\r\nbossbar set mcp:pp_gold_1 players @a[scores={CurrentItem=5,ItemsFound=1}]\r\nbossbar set mcp:pp_gold_2 players @a[scores={CurrentItem=5,ItemsFound=2}]\r\n\r\n# --- 6. Emerald ---\r\nbossbar set mcp:pp_emerald_0 players @a[scores={CurrentItem=6,ItemsFound=0}]\r\nbossbar set mcp:pp_emerald_1 players @a[scores={CurrentItem=6,ItemsFound=1}]\r\nbossbar set mcp:pp_emerald_2 players @a[scores={CurrentItem=6,ItemsFound=2}]\r\n\r\n# --- 7. Diamond ---\r\nbossbar set mcp:pp_diamond_0 players @a[scores={CurrentItem=7,ItemsFound=0}]\r\nbossbar set mcp:pp_diamond_1 players @a[scores={CurrentItem=7,ItemsFound=1}]\r\nbossbar set mcp:pp_diamond_2 players @a[scores={CurrentItem=7,ItemsFound=2}]",
+    "assign_finish_threshold": "scoreboard players operation finishThreshold variables = players_minus_1 variables\r\nexecute if score gamemode variables matches 3 if score modified variables matches 1 run scoreboard players set finishThreshold variables 1\r\nexecute if score gamemode variables matches 1..2 if score players variables matches ..4 if score coin_distribution variables matches 1 run scoreboard players set finishThreshold variables 1\r\nexecute unless score gamemode variables matches 0 if score doubles_mode variables matches 1 run scoreboard players operation finishThreshold variables = half_players variables\r\nexecute unless score gamemode variables matches 0 unless score doubles_mode variables matches 1 if score players variables matches 8.. run scoreboard players remove finishThreshold variables 1\r\n\r\nscoreboard players set remainingThreshold variables 1\r\nexecute if score gamemode variables matches 3 if score modified variables matches 1 run scoreboard players operation remainingThreshold variables = players_minus_1 variables\r\nexecute if score doubles_mode variables matches 1 unless score gamemode variables matches 0 run scoreboard players operation remainingThreshold variables = half_players variables",
+    "checkpoint": "scoreboard players add @a[scores={Player=1..}] Points 1\r\nscoreboard players set @s Points 0\r\nscoreboard players set @a[scores={Player=1..}] CheckpointPoints 0\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=1},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=2},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=3},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=4},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=5},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=6},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=7},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=8},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=9},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=10},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nscoreboard players set @a[scores={CheckpointPoints=0,Player=1..}] Points 0\r\nscoreboard players set @a[scores={CheckpointPoints=1,Player=1..}] Points 1\r\nscoreboard players set @a[scores={CheckpointPoints=2,Player=1..}] Points 2\r\nscoreboard players set @a[scores={CheckpointPoints=3,Player=1..}] Points 3\r\nscoreboard players set @a[scores={CheckpointPoints=4,Player=1..}] Points 4\r\nscoreboard players set @a[scores={CheckpointPoints=5,Player=1..}] Points 5\r\nscoreboard players set @a[scores={CheckpointPoints=6,Player=1..}] Points 6\r\nscoreboard players set @a[scores={CheckpointPoints=7,Player=1..}] Points 7\r\nscoreboard players set @a[scores={CheckpointPoints=8,Player=1..}] Points 8\r\nscoreboard players set @a[scores={CheckpointPoints=9,Player=1..}] Points 9\r\ntag @s add temp_checkpoint_tie\r\nexecute if score temp_checkpoint_tie variables = timer dice run scoreboard players set @a[tag=temp_checkpoint_tie] Points 0\r\nscoreboard players operation temp_checkpoint_tie variables = timer dice\r\n\r\nschedule function mcp:checkpoint2 1t",
+    "checkpoint2": "scoreboard players set @a[scores={Player=1..}] checkpoint_generic 0\r\nexecute if score minigame variables matches 401 as @a run scoreboard players operation @s checkpoint = @s max_blocks_fallen\r\nexecute if score minigame variables matches 405 as @a run scoreboard players operation @s checkpoint = @s lapscompleted\r\nexecute if score minigame variables matches 410 as @a run scoreboard players operation @s checkpoint = @s weapon_minus_1\r\nexecute if score minigame variables matches 411 as @a run scoreboard players operation @s checkpoint = @s taskscompleted\r\nexecute if score minigame variables matches 291 as @a run scoreboard players operation @s checkpoint = @s taskscompleted\r\nexecute if score minigame variables matches 416 as @a run scoreboard players operation @s checkpoint = @s totalcheckpoints\r\nexecute if score minigame variables matches 417 as @a run scoreboard players operation @s checkpoint = @s buildsCopied\r\nexecute if score minigame variables matches 421 as @a run scoreboard players operation @s checkpoint = @s ItemsFound\r\nexecute if score minigame variables matches 425 as @a run scoreboard players operation @s checkpoint = @s wall\r\nexecute if score minigame variables matches 427 as @a run scoreboard players operation @s checkpoint = @s lapscompleted\r\nexecute if score minigame variables matches 435 as @a run scoreboard players operation @s checkpoint = @s hog_riders_place\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic += @s checkpoint\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic *= players variables\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic += @s Points\r\nscoreboard players display numberformat @a[scores={checkpoint=0}] checkpoint_generic fixed {text:\"0\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=1}] checkpoint_generic fixed {text:\"1\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=2}] checkpoint_generic fixed {text:\"2\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=3}] checkpoint_generic fixed {text:\"3\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=4}] checkpoint_generic fixed {text:\"4\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=5}] checkpoint_generic fixed {text:\"5\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=6}] checkpoint_generic fixed {text:\"6\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=7}] checkpoint_generic fixed {text:\"7\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=8}] checkpoint_generic fixed {text:\"8\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=9}] checkpoint_generic fixed {text:\"9\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=10}] checkpoint_generic fixed {text:\"10\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=11}] checkpoint_generic fixed {text:\"11\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=12}] checkpoint_generic fixed {text:\"12\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=13}] checkpoint_generic fixed {text:\"13\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=14}] checkpoint_generic fixed {text:\"14\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=15}] checkpoint_generic fixed {text:\"15\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=16}] checkpoint_generic fixed {text:\"16\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=17}] checkpoint_generic fixed {text:\"17\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=18}] checkpoint_generic fixed {text:\"18\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=19}] checkpoint_generic fixed {text:\"19\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=20}] checkpoint_generic fixed {text:\"20\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=21}] checkpoint_generic fixed {text:\"21\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=22}] checkpoint_generic fixed {text:\"22\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=23}] checkpoint_generic fixed {text:\"23\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=24}] checkpoint_generic fixed {text:\"24\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=25}] checkpoint_generic fixed {text:\"25\",color:\"red\"}\r\n\r\nexecute as @a[gamemode=spectator] unless score @s Player matches 1.. run scoreboard players reset @s checkpoint_generic\r\nexecute unless score minigame variables matches 101..199 run scoreboard players display numberformat @a[gamemode=spectator,scores={Player=1..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 401 run scoreboard players display numberformat @a[gamemode=adventure,scores={Player=1..,max_blocks_fallen=382..},tag=1st_attempt] checkpoint_generic fixed {text:\"☑\",color:\"gold\"}\r\nexecute if score minigame variables matches 401 run scoreboard players display numberformat @a[gamemode=adventure,scores={Player=1..,max_blocks_fallen=382..},tag=!1st_attempt] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 417 run scoreboard players display numberformat @a[scores={Player=1..,buildsCopied=4..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 425 run scoreboard players display numberformat @a[scores={Player=1..,wall=15..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 101..199 as @a unless score @s duelplayer matches 1..2 run scoreboard players reset @s checkpoint_generic\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=0}] checkpoint_generic fixed {text:\"0\",color:\"red\"}\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=1}] checkpoint_generic fixed {text:\"1\",color:\"red\"}\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=2}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\n\r\nscoreboard players reset temp_checkpoint_tie variables\r\ntag @a remove temp_checkpoint_tie",
+    "timer_decrement": "scoreboard players remove timeLeft variables 1\r\nscoreboard players operation TimeLeftMin variables = timeLeft variables\r\nscoreboard players add TimeLeftMin variables 20\r\nscoreboard players operation TimeLeftMin variables /= 1200 constants\r\nscoreboard players operation TimeLeftSec variables = timeLeft variables\r\nscoreboard players operation TimeLeftSec variables /= 20 constants\r\nscoreboard players add TimeLeftSec variables 1\r\nscoreboard players operation TimeLeftSec variables %= 60 constants\r\nexecute if score TimeLeftSec variables matches 10.. run title @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{score:{name:\"TimeLeftMin\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"},{text:\":\",color:\"#FF0000\"},{score:{name:\"TimeLeftSec\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"}]\r\nexecute unless score TimeLeftSec variables matches 10.. run title @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{score:{name:\"TimeLeftMin\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"},{text:\":0\",color:\"#FF0000\"},{score:{name:\"TimeLeftSec\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"}]\r\nexecute if score timeLeft variables matches 0 run schedule function mcp:last_timer_title 1t",
+    "player_circle": "# Function prerequisites:\r\n# 1. radius variables is set to the desired radius of the player circle\r\n# 2. All players getting place in the circle are online and have a minigameplayer score of at least 1 with no duplicates. The scores should be one big straight\r\n# 3. This function is getting executed at the position of the center of the circle\r\n# 4. The players will get teleported(At Yaw=0 by default unless a rotation offset paramter is specified) and will get teleported in order of their minigameplayer score. The exception to this is in a 2v2 minigame where minigameplayer 2 and 3 are switched\r\n\r\nkill @e[tag=rotationOffset]\r\nexecute unless entity @e[tag=center] store result score playersInCircle variables if entity @a[scores={minigameplayer=1..}]\r\nexecute unless entity @e[tag=center] run summon minecraft:marker ^ ^ ^1 {Tags:[\"rotationOffset\"]}\r\nexecute unless entity @e[tag=center] run summon minecraft:marker ~ ~ ~ {Tags:[\"center\"]}\r\nexecute as @e[tag=center,limit=1] at @s facing entity @e[tag=rotationOffset,limit=1] feet run tp @s ~ ~ ~ ~ ~\r\nkill @e[tag=rotationOffset]\r\nexecute unless score gametype variables matches 2 run scoreboard players add minigameplayer variables 1\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 4.. run scoreboard players add minigameplayer variables 1\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 2 run scoreboard players set minigameplayer variables 4\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 3 run scoreboard players set minigameplayer variables 2\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 1 run scoreboard players set minigameplayer variables 3\r\nexecute if score gametype variables matches 2 unless score minigameplayer variables matches 1.. run scoreboard players set minigameplayer variables 1\r\nexecute as @a[scores={minigameplayer=1..}] if score @s minigameplayer = minigameplayer variables at @e[tag=center] run function mcp:player_circle_place_player\r\nscoreboard players operation rotationChange variables = 360 constants\r\nscoreboard players operation rotationChange variables /= playersInCircle variables\r\nexecute as @e[tag=center,limit=1] run function mcp:rotate_entity\r\nexecute unless score minigameplayer variables >= playersInCircle variables run function mcp:player_circle\r\nkill @e[tag=center]\r\nscoreboard players reset radius variables\r\nscoreboard players reset rotationChange variables\r\nscoreboard players reset rotation variables\r\nscoreboard players reset playersInCircle variables\r\nscoreboard players reset minigameplayer variables",
+    "player_circle_place_player": "execute unless entity @e[tag=playerPosition] run summon minecraft:marker ~ ~ ~ {Tags:[\"playerPosition\"]}\r\nscoreboard players add playerRadius variables 1\r\nexecute as @e[tag=playerPosition] at @s rotated as @e[tag=center] run tp @s ^ ^ ^1\r\nexecute if score playerRadius variables < radius variables run function mcp:player_circle_place_player\r\nexecute unless score playerRadius variables < radius variables at @e[tag=playerPosition,limit=1] run tp @s ~ ~ ~ facing entity @e[tag=center,limit=1]\r\nexecute unless score playerRadius variables < radius variables run kill @e[tag=playerPosition]\r\nexecute unless score playerRadius variables < radius variables run scoreboard players reset playerRadius variables",
+    "rotate_entity": "# rotationChange variables must be set and reset outside of this function. rotation variables needs to be reset outside of this function\r\nexecute if score rotationChange variables matches 0 run scoreboard players set rotationChange variables 36\r\nexecute store result score rotation variables run data get entity @s Rotation[0]\r\nscoreboard players operation rotation variables += rotationChange variables\r\nexecute store result storage mcp:variables rotation float 1 run scoreboard players get rotation variables\r\ndata modify entity @s Rotation[0] set from storage mcp:variables rotation"
+  },
+  "sites": [
+    {
+      "position": [
+        -336,
+        35,
+        -282
+      ],
+      "facing": "north"
+    },
+    {
+      "position": [
+        -407,
+        39,
+        -266
+      ],
+      "facing": "east"
+    },
+    {
+      "position": [
+        -489,
+        37,
+        -284
+      ],
+      "facing": "east"
+    },
+    {
+      "position": [
+        -443,
+        33,
+        -325
+      ],
+      "facing": "east"
+    },
+    {
+      "position": [
+        -403,
+        36,
+        -411
+      ],
+      "facing": "south"
+    },
+    {
+      "position": [
+        -374,
+        37,
+        -373
+      ],
+      "facing": "south"
+    },
+    {
+      "position": [
+        -318,
+        31,
+        -352
+      ],
+      "facing": "south"
+    },
+    {
+      "position": [
+        -404,
+        36,
+        -310
+      ],
+      "facing": "west"
+    },
+    {
+      "position": [
+        -454,
+        36,
+        -266
+      ],
+      "facing": "east"
+    },
+    {
+      "position": [
+        -487,
+        37,
+        -348
+      ],
+      "facing": "east"
+    },
+    {
+      "position": [
+        -374,
+        41,
+        -479
+      ],
+      "facing": "south"
+    },
+    {
+      "position": [
+        -343,
+        36,
+        -403
+      ],
+      "facing": "south"
+    }
+  ],
+  "banners": [
+    {
+      "position": [
+        -517,
+        -22,
+        -293
+      ],
+      "patterns": [
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_vertical"
+        },
+        {
+          "color": "cyan",
+          "pattern": "minecraft:straight_cross"
+        }
+      ]
+    },
+    {
+      "position": [
+        -517,
+        -22,
+        -290
+      ],
+      "patterns": [
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_vertical"
+        },
+        {
+          "color": "cyan",
+          "pattern": "minecraft:straight_cross"
+        }
+      ]
+    },
+    {
+      "position": [
+        -510,
+        -22,
+        -291
+      ],
+      "patterns": [
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_vertical"
+        },
+        {
+          "color": "cyan",
+          "pattern": "minecraft:straight_cross"
+        }
+      ]
+    },
+    {
+      "position": [
+        -510,
+        -22,
+        -286
+      ],
+      "patterns": [
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_vertical"
+        },
+        {
+          "color": "cyan",
+          "pattern": "minecraft:straight_cross"
+        }
+      ]
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        37,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -350
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -349
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -340
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -339
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -289
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -288
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -279
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        39,
+        -278
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -350
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -349
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -340
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -339
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -289
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -288
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -279
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        41,
+        -278
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        43,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        43,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        43,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -484,
+        43,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -479,
+        43,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -479,
+        43,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -479,
+        43,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -479,
+        43,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -479,
+        43,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -479,
+        43,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -479,
+        43,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -479,
+        43,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -474,
+        43,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -474,
+        43,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -474,
+        43,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -474,
+        43,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -468,
+        43,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -468,
+        43,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -468,
+        43,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -468,
+        43,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -463,
+        43,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        37,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -350
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -349
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -340
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -339
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -289
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -288
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -279
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        39,
+        -278
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -350
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -349
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -340
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -339
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -289
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -288
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -279
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -458,
+        41,
+        -278
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        37,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -350
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -349
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -340
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -339
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -289
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -288
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -279
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        39,
+        -278
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -350
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -349
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -340
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -339
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -289
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -288
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -279
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        41,
+        -278
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        43,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        43,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        43,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -444,
+        43,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -439,
+        43,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -439,
+        43,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -439,
+        43,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -439,
+        43,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -439,
+        43,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -439,
+        43,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -439,
+        43,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -439,
+        43,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -434,
+        43,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -434,
+        43,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -434,
+        43,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -434,
+        43,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -433,
+        43,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -433,
+        43,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -433,
+        43,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -433,
+        43,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -429,
+        43,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -429,
+        43,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -429,
+        43,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -429,
+        43,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        39,
+        -350
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        39,
+        -339
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        39,
+        -289
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        39,
+        -278
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        41,
+        -350
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        41,
+        -339
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        41,
+        -289
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        41,
+        -278
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        43,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        43,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        43,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        43,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        43,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        43,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        43,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -423,
+        43,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -349
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -340
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -288
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        39,
+        -279
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -349
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -348
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -347
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -346
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -341
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -340
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -288
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -287
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -286
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -285
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -280
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        41,
+        -279
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        43,
+        -345
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        43,
+        -344
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        43,
+        -343
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        43,
+        -342
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        43,
+        -284
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        43,
+        -283
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        43,
+        -282
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -418,
+        43,
+        -281
+      ],
+      "patterns": []
+    },
+    {
+      "position": [
+        -344,
+        -8,
+        -353
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:curly_border"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter B\""
+    },
+    {
+      "position": [
+        -344,
+        -8,
+        -352
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter R\""
+    },
+    {
+      "position": [
+        -344,
+        -8,
+        -351
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter E\""
+    },
+    {
+      "position": [
+        -344,
+        -8,
+        -350
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter W\""
+    },
+    {
+      "position": [
+        -344,
+        -6,
+        -353
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter M\""
+    },
+    {
+      "position": [
+        -344,
+        -6,
+        -352
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter C\""
+    },
+    {
+      "position": [
+        -344,
+        -6,
+        -351
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter P\""
+    },
+    {
+      "position": [
+        -344,
+        -6,
+        -350
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "position": [
+        -343,
+        -8,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter W\""
+    },
+    {
+      "position": [
+        -343,
+        -8,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:curly_border"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter B\""
+    },
+    {
+      "position": [
+        -343,
+        -6,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "position": [
+        -343,
+        -6,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter M\""
+    },
+    {
+      "position": [
+        -342,
+        -8,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter E\""
+    },
+    {
+      "position": [
+        -342,
+        -8,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter R\""
+    },
+    {
+      "position": [
+        -342,
+        -6,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter P\""
+    },
+    {
+      "position": [
+        -342,
+        -6,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter C\""
+    },
+    {
+      "position": [
+        -341,
+        -8,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter R\""
+    },
+    {
+      "position": [
+        -341,
+        -8,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter E\""
+    },
+    {
+      "position": [
+        -341,
+        -6,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter C\""
+    },
+    {
+      "position": [
+        -341,
+        -6,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter P\""
+    },
+    {
+      "position": [
+        -340,
+        -8,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:curly_border"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter B\""
+    },
+    {
+      "position": [
+        -340,
+        -8,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter W\""
+    },
+    {
+      "position": [
+        -340,
+        -6,
+        -354
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter M\""
+    },
+    {
+      "position": [
+        -340,
+        -6,
+        -349
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "position": [
+        -339,
+        -8,
+        -353
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter W\""
+    },
+    {
+      "position": [
+        -339,
+        -8,
+        -352
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter E\""
+    },
+    {
+      "position": [
+        -339,
+        -8,
+        -351
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter R\""
+    },
+    {
+      "position": [
+        -339,
+        -8,
+        -350
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:curly_border"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter B\""
+    },
+    {
+      "position": [
+        -339,
+        -6,
+        -353
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:rhombus"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "position": [
+        -339,
+        -6,
+        -352
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter P\""
+    },
+    {
+      "position": [
+        -339,
+        -6,
+        -351
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter C\""
+    },
+    {
+      "position": [
+        -339,
+        -6,
+        -350
+      ],
+      "patterns": [
+        {
+          "color": "white",
+          "pattern": "minecraft:triangle_top"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:triangles_top"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "blue",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter M\""
+    },
+    {
+      "position": [
+        -325,
+        -8,
+        -373
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "white",
+          "pattern": "minecraft:border"
+        }
+      ]
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -331
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downleft"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter Y\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -330
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter T\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -329
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter I\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -328
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter R\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -327
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter O\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -326
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter I\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -325
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter R\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -324
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter P\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -322
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter T\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -321
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:half_horizontal"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:stripe_center"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_downright"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter R\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -320
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter O\""
+    },
+    {
+      "position": [
+        -297,
+        48,
+        -319
+      ],
+      "patterns": [
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_right"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:half_horizontal_bottom"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_middle"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_top"
+        },
+        {
+          "color": "black",
+          "pattern": "minecraft:stripe_left"
+        },
+        {
+          "color": "lime",
+          "pattern": "minecraft:border"
+        }
+      ],
+      "name": "\"Letter P\""
+    }
+  ],
+  "signs": [
+    {
+      "position": [
+        -470,
+        -23,
+        -347
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -470,
+        -23,
+        -346
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -470,
+        -22,
+        -347
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -470,
+        -22,
+        -346
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -470,
+        -17,
+        -347
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -470,
+        -17,
+        -346
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -470,
+        -16,
+        -347
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -470,
+        -16,
+        -346
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -438,
+        33,
+        -328
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "←",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -438,
+        33,
+        -324
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "→",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -405,
+        35,
+        -266
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "←",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -402,
+        39,
+        -265
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "ooooooooooooooo",
+          "FIRST AID",
+          "ooooooooooooooo",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -384,
+        36,
+        -374
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "→",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -378,
+        57,
+        -363
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "1st Officer",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -377,
+        37,
+        -359
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "←",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -375,
+        42,
+        -364
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "Men",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -375,
+        60,
+        -364
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -374,
+        28,
+        -370
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "/\\",
+          "|",
+          "To the Engine",
+          "Room!"
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -374,
+        50,
+        -369
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "Women",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -374,
+        50,
+        -367
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "Men",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -373,
+        42,
+        -364
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "Women",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -373,
+        57,
+        -364
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "Captain's",
+          "Room",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -373,
+        60,
+        -364
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -372,
+        28,
+        -404
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "Wartsilla",
+          "G350",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -371,
+        37,
+        -359
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "→",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -370,
+        57,
+        -363
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "2nd Officer",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -364,
+        36,
+        -374
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "←",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -341,
+        39,
+        -351
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "ooooooooooooooo",
+          "FIRST AID",
+          "ooooooooooooooo",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    }
+  ],
+  "pistons": [
+    {
+      "position": [
+        -374,
+        27,
+        -409
+      ],
+      "properties": {
+        "facing": "up",
+        "extended": "false"
+      }
+    },
+    {
+      "position": [
+        -374,
+        27,
+        -407
+      ],
+      "properties": {
+        "facing": "up",
+        "extended": "false"
+      }
+    },
+    {
+      "position": [
+        -374,
+        27,
+        -405
+      ],
+      "properties": {
+        "facing": "up",
+        "extended": "false"
+      }
+    },
+    {
+      "position": [
+        -374,
+        27,
+        -403
+      ],
+      "properties": {
+        "facing": "up",
+        "extended": "false"
+      }
+    },
+    {
+      "position": [
+        -374,
+        27,
+        -401
+      ],
+      "properties": {
+        "facing": "up",
+        "extended": "false"
+      }
+    },
+    {
+      "position": [
+        -374,
+        27,
+        -399
+      ],
+      "properties": {
+        "facing": "up",
+        "extended": "false"
+      }
+    }
+  ],
+  "containers": [
+    {
+      "position": [
+        -497,
+        -25,
+        -289
+      ],
+      "type": "minecraft:decorated_pot",
+      "items": [
+        {
+          "id": "minecraft:cobweb",
+          "count": 1,
+          "slot": 0
+        }
+      ]
+    },
+    {
+      "position": [
+        -498,
+        -25,
+        -288
+      ],
+      "type": "minecraft:decorated_pot",
+      "items": [
+        {
+          "id": "minecraft:cobweb",
+          "count": 1,
+          "slot": 0
+        }
+      ]
+    },
+    {
+      "position": [
+        -497,
+        -25,
+        -272
+      ],
+      "type": "minecraft:decorated_pot",
+      "items": [
+        {
+          "id": "minecraft:cobweb",
+          "count": 1,
+          "slot": 0
+        }
+      ]
+    },
+    {
+      "position": [
+        -500,
+        -25,
+        -268
+      ],
+      "type": "minecraft:furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -495,
+        -25,
+        -292
+      ],
+      "type": "minecraft:furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -483,
+        -25,
+        -284
+      ],
+      "type": "minecraft:furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -489,
+        -25,
+        -280
+      ],
+      "type": "minecraft:decorated_pot",
+      "items": [
+        {
+          "id": "minecraft:cobweb",
+          "count": 1,
+          "slot": 0
+        }
+      ]
+    },
+    {
+      "position": [
+        -483,
+        -25,
+        -276
+      ],
+      "type": "minecraft:furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -487,
+        -25,
+        -273
+      ],
+      "type": "minecraft:decorated_pot",
+      "items": [
+        {
+          "id": "minecraft:cobweb",
+          "count": 1,
+          "slot": 0
+        }
+      ]
+    },
+    {
+      "position": [
+        -490,
+        -25,
+        -271
+      ],
+      "type": "minecraft:decorated_pot",
+      "items": [
+        {
+          "id": "minecraft:cobweb",
+          "count": 1,
+          "slot": 0
+        }
+      ]
+    },
+    {
+      "position": [
+        -470,
+        -25,
+        -336
+      ],
+      "type": "minecraft:furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -425,
+        30,
+        -326
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -426,
+        29,
+        -326
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -426,
+        30,
+        -326
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -425,
+        29,
+        -326
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -401,
+        30,
+        -261
+      ],
+      "type": "minecraft:furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -401,
+        39,
+        -268
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -401,
+        39,
+        -270
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -402,
+        30,
+        -261
+      ],
+      "type": "minecraft:furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -404,
+        39,
+        -270
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -394,
+        32,
+        -310
+      ],
+      "type": "minecraft:hopper",
+      "items": []
+    },
+    {
+      "position": [
+        -399,
+        30,
+        -263
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -399,
+        30,
+        -262
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -399,
+        31,
+        -263
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -373,
+        56,
+        -443
+      ],
+      "type": "minecraft:dispenser",
+      "items": []
+    },
+    {
+      "position": [
+        -375,
+        56,
+        -443
+      ],
+      "type": "minecraft:dispenser",
+      "items": []
+    },
+    {
+      "position": [
+        -375,
+        56,
+        -403
+      ],
+      "type": "minecraft:dispenser",
+      "items": []
+    },
+    {
+      "position": [
+        -373,
+        56,
+        -403
+      ],
+      "type": "minecraft:dispenser",
+      "items": []
+    },
+    {
+      "position": [
+        -369,
+        45,
+        -370
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -371,
+        44,
+        -369
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -369,
+        44,
+        -370
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -371,
+        46,
+        -369
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -371,
+        45,
+        -370
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -369,
+        46,
+        -370
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -371,
+        44,
+        -370
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -371,
+        45,
+        -369
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -371,
+        46,
+        -370
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -371,
+        46,
+        -367
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -370,
+        46,
+        -367
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -374,
+        56,
+        -368
+      ],
+      "type": "minecraft:furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -370,
+        45,
+        -367
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -371,
+        45,
+        -367
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -371,
+        44,
+        -367
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -370,
+        44,
+        -367
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -380,
+        48,
+        -361
+      ],
+      "type": "minecraft:furnace",
+      "items": [
+        {
+          "id": "minecraft:charcoal",
+          "count": 64,
+          "slot": 1
+        }
+      ]
+    },
+    {
+      "position": [
+        -373,
+        -17,
+        -329
+      ],
+      "type": "minecraft:blast_furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -373,
+        -17,
+        -328
+      ],
+      "type": "minecraft:blast_furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -372,
+        13,
+        -308
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:prismarine_shard",
+          "count": 1,
+          "slot": 13
+        }
+      ],
+      "lock": "Prismarine Shard Key"
+    },
+    {
+      "position": [
+        -370,
+        13,
+        -308
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:quartz",
+          "count": 1,
+          "slot": 13
+        }
+      ],
+      "lock": "Quartz Key"
+    },
+    {
+      "position": [
+        -368,
+        44,
+        -370
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -368,
+        46,
+        -370
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -368,
+        45,
+        -370
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -368,
+        46,
+        -368
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -368,
+        46,
+        -367
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -368,
+        44,
+        -368
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -368,
+        44,
+        -367
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -368,
+        45,
+        -368
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -368,
+        45,
+        -367
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -368,
+        13,
+        -308
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:netherite_ingot",
+          "count": 1,
+          "slot": 13
+        }
+      ],
+      "lock": "Netherite Ingot Key"
+    },
+    {
+      "position": [
+        -364,
+        13,
+        -308
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:diamond",
+          "count": 1,
+          "slot": 13
+        }
+      ],
+      "lock": "Diamond Key"
+    },
+    {
+      "position": [
+        -366,
+        13,
+        -308
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:emerald",
+          "count": 1,
+          "slot": 13
+        }
+      ],
+      "lock": "Emerald Key"
+    },
+    {
+      "position": [
+        -360,
+        13,
+        -308
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:copper_ingot",
+          "count": 1,
+          "slot": 13
+        }
+      ],
+      "lock": "Copper Ingot Key"
+    },
+    {
+      "position": [
+        -362,
+        13,
+        -308
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:gold_ingot",
+          "count": 1,
+          "slot": 13
+        }
+      ],
+      "lock": "Gold Ingot Key"
+    },
+    {
+      "position": [
+        -346,
+        39,
+        -353
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -337,
+        30,
+        -351
+      ],
+      "type": "minecraft:furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -339,
+        30,
+        -348
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -337,
+        30,
+        -350
+      ],
+      "type": "minecraft:furnace",
+      "items": []
+    },
+    {
+      "position": [
+        -338,
+        30,
+        -348
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -339,
+        31,
+        -348
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -344,
+        39,
+        -350
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -346,
+        39,
+        -350
+      ],
+      "type": "minecraft:chest",
+      "items": []
+    },
+    {
+      "position": [
+        -310,
+        30,
+        -239
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:amethyst_shard",
+          "count": 1,
+          "slot": 13
+        }
+      ]
+    },
+    {
+      "position": [
+        -308,
+        30,
+        -239
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:diamond",
+          "count": 1,
+          "slot": 13
+        }
+      ]
+    },
+    {
+      "position": [
+        -306,
+        30,
+        -239
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:prismarine_shard",
+          "count": 1,
+          "slot": 13
+        }
+      ]
+    },
+    {
+      "position": [
+        -298,
+        30,
+        -239
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:quartz",
+          "count": 1,
+          "slot": 13
+        }
+      ]
+    },
+    {
+      "position": [
+        -302,
+        30,
+        -239
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:heart_of_the_sea",
+          "count": 1,
+          "slot": 13
+        }
+      ]
+    },
+    {
+      "position": [
+        -300,
+        30,
+        -239
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:echo_shard",
+          "count": 1,
+          "slot": 13
+        }
+      ]
+    },
+    {
+      "position": [
+        -304,
+        30,
+        -239
+      ],
+      "type": "minecraft:chest",
+      "items": [
+        {
+          "id": "minecraft:gold_ingot",
+          "count": 1,
+          "slot": 13
+        }
+      ]
+    }
+  ],
+  "skulls": [
+    {
+      "position": [
+        -501,
+        -33,
+        -487
+      ],
+      "profile": {
+        "id": [
+          -1734694860,
+          432947827,
+          -1681931334,
+          2097755098
+        ],
+        "properties": [
+          {
+            "name": "textures",
+            "value": "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDFiNWZkZWZmZmZmYTcwODM4MWU3MGYzNTAzYTI3NTc3MmI0NTI5NmNmOWYxNjI1YTg3ZWRjNmI2MjU0OWVmNiJ9fX0="
+          }
+        ]
+      }
+    }
+  ],
+  "rules": {
+    "timeLimitTicks": 4800,
+    "selectedSites": 7,
+    "targetsPerPlayer": 3,
+    "items": [
+      "copper_ingot",
+      "netherite_ingot",
+      "prismarine_shard",
+      "quartz",
+      "gold_ingot",
+      "emerald",
+      "diamond"
+    ],
+    "sharedChestSlot": 13,
+    "framesPerSite": 4,
+    "circleCenter": [
+      -367.5,
+      36,
+      -307.5
+    ],
+    "circleRadius": 2,
+    "targetSet": "Three distinct shared targets; unique permutations for2..4 players, each permutation may be assigned at most twice for5..10.",
+    "score": "N*itemsFound plus latest-checkpoint recency rank, same-tick ties. Initial score3 until first real progress.",
+    "finish": "N-1 finishes at normal2..4-player free-for-all or4800ticks."
+  },
+  "sourceCorrections": [
+    "Missing Item2/Item3 fallback incorrectly writes Item1; the native generator always assigns3 valid distinct goals."
+  ],
+  "adaptations": [
+    "The compatible pale-oak→birch log/wood/leaf schemas retain original axis and distance/persistent/waterlogged state rather than using native defaults.",
+    "Original1.21.10 component chest lock becomes native1.21.1 Lock string matching the exact literal key name.",
+    "Native chest inventories refill in place, preserving active native ScreenHandlers rather than cloning away their backing block entity.",
+    "Own records replace marker/armorstand objectives;28 native fixed item frames and all7 beacon/base/chest/pane structures remain real.",
+    "Only allowlisted banner patterns/literal names, plain front/back sign text and safe native item id/count/slot with literal locks/names are restored. Unlocked southern chest goods remain usable as in the actual source.",
+    "Native doors/buttons/levers retain ship navigation; all resulting block/fluid changes must be tracked through the scoped shared terrain hook for cleanup.",
+    "The original west/north open ocean is bounded outside all ships and quest sites to isolate simultaneous server games. The full original ocean depth and seabed throughY-64 are retained; lower overlapping source structures are not silently removed.",
+    "Chunk forcing remembers prior state and releases only newly acquired local beacon chunks. Global source objectives/gamerules/forceload cleanup never execute.",
+    "Source board-night toggles and ready-up scenes use the shared native intro/default day layout; source resource-pack music remains outside this module."
+  ],
+  "geometry": {
+    "compatibleTreePropertiesPreserved": 1092,
+    "blocks": 1741484,
+    "replacements": {
+      "minecraft:pale_moss_block -> minecraft:moss_block": 1267,
+      "minecraft:pale_oak_log -> minecraft:birch_log": 372,
+      "minecraft:pale_oak_leaves -> minecraft:birch_leaves": 653,
+      "minecraft:pale_oak_wood -> minecraft:birch_wood": 67,
+      "minecraft:iron_chain -> minecraft:chain": 33
+    },
+    "omitted": {},
+    "omittedBlockEntityNbt": {
+      "minecraft:banner": 361,
+      "minecraft:skull": 1,
+      "minecraft:decorated_pot": 10,
+      "minecraft:furnace": 11,
+      "minecraft:sign": 28,
+      "minecraft:bed": 82,
+      "minecraft:comparator": 4,
+      "minecraft:chest": 54,
+      "minecraft:hopper": 1,
+      "minecraft:dispenser": 4,
+      "minecraft:daylight_detector": 31,
+      "minecraft:blast_furnace": 2,
+      "minecraft:jukebox": 1
+    }
+  }
+}

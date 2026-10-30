@@ -41,12 +41,14 @@ public final class PartyGameSelector {
     private static final class Handler extends ScreenHandler {
         private final SimpleInventory grid = new SimpleInventory(54);
         private final MinecraftPartySession session;
-        private final List<PartyMinigame> games;
+        private final ServerPlayerEntity player;
+        private List<PartyMinigame> games;
         private int page;
 
         Handler(int syncId, PlayerInventory inventory, MinecraftPartySession session, ServerPlayerEntity player) {
             super(ScreenHandlerType.GENERIC_9X6, syncId);
             this.session = session;
+            this.player = player;
             this.games = session.selectionChoices();
             for (int row = 0; row < 6; row++) for (int col = 0; col < 9; col++) {
                 this.addSlot(new Slot(this.grid, row * 9 + col, 8 + col * 18, 18 + row * 18));
@@ -67,6 +69,7 @@ public final class PartyGameSelector {
                 icon.set(DataComponentTypes.CUSTOM_NAME, Text.literal((selected ? "§a✔ " : "§e") + game.title()));
                 List<Text> lore = new ArrayList<>();
                 lore.add(Text.literal("§7原版编号 " + game.sourceId()));
+                lore.add(Text.literal("§7适用人数：" + game.playerRequirement()));
                 for (String rule : game.rules()) lore.add(Text.literal("§f" + rule));
                 lore.add(Text.literal(selected ? "§a当前投票" : "§e点击投票"));
                 icon.set(DataComponentTypes.LORE, new LoreComponent(lore));
@@ -75,7 +78,21 @@ public final class PartyGameSelector {
             if (this.page > 0) this.grid.setStack(45, label(Items.ARROW.getDefaultStack(), "§e上一页"));
             this.grid.setStack(49, label(Items.CLOCK.getDefaultStack(), "§6第 " + (this.page + 1) + " 页 · 同票随机"));
             if ((this.page + 1) * PAGE_SIZE < this.games.size()) this.grid.setStack(53, label(Items.ARROW.getDefaultStack(), "§e下一页"));
-            this.sendContentUpdates();
+            super.sendContentUpdates();
+        }
+
+        @Override public void sendContentUpdates() {
+            // 投票中退赛会让四人限定项目失效；已打开的菜单也必须同步移除，不能只在重开时更新。
+            if (this.player != null && this.session.isChoosing(this.player)) {
+                List<PartyMinigame> available = this.session.selectionChoices();
+                if (!available.equals(this.games)) {
+                    this.games = available;
+                    this.page = Math.min(this.page, Math.max(0, (available.size() - 1) / PAGE_SIZE));
+                    this.render(this.player);
+                    return;
+                }
+            }
+            super.sendContentUpdates();
         }
 
         @Override public void onSlotClick(int slot, int button, SlotActionType action, PlayerEntity player) {

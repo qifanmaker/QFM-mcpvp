@@ -1,0 +1,4093 @@
+{
+  "formatVersion": 1,
+  "source": {
+    "name": "Minecraft Party 2",
+    "url": "https://www.minecraftmaps.com/52024-minecraft-party-2",
+    "minecraftVersion": "1.21.10",
+    "functionSha256": {
+      "end_parkour": "7292d7dcb23f7fd62664450463523ff3e55032c9c9134bf9530a91a64470061d",
+      "parkour": "a7ac1910f2819f2260f0cc1b2393c7762a10e1486e8c3a764dd31811093453bc",
+      "parkour_randomize_path": "5e2600ce62634ea87b3ad1b5efae534b96ed2534cefda2573a958055517c7dd3",
+      "parkour_randomize_path2": "120b6066366f245dc82fa524412141da6d907aed71c17e659f7fbaa4fa5695d1",
+      "parkour_randomize_path3": "16846b307eb88d117da4d8e41251ae76e378b5dfb088e95b45617dcce9d0edf9",
+      "parkour_rules": "b6f8fe2c7985fb51032a868faebc1acb79571bec402b3c19bd029bbb3ce0cf2b",
+      "parkour_start": "f8032c735fdf6bd79bffacd2f1d072a661a981e0f74f5823f69502a6a66ce09b",
+      "parkour_tick": "3a033d5215b525c0aba8ec4d5c37ca134734e90ad113b431bb8f182a096f3c8d"
+    },
+    "commandBlockSha256": "2f7a46a1c79d7ad1291c5b3fa8aaf53e2ab0a4af8478200f03e45b8f57edbac9",
+    "signTextSha256": "8c16fbf3007c8aa6e039fcb0d8fbb260e41a845fa6053553b1837d77ed8e9a69"
+  },
+  "start": "path1",
+  "branches": {
+    "path1": [
+      {
+        "triggerX": 219,
+        "nextPath": "path3",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              199,
+              -8,
+              -138
+            ],
+            "to": [
+              199,
+              -9,
+              -139
+            ],
+            "state": "minecraft:oak_fence",
+            "sourcePosition": [
+              219,
+              26,
+              -167
+            ],
+            "commandSha256": "ba31e0f5744193224c5eccf3556b096ed0c1001bc350d8c564972506e957873c"
+          },
+          {
+            "op": "set",
+            "pos": [
+              202,
+              -8,
+              -136
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              219,
+              26,
+              -168
+            ],
+            "commandSha256": "d0262b6d565a16eba3f90e7f9f059dec2f36bb7698c07f7a266cabbca147d7b7"
+          }
+        ]
+      },
+      {
+        "triggerX": 218,
+        "nextPath": "path2",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              199,
+              -8,
+              -138
+            ],
+            "to": [
+              199,
+              -9,
+              -139
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              218,
+              26,
+              -167
+            ],
+            "commandSha256": "323e7b8523950500b09bf30b2b20182d1e7165faf7972199ac550fb6d60596ee"
+          },
+          {
+            "op": "set",
+            "pos": [
+              202,
+              -8,
+              -136
+            ],
+            "state": "minecraft:oak_fence",
+            "sourcePosition": [
+              218,
+              26,
+              -168
+            ],
+            "commandSha256": "3231a15c9404a0a103e559dd80fb822ef6d841fa2927d70523abb9727fcae180"
+          }
+        ]
+      }
+    ],
+    "path2": [
+      {
+        "triggerX": 216,
+        "nextPath": "path3",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              192,
+              -8,
+              -140
+            ],
+            "to": [
+              196,
+              -11,
+              -140
+            ],
+            "state": "minecraft:cobblestone_wall",
+            "replace": "minecraft:air",
+            "sourcePosition": [
+              216,
+              26,
+              -167
+            ],
+            "commandSha256": "7d165b60553d129844ba7ec33d35736ade8214f8f245f8e076bfa8326d89ffdf"
+          },
+          {
+            "op": "fill",
+            "from": [
+              193,
+              -7,
+              -138
+            ],
+            "to": [
+              195,
+              -10,
+              -136
+            ],
+            "state": "minecraft:air",
+            "replace": "minecraft:cobblestone_wall",
+            "sourcePosition": [
+              216,
+              26,
+              -168
+            ],
+            "commandSha256": "85c46c65b5f153594dfac73527da0982153f19321d13a08f9c6b3f5d51631da4"
+          }
+        ]
+      },
+      {
+        "triggerX": 215,
+        "nextPath": "path8",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              192,
+              -8,
+              -140
+            ],
+            "to": [
+              196,
+              -11,
+              -140
+            ],
+            "state": "minecraft:air",
+            "replace": "minecraft:cobblestone_wall",
+            "sourcePosition": [
+              215,
+              26,
+              -167
+            ],
+            "commandSha256": "7a85e4b1aad013c9fa6204834b336d8725b3eb3285dc348b055b1859fc4f68d4"
+          },
+          {
+            "op": "clone",
+            "from": [
+              227,
+              25,
+              -185
+            ],
+            "to": [
+              230,
+              22,
+              -183
+            ],
+            "destination": [
+              193,
+              -10,
+              -138
+            ],
+            "sourcePosition": [
+              215,
+              26,
+              -168
+            ],
+            "commandSha256": "beb1eb94ecbac6831dd113ee21c2db342d1c79e98a8729dddf808e02edfe2e08"
+          }
+        ]
+      }
+    ],
+    "path3": [
+      {
+        "triggerX": 213,
+        "nextPath": "path4",
+        "operations": [
+          {
+            "op": "clone",
+            "from": [
+              227,
+              22,
+              -181
+            ],
+            "to": [
+              227,
+              22,
+              -181
+            ],
+            "destination": [
+              188,
+              -8,
+              -134
+            ],
+            "sourcePosition": [
+              213,
+              26,
+              -167
+            ],
+            "commandSha256": "86e8799945d27027699e4948f7769b1c98eb748fefaf62a9308082c534e0b92c"
+          },
+          {
+            "op": "set",
+            "pos": [
+              183,
+              -7,
+              -136
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              213,
+              26,
+              -168
+            ],
+            "commandSha256": "97699b440014d1266fbbb33aaf39f0bd2b61449fb6d92f26a47129dd22593f5f"
+          },
+          {
+            "op": "set",
+            "pos": [
+              179,
+              -8,
+              -133
+            ],
+            "state": "minecraft:oak_fence",
+            "sourcePosition": [
+              213,
+              26,
+              -169
+            ],
+            "commandSha256": "6193f288dd86ed23cc521764eca3ed6936866fb22f15325c3212e8b2252e4a3c"
+          }
+        ]
+      },
+      {
+        "triggerX": 212,
+        "nextPath": "path4",
+        "operations": [
+          {
+            "op": "set",
+            "pos": [
+              188,
+              -8,
+              -134
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              212,
+              26,
+              -167
+            ],
+            "commandSha256": "7574f34a5f3a5d6a52c07ba78c4245895ee41c0a947f92bb376b1f996db8cdb8"
+          },
+          {
+            "op": "set",
+            "pos": [
+              183,
+              -7,
+              -136
+            ],
+            "state": "minecraft:cobblestone",
+            "sourcePosition": [
+              212,
+              26,
+              -168
+            ],
+            "commandSha256": "fdc522bf61afa1cc1bafcb9a952519997c343d0eb15e6b192eb2d3db25520059"
+          },
+          {
+            "op": "set",
+            "pos": [
+              179,
+              -8,
+              -133
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              212,
+              26,
+              -169
+            ],
+            "commandSha256": "ef217d1e5c72fd0da1861a90eddc33d7e4d8a38ccda800c4351645d6afcba98c"
+          }
+        ]
+      }
+    ],
+    "path4": [
+      {
+        "triggerX": 210,
+        "nextPath": "path5",
+        "operations": [
+          {
+            "op": "clone",
+            "from": [
+              229,
+              22,
+              -181
+            ],
+            "to": [
+              229,
+              22,
+              -181
+            ],
+            "destination": [
+              168,
+              -9,
+              -139
+            ],
+            "sourcePosition": [
+              210,
+              26,
+              -167
+            ],
+            "commandSha256": "052c7f5dfa5855c6d49650e7cf44b6ffbf99714701e563bd5115e3118698368f"
+          },
+          {
+            "op": "fill",
+            "from": [
+              164,
+              -11,
+              -142
+            ],
+            "to": [
+              164,
+              -17,
+              -142
+            ],
+            "state": "minecraft:cobblestone",
+            "sourcePosition": [
+              210,
+              26,
+              -168
+            ],
+            "commandSha256": "7f4f704548596e418b0ff788db0cbabd5bc1865638fd801d91db99d4ac435c8e"
+          },
+          {
+            "op": "fill",
+            "from": [
+              165,
+              -8,
+              -137
+            ],
+            "to": [
+              165,
+              -5,
+              -137
+            ],
+            "state": "minecraft:crimson_fence",
+            "sourcePosition": [
+              210,
+              26,
+              -169
+            ],
+            "commandSha256": "ae62ef8167881d4502ad5c8d20c862dc0eb6079e738bfa09f5169ceb51f0a577"
+          }
+        ]
+      },
+      {
+        "triggerX": 209,
+        "nextPath": "path5",
+        "operations": [
+          {
+            "op": "clone",
+            "from": [
+              230,
+              22,
+              -181
+            ],
+            "to": [
+              230,
+              22,
+              -181
+            ],
+            "destination": [
+              168,
+              -9,
+              -139
+            ],
+            "sourcePosition": [
+              209,
+              26,
+              -167
+            ],
+            "commandSha256": "52d97d4d3027731f281929ede0cb14ce5804353ff10e7a5c80b37ef962276b7e"
+          },
+          {
+            "op": "fill",
+            "from": [
+              164,
+              -11,
+              -142
+            ],
+            "to": [
+              164,
+              -17,
+              -142
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              209,
+              26,
+              -168
+            ],
+            "commandSha256": "e178d72e1b7cca3bf719d4d6037cd5ef5591b815a4ab352c502b3166c91fdfde"
+          },
+          {
+            "op": "fill",
+            "from": [
+              165,
+              -8,
+              -137
+            ],
+            "to": [
+              165,
+              -5,
+              -137
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              209,
+              26,
+              -169
+            ],
+            "commandSha256": "c213570a1b83a3e3ded28d69b22e1ad6cf7aebb50793e372c8010ee5f216afb8"
+          }
+        ]
+      }
+    ],
+    "path5": [
+      {
+        "triggerX": 207,
+        "nextPath": "path7",
+        "operations": [
+          {
+            "op": "clone",
+            "from": [
+              229,
+              24,
+              -179
+            ],
+            "to": [
+              227,
+              22,
+              -177
+            ],
+            "destination": [
+              144,
+              -8,
+              -163
+            ],
+            "sourcePosition": [
+              207,
+              26,
+              -167
+            ],
+            "commandSha256": "8ff2b62ecc9573c4ee8f1b871f020072b50afbcd0dd297cbcc32f28abd9e41f2"
+          },
+          {
+            "op": "set",
+            "pos": [
+              154,
+              -9,
+              -162
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              207,
+              26,
+              -168
+            ],
+            "commandSha256": "90bed3e9f3a5b6a6d582c9372acac04c607f02b4477f240fe39003ad45a58086"
+          },
+          {
+            "op": "fill",
+            "from": [
+              158,
+              -9,
+              -164
+            ],
+            "to": [
+              158,
+              -8,
+              -164
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              207,
+              26,
+              -169
+            ],
+            "commandSha256": "fdc6943119c92ce75382b91e64ba64217c365f10436dc42e3f8e575229bd2e43"
+          }
+        ]
+      },
+      {
+        "triggerX": 206,
+        "nextPath": "path6",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              144,
+              -8,
+              -161
+            ],
+            "to": [
+              146,
+              -6,
+              -163
+            ],
+            "state": "minecraft:air",
+            "replace": "minecraft:oak_fence",
+            "sourcePosition": [
+              206,
+              26,
+              -167
+            ],
+            "commandSha256": "0a6068b74fafd0112626e39a4781206ef04e89b8bc0e99f6c8106a8bf06365c3"
+          },
+          {
+            "op": "clone",
+            "from": [
+              228,
+              22,
+              -175
+            ],
+            "to": [
+              228,
+              22,
+              -175
+            ],
+            "destination": [
+              154,
+              -9,
+              -162
+            ],
+            "sourcePosition": [
+              206,
+              26,
+              -168
+            ],
+            "commandSha256": "f2b10f9dcf61e4ac1ff0a7338092e3361dc7d9a5ec154c06c55470d18ae7af42"
+          },
+          {
+            "op": "fill",
+            "from": [
+              158,
+              -9,
+              -164
+            ],
+            "to": [
+              158,
+              -8,
+              -164
+            ],
+            "state": "minecraft:stone",
+            "sourcePosition": [
+              206,
+              26,
+              -169
+            ],
+            "commandSha256": "1817949046d7e601cd2af2e33ea806cd2142a8025a56594eb228674d52f33644"
+          }
+        ]
+      }
+    ],
+    "path6": [
+      {
+        "triggerX": 204,
+        "nextPath": "path11",
+        "operations": [
+          {
+            "op": "clone",
+            "from": [
+              229,
+              24,
+              -173
+            ],
+            "to": [
+              227,
+              22,
+              -173
+            ],
+            "destination": [
+              137,
+              -6,
+              -202
+            ],
+            "sourcePosition": [
+              204,
+              26,
+              -167
+            ],
+            "commandSha256": "cd2bd1cf33af382a234e93cfb4b4df6ea3c821ba6754763a484c72730bd236b7"
+          },
+          {
+            "op": "fill",
+            "from": [
+              140,
+              -4,
+              -201
+            ],
+            "to": [
+              140,
+              -6,
+              -199
+            ],
+            "state": "minecraft:iron_bars",
+            "sourcePosition": [
+              204,
+              26,
+              -168
+            ],
+            "commandSha256": "c0415840bfffb2936dc2a973ebc965370dd24753ee3d95a1df717a2932e5b966"
+          },
+          {
+            "op": "set",
+            "pos": [
+              174,
+              5,
+              -227
+            ],
+            "state": "minecraft:cobblestone_wall",
+            "sourcePosition": [
+              204,
+              26,
+              -169
+            ],
+            "commandSha256": "d352a2fb1984d54eb46915a898844cbd6eee76ab9f5b469fd9009132708908c4"
+          }
+        ]
+      },
+      {
+        "triggerX": 203,
+        "nextPath": "path10",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              137,
+              -4,
+              -202
+            ],
+            "to": [
+              139,
+              -6,
+              -202
+            ],
+            "state": "minecraft:iron_bars",
+            "sourcePosition": [
+              203,
+              26,
+              -167
+            ],
+            "commandSha256": "334712276d790e3df00b7cd225e667105a14bd1d7a92e8b4aaf0f61ce4a3518c"
+          },
+          {
+            "op": "fill",
+            "from": [
+              140,
+              -4,
+              -201
+            ],
+            "to": [
+              140,
+              -6,
+              -199
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              203,
+              26,
+              -168
+            ],
+            "commandSha256": "b8d5ea0950dfcaf81681462dd9f94eb7361270719210da728059c27f43185bf3"
+          },
+          {
+            "op": "fill",
+            "from": [
+              157,
+              -4,
+              -198
+            ],
+            "to": [
+              156,
+              -2,
+              -196
+            ],
+            "state": "minecraft:air",
+            "replace": "minecraft:blackstone_wall",
+            "sourcePosition": [
+              203,
+              26,
+              -169
+            ],
+            "commandSha256": "6bd394f601527dbac852bc933af1cb59ca0cabe426e5fa3f23d95da402d0a8cf"
+          },
+          {
+            "op": "clone",
+            "from": [
+              232,
+              22,
+              -187
+            ],
+            "to": [
+              232,
+              22,
+              -187
+            ],
+            "destination": [
+              158,
+              -3,
+              -198
+            ],
+            "sourcePosition": [
+              203,
+              26,
+              -170
+            ],
+            "commandSha256": "32d2c8646c87219b683501ce76c6a7f2b34de9e3cf3fd76af972910698868956"
+          },
+          {
+            "op": "set",
+            "pos": [
+              180,
+              1,
+              -188
+            ],
+            "state": "minecraft:stone",
+            "sourcePosition": [
+              203,
+              26,
+              -171
+            ],
+            "commandSha256": "14f305f07e449aa8df027149463297e68abcf09ae08f9ac1516e33358c6d1656"
+          }
+        ]
+      }
+    ],
+    "path7": [
+      {
+        "triggerX": 201,
+        "nextPath": "path10",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              182,
+              -6,
+              -172
+            ],
+            "to": [
+              179,
+              -9,
+              -172
+            ],
+            "state": "minecraft:air",
+            "replace": "minecraft:oak_fence",
+            "sourcePosition": [
+              201,
+              26,
+              -167
+            ],
+            "commandSha256": "75c1222eed98f5c29294898c41edf5ad779de2989a36f25ab9c420ce6bf56ac9"
+          },
+          {
+            "op": "fill",
+            "from": [
+              186,
+              -4,
+              -166
+            ],
+            "to": [
+              186,
+              -3,
+              -165
+            ],
+            "state": "minecraft:oak_fence",
+            "sourcePosition": [
+              201,
+              26,
+              -168
+            ],
+            "commandSha256": "7aaeb23f3269782a7fb58f7e13e66bedecbe336ce85935f270d0c7ccf0423546"
+          },
+          {
+            "op": "clone",
+            "from": [
+              232,
+              24,
+              -185
+            ],
+            "to": [
+              232,
+              22,
+              -185
+            ],
+            "destination": [
+              179,
+              -6,
+              -165
+            ],
+            "sourcePosition": [
+              201,
+              26,
+              -169
+            ],
+            "commandSha256": "09d1fda933a66eb83ef1e7b4ae7a69e6aae743280798e6b2e3fb79cc68c3225c"
+          },
+          {
+            "op": "clone",
+            "from": [
+              228,
+              24,
+              -169
+            ],
+            "to": [
+              227,
+              22,
+              -171
+            ],
+            "destination": [
+              156,
+              -4,
+              -198
+            ],
+            "sourcePosition": [
+              201,
+              26,
+              -170
+            ],
+            "commandSha256": "573f81036b79ffcdadfa470a77aa48ae0fc814640d977aae2348e85bc3448d43"
+          },
+          {
+            "op": "set",
+            "pos": [
+              158,
+              -3,
+              -198
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              201,
+              26,
+              -171
+            ],
+            "commandSha256": "7add484ee6a0306f1cd3cd33c1abce4a55fe709044d0eb20f50407d9f4248ab9"
+          },
+          {
+            "op": "set",
+            "pos": [
+              180,
+              1,
+              -188
+            ],
+            "state": "minecraft:stone",
+            "sourcePosition": [
+              201,
+              26,
+              -172
+            ],
+            "commandSha256": "14f305f07e449aa8df027149463297e68abcf09ae08f9ac1516e33358c6d1656"
+          }
+        ]
+      },
+      {
+        "triggerX": 200,
+        "nextPath": "path8",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              182,
+              -6,
+              -172
+            ],
+            "to": [
+              179,
+              -9,
+              -172
+            ],
+            "state": "minecraft:oak_fence",
+            "replace": "minecraft:air",
+            "sourcePosition": [
+              200,
+              26,
+              -167
+            ],
+            "commandSha256": "ff5e0c35a15e61e0c5291a928aca0630db6e2ccd76f3e3453ee44a4289800fe9"
+          },
+          {
+            "op": "fill",
+            "from": [
+              186,
+              -4,
+              -166
+            ],
+            "to": [
+              186,
+              -3,
+              -165
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              200,
+              26,
+              -168
+            ],
+            "commandSha256": "8dd8930f15eb7489995270752a6732182b731237e905fa1216a45348fdc1b9ed"
+          },
+          {
+            "op": "fill",
+            "from": [
+              179,
+              -6,
+              -165
+            ],
+            "to": [
+              179,
+              -4,
+              -165
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              200,
+              26,
+              -169
+            ],
+            "commandSha256": "d26e95d64ded4eb194d377fbd5dfbd3cb79d50bcfd40979bbcb500751a79e48f"
+          }
+        ]
+      }
+    ],
+    "path8": [
+      {
+        "triggerX": 198,
+        "nextPath": "path10",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              187,
+              -9,
+              -192
+            ],
+            "to": [
+              185,
+              -11,
+              -192
+            ],
+            "state": "minecraft:nether_brick_fence",
+            "sourcePosition": [
+              198,
+              26,
+              -167
+            ],
+            "commandSha256": "80db29e42e31650f13c633954a5b9a5c62bd7e9ebbb9e3ed1e2fa252a1dbf08f"
+          },
+          {
+            "op": "fill",
+            "from": [
+              198,
+              -7,
+              -188
+            ],
+            "to": [
+              198,
+              -9,
+              -190
+            ],
+            "state": "minecraft:air",
+            "replace": "minecraft:oak_fence",
+            "sourcePosition": [
+              198,
+              26,
+              -168
+            ],
+            "commandSha256": "4033673d9e6b2d1d70e00186fff6e39a7092ca6138a582836c2a8f5a8059f9d4"
+          },
+          {
+            "op": "set",
+            "pos": [
+              180,
+              1,
+              -188
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              198,
+              26,
+              -169
+            ],
+            "commandSha256": "e372167ccb556c77e42cbddc3ce27bb6864336efb91f46aa318d47b58845695e"
+          },
+          {
+            "op": "set",
+            "pos": [
+              189,
+              -10,
+              -188
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              198,
+              26,
+              -170
+            ],
+            "commandSha256": "cd6af6e37873575f665e93edb2eccf752d039aa1853119b232faacf4df1d6355"
+          },
+          {
+            "op": "clone",
+            "from": [
+              236,
+              22,
+              -181
+            ],
+            "to": [
+              236,
+              22,
+              -181
+            ],
+            "destination": [
+              186,
+              -10,
+              -185
+            ],
+            "sourcePosition": [
+              198,
+              26,
+              -171
+            ],
+            "commandSha256": "6c920475d214dd62a081941fc3d3d7daecefe4c53e0261786d6e8328d4c7d35d"
+          }
+        ]
+      },
+      {
+        "triggerX": 197,
+        "nextPath": "path11",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              187,
+              -9,
+              -192
+            ],
+            "to": [
+              185,
+              -11,
+              -192
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              197,
+              26,
+              -167
+            ],
+            "commandSha256": "50b6da065a164846c2aec5d83b06f950b2d3436600cdac0a5c7b1922c5bec313"
+          },
+          {
+            "op": "fill",
+            "from": [
+              198,
+              -7,
+              -188
+            ],
+            "to": [
+              198,
+              -9,
+              -190
+            ],
+            "state": "minecraft:oak_fence",
+            "replace": "minecraft:air",
+            "sourcePosition": [
+              197,
+              26,
+              -168
+            ],
+            "commandSha256": "4d8aa76a90b441f9767f17682d21d405883face4cdc4cc7f6c0a649ef110981a"
+          },
+          {
+            "op": "set",
+            "pos": [
+              174,
+              5,
+              -227
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              197,
+              26,
+              -169
+            ],
+            "commandSha256": "e405aad8c8273440e06fdb123886e38d65a514e3431e897c9f10bf5e5397aa1e"
+          },
+          {
+            "op": "clone",
+            "from": [
+              227,
+              22,
+              -181
+            ],
+            "to": [
+              227,
+              22,
+              -181
+            ],
+            "destination": [
+              189,
+              -10,
+              -188
+            ],
+            "sourcePosition": [
+              197,
+              26,
+              -170
+            ],
+            "commandSha256": "9b8fbfc3229fdb3115ed7f1be835f16b8206124ae7064e0de45426bfcc439b7d"
+          },
+          {
+            "op": "set",
+            "pos": [
+              186,
+              -10,
+              -185
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              197,
+              26,
+              -171
+            ],
+            "commandSha256": "5626973888a6341c875325d4fa771b3b554b8eed35e78eedd349326c3ea60704"
+          }
+        ]
+      }
+    ],
+    "path9": [
+      {
+        "triggerX": 195,
+        "nextPath": null,
+        "operations": [
+          {
+            "op": "set",
+            "pos": [
+              200,
+              7,
+              -239
+            ],
+            "state": "minecraft:stone",
+            "sourcePosition": [
+              195,
+              26,
+              -167
+            ],
+            "commandSha256": "c5103bb045cb96f9b23ea9d34582ea6f51ec028a01c984b1a594908cf3b51a52"
+          },
+          {
+            "op": "fill",
+            "from": [
+              198,
+              6,
+              -243
+            ],
+            "to": [
+              196,
+              3,
+              -243
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              195,
+              26,
+              -168
+            ],
+            "commandSha256": "9b5bb19b2cc1ffdb1a0270ec62bb910d3ec06bb09be83016b85e22a7db14a5f1"
+          },
+          {
+            "op": "fill",
+            "from": [
+              232,
+              11,
+              -269
+            ],
+            "to": [
+              232,
+              10,
+              -269
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              195,
+              26,
+              -169
+            ],
+            "commandSha256": "1a53ac2d1c5f68f51c7a8f08092461b4ab5730681f2857927304af9e70b576f8"
+          },
+          {
+            "op": "fill",
+            "from": [
+              232,
+              12,
+              -257
+            ],
+            "to": [
+              231,
+              12,
+              -257
+            ],
+            "state": "minecraft:oak_fence",
+            "sourcePosition": [
+              195,
+              26,
+              -170
+            ],
+            "commandSha256": "efdae3b1be21a80662919bc2aaad8550e728382813f4b14ad8d10838a0d0ee9f"
+          },
+          {
+            "op": "clone",
+            "from": [
+              235,
+              22,
+              -181
+            ],
+            "to": [
+              235,
+              22,
+              -181
+            ],
+            "destination": [
+              201,
+              3,
+              -237
+            ],
+            "sourcePosition": [
+              195,
+              26,
+              -171
+            ],
+            "commandSha256": "e64eff6bb56307e531bc9fbaa7860db21e9cf607caae2f5bade7d14c7199d948"
+          },
+          {
+            "op": "set",
+            "pos": [
+              202,
+              6,
+              -242
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              195,
+              26,
+              -172
+            ],
+            "commandSha256": "5d6921ecbad4693c1de85991fc07481e87226cef86be57c1b185318cd4c4cda0"
+          },
+          {
+            "op": "set",
+            "pos": [
+              201,
+              3,
+              -238
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              195,
+              26,
+              -173
+            ],
+            "commandSha256": "94419f41e47cf066edc1796159e6dc618fb4f3e02f3e9104fba8d6ab12ee8141"
+          },
+          {
+            "op": "set",
+            "pos": [
+              184,
+              9,
+              -264
+            ],
+            "state": "minecraft:oak_fence",
+            "sourcePosition": [
+              195,
+              26,
+              -174
+            ],
+            "commandSha256": "ac04ac4e4ce420f186672ee0a105a6e495abef685e1274109c977a403d10d2ef"
+          }
+        ]
+      },
+      {
+        "triggerX": 194,
+        "nextPath": null,
+        "operations": [
+          {
+            "op": "set",
+            "pos": [
+              200,
+              7,
+              -239
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              194,
+              26,
+              -167
+            ],
+            "commandSha256": "6d2977375a709e2121683d2be6fcfa76bd072dadc6f17bf5317623ff12d73a26"
+          },
+          {
+            "op": "fill",
+            "from": [
+              198,
+              6,
+              -243
+            ],
+            "to": [
+              196,
+              3,
+              -243
+            ],
+            "state": "minecraft:oak_fence",
+            "sourcePosition": [
+              194,
+              26,
+              -168
+            ],
+            "commandSha256": "98ad12f0053832bdb787730cef4fd4cda0838a9c6ae04439cbdb0df456f08d5d"
+          },
+          {
+            "op": "fill",
+            "from": [
+              232,
+              11,
+              -269
+            ],
+            "to": [
+              232,
+              10,
+              -269
+            ],
+            "state": "minecraft:stone",
+            "sourcePosition": [
+              194,
+              26,
+              -169
+            ],
+            "commandSha256": "bbaa367d7f685c045518a5cd112420f33cd964183844cf5ec2610696f514053f"
+          },
+          {
+            "op": "fill",
+            "from": [
+              232,
+              12,
+              -257
+            ],
+            "to": [
+              231,
+              12,
+              -257
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              194,
+              26,
+              -170
+            ],
+            "commandSha256": "da7e38c4815cb7ebb177addece7e8df1550ced55844f6b6641b3066e87e8cd04"
+          },
+          {
+            "op": "clone",
+            "from": [
+              234,
+              22,
+              -181
+            ],
+            "to": [
+              234,
+              22,
+              -181
+            ],
+            "destination": [
+              201,
+              3,
+              -238
+            ],
+            "sourcePosition": [
+              194,
+              26,
+              -171
+            ],
+            "commandSha256": "c44e896c09bc795b432d1ee2b2f2c120ede9ed77a1e9caf58fb97a0d17b8df12"
+          },
+          {
+            "op": "clone",
+            "from": [
+              233,
+              22,
+              -181
+            ],
+            "to": [
+              233,
+              22,
+              -181
+            ],
+            "destination": [
+              202,
+              6,
+              -242
+            ],
+            "sourcePosition": [
+              194,
+              26,
+              -172
+            ],
+            "commandSha256": "25d21a6202164ae2af0af64b2ed776feb180296c9462abdf24cfa00921adfc5c"
+          },
+          {
+            "op": "set",
+            "pos": [
+              201,
+              3,
+              -237
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              194,
+              26,
+              -173
+            ],
+            "commandSha256": "742c24d546497daaddbf2570505a4a93a8c218eaf03e07a2195abf852f5bc116"
+          },
+          {
+            "op": "fill",
+            "from": [
+              219,
+              12,
+              -237
+            ],
+            "to": [
+              217,
+              11,
+              -237
+            ],
+            "state": "minecraft:iron_bars",
+            "sourcePosition": [
+              194,
+              26,
+              -174
+            ],
+            "commandSha256": "b9de788b83f984ef52603c9278817b353dfc8318e24e613e02567e77bb8d0d20"
+          },
+          {
+            "op": "fill",
+            "from": [
+              214,
+              11,
+              -245
+            ],
+            "to": [
+              214,
+              14,
+              -243
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              194,
+              26,
+              -175
+            ],
+            "commandSha256": "23ac5ef47450112055c791299c93eb54f082f0a9ad3160ef99954279fcadddf7"
+          },
+          {
+            "op": "set",
+            "pos": [
+              214,
+              11,
+              -244
+            ],
+            "state": "minecraft:rail[shape=east_west]",
+            "sourcePosition": [
+              194,
+              26,
+              -176
+            ],
+            "commandSha256": "44a316ea8dce5220733951cecd080c804d4f135a807141d1a0d47f018fc8691b"
+          }
+        ]
+      }
+    ],
+    "path10": [
+      {
+        "triggerX": 189,
+        "nextPath": "path9",
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              205,
+              4,
+              -205
+            ],
+            "to": [
+              205,
+              5,
+              -205
+            ],
+            "state": "minecraft:stone",
+            "sourcePosition": [
+              189,
+              26,
+              -167
+            ],
+            "commandSha256": "bac5620c504414a28b92ef9ca3a7d13d94710a7fed7a21c1334f2f0a091f3b0b"
+          },
+          {
+            "op": "set",
+            "pos": [
+              199,
+              4,
+              -203
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              189,
+              26,
+              -168
+            ],
+            "commandSha256": "563e5ca003b2351c2555a885fa680164c8fa70a9e2af3bc8ffb7c14669a6c5e9"
+          },
+          {
+            "op": "set",
+            "pos": [
+              203,
+              3,
+              -205
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              189,
+              26,
+              -169
+            ],
+            "commandSha256": "8437062fa6eb36c0716c9000efc1bfcba5efa71df6749347920585b12de95b0a"
+          }
+        ]
+      },
+      {
+        "triggerX": 188,
+        "nextPath": null,
+        "operations": [
+          {
+            "op": "fill",
+            "from": [
+              205,
+              4,
+              -205
+            ],
+            "to": [
+              205,
+              5,
+              -205
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              188,
+              26,
+              -167
+            ],
+            "commandSha256": "66b883a09a4dd8dc91ac5d483a2a60bd575d8d187c98a88980bf540cf4f20cfa"
+          },
+          {
+            "op": "set",
+            "pos": [
+              199,
+              4,
+              -203
+            ],
+            "state": "minecraft:stone",
+            "sourcePosition": [
+              188,
+              26,
+              -168
+            ],
+            "commandSha256": "c79977326529019107ef3aad0847ced4cfe67a9dd5689e82d050238c72c1d8fa"
+          },
+          {
+            "op": "clone",
+            "from": [
+              235,
+              22,
+              -186
+            ],
+            "to": [
+              235,
+              22,
+              -186
+            ],
+            "destination": [
+              203,
+              3,
+              -205
+            ],
+            "sourcePosition": [
+              188,
+              26,
+              -169
+            ],
+            "commandSha256": "d63702f7e00ed55a66930348a76b21dff56e400ffaaafc5608c8f8f829957e99"
+          },
+          {
+            "op": "fill",
+            "from": [
+              219,
+              12,
+              -237
+            ],
+            "to": [
+              217,
+              11,
+              -237
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              188,
+              26,
+              -170
+            ],
+            "commandSha256": "f7a01b88dc6c0354831d5028483e44524fe57dac8ebb6ea6e358c0e243fadd26"
+          },
+          {
+            "op": "fill",
+            "from": [
+              232,
+              12,
+              -257
+            ],
+            "to": [
+              231,
+              12,
+              -257
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              188,
+              26,
+              -171
+            ],
+            "commandSha256": "da7e38c4815cb7ebb177addece7e8df1550ced55844f6b6641b3066e87e8cd04"
+          },
+          {
+            "op": "fill",
+            "from": [
+              232,
+              11,
+              -269
+            ],
+            "to": [
+              232,
+              10,
+              -269
+            ],
+            "state": "minecraft:stone",
+            "sourcePosition": [
+              188,
+              26,
+              -172
+            ],
+            "commandSha256": "bbaa367d7f685c045518a5cd112420f33cd964183844cf5ec2610696f514053f"
+          },
+          {
+            "op": "fill",
+            "from": [
+              214,
+              11,
+              -245
+            ],
+            "to": [
+              214,
+              14,
+              -243
+            ],
+            "state": "minecraft:stone",
+            "sourcePosition": [
+              188,
+              26,
+              -173
+            ],
+            "commandSha256": "169e3d52a4a4e4f01bafc100a13c8cb9135dc1ddc79d5a1a28b688f02a7c7f73"
+          }
+        ]
+      }
+    ],
+    "path11": [
+      {
+        "triggerX": 186,
+        "nextPath": "path9",
+        "operations": [
+          {
+            "op": "set",
+            "pos": [
+              179,
+              5,
+              -229
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              186,
+              26,
+              -167
+            ],
+            "commandSha256": "56a847e54d768f04c2ae4bd4f8b2ed98d62d7fffd780fab55b88f6641f477afe"
+          },
+          {
+            "op": "set",
+            "pos": [
+              174,
+              5,
+              -234
+            ],
+            "state": "minecraft:oak_fence",
+            "sourcePosition": [
+              186,
+              26,
+              -168
+            ],
+            "commandSha256": "0e58e37e84527671dbaa1a1501071ff832c5afacf32709e7a60f06d2e2730cfd"
+          },
+          {
+            "op": "clone",
+            "from": [
+              235,
+              22,
+              -186
+            ],
+            "to": [
+              235,
+              22,
+              -186
+            ],
+            "destination": [
+              174,
+              4,
+              -230
+            ],
+            "sourcePosition": [
+              186,
+              26,
+              -169
+            ],
+            "commandSha256": "2f1748daae3d5d842353a4d4561960d254b31f40084f3d3537bb4b95a72263ea"
+          }
+        ]
+      },
+      {
+        "triggerX": 185,
+        "nextPath": null,
+        "operations": [
+          {
+            "op": "set",
+            "pos": [
+              179,
+              5,
+              -229
+            ],
+            "state": "minecraft:oak_fence",
+            "sourcePosition": [
+              185,
+              26,
+              -167
+            ],
+            "commandSha256": "2ff8cdbe1a6e620340017a856a1631c54f00f2c57c06b9b7dd9d4126b10e08ba"
+          },
+          {
+            "op": "set",
+            "pos": [
+              174,
+              5,
+              -234
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              185,
+              26,
+              -168
+            ],
+            "commandSha256": "9c2da6599a86ef09be72c7a1fa6f88654ebdc58995ddbf8b790b3883c7ef3a50"
+          },
+          {
+            "op": "clone",
+            "from": [
+              237,
+              22,
+              -186
+            ],
+            "to": [
+              237,
+              22,
+              -186
+            ],
+            "destination": [
+              174,
+              4,
+              -230
+            ],
+            "sourcePosition": [
+              185,
+              26,
+              -169
+            ],
+            "commandSha256": "c1c11c8c12577b635530528b44f494b935e74f5e358071dd510f754e1f1dea39"
+          },
+          {
+            "op": "set",
+            "pos": [
+              184,
+              9,
+              -264
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              185,
+              26,
+              -170
+            ],
+            "commandSha256": "4547d41dd54d3828055bb6aaaeb8aed6d7f8b139cae303fa2f84dd0c061c1367"
+          },
+          {
+            "op": "fill",
+            "from": [
+              232,
+              12,
+              -257
+            ],
+            "to": [
+              231,
+              12,
+              -257
+            ],
+            "state": "minecraft:oak_fence",
+            "sourcePosition": [
+              185,
+              26,
+              -171
+            ],
+            "commandSha256": "efdae3b1be21a80662919bc2aaad8550e728382813f4b14ad8d10838a0d0ee9f"
+          },
+          {
+            "op": "fill",
+            "from": [
+              232,
+              11,
+              -269
+            ],
+            "to": [
+              232,
+              10,
+              -269
+            ],
+            "state": "minecraft:air",
+            "sourcePosition": [
+              185,
+              26,
+              -172
+            ],
+            "commandSha256": "1a53ac2d1c5f68f51c7a8f08092461b4ab5730681f2857927304af9e70b576f8"
+          }
+        ]
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "stage": 1,
+      "anchor": [
+        201,
+        -9,
+        -139
+      ],
+      "sourceLine": 10,
+      "sourceSha256": "4bc37ff3978c4476d2427ea700b02a5072716715551b6da7d7d0f07f31cc9598"
+    },
+    {
+      "stage": 2,
+      "anchor": [
+        190,
+        -9,
+        -147
+      ],
+      "sourceLine": 15,
+      "sourceSha256": "cca04a8ff2973102dc7f8976eddbf06c34a3247a925c4c8b58efe345b9217d8a"
+    },
+    {
+      "stage": 2,
+      "anchor": [
+        180,
+        -9,
+        -139
+      ],
+      "sourceLine": 20,
+      "sourceSha256": "3727f8853ee856c6c76a0547263c685cd705fcd604f5e32db26f0253ac895868"
+    },
+    {
+      "stage": 2,
+      "anchor": [
+        178,
+        -9,
+        -133
+      ],
+      "sourceLine": 25,
+      "sourceSha256": "79c1ccdf1cad6cdb04dcc74cb1bf5a04096d59b8b0b4b25b97a880b6e622cd08"
+    },
+    {
+      "stage": 3,
+      "anchor": [
+        158,
+        -9,
+        -141
+      ],
+      "sourceLine": 30,
+      "sourceSha256": "3a202acd2975d39c0bea7ddd9ac9d6f67192995505120715c869e6c50df4d469"
+    },
+    {
+      "stage": 3,
+      "anchor": [
+        158,
+        -8,
+        -136
+      ],
+      "sourceLine": 35,
+      "sourceSha256": "d19f710077f10311073f35448e405763b6245ef025e2e0d5b9b9a8b7789cd171"
+    },
+    {
+      "stage": 3,
+      "anchor": [
+        187,
+        -9,
+        -156
+      ],
+      "sourceLine": 40,
+      "sourceSha256": "d9ddf5e14a023044e58af301228b7b632fbdf7e3333ea4d081afbc503c54884f"
+    },
+    {
+      "stage": 4,
+      "anchor": [
+        190,
+        -4,
+        -154
+      ],
+      "sourceLine": 45,
+      "sourceSha256": "85ffbfa80ca8013d3899795d722435996e2332eedb990b54f82623ec6a4f0410"
+    },
+    {
+      "stage": 4,
+      "anchor": [
+        141,
+        -8,
+        -142
+      ],
+      "sourceLine": 50,
+      "sourceSha256": "ad47abe8337ce1304986aa362a60ce350cf311ce5267373aa24377d9fbf509cf"
+    },
+    {
+      "stage": 5,
+      "anchor": [
+        167,
+        -5,
+        -165
+      ],
+      "sourceLine": 55,
+      "sourceSha256": "34d931350c0d18100c490256b5c08597796e7ddbf3e15a81b5644d917171e8a2"
+    },
+    {
+      "stage": 5,
+      "anchor": [
+        138,
+        -8,
+        -169
+      ],
+      "sourceLine": 60,
+      "sourceSha256": "818d428ee6876dc50087a5354c607a2a0412cee60d245b3206a2e72cb92ce664"
+    },
+    {
+      "stage": 5,
+      "anchor": [
+        192,
+        -2,
+        -160
+      ],
+      "sourceLine": 65,
+      "sourceSha256": "212108a941c5f065acf805bf3e7a11aa0f336be6d9e6d7c68b9c7fbf7025dcf3"
+    },
+    {
+      "stage": 6,
+      "anchor": [
+        189,
+        -7,
+        -172
+      ],
+      "sourceLine": 70,
+      "sourceSha256": "139f999c0b70d5c18a580493d97b02f2f9bdc05d544a6cf89d725bbb686df479"
+    },
+    {
+      "stage": 6,
+      "anchor": [
+        177,
+        -10,
+        -179
+      ],
+      "sourceLine": 75,
+      "sourceSha256": "20f7b78be9777c3542d2e4a62deeb2591005602f3eed236a4820d0bdd918bae2"
+    },
+    {
+      "stage": 6,
+      "anchor": [
+        138,
+        -6,
+        -200
+      ],
+      "sourceLine": 80,
+      "sourceSha256": "b64470ce34fbc91c605581c78cca9da7443a21e90ad2588cba14443fad789744"
+    },
+    {
+      "stage": 7,
+      "anchor": [
+        147,
+        6,
+        -210
+      ],
+      "sourceLine": 85,
+      "sourceSha256": "353cd59a5a8374a179841ec1f8a727f2d5fa3aac7ecf4cde4ba0aea5349c7e5f"
+    },
+    {
+      "stage": 7,
+      "anchor": [
+        159,
+        -3,
+        -201
+      ],
+      "sourceLine": 90,
+      "sourceSha256": "30ebd2943796888fb25307389812cda22dce04b983390f789d32d194a72c247c"
+    },
+    {
+      "stage": 7,
+      "anchor": [
+        197,
+        -5,
+        -179
+      ],
+      "sourceLine": 95,
+      "sourceSha256": "91ec6fc5172bd1d3ec39262c9fdca835d08e1027db3a613d454f222ea97887b3"
+    },
+    {
+      "stage": 7,
+      "anchor": [
+        180,
+        -5,
+        -209
+      ],
+      "sourceLine": 100,
+      "sourceSha256": "a2dbbbe9ca83dfc8386136c3486c2214a4d579c51a247c3ffd52ead842fabd0d"
+    },
+    {
+      "stage": 8,
+      "anchor": [
+        187,
+        -1,
+        -191
+      ],
+      "sourceLine": 105,
+      "sourceSha256": "c4f5da90e41205f1ff552896c2c1ba432a0568e5512836fd14053bd3b2a28bcd"
+    },
+    {
+      "stage": 8,
+      "anchor": [
+        172,
+        0,
+        -209
+      ],
+      "sourceLine": 110,
+      "sourceSha256": "acb3bc9b5bfb3c12383c05d94b368e6ba3a58e2197d94c7516936d5ae1a64516"
+    },
+    {
+      "stage": 8,
+      "anchor": [
+        157,
+        4,
+        -183
+      ],
+      "sourceLine": 115,
+      "sourceSha256": "102c69b88568ae59367051075dfbf09fd537ccfa4beb833c2d3966740e02fe92"
+    },
+    {
+      "stage": 8,
+      "anchor": [
+        151,
+        10,
+        -218
+      ],
+      "sourceLine": 120,
+      "sourceSha256": "a3229eb04adc505d602f143d1dac4e88da75dee1e6dfbe3458a5641ff5ad0805"
+    },
+    {
+      "stage": 9,
+      "anchor": [
+        152,
+        14,
+        -215
+      ],
+      "sourceLine": 125,
+      "sourceSha256": "f1a692d9ba33a0110749ef9aa512caa4700f3941937a8650d3788210859b7028"
+    },
+    {
+      "stage": 9,
+      "anchor": [
+        174,
+        2,
+        -218
+      ],
+      "sourceLine": 130,
+      "sourceSha256": "8d841601c7b7b3a7f3eb2790c2287b06be188d36b54d0642dd04d0651324628a"
+    },
+    {
+      "stage": 9,
+      "anchor": [
+        196,
+        4,
+        -191
+      ],
+      "sourceLine": 135,
+      "sourceSha256": "5fa0259c590ce000155558180ab93f5bb59e474c7fe4d706461fb986e48b95f1"
+    },
+    {
+      "stage": 10,
+      "anchor": [
+        195,
+        2,
+        -230
+      ],
+      "sourceLine": 140,
+      "sourceSha256": "e47c09e4fbbe5d4ab70988d2d66c125a9be9753f69f16c9b0e9cc11b3c12b947"
+    },
+    {
+      "stage": 10,
+      "anchor": [
+        226,
+        5,
+        -212
+      ],
+      "sourceLine": 145,
+      "sourceSha256": "0be65ff4c6ac18d151265270593438a3b6026dddb69bfe0c9a393a35ca9465d1"
+    },
+    {
+      "stage": 10,
+      "anchor": [
+        174,
+        4,
+        -242
+      ],
+      "sourceLine": 150,
+      "sourceSha256": "fd5c442f71fdc9729dd0ea45c6b0676e5a5a3fdb76e2203623ceb2fa8a98cea3"
+    },
+    {
+      "stage": 11,
+      "anchor": [
+        186,
+        7,
+        -251
+      ],
+      "sourceLine": 155,
+      "sourceSha256": "097b18bb07d73b156c36a1dde1dd2b0488123176ccca2f024b1c7e681d02c521"
+    },
+    {
+      "stage": 11,
+      "anchor": [
+        208,
+        9,
+        -239
+      ],
+      "sourceLine": 160,
+      "sourceSha256": "48b94a6129060249ff2c306ab88715328a1ba0fb411337c8c61c4149da697531"
+    },
+    {
+      "stage": 11,
+      "anchor": [
+        235,
+        10,
+        -227
+      ],
+      "sourceLine": 165,
+      "sourceSha256": "c4bec5f014dae5893ee7836eb66520d7d1ba3168cdfb42d9a6c5b1ef6ce09c59"
+    },
+    {
+      "stage": 11,
+      "anchor": [
+        170,
+        5,
+        -259
+      ],
+      "sourceLine": 170,
+      "sourceSha256": "8921ac037346b1f5819b8be927005cb5257a3a957f9caba1f7fa99354c5fb7bf"
+    },
+    {
+      "stage": 12,
+      "anchor": [
+        211,
+        12,
+        -244
+      ],
+      "sourceLine": 175,
+      "sourceSha256": "3b39d3f07f4b2172c6641bfc14ce86b55a392cebc3ae63fb8e3a037e6e2bcd16"
+    },
+    {
+      "stage": 12,
+      "anchor": [
+        209,
+        12,
+        -268
+      ],
+      "sourceLine": 180,
+      "sourceSha256": "8ef8d75885998645f07a90860ee1b336fb82a02c9279cb430ff0ca98f22f3b17"
+    },
+    {
+      "stage": 12,
+      "anchor": [
+        217,
+        10,
+        -237
+      ],
+      "sourceLine": 185,
+      "sourceSha256": "7c097ee8b08377438969d8dab53c2f92161d232308026e3d395cd8c8cdba4f2c"
+    },
+    {
+      "stage": 13,
+      "anchor": [
+        231,
+        11,
+        -259
+      ],
+      "sourceLine": 190,
+      "sourceSha256": "8d22f0d64473d0c73d104c10fb24a2b04a3f72b589be4649e464de21b27abc58"
+    },
+    {
+      "stage": 14,
+      "anchor": [
+        241,
+        15,
+        -276
+      ],
+      "sourceLine": 195,
+      "sourceSha256": "edfe1d3f9ae586cf6215310dcddbe5585d56493937bbe497591514118cde007c"
+    },
+    {
+      "stage": 15,
+      "anchor": [
+        259,
+        12,
+        -274
+      ],
+      "sourceLine": 203,
+      "sourceSha256": "3e7d0ff5c0edf8384ac940a8b7494bf1a5f1818d6bd229f93dea8a772606eac8"
+    }
+  ],
+  "signs": [
+    {
+      "pos": [
+        142,
+        2,
+        -210
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        145,
+        3,
+        -211
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        145,
+        3,
+        -208
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        148,
+        10,
+        -213
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        148,
+        13,
+        -217
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        148,
+        13,
+        -209
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        149,
+        6,
+        -210
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        149,
+        6,
+        -209
+      ],
+      "front": [
+        "^^^^^",
+        "^^^^^",
+        "^^^^^",
+        "^^^^^"
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        150,
+        -7,
+        -199
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        150,
+        -7,
+        -197
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        151,
+        7,
+        -213
+      ],
+      "front": [
+        "^^^^^",
+        "^^^^^",
+        "^^^^^",
+        "^^^^^"
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        152,
+        14,
+        -214
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        155,
+        7,
+        -214
+      ],
+      "front": [
+        "^^^^^",
+        "^^^^^",
+        "^^^^^",
+        "^^^^^"
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        156,
+        10,
+        -216
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        156,
+        11,
+        -212
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        156,
+        12,
+        -209
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        157,
+        7,
+        -187
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        167,
+        -5,
+        -189
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        168,
+        -9,
+        -139
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        169,
+        -2,
+        -187
+      ],
+      "front": [
+        "^^^^^",
+        "^^^^^",
+        "^^^^^",
+        "^^^^^"
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        171,
+        -9,
+        -187
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        171,
+        2,
+        -188
+      ],
+      "front": [
+        "^^^^^",
+        "^^^^^",
+        "^^^^^",
+        "^^^^^"
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        172,
+        -3,
+        -213
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        174,
+        4,
+        -230
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        185,
+        -10,
+        -211
+      ],
+      "front": [
+        "^^^^^",
+        "^^^^^",
+        "^^^^^",
+        "^^^^^"
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        185,
+        -8,
+        -212
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        185,
+        -6,
+        -209
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        186,
+        -8,
+        -156
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        186,
+        -7,
+        -158
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        187,
+        -1,
+        -192
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        189,
+        -10,
+        -188
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        189,
+        -2,
+        -158
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        190,
+        -9,
+        -152
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        190,
+        -1,
+        -159
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        193,
+        -5,
+        -150
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        193,
+        -1,
+        -158
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        194,
+        -5,
+        -158
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        194,
+        -5,
+        -151
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        201,
+        3,
+        -238
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        202,
+        6,
+        -242
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        203,
+        3,
+        -205
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        209,
+        4,
+        -205
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        214,
+        4,
+        -210
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        217,
+        10,
+        -240
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        226,
+        4,
+        -209
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        227,
+        5,
+        -215
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        227,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        228,
+        22,
+        -175
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        229,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        230,
+        10,
+        -211
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        230,
+        13,
+        -261
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        230,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        231,
+        8,
+        -273
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        231,
+        9,
+        -207
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        232,
+        22,
+        -187
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        232,
+        22,
+        -185
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        232,
+        23,
+        -185
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        232,
+        24,
+        -185
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        233,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        234,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        235,
+        22,
+        -186
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        235,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        236,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        237,
+        22,
+        -186
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    }
+  ],
+  "templateSigns": [
+    {
+      "pos": [
+        227,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        228,
+        22,
+        -175
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        229,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        230,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        232,
+        22,
+        -187
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        232,
+        22,
+        -185
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        232,
+        23,
+        -185
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        232,
+        24,
+        -185
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        233,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        234,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        235,
+        22,
+        -186
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        235,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        236,
+        22,
+        -181
+      ],
+      "front": [
+        "",
+        "----->",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    },
+    {
+      "pos": [
+        237,
+        22,
+        -186
+      ],
+      "front": [
+        "",
+        "<-----",
+        "",
+        ""
+      ],
+      "frontColor": "lime",
+      "frontGlowing": true,
+      "back": [
+        "",
+        "",
+        "",
+        ""
+      ],
+      "backColor": "black",
+      "backGlowing": false
+    }
+  ]
+}

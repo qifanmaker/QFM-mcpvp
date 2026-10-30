@@ -1,0 +1,80 @@
+{
+  "sourceId": 406,
+  "functionsSha256": {
+    "knockout": "30fa380511bb4459b8fd26eeaf81326f6bd287242306d0272428d539a9c0cd13",
+    "knockout2": "e056d624411f64f8389b968a5018e92e989af5f91b93e70288158453fed47f2a",
+    "knockout3": "690c5e4be93da47cd8bbdd239d20b5008f4cfcaea880e3a0c22e5f4fb30f8561",
+    "knockout4": "cf5ffb82eeaa92a23d7975bd03c3368a521901bda9e5a4abcdd7be3f61abb51e",
+    "knockout_respawn": "1c36c1832578e22fd470665b9f8348db1e29c1a9699a0dd71b1eec7518319f9a",
+    "knockout_tick": "947d0627a2d186b7e86bfdaf5f390ac3170362de593e594868978d395bfb5d33",
+    "knockout_end": "8a4261727e734bb6c1d1470fa0e4c187011551c461b37e7cf016b1c5c60c05a8"
+  },
+  "rules": {
+    "lives": 3,
+    "timerTicks": null,
+    "nativePvp": true,
+    "stickKnockback": [
+      1,
+      2
+    ],
+    "upgrade": "First native playerKillCount credit, including a recent knockoff death",
+    "regeneration": {
+      "durationTicks": 20,
+      "amplifier": 44,
+      "refreshEachTick": true
+    },
+    "inactiveGlowTicks": 300,
+    "activity": "Actual damage_taken or damage_dealt custom statistic at least 1 (0.1 health)",
+    "death": "Feet block lava force-kill; ordinary native lethal damage; one random pending respawn per tick",
+    "respawnProtectionTicks": 60,
+    "fallBypassesRespawnProtection": true,
+    "rawScore": "All start at initial player count; third death sets elimination order; last survivor retains initial count"
+  },
+  "adaptations": [
+    "The shared vote/introduction replaces global ready-up items, scheduled dialogue, music and advancement popups.",
+    "Intercepted deaths reuse the player entity; next-tick random respawn restores native health/hurt state and 60-tick join protection.",
+    "Only this match's players and token-tagged dropped sticks are affected; source global gamerules, objectives and entity scans are not run.",
+    "Permanent departures do not wait for reconnect; shared five-round tournament handles forfeits and converts raw placement scores to tournament points.",
+    "Doubles is not enabled by the current free-for-all Party session."
+  ],
+  "geometry": {
+    "knockout": {
+      "bounds": {
+        "min": [
+          -466,
+          34,
+          -148
+        ],
+        "max": [
+          -390,
+          61,
+          -70
+        ]
+      },
+      "blocks": 61790,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "knockout_upper": {
+      "bounds": {
+        "min": [
+          -403,
+          41,
+          -162
+        ],
+        "max": [
+          -393,
+          50,
+          -152
+        ]
+      },
+      "blocks": 371,
+      "replacements": {},
+      "omitted": {},
+      "omittedBlockEntityNbt": {
+        "minecraft:skull": 6
+      }
+    }
+  }
+}

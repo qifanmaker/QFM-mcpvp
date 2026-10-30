@@ -26,6 +26,9 @@ class InternalProbe extends PartyProbe {
     super({ port: 25584, runDir: path.join(__dirname, '../build/mygo-party2-internal') });
     this.rounds = new Map(); this.finalRows = new Map(); this.finalHeaders = 0;
     this.menus = []; this.totals = new Map(IDS.map(id => [id, 0]));
+    // Newly migrated entries may expand the catalogue; count the actual first
+    // menu and continue verifying that each played project is removed.
+    this.initialChoiceCount = null;
   }
 
   connect(id) {
@@ -51,8 +54,9 @@ class InternalProbe extends PartyProbe {
   async vote(id, game) {
     await this.wait(() => this.menuChoices(this.bots[id].currentWindow).length > 0, `${id} menu lore`, 2500);
     const choices = this.menuChoices(this.bots[id].currentWindow).map(item => item.source);
+    if (this.initialChoiceCount == null) this.initialChoiceCount = choices.length;
     const index = PLAN.indexOf(game), played = PLAN.slice(0, index).map(key => GAMES[key].source);
-    this.check(`Round ${index + 1} ${id} sees only unplayed choices`, choices.length === 9 - index
+    this.check(`Round ${index + 1} ${id} sees only unplayed choices`, choices.length === this.initialChoiceCount - index
       && played.every(source => !choices.includes(source)), { choices, played });
     this.menus.push({ id, game, at: Date.now() });
     return super.vote(id, game);

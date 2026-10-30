@@ -45,22 +45,129 @@ public enum PartyMinigame {
     ONE_SHOT_WONDER(428, "一箭奇迹 One Shot Wonder", Items.BOW, new String[] {
             "每次复活获得铁剑、弓和一支箭，箭命中即致死。",
             "击杀会补一支箭；射空就要用剑，90 秒内击杀最多者获胜。"
+    }),
+    CAVE_PARKOUR(404, "洞穴跑酷 Cave Parkour", Items.CARROT_ON_A_STICK, new String[] {
+            "穿过随机生成的洞穴路线，踩过检查点灯保存进度。",
+            "右键回位棒或丢出它返回检查点；限时 200 秒，先到终点者排名更高。"
+    }),
+    PLATFORMS(414, "平台夺宝 Platforms", Items.DIAMOND, 4, 4, new String[] {
+            "四人同时选择跳跃方向，在平台上收集钻石。",
+            "完成六次选路后按钻石数排名；每颗钻石计两分。"
+    }),
+    WHACK_A_MOB(402, "怪物打地鼠 Whack-A-Mob", Items.NETHERITE_AXE, new String[] {
+            "蓄满力挥斧击中升起的怪物；盔甲僵尸需要两次攻击。",
+            "僵尸 1 分、猪灵 2 分、凋灵骷髅与盔甲僵尸 3 分、末影人 5 分，烈焰人扣 1 分。",
+            "90 秒后停止生成，剩余目标消失后按得分排名。"
+    }),
+    MONSTER_SHOOT(403, "怪物射击 Monster Shoot", Items.BOW, new String[] {
+            "用无限弓射击从天空落下的怪物，箭可以穿透目标。",
+            "僵尸 1 分、苦力怕 2 分、骷髅 3 分、蠹虫 5 分。",
+            "60 秒后停止生成，剩余目标消失后按得分排名。"
+    }),
+    RAFT_RACERS(405, "筏艇竞速 Raft Racers", Items.BAMBOO_RAFT, new String[] {
+            "驾驶原生竹筏穿过冰面赛道，按顺序通过检查区域并完成两圈。",
+            "右键重乘自己的筏艇；右键或丢出回位棒召回船只，冷却十秒。",
+            "限时三分钟，先完赛者排名更高，其余按圈数与过圈顺序排名。"
+    }),
+    KNOCKOUT(406, "击退擂台 Knockout", Items.STICK, new String[] {
+            "用击退 I 木棍把对手打入熔岩，每人三条命。",
+            "首次击杀将木棍升级为击退 II；十五秒没有造成或受到伤害会发光。",
+            "最后存活者获胜。"
+    }),
+    SKY_FLY(407, "穿环滑翔 Hoopin’ n’ Swoopin’", Items.ELYTRA, new String[] {
+            "使用鞘翅沿三十六个随机圆环一路向下滑翔，每人一次机会。",
+            "穿过更多房间获得更高进度；错过圆环落在铁栏上会失去鞘翅。",
+            "所有人抵达底部后，按所在房间进度排名。"
+    }),
+    WEAPON_DEVOLUTION(410, "武器降级 Weapon Devolution", Items.TRIDENT, new String[] {
+            "用激光枪、下界合金斧、三叉戟、木剑和锐利雪球依次取得击杀。",
+            "每次击杀进入下一种武器；死亡可以复活，最后阶段完成者领先。",
+            "限时两分钟，按完成阶段和取得进度的先后排名。"
+    }),
+    TEDIOUS_TASKS(411, "繁琐任务 Tedious Tasks", Items.BELL, 2, 4, new String[] {
+            "完成八项随机且不重复的任务：战斗、珍珠、敲钟、合成、交易、跑图、调音与回血。",
+            "任务使用真实交互；死亡重置当前任务，可以干扰其他玩家。",
+            "限时四分钟，按完成任务数和取得进度的先后排名。"
+    }),
+    HORSE_RACE(416, "要塞赛马 Horse Race", Items.SADDLE, new String[] {
+            "驾驶自己的亡灵马穿过随机下界要塞赛道，按空格蓄力跳过障碍。",
+            "经过金块保存检查点，右键或丢出回位旗返回检查点，完成两圈。",
+            "按路线限时进行，按检查点进度与取得进度的先后排名。"
+    }),
+    SPEED_BUILDERS(417, "速建专家 Speed Builders", Items.GOLDEN_PICKAXE, new String[] {
+            "对照旁边的彩色模型，在建造区按原方向完整复制。",
+            "四幅模型随机且不重复，每幅颜色独立随机；金镐可拆除混凝土。",
+            "按钮清空并重试当前模型，限时三分钟，按完成数量和进度先后排名。"
+    }),
+    STEVE_SAYS(418, "史蒂夫说 Steve Says", Items.APPLE, new String[] {
+            "听清史蒂夫的指令，只有带有正确前缀的指令才应执行。",
+            "在教室完成跳跃、蹲下、调音、切换道具等随机动作。",
+            "完成二十二条指令后，按累计得分排名。"
+    }),
+    POWER_TOWERS(419, "速度之巅 Power Towers", Items.NOTE_BLOCK, new String[] {
+            "面向自己的音符盒连续右键调音，十秒内尽量升高彩色塔。",
+            "倒计时结束后拆塔，按真实落下的彩色方块计分。"
+    }),
+    // 菜单说明呈现操作与计分；底层兼容实现保留在模块和审计数据中。
+    FARMING_FRENZY(420, "农场狂欢 Farming Frenzy", Items.IRON_HOE, new String[] {
+            "用铁锄采收成熟作物，甜菜和地狱疣1分，小麦、土豆和胡萝卜2分。",
+            "可可豆4分，西瓜和南瓜6分；每十秒随机一种作物双倍。",
+            "作物会继续生长并自动补种，九十秒内积分最多者获胜。"
+    }),
+    PORT_PRIORITY(421, "繁忙货港 Port Priority", Items.CHEST, new String[] {
+            "按自己的任务顺序寻找港口货物，用对应钥匙打开货箱。",
+            "货物藏在七处随机位置，留意物品展示框和信标提示。",
+            "四分钟内依次完成三项任务，按进度与完成先后排名。"
+    }),
+    MATCH_ME_NOT(422, "禁止匹配 Match Me Not", Items.BRICK, new String[] {
+            "丢出一种材料作为选择；与任何其他玩家重复都不得分。",
+            "只有独一份的选择获得1分，不选择也不得分。",
+            "独选得分时平台会抬升一格，完成八轮后按累计分排名。"
+    }),
+    ROCKET_LAUNCH(423, "火箭发射 Rocket Launch", Items.FIREWORK_ROCKET, new String[] {
+            "展开鞘翅，使用唯一一枚二级烟花飞过沙漠，尽量飞得更远。",
+            "落地或后退会结束飞行；全员完成后按飞行距离排名。",
+            "抵达2160格终点还会获得高度加分，没有总倒计时。"
+    }),
+    PEARL_HURL(426, "珍珠投手 Pearl Hurl", Items.ENDER_PEARL, new String[] {
+            "跟随箭头投掷末影珍珠，通过原图随机三条路线的检查点。",
+            "掉落会返回最近安全点，珍珠自动补充，最终穿过末地折跃门。",
+            "限时三分钟，按检查点进度和取得进度的先后排名。"
+    }),
+    TAKE_FLIGHT(427, "起飞 Take Flight", Items.ELYTRA, new String[] {
+            "在洞穴展开鞘翅，依次经过四个检查点，完成三圈。",
+            "烟花自动补充，黄色助推门会沿飞行方向加速，碰壁后原位复活。",
+            "限时两分钟，按圈数和过圈先后排名。"
     });
 
     private final int sourceId;
     private final String title;
     private final Item selectionItem;
+    private final int minimumPlayers;
+    private final int maximumPlayers;
     private final String[] rules;
 
     PartyMinigame(int sourceId, String title, Item selectionItem, String[] rules) {
+        this(sourceId, title, selectionItem, 2, 10, rules);
+    }
+
+    PartyMinigame(int sourceId, String title, Item selectionItem, int minimumPlayers, int maximumPlayers, String[] rules) {
         this.sourceId = sourceId;
         this.title = title;
         this.selectionItem = selectionItem;
+        this.minimumPlayers = minimumPlayers;
+        this.maximumPlayers = maximumPlayers;
         this.rules = rules;
     }
 
     public int sourceId() { return this.sourceId; }
     public String title() { return this.title; }
     public Item selectionItem() { return this.selectionItem; }
+    // Platforms 的原命令链只有四个座位；人数不足不能作为可投票项目，否则会等不到第四次选择。
+    public boolean supportsPlayers(int count) { return count >= this.minimumPlayers && count <= this.maximumPlayers; }
+    public String playerRequirement() {
+        return this.minimumPlayers == this.maximumPlayers ? this.minimumPlayers + " 人"
+                : this.minimumPlayers + "~" + this.maximumPlayers + " 人";
+    }
     public String[] rules() { return this.rules.clone(); }
 }

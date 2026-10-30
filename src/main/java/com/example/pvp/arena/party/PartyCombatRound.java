@@ -171,6 +171,7 @@ public final class PartyCombatRound implements PartyRound {
     }
 
     @Override public boolean allowsNaturalRegeneration() { return this.meat(); }
+    @Override public boolean playerCombatEnabled() { return !this.finished; }
 
     @Override public boolean allowsDamage(PartyRoundContext context, LivingEntity victim, DamageSource source) {
         if (!(victim instanceof ServerPlayerEntity player) || this.respawning.containsKey(player.getUuid())) return false;

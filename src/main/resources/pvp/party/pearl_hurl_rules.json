@@ -1,0 +1,4375 @@
+{
+  "sourceId": 426,
+  "sourceVersion": "1.21.10",
+  "bounds": {
+    "min": [
+      -64,
+      0,
+      -140
+    ],
+    "max": [
+      140,
+      106,
+      95
+    ]
+  },
+  "anchor": [
+    38,
+    39,
+    -24
+  ],
+  "functions": {
+    "pearl_hurl": "schedule function mcp:give_ready_ups 9s\r\nscoreboard players set minigame variables 426\r\nscoreboard players set music variables 13\r\nexecute in the_end run tp @a 66 39 -83\r\nexecute in the_end run tp @a[scores={minigameplayer=1}] 14 48 -114\r\nexecute in the_end run tp @a[scores={minigameplayer=2}] 87 27 34\r\nexecute in the_end run tp @a[scores={minigameplayer=3}] 30 17 -29\r\nexecute in the_end run tp @a[scores={minigameplayer=4}] 115 29 -48\r\nexecute in the_end run tp @a[scores={minigameplayer=5}] 14 48 -114\r\nexecute in the_end run tp @a[scores={minigameplayer=6}] 87 27 34\r\nexecute in the_end run tp @a[scores={minigameplayer=7}] 30 17 -29\r\nexecute in the_end run tp @a[scores={minigameplayer=8}] 115 29 -48\r\nexecute in the_end run tp @a[scores={minigameplayer=9}] 14 48 -114\r\nexecute in the_end run tp @a[scores={minigameplayer=10}] 87 27 34\r\ntitle @a title {fallback:\"Pearl Hurl\",translate:\"mcp.pearl_hurl\",color:\"dark_green\",bold:1b,type:\"translatable\"}\r\nexecute as @a at @s run playsound minecraft:entity.experience_orb.pickup master @s ~ ~ ~ 10 2 1\r\ntellraw @a {fallback:\"Use enderpearls to teleport to different platforms.\",translate:\"mcp.pearl_hurl.1\",color:\"dark_green\",type:\"translatable\"}\r\nscoreboard players set currentRule variables 0\r\nscoreboard objectives add checkpoint dummy {fallback:\"Checkpoint\",color:\"dark_aqua\",bold:1b,translate:\"mcp.Checkpoint\",type:\"translatable\"}\r\nscoreboard objectives add checkpoint2 dummy\r\nscoreboard players set @a[gamemode=adventure] checkpoint 0\r\nscoreboard objectives add checkpoint_generic dummy {fallback:\"Checkpoint\",bold:1b,color:\"dark_aqua\",translate:\"mcp.Checkpoint\",type:\"translatable\"}\r\nscoreboard players set @a[scores={Player=1..}] checkpoint_generic 0\r\nscoreboard objectives setdisplay sidebar checkpoint_generic\r\nteam modify blue collisionRule never\r\nteam modify red collisionRule never\r\nteam modify green collisionRule never\r\nteam modify yellow collisionRule never\r\nscoreboard players set players_finished variables 0\r\nscoreboard objectives add pearl minecraft.used:minecraft.ender_pearl\r\nscoreboard objectives add pearl_reload dummy\r\nscoreboard players set @a[gamemode=adventure] pearl 0\r\nscoreboard players set timeLeft variables 2400\r\nexecute if score players variables matches 1 if score difficulty variables matches 1 run scoreboard players operation timeLeft variables *= 8 constants\r\nexecute if score players variables matches 1 if score difficulty variables matches 2 run scoreboard players operation timeLeft variables *= 7 constants\r\nexecute if score players variables matches 1 if score difficulty variables matches 3 run scoreboard players operation timeLeft variables *= 6 constants\r\nexecute if score players variables matches 1 run scoreboard players operation timeLeft variables /= 10 constants\r\ngamerule fallDamage false\r\nfunction mcp:assign_finish_threshold\r\neffect give @a[gamemode=adventure] minecraft:weakness 10 99 true\r\nscoreboard objectives add uuid dummy\r\n\r\nexecute in the_end run schedule function mcp:pearl_hurl_generate 9s\r\nschedule function mcp:pearl_hurl_rules 3s",
+    "pearl_hurl_end": "scoreboard players reset playingPearlHurl variables\r\nexecute store result score playersOnline variables if entity @a[scores={Player=1..}]\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run title @a actionbar {fallback:\"All players must be online to continue\",translate:\"mcp.MissingPlayerActionBarAlert\",type:\"translatable\"}\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run schedule function mcp:pearl_hurl_end 1t\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run return 0\r\nscoreboard players reset playersOnline variables\r\n\r\ntag @e remove gateway\r\nadvancement revoke @a[gamemode=adventure] only minecraft:end/enter_end_gateway\r\nexecute in the_end run kill @e[type=minecraft:marker,tag=player_spawn]\r\neffect give @a minecraft:resistance 5 99 true\r\nscoreboard players reset path variables\r\nscoreboard players reset players_finished variables\r\nscoreboard objectives setdisplay sidebar\r\nscoreboard objectives remove pearl\r\nscoreboard objectives remove uuid\r\nscoreboard objectives remove pearl_reload\r\nkill @e[type=minecraft:armor_stand,tag=mp1]\r\nkill @e[type=minecraft:armor_stand,tag=mp2]\r\nkill @e[type=minecraft:armor_stand,tag=mp3]\r\nkill @e[type=minecraft:armor_stand,tag=mp4]\r\nkill @e[type=minecraft:armor_stand,tag=mp5]\r\nkill @e[type=minecraft:armor_stand,tag=mp6]\r\nkill @e[type=minecraft:armor_stand,tag=mp7]\r\nkill @e[type=minecraft:armor_stand,tag=mp8]\r\nkill @e[type=minecraft:armor_stand,tag=mp9]\r\nkill @e[type=minecraft:armor_stand,tag=mp10]\r\nexecute as @a at @s run scoreboard players operation @s checkpoint *= players variables\r\nexecute as @a at @s run scoreboard players operation @s Points += @s checkpoint\r\nscoreboard objectives remove checkpoint\r\nscoreboard objectives remove checkpoint_generic\r\nscoreboard objectives remove checkpoint2\r\ntitle @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{fallback:\"0:00\",translate:\"mcp.zero_time_left\",color:\"#FF0000\",type:\"translatable\"}]\r\nclear @a minecraft:ender_pearl\r\ntp @a[gamemode=spectator] 66 39 -83\r\ngamemode adventure @a[scores={Player=1..}]\r\nkill @e[type=minecraft:ender_pearl]\r\ngamerule fallDamage true\r\nexecute unless score void_minigame variables matches 1 in overworld run function mcp:placements\r\nexecute unless score void_minigame variables matches 1 if score timeLeft variables matches 0 as @a at @s run playsound mcp:time_up voice @s ~ ~ ~ 1 1 1\r\nexecute unless score void_minigame variables matches 1 unless score timeLeft variables matches 0 as @a at @s run playsound mcp:finish voice @s ~ ~ ~ 1 1 1",
+    "pearl_hurl_finish": "execute if score path variables matches 1 if entity @s[x=0,y=0,z=0,distance=500..,scores={checkpoint=23}] run tellraw @a [{fallback:\"%1$s has finished!\",translate:\"mcp.pearl_hurl_finish.1\",color:\"gray\",type:\"translatable\",bold:0b,with:[{selector:\"@s[x=0,y=0,z=0,distance=500..,scores={checkpoint=23}]\",type:\"selector\"}]}]\r\nexecute if score path variables matches 1 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=23}] at @s run scoreboard players add players_finished variables 1\r\nexecute if score path variables matches 1 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=23}] at @s run gamemode spectator @s\r\nexecute if score path variables matches 1 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=23}] at @s run function mcp:checkpoint\r\nexecute if score path variables matches 1 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=23..}] at @s run scoreboard players set @s checkpoint 24\r\n\r\nexecute if score path variables matches 2 if entity @s[x=0,y=0,z=0,distance=500..,scores={checkpoint=21}] run tellraw @a [{fallback:\"%1$s has finished!\",translate:\"mcp.pearl_hurl_finish.2\",color:\"gray\",type:\"translatable\",bold:0b,with:[{selector:\"@s[x=0,y=0,z=0,distance=500..,scores={checkpoint=21}]\",type:\"selector\"}]}]\r\nexecute if score path variables matches 2 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=21}] at @s run scoreboard players add players_finished variables 1\r\nexecute if score path variables matches 2 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=21}] at @s run gamemode spectator @s\r\nexecute if score path variables matches 2 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=21}] at @s run function mcp:checkpoint\r\nexecute if score path variables matches 2 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=21..}] at @s run scoreboard players set @s checkpoint 22\r\n\r\nexecute if score path variables matches 3 if entity @s[x=0,y=0,z=0,distance=500..,scores={checkpoint=19}] run tellraw @a [{fallback:\"%1$s has finished!\",translate:\"mcp.pearl_hurl_finish.3\",color:\"gray\",type:\"translatable\",bold:0b,with:[{selector:\"@s[x=0,y=0,z=0,distance=500..,scores={checkpoint=19}]\",type:\"selector\"}]}]\r\nexecute if score path variables matches 3 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=19}] at @s run scoreboard players add players_finished variables 1\r\nexecute if score path variables matches 3 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=19}] at @s run gamemode spectator @s\r\nexecute if score path variables matches 3 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=19}] at @s run function mcp:checkpoint\r\nexecute if score path variables matches 3 as @a[x=0,y=0,z=0,distance=500..,scores={checkpoint=19..}] at @s run scoreboard players set @s checkpoint 20\r\n\r\nexecute if entity @s[gamemode=adventure] run tp @s 30 17 -29",
+    "pearl_hurl_generate": "execute in the_end run function mcp:pearl_hurl_generate2",
+    "pearl_hurl_generate2": "kill @e[type=minecraft:armor_stand,tag=mp1]\r\nkill @e[type=minecraft:armor_stand,tag=mp2]\r\nkill @e[type=minecraft:armor_stand,tag=mp3]\r\nkill @e[type=minecraft:armor_stand,tag=mp4]\r\n\r\nsummon minecraft:armor_stand 65 39 -82 {NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,Tags:[\"pearl_hurl\",\"pearl_hurl1\"]}\r\nsummon minecraft:armor_stand 65 39 -82 {NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,Tags:[\"pearl_hurl\",\"pearl_hurl2\"]}\r\nsummon minecraft:armor_stand 65 39 -82 {NoGravity:1b,Silent:1b,Invulnerable:1b,Invisible:1b,Tags:[\"pearl_hurl\",\"pearl_hurl3\"]}\r\ntag @e[type=minecraft:armor_stand,tag=pearl_hurl,sort=random,limit=1] add temp\r\n\r\nexecute if entity @e[type=minecraft:armor_stand,tag=temp,tag=pearl_hurl1] run scoreboard players set path variables 1\r\nexecute if entity @e[type=minecraft:armor_stand,tag=temp,tag=pearl_hurl2] run scoreboard players set path variables 2\r\nexecute if entity @e[type=minecraft:armor_stand,tag=temp,tag=pearl_hurl3] run scoreboard players set path variables 3\r\nkill @e[type=minecraft:armor_stand,tag=pearl_hurl]\r\n#1 Michael's path\r\n#2 Ryan's path\r\n#3 Ryan's second path\r\n\r\nexecute if score path variables matches 1 run fill 7 38 -130 7 39 -133 minecraft:air\r\nexecute if score path variables matches 2..3 run fill 7 38 -130 7 39 -133 minecraft:purpur_block\r\nexecute if score path variables matches 1 run fill 9 39 -133 5 36 -130 minecraft:air replace minecraft:light\r\nexecute if score path variables matches 2..3 run fill 9 39 -133 5 36 -130 minecraft:light replace minecraft:air\r\n\r\nexecute if score path variables matches 1 run fill 22 52 -115 24 50 -115 minecraft:light replace minecraft:purpur_block\r\nexecute if score path variables matches 2..3 run fill 22 52 -115 24 50 -115 minecraft:purpur_block replace minecraft:light\r\n\r\nexecute if score path variables matches 1 run clone 50 40 -81 50 40 -81 29 38 -124\r\nexecute if score path variables matches 2..3 run setblock 29 38 -124 minecraft:air\r\nexecute if score path variables matches 1 run clone 55 40 -80 55 40 -80 28 5 -28\r\nexecute if score path variables matches 2 run clone 55 40 -79 55 40 -79 28 5 -28\r\nexecute if score path variables matches 1 run fill 28 8 -26 29 5 -26 minecraft:light\r\nexecute if score path variables matches 2 run fill 28 8 -26 29 5 -26 minecraft:purpur_block\r\n\r\nexecute if score path variables matches 3 run clone 56 40 -79 56 40 -79 -16 29 -64\r\nexecute if score path variables matches 2 run clone 55 40 -79 55 40 -79 -16 29 -64\r\n\r\nexecute if score path variables matches 2 run fill 14 26 -45 17 29 -42 minecraft:air replace minecraft:light\r\nexecute if score path variables matches 3 run fill 14 26 -45 17 29 -42 minecraft:light[level=15] replace minecraft:air\r\n\r\nexecute if score path variables matches 2 run fill -33 42 -65 -37 44 -64 minecraft:light[level=15] replace minecraft:air\r\nexecute if score path variables matches 3 run fill -33 42 -65 -37 44 -64 minecraft:air replace minecraft:light\r\n\r\nexecute if score path variables matches 1..2 run fill -4 61 -3 4 61 4 minecraft:barrier replace minecraft:light\r\nexecute if score path variables matches 3 run fill -4 61 -3 4 61 4 minecraft:light[level=15] replace minecraft:barrier\r\n\r\nexecute if score path variables matches 2 run fill -20 7 -28 -26 12 -30 minecraft:light replace minecraft:air\r\nexecute if score path variables matches 1 run fill -20 7 -28 -26 12 -30 minecraft:air replace minecraft:light\r\nexecute if score path variables matches 3 run fill -20 7 -28 -26 12 -30 minecraft:air replace minecraft:light\r\n\r\nexecute if score path variables matches 2 run fill -24 39 -64 -24 32 -65 minecraft:air\r\nexecute if score path variables matches 2 run fill -24 38 -63 -24 34 -66 air\r\nexecute if score path variables matches 3 run fill -24 39 -63 -24 31 -66 minecraft:end_stone\r\n\r\nexecute if score path variables matches 3 run clone 14 28 -81 21 43 -72 -14 22 -65\r\nexecute if score path variables matches 2 run clone 24 28 -81 31 43 -72 -14 22 -65\r\n\r\nexecute if score path variables matches 1 run fill 27 4 -30 27 8 -22 minecraft:purpur_block\r\nexecute if score path variables matches 2..3 run fill 27 4 -30 27 8 -22 minecraft:air\r\n\r\nexecute in the_end run summon minecraft:armor_stand 64 39 -80 {NoGravity:1b,Silent:1b,Invulnerable:1b,Small:1b,Marker:1b,Invisible:1b,Tags:[\"mp1\"]}\r\nexecute in the_end run summon minecraft:armor_stand 65 39 -80 {NoGravity:1b,Silent:1b,Invulnerable:1b,Small:1b,Marker:1b,Invisible:1b,Tags:[\"mp2\"]}\r\nexecute in the_end run summon minecraft:armor_stand 66 39 -80 {NoGravity:1b,Silent:1b,Invulnerable:1b,Small:1b,Marker:1b,Invisible:1b,Tags:[\"mp3\"]}\r\nexecute in the_end run summon minecraft:armor_stand 67 39 -80 {NoGravity:1b,Silent:1b,Invulnerable:1b,Small:1b,Marker:1b,Invisible:1b,Tags:[\"mp4\"]}\r\nexecute if entity @a[scores={minigameplayer=5}] run summon minecraft:armor_stand 67 39 -80 {NoGravity:1b,Silent:1b,Invulnerable:1b,Small:1b,Marker:1b,Invisible:1b,Tags:[\"mp5\"]}\r\nexecute if entity @a[scores={minigameplayer=6}] run summon minecraft:armor_stand 67 39 -80 {NoGravity:1b,Silent:1b,Invulnerable:1b,Small:1b,Marker:1b,Invisible:1b,Tags:[\"mp6\"]}\r\nexecute if entity @a[scores={minigameplayer=7}] run summon minecraft:armor_stand 67 39 -80 {NoGravity:1b,Silent:1b,Invulnerable:1b,Small:1b,Marker:1b,Invisible:1b,Tags:[\"mp7\"]}\r\nexecute if entity @a[scores={minigameplayer=8}] run summon minecraft:armor_stand 67 39 -80 {NoGravity:1b,Silent:1b,Invulnerable:1b,Small:1b,Marker:1b,Invisible:1b,Tags:[\"mp8\"]}\r\nexecute if entity @a[scores={minigameplayer=9}] run summon minecraft:armor_stand 67 39 -80 {NoGravity:1b,Silent:1b,Invulnerable:1b,Small:1b,Marker:1b,Invisible:1b,Tags:[\"mp9\"]}\r\nexecute if entity @a[scores={minigameplayer=10}] run summon minecraft:armor_stand 67 39 -80 {NoGravity:1b,Silent:1b,Invulnerable:1b,Small:1b,Marker:1b,Invisible:1b,Tags:[\"mp10\"]}\r\n\r\nexecute if score players variables matches 5.. in the_end positioned 66.0 39 -79.0 facing 65.0 39 -79.0 as @a[scores={minigameplayer=1},limit=1] run function mcp:player_line\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=1}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp1\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=2}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp2\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=3}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp3\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=4}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp4\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=5}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp5\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=6}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp6\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=7}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp7\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=8}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp8\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=9}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp9\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=10}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp10\",\"player_spawn\"]}\r\n\r\nscoreboard players set playingPearlHurl variables 1\r\nexecute unless score path variables matches 1..3 run schedule function mcp:pearl_hurl_generate 1s",
+    "pearl_hurl_rules": "scoreboard players add currentRule variables 1\r\nexecute as @a at @s run playsound minecraft:entity.experience_orb.pickup master @s ~ ~ ~ 10 2 1\r\nexecute if score currentRule variables matches 1 run tellraw @a [{fallback:\"Follow the arrows on the signs and shown by blocks.\",translate:\"mcp.pearl_hurl_rules.1\",color:\"dark_aqua\",type:\"translatable\"}]\r\nexecute if score currentRule variables matches 1 run title @a actionbar {fallback:\"Please wait while course gets generated...\",translate:\"mcp.pearl_hurl_rules.2\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 2 run tellraw @a {fallback:\"Your enderpearl recharges one second after throwing it.\",translate:\"mcp.pearl_hurl_rules.3\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 3 run tellraw @a [{fallback:\"First player to complete the course wins!\",translate:\"mcp.pearl_hurl_rules.4\",color:\"dark_aqua\",type:\"translatable\"}]\r\nexecute if score currentRule variables matches 4 run tellraw @a [{fallback:\"Ties are determined by the first player to complete the most recent checkpoint.\",translate:\"mcp.pearl_hurl_rules.5\",color:\"dark_green\",type:\"translatable\"}]\r\nexecute if score currentRule variables matches 5 run function mcp:ready_up_tellraw\r\nexecute if score currentRule variables matches 1..4 run schedule function mcp:pearl_hurl_rules 3s",
+    "pearl_hurl_start": "execute if score gamemode variables matches 0 in the_end run tp @a[gamemode=adventure,scores={checkpoint=19..},name=JonikHD] -902 58 -476\r\nexecute if entity @a[scores={checkpoint=19..},name=JonikHD] run return 0\r\nexecute in the_end run kill @e[type=minecraft:marker,tag=player_spawn]\r\nscoreboard players set @a[gamemode=adventure] Points 3\r\nscoreboard players set playingPearlHurl variables 2\r\nscoreboard players set @a[gamemode=adventure] pearl 0\r\nscoreboard players set timeLeft variables 3600\r\ntitle @a title {fallback:\"Throw!\",translate:\"mcp.throw\",color:\"green\",type:\"translatable\"}\r\nteam modify blue collisionRule never\r\nteam modify red collisionRule never\r\nteam modify green collisionRule never\r\nteam modify yellow collisionRule never\r\nexecute as @a at @s run playsound minecraft:entity.experience_orb.pickup master @s ~ ~ ~ 10 0 1\r\nspawnpoint @a[gamemode=adventure] -21 19 -29\r\nadvancement revoke @a only minecraft:end/enter_end_gateway\r\nscoreboard players set @a[gamemode=adventure] pearl_reload 14\r\nexecute if score gamemode variables matches 0 if score path variables matches 1 run scoreboard players set @a[gamemode=adventure,name=JonikHD] checkpoint 23\r\nexecute if score gamemode variables matches 0 if score path variables matches 2 run scoreboard players set @a[gamemode=adventure,name=JonikHD] checkpoint 21\r\nexecute if score gamemode variables matches 0 if score path variables matches 3 run scoreboard players set @a[gamemode=adventure,name=JonikHD] checkpoint 19\r\nexecute if score gamemode variables matches 0 if entity @a[gamemode=adventure,name=JonikHD] run schedule function mcp:pearl_hurl_start 3t",
+    "pearl_hurl_tick": "execute if score players variables matches ..4 if score playingPearlHurl variables matches 1 run tp @a[gamemode=adventure,scores={minigameplayer=1}] 64 39 -80\r\nexecute if score players variables matches ..4 if score playingPearlHurl variables matches 1 run tp @a[gamemode=adventure,scores={minigameplayer=2}] 65 39 -80\r\nexecute if score players variables matches ..4 if score playingPearlHurl variables matches 1 run tp @a[gamemode=adventure,scores={minigameplayer=3}] 66 39 -80\r\nexecute if score players variables matches ..4 if score playingPearlHurl variables matches 1 run tp @a[gamemode=adventure,scores={minigameplayer=4}] 67 39 -80\r\nexecute if score players variables matches 5.. if score playingPearlHurl variables matches 1 as @e[type=minecraft:marker,tag=mp1] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=1}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingPearlHurl variables matches 1 as @e[type=minecraft:marker,tag=mp2] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=2}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingPearlHurl variables matches 1 as @e[type=minecraft:marker,tag=mp3] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=3}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingPearlHurl variables matches 1 as @e[type=minecraft:marker,tag=mp4] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=4}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingPearlHurl variables matches 1 as @e[type=minecraft:marker,tag=mp5] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=5}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingPearlHurl variables matches 1 as @e[type=minecraft:marker,tag=mp6] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=6}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingPearlHurl variables matches 1 as @e[type=minecraft:marker,tag=mp7] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=7}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingPearlHurl variables matches 1 as @e[type=minecraft:marker,tag=mp8] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=8}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingPearlHurl variables matches 1 as @e[type=minecraft:marker,tag=mp9] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=9}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingPearlHurl variables matches 1 as @e[type=minecraft:marker,tag=mp10] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=10}] ~ ~ ~\r\n\r\neffect give @a[gamemode=adventure] minecraft:saturation 1 0 true\r\neffect give @a[gamemode=adventure] minecraft:weakness 1 99 true\r\neffect give @a[gamemode=adventure] minecraft:resistance 1 99 true\r\n\r\n#Pearl Colors\r\n#execute as @a[scores={Player=1..}] store result score @s uuid run data get entity @s UUID[1]\r\n#execute as @e[type=ender_pearl,scores={uuid=-2147483648..2147483647}] run data merge entity @s {Glowing:1b}\r\n#execute as @e[type=ender_pearl] store result score @s uuid run data get entity @s Owner[1]\r\n#execute as @a[scores={Player=1..},team=blue] at @e[type=ender_pearl] if score @s uuid = @n[type=ender_pearl] uuid run team join blue @n[type=ender_pearl]\r\n#execute as @a[scores={Player=1..},team=red] at @e[type=ender_pearl] if score @s uuid = @n[type=ender_pearl] uuid run team join red @n[type=ender_pearl]\r\n#execute as @a[scores={Player=1..},team=green] at @e[type=ender_pearl] if score @s uuid = @n[type=ender_pearl] uuid run team join green @n[type=ender_pearl]\r\n#execute as @a[scores={Player=1..},team=yellow] at @e[type=ender_pearl] if score @s uuid = @n[type=ender_pearl] uuid run team join yellow @n[type=ender_pearl]\r\n#execute as @a[scores={Player=1..},team=dark_aqua] at @e[type=ender_pearl] if score @s uuid = @n[type=ender_pearl] uuid run team join dark_aqua @n[type=ender_pearl]\r\n#execute as @a[scores={Player=1..},team=light_purple] at @e[type=ender_pearl] if score @s uuid = @n[type=ender_pearl] uuid run team join light_purple @n[type=ender_pearl]\r\n#execute as @a[scores={Player=1..},team=dark_red] at @e[type=ender_pearl] if score @s uuid = @n[type=ender_pearl] uuid run team join dark_red @n[type=ender_pearl]\r\n#execute as @a[scores={Player=1..},team=dark_green] at @e[type=ender_pearl] if score @s uuid = @n[type=ender_pearl] uuid run team join dark_green @n[type=ender_pearl]\r\n#execute as @a[scores={Player=1..},team=dark_purple] at @e[type=ender_pearl] if score @s uuid = @n[type=ender_pearl] uuid run team join dark_purple @n[type=ender_pearl]\r\n#execute as @a[scores={Player=1..},team=dark_blue] at @e[type=ender_pearl] if score @s uuid = @n[type=ender_pearl] uuid run team join dark_blue @n[type=ender_pearl]\r\n\r\ntag @a[advancements={minecraft:end/enter_end_gateway=true}] add gateway\r\ntag @a[gamemode=adventure,x=0,y=0,z=0,distance=500..] add gateway\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=1}] at @s if block ~ ~ ~ minecraft:air as @e[type=minecraft:armor_stand,tag=mp1,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=1}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=2}] at @s if block ~ ~ ~ minecraft:air as @e[type=minecraft:armor_stand,tag=mp2,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=2}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=3}] at @s if block ~ ~ ~ minecraft:air as @e[type=minecraft:armor_stand,tag=mp3,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=3}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=4}] at @s if block ~ ~ ~ minecraft:air as @e[type=minecraft:armor_stand,tag=mp4,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=4}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=5}] at @s if block ~ ~ ~ minecraft:air as @e[type=minecraft:armor_stand,tag=mp5,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=5}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=6}] at @s if block ~ ~ ~ minecraft:air as @e[type=minecraft:armor_stand,tag=mp6,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=6}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=7}] at @s if block ~ ~ ~ minecraft:air as @e[type=minecraft:armor_stand,tag=mp7,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=7}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=8}] at @s if block ~ ~ ~ minecraft:air as @e[type=minecraft:armor_stand,tag=mp8,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=8}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=9}] at @s if block ~ ~ ~ minecraft:air as @e[type=minecraft:armor_stand,tag=mp9,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=9}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=10}] at @s if block ~ ~ ~ minecraft:air as @e[type=minecraft:armor_stand,tag=mp10,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=10}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=1}] at @s if block ~ ~ ~ minecraft:light[level=0] as @e[type=minecraft:armor_stand,tag=mp1,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=1}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=2}] at @s if block ~ ~ ~ minecraft:light[level=0] as @e[type=minecraft:armor_stand,tag=mp2,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=2}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=3}] at @s if block ~ ~ ~ minecraft:light[level=0] as @e[type=minecraft:armor_stand,tag=mp3,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=3}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=4}] at @s if block ~ ~ ~ minecraft:light[level=0] as @e[type=minecraft:armor_stand,tag=mp4,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=4}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=5}] at @s if block ~ ~ ~ minecraft:light[level=0] as @e[type=minecraft:armor_stand,tag=mp5,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=5}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=6}] at @s if block ~ ~ ~ minecraft:light[level=0] as @e[type=minecraft:armor_stand,tag=mp6,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=6}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=7}] at @s if block ~ ~ ~ minecraft:light[level=0] as @e[type=minecraft:armor_stand,tag=mp7,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=7}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=8}] at @s if block ~ ~ ~ minecraft:light[level=0] as @e[type=minecraft:armor_stand,tag=mp8,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=8}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=9}] at @s if block ~ ~ ~ minecraft:light[level=0] as @e[type=minecraft:armor_stand,tag=mp9,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=9}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=10}] at @s if block ~ ~ ~ minecraft:light[level=0] as @e[type=minecraft:armor_stand,tag=mp10,limit=1] at @s run tp @a[gamemode=adventure,scores={minigameplayer=10}] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=1}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run tp @e[type=minecraft:armor_stand,tag=mp1] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=2}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run tp @e[type=minecraft:armor_stand,tag=mp2] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=3}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run tp @e[type=minecraft:armor_stand,tag=mp3] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=4}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run tp @e[type=minecraft:armor_stand,tag=mp4] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=5}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run tp @e[type=minecraft:armor_stand,tag=mp5] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=6}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run tp @e[type=minecraft:armor_stand,tag=mp6] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=7}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run tp @e[type=minecraft:armor_stand,tag=mp7] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=8}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run tp @e[type=minecraft:armor_stand,tag=mp8] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=9}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run tp @e[type=minecraft:armor_stand,tag=mp9] ~ ~ ~\r\nexecute as @a[gamemode=adventure,tag=!gateway,scores={minigameplayer=10}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run tp @e[type=minecraft:armor_stand,tag=mp10] ~ ~ ~\r\n#x=0,y=0,z=0,distance=..500,\r\nexecute as @a[gamemode=adventure,tag=gateway] run function mcp:pearl_hurl_finish\r\nadvancement revoke @a[gamemode=adventure] only minecraft:end/enter_end_gateway\r\ntag @a remove gateway\r\n\r\nexecute as @a[gamemode=adventure,scores={Player=1..}] at @s if block ~ ~ ~ minecraft:light unless block ~ ~ ~ light[level=0] run function mcp:pearl_hurl_tick2\r\nexecute as @a[gamemode=adventure] run scoreboard players operation @s checkpoint2 = @s checkpoint\r\n\r\ntp @a[gamemode=spectator,x=0,y=0,z=0,distance=200..] 65 39 -82\r\n\r\nexecute as @a[gamemode=adventure,scores={pearl=1,pearl_reload=26}] run scoreboard players set @s pearl_reload 0\r\nscoreboard players add @a[gamemode=adventure,scores={pearl_reload=0..25}] pearl_reload 1\r\nscoreboard players set @a[gamemode=adventure,scores={pearl=1,pearl_reload=1..25}] pearl 0\r\ngive @a[gamemode=adventure,scores={pearl_reload=25,pearl=0}] minecraft:ender_pearl\r\n\r\nexecute as @a[gamemode=adventure,scores={pearl_reload=26,pearl=0}] unless entity @s[nbt={Inventory:[{id:\"minecraft:ender_pearl\"}]}] run give @s minecraft:ender_pearl 1\r\nkill @e[type=minecraft:item,nbt={Item:{id:\"minecraft:ender_pearl\"}}]\r\nexecute as @a[gamemode=adventure,nbt={Inventory:[{id:\"minecraft:ender_pearl\"}]}] unless entity @s[nbt={Inventory:[{id:\"minecraft:ender_pearl\",count:1}]}] run clear @s minecraft:ender_pearl 1\r\nexecute as @e[type=minecraft:ender_pearl] at @s if block ~ 17 ~ minecraft:soul_sand run data merge entity @s {Glowing:1b}\r\nexecute if score path variables matches 3 as @e[type=minecraft:ender_pearl] at @s if block ~ 17 ~ minecraft:soul_sand if block ~ ~1 ~ purpur_slab[type=bottom] run tp @s ~ ~1.5 ~\r\nexecute as @e[type=minecraft:ender_pearl] at @s if block ~ 1 ~ minecraft:soul_sand run data merge entity @s {Glowing:1b}\r\n\r\nexecute if score playingPearlHurl variables matches 2 run function mcp:timer_decrement\r\nexecute if score playingPearlHurl variables matches 2 if score timeLeft variables matches ..0 run function mcp:pearl_hurl_end\r\nexecute if score doubles_mode variables matches 1 if score players_finished variables >= half_players variables run function mcp:pearl_hurl_end\r\nexecute if score players_finished variables >= finishThreshold variables run function mcp:pearl_hurl_end",
+    "pearl_hurl_tick2": "scoreboard players set @s[x=58,y=36,z=-120,distance=0..3,scores={checkpoint=0}] checkpoint 1\r\nscoreboard players set @s[x=32,y=38,z=-123,distance=0..4,scores={checkpoint=0..1}] checkpoint 2\r\n\r\nexecute if score path variables matches 2..3 run scoreboard players set @s[x=7,y=36,z=-131,distance=0..3,scores={checkpoint=1..2}] checkpoint 3\r\nexecute if score path variables matches 2..3 run scoreboard players set @s[x=-16,y=37,z=-103,distance=0..3,scores={checkpoint=2..3}] checkpoint 4\r\nexecute if score path variables matches 2..3 run scoreboard players set @s[x=-16,y=29,z=-65,distance=0..3,scores={checkpoint=3..4}] checkpoint 5\r\n\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=-35,y=42,z=-65,distance=0..3,scores={checkpoint=4..5}] checkpoint 6\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=-44,y=45,z=-29,distance=0..3,scores={checkpoint=5..6}] checkpoint 7\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=-57,y=49,z=-1,distance=0..3,scores={checkpoint=6..7}] checkpoint 8\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=-37,y=43,z=30,distance=0..3,scores={checkpoint=7..8}] checkpoint 9\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=-17,y=52,z=68,distance=0..3,scores={checkpoint=8..9}] checkpoint 10\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=5,y=41,z=88,distance=0..3,scores={checkpoint=9..10}] checkpoint 11\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=40,y=38,z=83,distance=0..3,scores={checkpoint=10..11}] checkpoint 12\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=73,y=38,z=73,distance=0..3,scores={checkpoint=11..12}] checkpoint 13\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=93,y=44,z=66,distance=0..3,scores={checkpoint=12..13}] checkpoint 14\r\n\r\n#merged part (Ryans path)\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=110,y=29,z=29,distance=0..7,scores={checkpoint=13..14}] checkpoint 15\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=125,y=29,z=-6,distance=0..7,scores={checkpoint=14..15}] checkpoint 16\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=134,y=31,z=-40,distance=0..4,scores={checkpoint=15..16}] checkpoint 17\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=106,y=15,z=-43,distance=0..6,scores={checkpoint=16..17}] checkpoint 18\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=72,y=14,z=-44,distance=0..3,scores={checkpoint=17..18}] checkpoint 19\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=30,y=5,z=-27,distance=0..5,scores={checkpoint=18..19}] checkpoint 20\r\n#merged part for michaels path\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=110,y=29,z=29,distance=0..7,scores={checkpoint=12..13}] checkpoint 14\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=125,y=29,z=-6,distance=0..7,scores={checkpoint=13..14}] checkpoint 15\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=134,y=31,z=-40,distance=0..4,scores={checkpoint=14..15}] checkpoint 16\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=106,y=15,z=-43,distance=0..6,scores={checkpoint=15..16}] checkpoint 17\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=72,y=14,z=-44,distance=0..3,scores={checkpoint=16..17}] checkpoint 18\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=30,y=5,z=-27,distance=0..5,scores={checkpoint=17..18}] checkpoint 19\r\n\r\nexecute if score path variables matches 2 run scoreboard players set @s[x=-23,y=7,z=-29,distance=0..5,scores={checkpoint=19..20}] checkpoint 21\r\n\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=23,y=50,z=-111,distance=0..5,scores={checkpoint=1..2}] checkpoint 3\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=23,y=70,z=-109,distance=0..3,scores={checkpoint=2..3}] checkpoint 4\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=24,y=73,z=-73,distance=0..7,scores={checkpoint=3..4}] checkpoint 5\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=10,y=79,z=-45,distance=0..6,scores={checkpoint=4..5}] checkpoint 6\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=-21,y=79,z=-38,distance=0..4,scores={checkpoint=5..6}] checkpoint 7\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=-39,y=74,z=-4,distance=0..4,scores={checkpoint=6..7}] checkpoint 8\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=-42,y=101,z=-1,distance=0..5,scores={checkpoint=7..8}] checkpoint 9\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=-16,y=79,z=25,distance=0..4,scores={checkpoint=8..9}] checkpoint 10\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=12,y=76,z=39,distance=0..3,scores={checkpoint=9..10}] checkpoint 11\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=39,y=70,z=25,distance=0..5,scores={checkpoint=10..11}] checkpoint 12\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=75,y=39,z=22,distance=0..3,scores={checkpoint=11..12}] checkpoint 13\r\n\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=45,y=5,z=4,distance=0..3,scores={checkpoint=18..19}] checkpoint 20\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=27,y=7,z=22,distance=0..4,scores={checkpoint=19..20}] checkpoint 21\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=27,y=19,z=47,distance=0..3,scores={checkpoint=20..21}] checkpoint 22\r\nexecute if score path variables matches 1 run scoreboard players set @s[x=6,y=26,z=46,distance=0..3,scores={checkpoint=21..22}] checkpoint 23\r\n\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=16,y=27,z=-44,distance=0..3,scores={checkpoint=4..5}] checkpoint 6\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=43,y=25,z=-43,distance=0..5,scores={checkpoint=5..6}] checkpoint 7\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=44,y=19,z=-11,distance=0..3,scores={checkpoint=6..7}] checkpoint 8\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=14,y=21,z=1,distance=0..3,scores={checkpoint=7..8}] checkpoint 9\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=18,y=38,z=-29,distance=0..3,scores={checkpoint=8..9}] checkpoint 10\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=40,y=51,z=-31,distance=0..3,scores={checkpoint=9..10}] checkpoint 11\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=39,y=53,z=-5,distance=0..6,scores={checkpoint=10..11}] checkpoint 12\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=16,y=29,z=21,distance=0..3,scores={checkpoint=11..12}] checkpoint 13\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=-13,y=28,z=33,distance=0..3,scores={checkpoint=12..13}] checkpoint 14\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=-13,y=64,z=39,distance=0..5,scores={checkpoint=13..14}] checkpoint 15\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=-16,y=39,z=2,distance=0..3,scores={checkpoint=14..15}] checkpoint 16\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=-23,y=26,z=-28,distance=0..3,scores={checkpoint=15..16}] checkpoint 17\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=-2,y=41,z=-31,distance=0..3,scores={checkpoint=16..17}] checkpoint 18\r\nexecute if score path variables matches 3 run scoreboard players set @s[x=-0,y=40,z=-6,distance=0..3,scores={checkpoint=17..18}] checkpoint 19\r\n\r\nexecute if score @s checkpoint > @s checkpoint2 run function mcp:checkpoint",
+    "assign_finish_threshold": "scoreboard players operation finishThreshold variables = players_minus_1 variables\r\nexecute if score gamemode variables matches 3 if score modified variables matches 1 run scoreboard players set finishThreshold variables 1\r\nexecute if score gamemode variables matches 1..2 if score players variables matches ..4 if score coin_distribution variables matches 1 run scoreboard players set finishThreshold variables 1\r\nexecute unless score gamemode variables matches 0 if score doubles_mode variables matches 1 run scoreboard players operation finishThreshold variables = half_players variables\r\nexecute unless score gamemode variables matches 0 unless score doubles_mode variables matches 1 if score players variables matches 8.. run scoreboard players remove finishThreshold variables 1\r\n\r\nscoreboard players set remainingThreshold variables 1\r\nexecute if score gamemode variables matches 3 if score modified variables matches 1 run scoreboard players operation remainingThreshold variables = players_minus_1 variables\r\nexecute if score doubles_mode variables matches 1 unless score gamemode variables matches 0 run scoreboard players operation remainingThreshold variables = half_players variables",
+    "checkpoint": "scoreboard players add @a[scores={Player=1..}] Points 1\r\nscoreboard players set @s Points 0\r\nscoreboard players set @a[scores={Player=1..}] CheckpointPoints 0\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=1},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=2},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=3},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=4},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=5},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=6},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=7},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=8},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=9},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=10},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nscoreboard players set @a[scores={CheckpointPoints=0,Player=1..}] Points 0\r\nscoreboard players set @a[scores={CheckpointPoints=1,Player=1..}] Points 1\r\nscoreboard players set @a[scores={CheckpointPoints=2,Player=1..}] Points 2\r\nscoreboard players set @a[scores={CheckpointPoints=3,Player=1..}] Points 3\r\nscoreboard players set @a[scores={CheckpointPoints=4,Player=1..}] Points 4\r\nscoreboard players set @a[scores={CheckpointPoints=5,Player=1..}] Points 5\r\nscoreboard players set @a[scores={CheckpointPoints=6,Player=1..}] Points 6\r\nscoreboard players set @a[scores={CheckpointPoints=7,Player=1..}] Points 7\r\nscoreboard players set @a[scores={CheckpointPoints=8,Player=1..}] Points 8\r\nscoreboard players set @a[scores={CheckpointPoints=9,Player=1..}] Points 9\r\ntag @s add temp_checkpoint_tie\r\nexecute if score temp_checkpoint_tie variables = timer dice run scoreboard players set @a[tag=temp_checkpoint_tie] Points 0\r\nscoreboard players operation temp_checkpoint_tie variables = timer dice\r\n\r\nschedule function mcp:checkpoint2 1t",
+    "checkpoint2": "scoreboard players set @a[scores={Player=1..}] checkpoint_generic 0\r\nexecute if score minigame variables matches 401 as @a run scoreboard players operation @s checkpoint = @s max_blocks_fallen\r\nexecute if score minigame variables matches 405 as @a run scoreboard players operation @s checkpoint = @s lapscompleted\r\nexecute if score minigame variables matches 410 as @a run scoreboard players operation @s checkpoint = @s weapon_minus_1\r\nexecute if score minigame variables matches 411 as @a run scoreboard players operation @s checkpoint = @s taskscompleted\r\nexecute if score minigame variables matches 291 as @a run scoreboard players operation @s checkpoint = @s taskscompleted\r\nexecute if score minigame variables matches 416 as @a run scoreboard players operation @s checkpoint = @s totalcheckpoints\r\nexecute if score minigame variables matches 417 as @a run scoreboard players operation @s checkpoint = @s buildsCopied\r\nexecute if score minigame variables matches 421 as @a run scoreboard players operation @s checkpoint = @s ItemsFound\r\nexecute if score minigame variables matches 425 as @a run scoreboard players operation @s checkpoint = @s wall\r\nexecute if score minigame variables matches 427 as @a run scoreboard players operation @s checkpoint = @s lapscompleted\r\nexecute if score minigame variables matches 435 as @a run scoreboard players operation @s checkpoint = @s hog_riders_place\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic += @s checkpoint\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic *= players variables\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic += @s Points\r\nscoreboard players display numberformat @a[scores={checkpoint=0}] checkpoint_generic fixed {text:\"0\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=1}] checkpoint_generic fixed {text:\"1\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=2}] checkpoint_generic fixed {text:\"2\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=3}] checkpoint_generic fixed {text:\"3\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=4}] checkpoint_generic fixed {text:\"4\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=5}] checkpoint_generic fixed {text:\"5\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=6}] checkpoint_generic fixed {text:\"6\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=7}] checkpoint_generic fixed {text:\"7\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=8}] checkpoint_generic fixed {text:\"8\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=9}] checkpoint_generic fixed {text:\"9\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=10}] checkpoint_generic fixed {text:\"10\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=11}] checkpoint_generic fixed {text:\"11\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=12}] checkpoint_generic fixed {text:\"12\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=13}] checkpoint_generic fixed {text:\"13\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=14}] checkpoint_generic fixed {text:\"14\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=15}] checkpoint_generic fixed {text:\"15\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=16}] checkpoint_generic fixed {text:\"16\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=17}] checkpoint_generic fixed {text:\"17\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=18}] checkpoint_generic fixed {text:\"18\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=19}] checkpoint_generic fixed {text:\"19\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=20}] checkpoint_generic fixed {text:\"20\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=21}] checkpoint_generic fixed {text:\"21\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=22}] checkpoint_generic fixed {text:\"22\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=23}] checkpoint_generic fixed {text:\"23\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=24}] checkpoint_generic fixed {text:\"24\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=25}] checkpoint_generic fixed {text:\"25\",color:\"red\"}\r\n\r\nexecute as @a[gamemode=spectator] unless score @s Player matches 1.. run scoreboard players reset @s checkpoint_generic\r\nexecute unless score minigame variables matches 101..199 run scoreboard players display numberformat @a[gamemode=spectator,scores={Player=1..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 401 run scoreboard players display numberformat @a[gamemode=adventure,scores={Player=1..,max_blocks_fallen=382..},tag=1st_attempt] checkpoint_generic fixed {text:\"☑\",color:\"gold\"}\r\nexecute if score minigame variables matches 401 run scoreboard players display numberformat @a[gamemode=adventure,scores={Player=1..,max_blocks_fallen=382..},tag=!1st_attempt] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 417 run scoreboard players display numberformat @a[scores={Player=1..,buildsCopied=4..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 425 run scoreboard players display numberformat @a[scores={Player=1..,wall=15..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 101..199 as @a unless score @s duelplayer matches 1..2 run scoreboard players reset @s checkpoint_generic\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=0}] checkpoint_generic fixed {text:\"0\",color:\"red\"}\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=1}] checkpoint_generic fixed {text:\"1\",color:\"red\"}\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=2}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\n\r\nscoreboard players reset temp_checkpoint_tie variables\r\ntag @a remove temp_checkpoint_tie",
+    "timer_decrement": "scoreboard players remove timeLeft variables 1\r\nscoreboard players operation TimeLeftMin variables = timeLeft variables\r\nscoreboard players add TimeLeftMin variables 20\r\nscoreboard players operation TimeLeftMin variables /= 1200 constants\r\nscoreboard players operation TimeLeftSec variables = timeLeft variables\r\nscoreboard players operation TimeLeftSec variables /= 20 constants\r\nscoreboard players add TimeLeftSec variables 1\r\nscoreboard players operation TimeLeftSec variables %= 60 constants\r\nexecute if score TimeLeftSec variables matches 10.. run title @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{score:{name:\"TimeLeftMin\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"},{text:\":\",color:\"#FF0000\"},{score:{name:\"TimeLeftSec\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"}]\r\nexecute unless score TimeLeftSec variables matches 10.. run title @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{score:{name:\"TimeLeftMin\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"},{text:\":0\",color:\"#FF0000\"},{score:{name:\"TimeLeftSec\",objective:\"variables\"},color:\"#FF0000\",type:\"score\"}]\r\nexecute if score timeLeft variables matches 0 run schedule function mcp:last_timer_title 1t",
+    "last_timer_title": "title @a actionbar [{fallback:\"Time Left: 0:00\",translate:\"mcp.last_timer_title.1\",color:\"#FF0000\",type:\"translatable\"}]",
+    "player_line": "execute unless score gametype variables matches 4..6 run scoreboard players operation playersInLine variables = half_players variables\r\nexecute if score gametype variables matches 4..6 run scoreboard players operation playersInLine variables = players variables\r\nexecute if score gametype variables matches 1..7 unless score gametype variables matches 2..6 run scoreboard players operation playersInLine variables = players variables\r\nexecute if entity @a[tag=last] run scoreboard players operation playersInLine variables = players variables\r\nscoreboard players operation isOdd variables = playersInLine variables\r\nscoreboard players operation isOdd variables %= 2 constants\r\nexecute if score isOdd variables matches 1 run tp @s ^ ^ ^ ~90 ~\r\nexecute if score isOdd variables matches 0 run tp @s ^ ^ ^0.5 ~90 ~\r\nscoreboard players reset isOdd variables\r\nexecute unless score spaceOffset variables matches ..1 run scoreboard players add spaceOffset variables 1\r\nexecute if score spaceOffset variables matches ..-1 run scoreboard players remove spaceOffset variables 1\r\nscoreboard players operation spaceOffset variables *= negation constants\r\nexecute if score playersInLine variables = players variables unless entity @e[tag=NextPlayer] run tp @a[gamemode=spectator] ^ ^1 ^ ~90 ~\r\nexecute if score allInLine variables matches 1 unless entity @e[tag=NextPlayer] run tp @a[gamemode=spectator] ^ ^1 ^ ~90 ~\r\ntag @e remove NextPlayer\r\n\r\nexecute unless score gametype variables matches 2..6 run scoreboard players operation nextPlayer variables = @s Player\r\n\r\n# Duel or Micro Duel: All players\r\nexecute unless score gametype variables matches 2..6 if score gametype variables matches 1..7 run scoreboard players add nextPlayer variables 1\r\n\r\n# Special Event: All players\r\nexecute unless score gametype variables matches 2..6 if entity @e[tag=last] run scoreboard players add nextPlayer variables 1\r\n\r\n# End game podium: Only the team\r\nexecute unless score gametype variables matches 1.. unless entity @e[tag=last] run scoreboard players add nextPlayer variables 2\r\n\r\nexecute unless score gametype variables matches 2..6 as @a[scores={Player=1..}] if score @s Player = nextPlayer variables run tag @s add NextPlayer\r\n\r\nexecute if score gametype variables matches 2.. run scoreboard players operation nextPlayer variables = @s minigameplayer\r\nexecute if score gametype variables matches 2 unless score allInLine variables matches 1 if score @s minigameplayer matches 1..3 unless score @s minigameplayer matches 2 run scoreboard players add nextPlayer variables 1\r\nexecute if score gametype variables matches 2 unless score allInLine variables matches 1 if score @s minigameplayer matches 4.. run scoreboard players add nextPlayer variables 2\r\nexecute if score gametype variables matches 2 unless score allInLine variables matches 1 if score @s minigameplayer matches 2 run scoreboard players add nextPlayer variables 3\r\nexecute if score gametype variables matches 3 unless score allInLine variables matches 1 if score @s minigameplayer matches 1 run scoreboard players set nextPlayer variables 5\r\nexecute if score gametype variables matches 3 unless score allInLine variables matches 1 if score @s minigameplayer matches 5 run scoreboard players reset nextPlayer variables\r\nexecute if score gametype variables matches 3 unless score allInLine variables matches 1 if score @s minigameplayer matches 2.. unless score @s minigameplayer matches 4..5 run scoreboard players add nextPlayer variables 1\r\nexecute if score gametype variables matches 3 unless score allInLine variables matches 1 if score @s minigameplayer matches 4 run scoreboard players set nextPlayer variables 6\r\nexecute if score gametype variables matches 2..3 if score allInLine variables matches 1 run scoreboard players add nextPlayer variables 1\r\nexecute if score gametype variables matches 4..6 run scoreboard players add nextPlayer variables 1\r\nexecute if score gametype variables matches 2.. as @a[scores={minigameplayer=1..}] if score @s minigameplayer = nextPlayer variables run tag @s add NextPlayer\r\nscoreboard players reset nextPlayer variables\r\nexecute if score spaceOffset variables matches -1 positioned ^ ^ ^-1 facing ^ ^ ^10 as @a[tag=NextPlayer] run function mcp:player_line\r\nexecute if score spaceOffset variables matches 2 positioned ^ ^ ^2 facing ^ ^ ^10 as @a[tag=NextPlayer] run function mcp:player_line\r\nexecute if score spaceOffset variables matches -3 positioned ^ ^ ^-3 facing ^ ^ ^10 as @a[tag=NextPlayer] run function mcp:player_line\r\nexecute if score spaceOffset variables matches 4 positioned ^ ^ ^4 facing ^ ^ ^10 as @a[tag=NextPlayer] run function mcp:player_line\r\nexecute if score spaceOffset variables matches -5 positioned ^ ^ ^-5 facing ^ ^ ^10 as @a[tag=NextPlayer] run function mcp:player_line\r\nexecute if score spaceOffset variables matches 6 positioned ^ ^ ^6 facing ^ ^ ^10 as @a[tag=NextPlayer] run function mcp:player_line\r\nexecute if score spaceOffset variables matches -7 positioned ^ ^ ^-7 facing ^ ^ ^10 as @a[tag=NextPlayer] run function mcp:player_line\r\nexecute if score spaceOffset variables matches 8 positioned ^ ^ ^8 facing ^ ^ ^10 as @a[tag=NextPlayer] run function mcp:player_line\r\nexecute if score spaceOffset variables matches -9 positioned ^ ^ ^-9 facing ^ ^ ^10 as @a[tag=NextPlayer] run function mcp:player_line\r\nscoreboard players reset spaceOffset variables\r\nscoreboard players reset allInLine variables",
+    "rotate_entity": "# rotationChange variables must be set and reset outside of this function. rotation variables needs to be reset outside of this function\r\nexecute if score rotationChange variables matches 0 run scoreboard players set rotationChange variables 36\r\nexecute store result score rotation variables run data get entity @s Rotation[0]\r\nscoreboard players operation rotation variables += rotationChange variables\r\nexecute store result storage mcp:variables rotation float 1 run scoreboard players get rotation variables\r\ndata modify entity @s Rotation[0] set from storage mcp:variables rotation",
+    "ready_up_tellraw": "execute unless score playersReady variables >= players variables run tellraw @a {fallback:\"All players can drop their ready up item when they are ready to begin the game.\",translate:\"mcp.ready_up_tellraw.1\",color:\"#FF2424\",type:\"translatable\"}\r\nexecute unless score playersReady variables >= players variables run playsound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1",
+    "give_ready_ups": "scoreboard players set playersReady variables 0\r\nscoreboard players set practiceVotes variables 0\r\nexecute if score minigame variables matches 200..299 run scoreboard players operation temp_players variables = players variables\r\nexecute if score minigame variables matches 200..299 run scoreboard players operation temp_players variables %= 2 constants\r\nexecute if score minigame variables matches 200..299 run scoreboard players operation playersReady variables = temp_players variables\r\nexecute if score minigame variables matches 200..299 run scoreboard players reset temp_players variables\r\nexecute if score gametype variables matches 5 unless score gamemode variables matches 0 run function mcp:battle_minigame_payouts_sidebar\r\nexecute if score gametype variables matches 3 if score players variables matches 9 run scoreboard players add playersReady variables 1\r\nexecute if score gametype variables matches 3 if score players variables matches 10 run scoreboard players add playersReady variables 2\r\nexecute if score realms_mode variables matches 1 run scoreboard objectives remove VoidMinigame\r\nexecute if score realms_mode variables matches 1 run scoreboard objectives add VoidMinigame trigger\r\nexecute if score realms_mode variables matches 1 run scoreboard players enable @a VoidMinigame\r\n\r\nitem replace entity @a[scores={TeamID=1}] hotbar.8 with minecraft:blue_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"blue\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=2}] hotbar.8 with minecraft:red_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"red\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=3}] hotbar.8 with minecraft:lime_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=4}] hotbar.8 with minecraft:yellow_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"yellow\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=5}] hotbar.8 with minecraft:cyan_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_aqua\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=6}] hotbar.8 with minecraft:magenta_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"light_purple\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=7}] hotbar.8 with minecraft:brown_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_red\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=8}] hotbar.8 with minecraft:green_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_green\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=9}] hotbar.8 with minecraft:purple_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_purple\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nitem replace entity @a[scores={TeamID=10}] hotbar.8 with minecraft:black_candle[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_blue\",fallback:\"Drop To Ready Up\",translate:\"mcp.DropToReadyUp\"},minecraft:lore=[{color:\"light_purple\",italic:1b,fallback:\"Drop item to start game\",translate:\"mcp.DropToReadyUpLore\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\n\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=1}] hotbar.7 with minecraft:blue_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=2}] hotbar.7 with minecraft:red_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=3}] hotbar.7 with minecraft:lime_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=4}] hotbar.7 with minecraft:yellow_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"yellow\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=5}] hotbar.7 with minecraft:cyan_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_aqua\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=6}] hotbar.7 with minecraft:magenta_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"light_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=7}] hotbar.7 with minecraft:brown_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=8}] hotbar.7 with minecraft:green_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=9}] hotbar.7 with minecraft:purple_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 1 run item replace entity @a[scores={TeamID=10}] hotbar.7 with minecraft:black_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s vote minimum required\",translate:\"mcp.give_ready_ups.1\",with:[{text:\"1\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\n\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=1}] hotbar.7 with minecraft:blue_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=2}] hotbar.7 with minecraft:red_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=3}] hotbar.7 with minecraft:lime_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=4}] hotbar.7 with minecraft:yellow_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"yellow\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=5}] hotbar.7 with minecraft:cyan_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_aqua\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=6}] hotbar.7 with minecraft:magenta_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"light_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=7}] hotbar.7 with minecraft:brown_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=8}] hotbar.7 with minecraft:green_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=9}] hotbar.7 with minecraft:purple_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 2 run item replace entity @a[scores={TeamID=10}] hotbar.7 with minecraft:black_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"2\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\n\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=1}] hotbar.7 with minecraft:blue_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=2}] hotbar.7 with minecraft:red_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=3}] hotbar.7 with minecraft:lime_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=4}] hotbar.7 with minecraft:yellow_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"yellow\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=5}] hotbar.7 with minecraft:cyan_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_aqua\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=6}] hotbar.7 with minecraft:magenta_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"light_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=7}] hotbar.7 with minecraft:brown_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=8}] hotbar.7 with minecraft:green_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=9}] hotbar.7 with minecraft:purple_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 3 run item replace entity @a[scores={TeamID=10}] hotbar.7 with minecraft:black_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"3\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\n\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=1}] hotbar.7 with minecraft:blue_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=2}] hotbar.7 with minecraft:red_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=3}] hotbar.7 with minecraft:lime_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=4}] hotbar.7 with minecraft:yellow_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"yellow\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=5}] hotbar.7 with minecraft:cyan_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_aqua\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=6}] hotbar.7 with minecraft:magenta_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"light_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=7}] hotbar.7 with minecraft:brown_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_red\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=8}] hotbar.7 with minecraft:green_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_green\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=9}] hotbar.7 with minecraft:purple_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_purple\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\nexecute if score practice_players variables matches 4 run item replace entity @a[scores={TeamID=10}] hotbar.7 with minecraft:black_banner[minecraft:can_place_on={blocks:\"minecraft:birch_button\"},minecraft:custom_name={bold:1b,color:\"dark_blue\",fallback:\"Drop to Go to Practice mode\",translate:\"mcp.DropToPractice\"},minecraft:lore=[{color:\"light_purple\",fallback:\"Drop item to start practice mode.\",translate:\"mcp.DropPracticeLore1\"},{color:\"light_purple\",fallback:\"%1$s votes minimum required\",translate:\"mcp.give_ready_ups.2\",with:[{text:\"4\",color:\"aqua\",bold:0b}]},{color:\"light_purple\",italic:1b,fallback:\"for practice mode to begin.\",translate:\"mcp.DropPracticeLore3\"}],minecraft:tooltip_display={hidden_components:[\"minecraft:can_place_on\"]}] 1\r\n\r\nitem replace entity @a inventory.0 with minecraft:structure_void[custom_data={void_minigame:1b},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"End Minigame\",translate:mcp.EndMinigame},minecraft:enchantments={\"minecraft:vanishing_curse\":1},tooltip_display={hidden_components:[\"enchantments\"]},enchantment_glint_override=false,minecraft:lore=[{fallback:\"Drop to end current minigame in progress\",translate:mcp.DropToEndMinigame}]]",
+    "placements": "gamerule fallDamage false\r\nscoreboard objectives remove VoidMinigame\r\nstopsound @a weather\r\nkill @e[type=item]\r\nscoreboard players set @a MusicTime 1\r\nexecute if score gamemode variables matches 3 run scoreboard players set gp_minigame_active variables 0\r\nexecute store result score playersOnline variables if entity @a[scores={Player=1..}]\r\nexecute if score playersOnline variables < players variables run title @a actionbar {fallback:\"All players must be online to continue\",translate:\"mcp.MissingPlayerActionBarAlert\",type:\"translatable\"}\r\nexecute if score playersOnline variables < players variables run schedule function mcp:placements 1t\r\nexecute if score playersOnline variables < players variables run return 0\r\ntitle @a times 0 15 15\r\nexecute if score reduced_cutscenes variables matches 1 run title @a times 0 60 15\r\ntitle @a title {fallback:\"\\uE001\",translate:\"mcp.placements.2\",type:\"translatable\"}\r\nscoreboard players reset playersOnline variables\r\ngamemode adventure @a[scores={Player=1..}]\r\neffect clear @a minecraft:levitation\r\neffect give @a minecraft:weakness infinite 255 true\r\nexecute if score gametype variables matches 5 run fill 0 38 -86 -14 38 -72 minecraft:campfire{} replace minecraft:gold_block\r\nexecute if score gametype variables matches 5 run fill 0 38 -86 -14 38 -72 minecraft:soul_campfire{} replace minecraft:diamond_block\r\nscoreboard objectives add in_ve dummy\r\nscoreboard players set @a[scores={Player=1..}] in_ve 0\r\nscoreboard players set victoryeggplayers variables 0\r\nscoreboard players set battlePlayersDone variables 0\r\nscoreboard players set TiePlace1 variables 0\r\nscoreboard players set TiePlace2 variables 0\r\nscoreboard players set TiePlace3 variables 0\r\nscoreboard players set TiePlace4 variables 0\r\nscoreboard players reset @a MinigamePlacement\r\nfunction mcp:separate_players\r\nscoreboard players set @a[scores={Player=1..}] placement 0\r\nexecute as @a[scores={Player=1..}] at @a[scores={Player=1..}] if score @s Points < @p Points run scoreboard players add @s placement 1\r\nscoreboard players add @a[scores={Player=1..}] placement 1\r\nexecute as @a[scores={placement=4}] run scoreboard players add TiePlace4 variables 1\r\nexecute as @a[scores={placement=3}] run scoreboard players add TiePlace3 variables 1\r\nexecute as @a[scores={placement=2}] run scoreboard players add TiePlace2 variables 1\r\nexecute as @a[scores={placement=1}] run scoreboard players add TiePlace1 variables 1\r\n\r\nexecute if score reduced_cutscenes variables matches 1 run gamemode spectator @a[scores={Player=1..}]\r\nexecute if score reduced_cutscenes variables matches 1 run function mcp:placement\r\nexecute if score reduced_cutscenes variables matches 1 run return 0\r\n\r\nexecute if score gamemode variables matches 0..3 unless score gamemode variables matches 1..2 unless score gametype variables matches 5 run tp @a 287 45 -338 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 1 run tp @a -75 32.5 -525 -90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 2 run tp @a 1487.0 47 78 -90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 3 run tp @a 36.0 -49 -636 180 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 4 run tp @a -459.0 -27 -596.0 0 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 5 run tp @a 395 44 -630 -90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 6 run tp @a 132.5 -59 -635.5 -90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 7 run tp @a 407.0 47 -387.5 180 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 8 run tp @a 1396.0 116 9749.0 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 9 run tp @a 1269 150.5 10057 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 9..17 unless score board variables matches 10..12 unless score board variables matches 15..16 run schedule function mcp:victory_stage 1s\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 10 run tp @a 27.0 89 5123.5 0 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 11 run tp @a 71.5 64 -5132.0 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 12 run tp @a 26.0 1.5 5120.5 0 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 13 run tp @a 1208 119 9455.5 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 14 run tp @a -5154 116 67 -90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 15 run tp @a 4706 62 458 90 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 16 run tp @a 283.0 58 5435 0 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 17 run tp @a 988 72.5 -5127 0 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 18 run tp @a 1956.0 108.0 1125.0 180 0\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score board variables matches 100 run tp @a 765 -57 1030 -90 0\r\nexecute if score gametype variables matches 5 positioned 6 33 -79 rotated 0 0 run function mcp:player_line\r\nforceload remove 6 -79 6 -84\r\nexecute unless score void_minigame variables matches 1 run schedule function mcp:placement 3s\r\nexecute if score reduced_cutscenes variables matches 0 run schedule function mcp:spawn_audience 1s\r\nexecute if score gamemode variables matches 0..3 unless score gamemode variables matches 1..2 if score reduced_cutscenes variables matches 0 run schedule function mcp:victory_stage 1s\r\nexecute if score gamemode variables matches 0..3 unless score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 as @a[scores={minigameplayer=1},limit=1] positioned 287 45 -338 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 1 as @a[scores={minigameplayer=1},limit=1] positioned -79 32.5 -525 rotated 180 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 2 as @a[scores={minigameplayer=1},limit=1] positioned 1487.0 47 78 rotated 180 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 3 as @a[scores={minigameplayer=1},limit=1] positioned 36.0 -49 -636 rotated 90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 4 as @a[scores={minigameplayer=1},limit=1] positioned -459.0 -27 -595.0 rotated -90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 5 as @a[scores={minigameplayer=1},limit=1] positioned 395 44 -630 rotated 180 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 6 as @a[scores={minigameplayer=1},limit=1] positioned 132.5 -59 -635.5 rotated 180 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 7 as @a[scores={minigameplayer=1},limit=1] positioned 407.0 47 -387.5 rotated 90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 8 as @a[scores={minigameplayer=1},limit=1] positioned 1396.0 115 9749.0 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 9 as @a[scores={minigameplayer=1},limit=1] positioned 1269.5 150.5 10056.5 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 10 as @a[scores={minigameplayer=1},limit=1] positioned 27.0 89 5123.5 rotated -90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 11 as @a[scores={minigameplayer=1},limit=1] positioned 71.5 64 -5132.0 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 12 as @a[scores={minigameplayer=1},limit=1] positioned 26.0 1.5 5120.5 rotated -90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 13 as @a[scores={minigameplayer=1},limit=1] positioned 1207 118.5 9455.5 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 14 as @a[scores={minigameplayer=1},limit=1] positioned -5154 116 67 rotated 180 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 15 as @a[scores={minigameplayer=1},limit=1] positioned 4706 62 458 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 16 as @a[scores={minigameplayer=1},limit=1] positioned 283.0 58 5435 rotated 0 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 17 as @a[scores={minigameplayer=1},limit=1] positioned 988.5 72.5 -5126.5 rotated -90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 18 as @a[scores={minigameplayer=1},limit=1] positioned 1956.0 108.0 1122.0 rotated 90 0 run function mcp:player_line\r\nexecute if score gamemode variables matches 1..2 unless score gametype variables matches 5 if score reduced_cutscenes variables matches 0 if score board variables matches 100 as @a[scores={minigameplayer=1},limit=1] positioned 765 -57 1030 rotated -180 0 run function mcp:player_line"
+  },
+  "functionSha256": {
+    "pearl_hurl": "62744f1b4d289a1d753f9be7c1edf5cab5d08e269df8293ef0606945443f4d7a",
+    "pearl_hurl_end": "3c6151949c8140b37253d0931240405fd4d0d4f733facc01bfa32a2caced62cb",
+    "pearl_hurl_finish": "31a562e89894414f0f4578de1c7a30bc2bd4ce55b84200a2ff994bd9b0b462c1",
+    "pearl_hurl_generate": "ce819af1887c7b2d2ee0e1600c697d56f85fcf873fa9dd8551b682f22319ec9e",
+    "pearl_hurl_generate2": "5aa00e55814f4f3143647bfc42ac010b67e586d47d7600e9e5a333e641186685",
+    "pearl_hurl_rules": "133ac6178dbcbf18889859deb4d72f2017b810d2bd2cb6bb51357e54a5bceefe",
+    "pearl_hurl_start": "09623c7e0c7d3f5976f49a4f777c751a698fd706a1d735f9b10139223d4616a6",
+    "pearl_hurl_tick": "67d47d81ec3b54b80fd995f78b2f3f5b9fc937b4a48212eb0ab4af39ffe9a6a0",
+    "pearl_hurl_tick2": "4c5d40d242c6c342e5d6ca76c264fb262230d383b74c1a4b6c53985249eee670",
+    "assign_finish_threshold": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+    "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+    "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+    "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+    "last_timer_title": "2c967d524c537de08bf4ceab74493197d214295ccc7589c0af1b20ac2af191fa",
+    "player_line": "34c29fee7a7a209da45cc8293860e0269b522dbfe48d71e3a4ec79f2935457c0",
+    "rotate_entity": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801",
+    "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+    "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+    "placements": "784cb9dc86bd733c3215f44477b5d464e2bda6fdc5ed5fc859761ea663353494"
+  },
+  "signs": [
+    {
+      "position": [
+        -38,
+        75,
+        -3
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "^",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -39,
+        75,
+        -4
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "^",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -40,
+        75,
+        -5
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "^",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -42,
+        100,
+        3
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -20,
+        79,
+        -37
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -21,
+        80,
+        -41
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -21,
+        81,
+        -31
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -17,
+        79,
+        24
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -19,
+        79,
+        26
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -16,
+        29,
+        -64
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -2,
+        41,
+        -5
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "↑",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        -13,
+        29,
+        35
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "↓",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        10,
+        79,
+        -44
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        2,
+        41,
+        -5
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "↑",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        13,
+        76,
+        41
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        23,
+        51,
+        -108
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "^^^^^",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        25,
+        70,
+        -109
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        24,
+        51,
+        -112
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        21,
+        70,
+        -109
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        22,
+        51,
+        -112
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        24,
+        73,
+        -69
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        28,
+        5,
+        -28
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        28,
+        5,
+        -22
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        27,
+        20,
+        48
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        38,
+        2,
+        -2
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        40,
+        2,
+        -4
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        38,
+        3,
+        -2
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        40,
+        3,
+        -4
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        38,
+        4,
+        -2
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        40,
+        4,
+        -4
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        46,
+        5,
+        6
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        39,
+        70,
+        21
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        59,
+        36,
+        -123
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        55,
+        40,
+        -81
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        63,
+        39,
+        -81
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        55,
+        40,
+        -80
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        55,
+        40,
+        -79
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        56,
+        40,
+        -79
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        68,
+        39,
+        -81
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        70,
+        14,
+        -45
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        108,
+        29,
+        27
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "----->",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        114,
+        29,
+        29
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    },
+    {
+      "position": [
+        133,
+        31,
+        -43
+      ],
+      "waxed": false,
+      "front": {
+        "messages": [
+          "",
+          "<-----",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": true
+      },
+      "back": {
+        "messages": [
+          "",
+          "",
+          "",
+          ""
+        ],
+        "color": "black",
+        "glowing": false
+      }
+    }
+  ],
+  "gateways": [
+    {
+      "position": [
+        -55,
+        14,
+        -29
+      ],
+      "age": 871459,
+      "exact": false,
+      "exit": [
+        -897,
+        67,
+        -477
+      ]
+    },
+    {
+      "position": [
+        -17,
+        37,
+        50
+      ],
+      "age": 909797,
+      "exact": false,
+      "exit": [
+        -345,
+        71,
+        1015
+      ]
+    },
+    {
+      "position": [
+        -2,
+        60,
+        -1
+      ],
+      "age": 353859,
+      "exact": false,
+      "exit": [
+        -913,
+        70,
+        -456
+      ]
+    },
+    {
+      "position": [
+        -1,
+        60,
+        -1
+      ],
+      "age": 353859,
+      "exact": false,
+      "exit": [
+        -673,
+        66,
+        -673
+      ]
+    },
+    {
+      "position": [
+        -1,
+        60,
+        -2
+      ],
+      "age": 353859,
+      "exact": false,
+      "exit": [
+        -513,
+        66,
+        -1009
+      ]
+    },
+    {
+      "position": [
+        -2,
+        60,
+        0
+      ],
+      "age": 353712,
+      "exact": false,
+      "exit": [
+        -1098,
+        85,
+        -1
+      ]
+    },
+    {
+      "position": [
+        -1,
+        60,
+        0
+      ],
+      "age": 353712,
+      "exact": false,
+      "exit": [
+        -1098,
+        73,
+        -1
+      ]
+    },
+    {
+      "position": [
+        -2,
+        60,
+        1
+      ],
+      "age": 353712,
+      "exact": false,
+      "exit": [
+        -1025,
+        80,
+        514
+      ]
+    },
+    {
+      "position": [
+        -1,
+        60,
+        1
+      ],
+      "age": 353712,
+      "exact": false,
+      "exit": [
+        -712,
+        71,
+        735
+      ]
+    },
+    {
+      "position": [
+        -1,
+        60,
+        2
+      ],
+      "age": 353712,
+      "exact": false,
+      "exit": [
+        -433,
+        68,
+        862
+      ]
+    },
+    {
+      "position": [
+        0,
+        60,
+        -1
+      ],
+      "age": 353870,
+      "exact": false,
+      "exit": [
+        0,
+        77,
+        -1070
+      ]
+    },
+    {
+      "position": [
+        1,
+        60,
+        -1
+      ],
+      "age": 353870,
+      "exact": false,
+      "exit": [
+        727,
+        71,
+        -712
+      ]
+    },
+    {
+      "position": [
+        2,
+        60,
+        -1
+      ],
+      "age": 353870,
+      "exact": false,
+      "exit": [
+        943,
+        72,
+        -448
+      ]
+    },
+    {
+      "position": [
+        1,
+        60,
+        -2
+      ],
+      "age": 353870,
+      "exact": false,
+      "exit": [
+        491,
+        68,
+        -961
+      ]
+    },
+    {
+      "position": [
+        0,
+        60,
+        -2
+      ],
+      "age": 353870,
+      "exact": false,
+      "exit": [
+        0,
+        89,
+        -1070
+      ]
+    },
+    {
+      "position": [
+        1,
+        60,
+        0
+      ],
+      "age": 358661,
+      "exact": false,
+      "exit": [
+        1090,
+        66,
+        24
+      ]
+    },
+    {
+      "position": [
+        0,
+        60,
+        1
+      ],
+      "age": 358661,
+      "exact": false,
+      "exit": [
+        -1,
+        54,
+        1127
+      ]
+    },
+    {
+      "position": [
+        1,
+        60,
+        1
+      ],
+      "age": 358661,
+      "exact": false,
+      "exit": [
+        709,
+        70,
+        735
+      ]
+    },
+    {
+      "position": [
+        2,
+        60,
+        0
+      ],
+      "age": 358661,
+      "exact": false,
+      "exit": [
+        1090,
+        78,
+        24
+      ]
+    },
+    {
+      "position": [
+        0,
+        60,
+        2
+      ],
+      "age": 358661,
+      "exact": false,
+      "exit": [
+        -1,
+        42,
+        1127
+      ]
+    },
+    {
+      "position": [
+        2,
+        60,
+        1
+      ],
+      "age": 358661,
+      "exact": false,
+      "exit": [
+        1042,
+        86,
+        537
+      ]
+    },
+    {
+      "position": [
+        1,
+        60,
+        2
+      ],
+      "age": 358661,
+      "exact": false,
+      "exit": [
+        481,
+        76,
+        966
+      ]
+    }
+  ],
+  "remoteGeometry": [
+    {
+      "name": "pearl_hurl_remote_0",
+      "bounds": {
+        "min": [
+          -1120,
+          0,
+          -32
+        ],
+        "max": [
+          -1073,
+          255,
+          15
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          -2,
+          60,
+          0
+        ],
+        [
+          -1,
+          60,
+          0
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 1170
+    },
+    {
+      "name": "pearl_hurl_remote_1",
+      "bounds": {
+        "min": [
+          -1056,
+          0,
+          496
+        ],
+        "max": [
+          -1009,
+          255,
+          543
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          -2,
+          60,
+          1
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 723
+    },
+    {
+      "name": "pearl_hurl_remote_2",
+      "bounds": {
+        "min": [
+          -944,
+          0,
+          -480
+        ],
+        "max": [
+          -897,
+          255,
+          -433
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          -2,
+          60,
+          -1
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 80448
+    },
+    {
+      "name": "pearl_hurl_remote_3",
+      "bounds": {
+        "min": [
+          -928,
+          0,
+          -496
+        ],
+        "max": [
+          -881,
+          255,
+          -449
+        ]
+      },
+      "paths": [
+        2
+      ],
+      "sourceGateways": [
+        [
+          -55,
+          14,
+          -29
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 51408
+    },
+    {
+      "name": "pearl_hurl_remote_4",
+      "bounds": {
+        "min": [
+          -736,
+          0,
+          704
+        ],
+        "max": [
+          -689,
+          255,
+          751
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          -1,
+          60,
+          1
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 79199
+    },
+    {
+      "name": "pearl_hurl_remote_5",
+      "bounds": {
+        "min": [
+          -704,
+          0,
+          -704
+        ],
+        "max": [
+          -657,
+          255,
+          -657
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          -1,
+          60,
+          -1
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 23387
+    },
+    {
+      "name": "pearl_hurl_remote_6",
+      "bounds": {
+        "min": [
+          -544,
+          0,
+          -1040
+        ],
+        "max": [
+          -497,
+          255,
+          -993
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          -1,
+          60,
+          -2
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 53944
+    },
+    {
+      "name": "pearl_hurl_remote_7",
+      "bounds": {
+        "min": [
+          -464,
+          0,
+          832
+        ],
+        "max": [
+          -417,
+          255,
+          879
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          -1,
+          60,
+          2
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 65718
+    },
+    {
+      "name": "pearl_hurl_remote_8",
+      "bounds": {
+        "min": [
+          -368,
+          0,
+          992
+        ],
+        "max": [
+          -321,
+          255,
+          1039
+        ]
+      },
+      "paths": [
+        1
+      ],
+      "sourceGateways": [
+        [
+          -17,
+          37,
+          50
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 487
+    },
+    {
+      "name": "pearl_hurl_remote_9",
+      "bounds": {
+        "min": [
+          -32,
+          0,
+          1104
+        ],
+        "max": [
+          15,
+          255,
+          1151
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          0,
+          60,
+          1
+        ],
+        [
+          0,
+          60,
+          2
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 8551
+    },
+    {
+      "name": "pearl_hurl_remote_10",
+      "bounds": {
+        "min": [
+          -16,
+          0,
+          -1088
+        ],
+        "max": [
+          31,
+          255,
+          -1041
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          0,
+          60,
+          -1
+        ],
+        [
+          0,
+          60,
+          -2
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 9464
+    },
+    {
+      "name": "pearl_hurl_remote_11",
+      "bounds": {
+        "min": [
+          464,
+          0,
+          -992
+        ],
+        "max": [
+          511,
+          255,
+          -945
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          1,
+          60,
+          -2
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 64606
+    },
+    {
+      "name": "pearl_hurl_remote_12",
+      "bounds": {
+        "min": [
+          464,
+          0,
+          944
+        ],
+        "max": [
+          511,
+          255,
+          991
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          1,
+          60,
+          2
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 701
+    },
+    {
+      "name": "pearl_hurl_remote_13",
+      "bounds": {
+        "min": [
+          688,
+          0,
+          704
+        ],
+        "max": [
+          735,
+          255,
+          751
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          1,
+          60,
+          1
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 64214
+    },
+    {
+      "name": "pearl_hurl_remote_14",
+      "bounds": {
+        "min": [
+          704,
+          0,
+          -736
+        ],
+        "max": [
+          751,
+          255,
+          -689
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          1,
+          60,
+          -1
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 63849
+    },
+    {
+      "name": "pearl_hurl_remote_15",
+      "bounds": {
+        "min": [
+          912,
+          0,
+          -464
+        ],
+        "max": [
+          959,
+          255,
+          -417
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          2,
+          60,
+          -1
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 62434
+    },
+    {
+      "name": "pearl_hurl_remote_16",
+      "bounds": {
+        "min": [
+          1024,
+          0,
+          512
+        ],
+        "max": [
+          1071,
+          255,
+          559
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          2,
+          60,
+          1
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 91532
+    },
+    {
+      "name": "pearl_hurl_remote_17",
+      "bounds": {
+        "min": [
+          1072,
+          0,
+          0
+        ],
+        "max": [
+          1119,
+          255,
+          47
+        ]
+      },
+      "paths": [
+        3
+      ],
+      "sourceGateways": [
+        [
+          1,
+          60,
+          0
+        ],
+        [
+          2,
+          60,
+          0
+        ]
+      ],
+      "missingSourceChunks": [],
+      "blocks": 29970
+    }
+  ],
+  "remoteGateways": [
+    {
+      "position": [
+        -1098,
+        85,
+        -1
+      ],
+      "age": 0,
+      "exact": false,
+      "exit": [
+        -2,
+        60,
+        0
+      ]
+    },
+    {
+      "position": [
+        -1098,
+        73,
+        -1
+      ],
+      "age": 224,
+      "exact": false,
+      "exit": [
+        -1,
+        60,
+        0
+      ]
+    },
+    {
+      "position": [
+        -1025,
+        80,
+        514
+      ],
+      "age": 201,
+      "exact": false,
+      "exit": [
+        -2,
+        60,
+        1
+      ]
+    },
+    {
+      "position": [
+        -913,
+        70,
+        -456
+      ],
+      "age": 297,
+      "exact": false,
+      "exit": [
+        -2,
+        60,
+        -1
+      ]
+    },
+    {
+      "position": [
+        -897,
+        67,
+        -477
+      ],
+      "age": 2898,
+      "exact": false,
+      "exit": [
+        -55,
+        14,
+        -29
+      ]
+    },
+    {
+      "position": [
+        -913,
+        70,
+        -456
+      ],
+      "age": 297,
+      "exact": false,
+      "exit": [
+        -2,
+        60,
+        -1
+      ]
+    },
+    {
+      "position": [
+        -897,
+        67,
+        -477
+      ],
+      "age": 2898,
+      "exact": false,
+      "exit": [
+        -55,
+        14,
+        -29
+      ]
+    },
+    {
+      "position": [
+        -712,
+        71,
+        735
+      ],
+      "age": 3,
+      "exact": false,
+      "exit": [
+        -1,
+        60,
+        1
+      ]
+    },
+    {
+      "position": [
+        -673,
+        66,
+        -673
+      ],
+      "age": 283,
+      "exact": false,
+      "exit": [
+        -1,
+        60,
+        -1
+      ]
+    },
+    {
+      "position": [
+        -513,
+        66,
+        -1009
+      ],
+      "age": 0,
+      "exact": false,
+      "exit": [
+        -1,
+        60,
+        -2
+      ]
+    },
+    {
+      "position": [
+        -433,
+        68,
+        862
+      ],
+      "age": 5,
+      "exact": false,
+      "exit": [
+        -1,
+        60,
+        2
+      ]
+    },
+    {
+      "position": [
+        -345,
+        71,
+        1015
+      ],
+      "age": 274,
+      "exact": false,
+      "exit": [
+        -17,
+        37,
+        50
+      ]
+    },
+    {
+      "position": [
+        -1,
+        54,
+        1127
+      ],
+      "age": 0,
+      "exact": false,
+      "exit": [
+        0,
+        60,
+        1
+      ]
+    },
+    {
+      "position": [
+        -1,
+        42,
+        1127
+      ],
+      "age": 0,
+      "exact": false,
+      "exit": [
+        0,
+        60,
+        2
+      ]
+    },
+    {
+      "position": [
+        0,
+        77,
+        -1070
+      ],
+      "age": 228,
+      "exact": false,
+      "exit": [
+        0,
+        60,
+        -1
+      ]
+    },
+    {
+      "position": [
+        0,
+        89,
+        -1070
+      ],
+      "age": 13,
+      "exact": false,
+      "exit": [
+        0,
+        60,
+        -2
+      ]
+    },
+    {
+      "position": [
+        491,
+        68,
+        -961
+      ],
+      "age": 10,
+      "exact": false,
+      "exit": [
+        1,
+        60,
+        -2
+      ]
+    },
+    {
+      "position": [
+        481,
+        76,
+        966
+      ],
+      "age": 217,
+      "exact": false,
+      "exit": [
+        1,
+        60,
+        2
+      ]
+    },
+    {
+      "position": [
+        709,
+        70,
+        735
+      ],
+      "age": 0,
+      "exact": false,
+      "exit": [
+        1,
+        60,
+        1
+      ]
+    },
+    {
+      "position": [
+        727,
+        71,
+        -712
+      ],
+      "age": 10,
+      "exact": false,
+      "exit": [
+        1,
+        60,
+        -1
+      ]
+    },
+    {
+      "position": [
+        943,
+        72,
+        -448
+      ],
+      "age": 8,
+      "exact": false,
+      "exit": [
+        2,
+        60,
+        -1
+      ]
+    },
+    {
+      "position": [
+        1042,
+        86,
+        537
+      ],
+      "age": 33,
+      "exact": false,
+      "exit": [
+        2,
+        60,
+        1
+      ]
+    },
+    {
+      "position": [
+        1090,
+        66,
+        24
+      ],
+      "age": 86,
+      "exact": false,
+      "exit": [
+        1,
+        60,
+        0
+      ]
+    },
+    {
+      "position": [
+        1090,
+        78,
+        24
+      ],
+      "age": 15,
+      "exact": false,
+      "exit": [
+        2,
+        60,
+        0
+      ]
+    }
+  ],
+  "unresolvedGateways": [],
+  "gatewayWorldProvided": true,
+  "generation": [
+    {
+      "line": 19,
+      "paths": [
+        1
+      ],
+      "type": "fill",
+      "min": [
+        7,
+        38,
+        -130
+      ],
+      "max": [
+        7,
+        39,
+        -133
+      ],
+      "state": "minecraft:air",
+      "replace": null
+    },
+    {
+      "line": 20,
+      "paths": [
+        2,
+        3
+      ],
+      "type": "fill",
+      "min": [
+        7,
+        38,
+        -130
+      ],
+      "max": [
+        7,
+        39,
+        -133
+      ],
+      "state": "minecraft:purpur_block",
+      "replace": null
+    },
+    {
+      "line": 21,
+      "paths": [
+        1
+      ],
+      "type": "fill",
+      "min": [
+        9,
+        39,
+        -133
+      ],
+      "max": [
+        5,
+        36,
+        -130
+      ],
+      "state": "minecraft:air",
+      "replace": "minecraft:light"
+    },
+    {
+      "line": 22,
+      "paths": [
+        2,
+        3
+      ],
+      "type": "fill",
+      "min": [
+        9,
+        39,
+        -133
+      ],
+      "max": [
+        5,
+        36,
+        -130
+      ],
+      "state": "minecraft:light",
+      "replace": "minecraft:air"
+    },
+    {
+      "line": 24,
+      "paths": [
+        1
+      ],
+      "type": "fill",
+      "min": [
+        22,
+        52,
+        -115
+      ],
+      "max": [
+        24,
+        50,
+        -115
+      ],
+      "state": "minecraft:light",
+      "replace": "minecraft:purpur_block"
+    },
+    {
+      "line": 25,
+      "paths": [
+        2,
+        3
+      ],
+      "type": "fill",
+      "min": [
+        22,
+        52,
+        -115
+      ],
+      "max": [
+        24,
+        50,
+        -115
+      ],
+      "state": "minecraft:purpur_block",
+      "replace": "minecraft:light"
+    },
+    {
+      "line": 27,
+      "paths": [
+        1
+      ],
+      "type": "clone",
+      "min": [
+        50,
+        40,
+        -81
+      ],
+      "max": [
+        50,
+        40,
+        -81
+      ],
+      "destination": [
+        29,
+        38,
+        -124
+      ]
+    },
+    {
+      "line": 28,
+      "paths": [
+        2,
+        3
+      ],
+      "type": "setblock",
+      "position": [
+        29,
+        38,
+        -124
+      ],
+      "state": "minecraft:air"
+    },
+    {
+      "line": 29,
+      "paths": [
+        1
+      ],
+      "type": "clone",
+      "min": [
+        55,
+        40,
+        -80
+      ],
+      "max": [
+        55,
+        40,
+        -80
+      ],
+      "destination": [
+        28,
+        5,
+        -28
+      ]
+    },
+    {
+      "line": 30,
+      "paths": [
+        2
+      ],
+      "type": "clone",
+      "min": [
+        55,
+        40,
+        -79
+      ],
+      "max": [
+        55,
+        40,
+        -79
+      ],
+      "destination": [
+        28,
+        5,
+        -28
+      ]
+    },
+    {
+      "line": 31,
+      "paths": [
+        1
+      ],
+      "type": "fill",
+      "min": [
+        28,
+        8,
+        -26
+      ],
+      "max": [
+        29,
+        5,
+        -26
+      ],
+      "state": "minecraft:light",
+      "replace": null
+    },
+    {
+      "line": 32,
+      "paths": [
+        2
+      ],
+      "type": "fill",
+      "min": [
+        28,
+        8,
+        -26
+      ],
+      "max": [
+        29,
+        5,
+        -26
+      ],
+      "state": "minecraft:purpur_block",
+      "replace": null
+    },
+    {
+      "line": 34,
+      "paths": [
+        3
+      ],
+      "type": "clone",
+      "min": [
+        56,
+        40,
+        -79
+      ],
+      "max": [
+        56,
+        40,
+        -79
+      ],
+      "destination": [
+        -16,
+        29,
+        -64
+      ]
+    },
+    {
+      "line": 35,
+      "paths": [
+        2
+      ],
+      "type": "clone",
+      "min": [
+        55,
+        40,
+        -79
+      ],
+      "max": [
+        55,
+        40,
+        -79
+      ],
+      "destination": [
+        -16,
+        29,
+        -64
+      ]
+    },
+    {
+      "line": 37,
+      "paths": [
+        2
+      ],
+      "type": "fill",
+      "min": [
+        14,
+        26,
+        -45
+      ],
+      "max": [
+        17,
+        29,
+        -42
+      ],
+      "state": "minecraft:air",
+      "replace": "minecraft:light"
+    },
+    {
+      "line": 38,
+      "paths": [
+        3
+      ],
+      "type": "fill",
+      "min": [
+        14,
+        26,
+        -45
+      ],
+      "max": [
+        17,
+        29,
+        -42
+      ],
+      "state": "minecraft:light[level=15]",
+      "replace": "minecraft:air"
+    },
+    {
+      "line": 40,
+      "paths": [
+        2
+      ],
+      "type": "fill",
+      "min": [
+        -33,
+        42,
+        -65
+      ],
+      "max": [
+        -37,
+        44,
+        -64
+      ],
+      "state": "minecraft:light[level=15]",
+      "replace": "minecraft:air"
+    },
+    {
+      "line": 41,
+      "paths": [
+        3
+      ],
+      "type": "fill",
+      "min": [
+        -33,
+        42,
+        -65
+      ],
+      "max": [
+        -37,
+        44,
+        -64
+      ],
+      "state": "minecraft:air",
+      "replace": "minecraft:light"
+    },
+    {
+      "line": 43,
+      "paths": [
+        1,
+        2
+      ],
+      "type": "fill",
+      "min": [
+        -4,
+        61,
+        -3
+      ],
+      "max": [
+        4,
+        61,
+        4
+      ],
+      "state": "minecraft:barrier",
+      "replace": "minecraft:light"
+    },
+    {
+      "line": 44,
+      "paths": [
+        3
+      ],
+      "type": "fill",
+      "min": [
+        -4,
+        61,
+        -3
+      ],
+      "max": [
+        4,
+        61,
+        4
+      ],
+      "state": "minecraft:light[level=15]",
+      "replace": "minecraft:barrier"
+    },
+    {
+      "line": 46,
+      "paths": [
+        2
+      ],
+      "type": "fill",
+      "min": [
+        -20,
+        7,
+        -28
+      ],
+      "max": [
+        -26,
+        12,
+        -30
+      ],
+      "state": "minecraft:light",
+      "replace": "minecraft:air"
+    },
+    {
+      "line": 47,
+      "paths": [
+        1
+      ],
+      "type": "fill",
+      "min": [
+        -20,
+        7,
+        -28
+      ],
+      "max": [
+        -26,
+        12,
+        -30
+      ],
+      "state": "minecraft:air",
+      "replace": "minecraft:light"
+    },
+    {
+      "line": 48,
+      "paths": [
+        3
+      ],
+      "type": "fill",
+      "min": [
+        -20,
+        7,
+        -28
+      ],
+      "max": [
+        -26,
+        12,
+        -30
+      ],
+      "state": "minecraft:air",
+      "replace": "minecraft:light"
+    },
+    {
+      "line": 50,
+      "paths": [
+        2
+      ],
+      "type": "fill",
+      "min": [
+        -24,
+        39,
+        -64
+      ],
+      "max": [
+        -24,
+        32,
+        -65
+      ],
+      "state": "minecraft:air",
+      "replace": null
+    },
+    {
+      "line": 51,
+      "paths": [
+        2
+      ],
+      "type": "fill",
+      "min": [
+        -24,
+        38,
+        -63
+      ],
+      "max": [
+        -24,
+        34,
+        -66
+      ],
+      "state": "air",
+      "replace": null
+    },
+    {
+      "line": 52,
+      "paths": [
+        3
+      ],
+      "type": "fill",
+      "min": [
+        -24,
+        39,
+        -63
+      ],
+      "max": [
+        -24,
+        31,
+        -66
+      ],
+      "state": "minecraft:end_stone",
+      "replace": null
+    },
+    {
+      "line": 54,
+      "paths": [
+        3
+      ],
+      "type": "clone",
+      "min": [
+        14,
+        28,
+        -81
+      ],
+      "max": [
+        21,
+        43,
+        -72
+      ],
+      "destination": [
+        -14,
+        22,
+        -65
+      ]
+    },
+    {
+      "line": 55,
+      "paths": [
+        2
+      ],
+      "type": "clone",
+      "min": [
+        24,
+        28,
+        -81
+      ],
+      "max": [
+        31,
+        43,
+        -72
+      ],
+      "destination": [
+        -14,
+        22,
+        -65
+      ]
+    },
+    {
+      "line": 57,
+      "paths": [
+        1
+      ],
+      "type": "fill",
+      "min": [
+        27,
+        4,
+        -30
+      ],
+      "max": [
+        27,
+        8,
+        -22
+      ],
+      "state": "minecraft:purpur_block",
+      "replace": null
+    },
+    {
+      "line": 58,
+      "paths": [
+        2,
+        3
+      ],
+      "type": "fill",
+      "min": [
+        27,
+        4,
+        -30
+      ],
+      "max": [
+        27,
+        8,
+        -22
+      ],
+      "state": "minecraft:air",
+      "replace": null
+    }
+  ],
+  "checkpoints": [
+    {
+      "line": 1,
+      "paths": [
+        1,
+        2,
+        3
+      ],
+      "position": [
+        58,
+        36,
+        -120
+      ],
+      "radius": 3,
+      "previousMin": 0,
+      "previousMax": 0,
+      "checkpoint": 1
+    },
+    {
+      "line": 2,
+      "paths": [
+        1,
+        2,
+        3
+      ],
+      "position": [
+        32,
+        38,
+        -123
+      ],
+      "radius": 4,
+      "previousMin": 0,
+      "previousMax": 1,
+      "checkpoint": 2
+    },
+    {
+      "line": 4,
+      "paths": [
+        2,
+        3
+      ],
+      "position": [
+        7,
+        36,
+        -131
+      ],
+      "radius": 3,
+      "previousMin": 1,
+      "previousMax": 2,
+      "checkpoint": 3
+    },
+    {
+      "line": 5,
+      "paths": [
+        2,
+        3
+      ],
+      "position": [
+        -16,
+        37,
+        -103
+      ],
+      "radius": 3,
+      "previousMin": 2,
+      "previousMax": 3,
+      "checkpoint": 4
+    },
+    {
+      "line": 6,
+      "paths": [
+        2,
+        3
+      ],
+      "position": [
+        -16,
+        29,
+        -65
+      ],
+      "radius": 3,
+      "previousMin": 3,
+      "previousMax": 4,
+      "checkpoint": 5
+    },
+    {
+      "line": 8,
+      "paths": [
+        2
+      ],
+      "position": [
+        -35,
+        42,
+        -65
+      ],
+      "radius": 3,
+      "previousMin": 4,
+      "previousMax": 5,
+      "checkpoint": 6
+    },
+    {
+      "line": 9,
+      "paths": [
+        2
+      ],
+      "position": [
+        -44,
+        45,
+        -29
+      ],
+      "radius": 3,
+      "previousMin": 5,
+      "previousMax": 6,
+      "checkpoint": 7
+    },
+    {
+      "line": 10,
+      "paths": [
+        2
+      ],
+      "position": [
+        -57,
+        49,
+        -1
+      ],
+      "radius": 3,
+      "previousMin": 6,
+      "previousMax": 7,
+      "checkpoint": 8
+    },
+    {
+      "line": 11,
+      "paths": [
+        2
+      ],
+      "position": [
+        -37,
+        43,
+        30
+      ],
+      "radius": 3,
+      "previousMin": 7,
+      "previousMax": 8,
+      "checkpoint": 9
+    },
+    {
+      "line": 12,
+      "paths": [
+        2
+      ],
+      "position": [
+        -17,
+        52,
+        68
+      ],
+      "radius": 3,
+      "previousMin": 8,
+      "previousMax": 9,
+      "checkpoint": 10
+    },
+    {
+      "line": 13,
+      "paths": [
+        2
+      ],
+      "position": [
+        5,
+        41,
+        88
+      ],
+      "radius": 3,
+      "previousMin": 9,
+      "previousMax": 10,
+      "checkpoint": 11
+    },
+    {
+      "line": 14,
+      "paths": [
+        2
+      ],
+      "position": [
+        40,
+        38,
+        83
+      ],
+      "radius": 3,
+      "previousMin": 10,
+      "previousMax": 11,
+      "checkpoint": 12
+    },
+    {
+      "line": 15,
+      "paths": [
+        2
+      ],
+      "position": [
+        73,
+        38,
+        73
+      ],
+      "radius": 3,
+      "previousMin": 11,
+      "previousMax": 12,
+      "checkpoint": 13
+    },
+    {
+      "line": 16,
+      "paths": [
+        2
+      ],
+      "position": [
+        93,
+        44,
+        66
+      ],
+      "radius": 3,
+      "previousMin": 12,
+      "previousMax": 13,
+      "checkpoint": 14
+    },
+    {
+      "line": 19,
+      "paths": [
+        2
+      ],
+      "position": [
+        110,
+        29,
+        29
+      ],
+      "radius": 7,
+      "previousMin": 13,
+      "previousMax": 14,
+      "checkpoint": 15
+    },
+    {
+      "line": 20,
+      "paths": [
+        2
+      ],
+      "position": [
+        125,
+        29,
+        -6
+      ],
+      "radius": 7,
+      "previousMin": 14,
+      "previousMax": 15,
+      "checkpoint": 16
+    },
+    {
+      "line": 21,
+      "paths": [
+        2
+      ],
+      "position": [
+        134,
+        31,
+        -40
+      ],
+      "radius": 4,
+      "previousMin": 15,
+      "previousMax": 16,
+      "checkpoint": 17
+    },
+    {
+      "line": 22,
+      "paths": [
+        2
+      ],
+      "position": [
+        106,
+        15,
+        -43
+      ],
+      "radius": 6,
+      "previousMin": 16,
+      "previousMax": 17,
+      "checkpoint": 18
+    },
+    {
+      "line": 23,
+      "paths": [
+        2
+      ],
+      "position": [
+        72,
+        14,
+        -44
+      ],
+      "radius": 3,
+      "previousMin": 17,
+      "previousMax": 18,
+      "checkpoint": 19
+    },
+    {
+      "line": 24,
+      "paths": [
+        2
+      ],
+      "position": [
+        30,
+        5,
+        -27
+      ],
+      "radius": 5,
+      "previousMin": 18,
+      "previousMax": 19,
+      "checkpoint": 20
+    },
+    {
+      "line": 26,
+      "paths": [
+        1
+      ],
+      "position": [
+        110,
+        29,
+        29
+      ],
+      "radius": 7,
+      "previousMin": 12,
+      "previousMax": 13,
+      "checkpoint": 14
+    },
+    {
+      "line": 27,
+      "paths": [
+        1
+      ],
+      "position": [
+        125,
+        29,
+        -6
+      ],
+      "radius": 7,
+      "previousMin": 13,
+      "previousMax": 14,
+      "checkpoint": 15
+    },
+    {
+      "line": 28,
+      "paths": [
+        1
+      ],
+      "position": [
+        134,
+        31,
+        -40
+      ],
+      "radius": 4,
+      "previousMin": 14,
+      "previousMax": 15,
+      "checkpoint": 16
+    },
+    {
+      "line": 29,
+      "paths": [
+        1
+      ],
+      "position": [
+        106,
+        15,
+        -43
+      ],
+      "radius": 6,
+      "previousMin": 15,
+      "previousMax": 16,
+      "checkpoint": 17
+    },
+    {
+      "line": 30,
+      "paths": [
+        1
+      ],
+      "position": [
+        72,
+        14,
+        -44
+      ],
+      "radius": 3,
+      "previousMin": 16,
+      "previousMax": 17,
+      "checkpoint": 18
+    },
+    {
+      "line": 31,
+      "paths": [
+        1
+      ],
+      "position": [
+        30,
+        5,
+        -27
+      ],
+      "radius": 5,
+      "previousMin": 17,
+      "previousMax": 18,
+      "checkpoint": 19
+    },
+    {
+      "line": 33,
+      "paths": [
+        2
+      ],
+      "position": [
+        -23,
+        7,
+        -29
+      ],
+      "radius": 5,
+      "previousMin": 19,
+      "previousMax": 20,
+      "checkpoint": 21
+    },
+    {
+      "line": 35,
+      "paths": [
+        1
+      ],
+      "position": [
+        23,
+        50,
+        -111
+      ],
+      "radius": 5,
+      "previousMin": 1,
+      "previousMax": 2,
+      "checkpoint": 3
+    },
+    {
+      "line": 36,
+      "paths": [
+        1
+      ],
+      "position": [
+        23,
+        70,
+        -109
+      ],
+      "radius": 3,
+      "previousMin": 2,
+      "previousMax": 3,
+      "checkpoint": 4
+    },
+    {
+      "line": 37,
+      "paths": [
+        1
+      ],
+      "position": [
+        24,
+        73,
+        -73
+      ],
+      "radius": 7,
+      "previousMin": 3,
+      "previousMax": 4,
+      "checkpoint": 5
+    },
+    {
+      "line": 38,
+      "paths": [
+        1
+      ],
+      "position": [
+        10,
+        79,
+        -45
+      ],
+      "radius": 6,
+      "previousMin": 4,
+      "previousMax": 5,
+      "checkpoint": 6
+    },
+    {
+      "line": 39,
+      "paths": [
+        1
+      ],
+      "position": [
+        -21,
+        79,
+        -38
+      ],
+      "radius": 4,
+      "previousMin": 5,
+      "previousMax": 6,
+      "checkpoint": 7
+    },
+    {
+      "line": 40,
+      "paths": [
+        1
+      ],
+      "position": [
+        -39,
+        74,
+        -4
+      ],
+      "radius": 4,
+      "previousMin": 6,
+      "previousMax": 7,
+      "checkpoint": 8
+    },
+    {
+      "line": 41,
+      "paths": [
+        1
+      ],
+      "position": [
+        -42,
+        101,
+        -1
+      ],
+      "radius": 5,
+      "previousMin": 7,
+      "previousMax": 8,
+      "checkpoint": 9
+    },
+    {
+      "line": 42,
+      "paths": [
+        1
+      ],
+      "position": [
+        -16,
+        79,
+        25
+      ],
+      "radius": 4,
+      "previousMin": 8,
+      "previousMax": 9,
+      "checkpoint": 10
+    },
+    {
+      "line": 43,
+      "paths": [
+        1
+      ],
+      "position": [
+        12,
+        76,
+        39
+      ],
+      "radius": 3,
+      "previousMin": 9,
+      "previousMax": 10,
+      "checkpoint": 11
+    },
+    {
+      "line": 44,
+      "paths": [
+        1
+      ],
+      "position": [
+        39,
+        70,
+        25
+      ],
+      "radius": 5,
+      "previousMin": 10,
+      "previousMax": 11,
+      "checkpoint": 12
+    },
+    {
+      "line": 45,
+      "paths": [
+        1
+      ],
+      "position": [
+        75,
+        39,
+        22
+      ],
+      "radius": 3,
+      "previousMin": 11,
+      "previousMax": 12,
+      "checkpoint": 13
+    },
+    {
+      "line": 47,
+      "paths": [
+        1
+      ],
+      "position": [
+        45,
+        5,
+        4
+      ],
+      "radius": 3,
+      "previousMin": 18,
+      "previousMax": 19,
+      "checkpoint": 20
+    },
+    {
+      "line": 48,
+      "paths": [
+        1
+      ],
+      "position": [
+        27,
+        7,
+        22
+      ],
+      "radius": 4,
+      "previousMin": 19,
+      "previousMax": 20,
+      "checkpoint": 21
+    },
+    {
+      "line": 49,
+      "paths": [
+        1
+      ],
+      "position": [
+        27,
+        19,
+        47
+      ],
+      "radius": 3,
+      "previousMin": 20,
+      "previousMax": 21,
+      "checkpoint": 22
+    },
+    {
+      "line": 50,
+      "paths": [
+        1
+      ],
+      "position": [
+        6,
+        26,
+        46
+      ],
+      "radius": 3,
+      "previousMin": 21,
+      "previousMax": 22,
+      "checkpoint": 23
+    },
+    {
+      "line": 52,
+      "paths": [
+        3
+      ],
+      "position": [
+        16,
+        27,
+        -44
+      ],
+      "radius": 3,
+      "previousMin": 4,
+      "previousMax": 5,
+      "checkpoint": 6
+    },
+    {
+      "line": 53,
+      "paths": [
+        3
+      ],
+      "position": [
+        43,
+        25,
+        -43
+      ],
+      "radius": 5,
+      "previousMin": 5,
+      "previousMax": 6,
+      "checkpoint": 7
+    },
+    {
+      "line": 54,
+      "paths": [
+        3
+      ],
+      "position": [
+        44,
+        19,
+        -11
+      ],
+      "radius": 3,
+      "previousMin": 6,
+      "previousMax": 7,
+      "checkpoint": 8
+    },
+    {
+      "line": 55,
+      "paths": [
+        3
+      ],
+      "position": [
+        14,
+        21,
+        1
+      ],
+      "radius": 3,
+      "previousMin": 7,
+      "previousMax": 8,
+      "checkpoint": 9
+    },
+    {
+      "line": 56,
+      "paths": [
+        3
+      ],
+      "position": [
+        18,
+        38,
+        -29
+      ],
+      "radius": 3,
+      "previousMin": 8,
+      "previousMax": 9,
+      "checkpoint": 10
+    },
+    {
+      "line": 57,
+      "paths": [
+        3
+      ],
+      "position": [
+        40,
+        51,
+        -31
+      ],
+      "radius": 3,
+      "previousMin": 9,
+      "previousMax": 10,
+      "checkpoint": 11
+    },
+    {
+      "line": 58,
+      "paths": [
+        3
+      ],
+      "position": [
+        39,
+        53,
+        -5
+      ],
+      "radius": 6,
+      "previousMin": 10,
+      "previousMax": 11,
+      "checkpoint": 12
+    },
+    {
+      "line": 59,
+      "paths": [
+        3
+      ],
+      "position": [
+        16,
+        29,
+        21
+      ],
+      "radius": 3,
+      "previousMin": 11,
+      "previousMax": 12,
+      "checkpoint": 13
+    },
+    {
+      "line": 60,
+      "paths": [
+        3
+      ],
+      "position": [
+        -13,
+        28,
+        33
+      ],
+      "radius": 3,
+      "previousMin": 12,
+      "previousMax": 13,
+      "checkpoint": 14
+    },
+    {
+      "line": 61,
+      "paths": [
+        3
+      ],
+      "position": [
+        -13,
+        64,
+        39
+      ],
+      "radius": 5,
+      "previousMin": 13,
+      "previousMax": 14,
+      "checkpoint": 15
+    },
+    {
+      "line": 62,
+      "paths": [
+        3
+      ],
+      "position": [
+        -16,
+        39,
+        2
+      ],
+      "radius": 3,
+      "previousMin": 14,
+      "previousMax": 15,
+      "checkpoint": 16
+    },
+    {
+      "line": 63,
+      "paths": [
+        3
+      ],
+      "position": [
+        -23,
+        26,
+        -28
+      ],
+      "radius": 3,
+      "previousMin": 15,
+      "previousMax": 16,
+      "checkpoint": 17
+    },
+    {
+      "line": 64,
+      "paths": [
+        3
+      ],
+      "position": [
+        -2,
+        41,
+        -31
+      ],
+      "radius": 3,
+      "previousMin": 16,
+      "previousMax": 17,
+      "checkpoint": 18
+    },
+    {
+      "line": 65,
+      "paths": [
+        3
+      ],
+      "position": [
+        0,
+        40,
+        -6
+      ],
+      "radius": 3,
+      "previousMin": 17,
+      "previousMax": 18,
+      "checkpoint": 19
+    }
+  ],
+  "spawnRules": {
+    "upToFour": [
+      [
+        64.5,
+        39,
+        -79.5
+      ],
+      [
+        65.5,
+        39,
+        -79.5
+      ],
+      [
+        66.5,
+        39,
+        -79.5
+      ],
+      [
+        67.5,
+        39,
+        -79.5
+      ]
+    ],
+    "five": [
+      [
+        66,
+        39,
+        -79
+      ],
+      [
+        67,
+        39,
+        -79
+      ],
+      [
+        65,
+        39,
+        -79
+      ],
+      [
+        68,
+        39,
+        -79
+      ],
+      [
+        64,
+        39,
+        -79
+      ]
+    ],
+    "six": [
+      [
+        65.5,
+        39,
+        -79
+      ],
+      [
+        66.5,
+        39,
+        -79
+      ],
+      [
+        64.5,
+        39,
+        -79
+      ],
+      [
+        67.5,
+        39,
+        -79
+      ],
+      [
+        63.5,
+        39,
+        -79
+      ],
+      [
+        68.5,
+        39,
+        -79
+      ]
+    ],
+    "largeLobbyYaw": 180,
+    "largeLobbyPitch": 0,
+    "initialSafeMarkers": [
+      [
+        64.5,
+        39,
+        -79.5
+      ],
+      [
+        65.5,
+        39,
+        -79.5
+      ],
+      [
+        66.5,
+        39,
+        -79.5
+      ],
+      [
+        67.5,
+        39,
+        -79.5
+      ],
+      [
+        67.5,
+        39,
+        -79.5
+      ],
+      [
+        67.5,
+        39,
+        -79.5
+      ],
+      [
+        67.5,
+        39,
+        -79.5
+      ],
+      [
+        67.5,
+        39,
+        -79.5
+      ],
+      [
+        67.5,
+        39,
+        -79.5
+      ],
+      [
+        67.5,
+        39,
+        -79.5
+      ]
+    ],
+    "entryPreviews": [
+      [
+        14.5,
+        48,
+        -113.5
+      ],
+      [
+        87.5,
+        27,
+        34.5
+      ],
+      [
+        30.5,
+        17,
+        -28.5
+      ],
+      [
+        115.5,
+        29,
+        -47.5
+      ]
+    ],
+    "previewAssignment": "Slots1,5,9 usepreview1;2,6,10preview2;3,7preview3;4,8preview4. Shared native8secondintro replaces source ready-up presentation; sourceactual launch andLIGHT safetyremain."
+  },
+  "rules": {
+    "timeLimitTicks": 3600,
+    "pathWeights": [
+      1,
+      1,
+      1
+    ],
+    "finishCheckpoints": [
+      23,
+      21,
+      19
+    ],
+    "finishedCheckpoints": [
+      24,
+      22,
+      20
+    ],
+    "firstPearlTicks": 11,
+    "pearlReloadTicks": 25,
+    "nativeItemCooldownTicks": 20,
+    "defaultSpawn": [
+      65.5,
+      39,
+      -79.5
+    ],
+    "failureSpawn": [
+      30.5,
+      17,
+      -28.5
+    ],
+    "deathSpawn": [
+      -20.5,
+      19,
+      -28.5
+    ],
+    "score": "N*checkpoint plus earlier most-recent-checkpoint rank; same-tick ties. InitialPoints3.",
+    "finish": "Normal2..10freeforall N-1 or3600ticks. Actual native gateway transit with exact final checkpoint."
+  },
+  "geometry": {
+    "blocks": 938098,
+    "replacements": {},
+    "omitted": {}
+  },
+  "adaptations": [
+    "Full whole-island geometry preserves all source collision and light states; no route scaling.",
+    "Source datapack safety precedes entity ticks. An actual native pearl landing defers only its same-tick unchanged AIR position check to the next tick, allowing normal client slab settling; otherAIR andLIGHT0 rules are unchanged.",
+    "Sign front/back literal messages/colors/glow/waxed state restored safely. Native gateway exit handling is scoped to this match rather than generating terrain in another match.",
+    "Only local participants/effects/items/pearls/checkpoints and owned chunk leases may be changed. Sourceglobal commands/gamerules are never executed.",
+    "Ten unsaved exit links and their remote terrain were produced by an isolated official1.21.10 native gateway collision run at original seed69420, then read as inert geometry/NBT. All177 originalEnd files and26 knownlinks verified unchanged; finalruntime remains1.21.1."
+  ],
+  "sourceQuirks": [
+    "Sourceinit time2400 is overwrittenbyplaystart3600; advertised1second reload actually25ticks.",
+    "Safe marker tracks every nonzeroLIGHT cell before logical CP checking, not just official checkpoints. AIR orLIGHT0 resets to latest exactmarker.",
+    "The conditional JonikHD developer shortcut is onlysourcegamemode0, outside normal2..10competitivequeue."
+  ],
+  "gatewayResolution": {
+    "version": "1.21.10",
+    "officialServerSha256": "5bb64dc47379903e8f288bd6a4b276e889075c5c0f4c0b714e958d835c1874e7",
+    "sourceSeed": 69420,
+    "sourceWorldUntouched": true,
+    "sourceFilesVerified": 177,
+    "existingKnownExitsChecked": 26,
+    "existingKnownExitsChanged": [],
+    "nativeResolvedExits": [
+      {
+        "source": [
+          -2,
+          60,
+          -1
+        ],
+        "exitPortal": [
+          -913,
+          70,
+          -456
+        ],
+        "exactTeleport": false,
+        "nativeBlockEntity": {
+          "components": {},
+          "keepPacked": 0,
+          "x": -2,
+          "y": 60,
+          "z": -1,
+          "id": "minecraft:end_gateway",
+          "exit_portal": [
+            -913,
+            70,
+            -456
+          ],
+          "Age": 355560
+        }
+      },
+      {
+        "source": [
+          -1,
+          60,
+          -1
+        ],
+        "exitPortal": [
+          -673,
+          66,
+          -673
+        ],
+        "exactTeleport": false,
+        "nativeBlockEntity": {
+          "components": {},
+          "keepPacked": 0,
+          "x": -1,
+          "y": 60,
+          "z": -1,
+          "id": "minecraft:end_gateway",
+          "exit_portal": [
+            -673,
+            66,
+            -673
+          ],
+          "Age": 355560
+        }
+      },
+      {
+        "source": [
+          -2,
+          60,
+          0
+        ],
+        "exitPortal": [
+          -1098,
+          85,
+          -1
+        ],
+        "exactTeleport": false,
+        "nativeBlockEntity": {
+          "components": {},
+          "keepPacked": 0,
+          "x": -2,
+          "y": 60,
+          "z": 0,
+          "id": "minecraft:end_gateway",
+          "exit_portal": [
+            -1098,
+            85,
+            -1
+          ],
+          "Age": 355328
+        }
+      },
+      {
+        "source": [
+          -1,
+          60,
+          1
+        ],
+        "exitPortal": [
+          -712,
+          71,
+          735
+        ],
+        "exactTeleport": false,
+        "nativeBlockEntity": {
+          "components": {},
+          "keepPacked": 0,
+          "x": -1,
+          "y": 60,
+          "z": 1,
+          "id": "minecraft:end_gateway",
+          "exit_portal": [
+            -712,
+            71,
+            735
+          ],
+          "Age": 355328
+        }
+      },
+      {
+        "source": [
+          -1,
+          60,
+          2
+        ],
+        "exitPortal": [
+          -433,
+          68,
+          862
+        ],
+        "exactTeleport": false,
+        "nativeBlockEntity": {
+          "components": {},
+          "keepPacked": 0,
+          "x": -1,
+          "y": 60,
+          "z": 2,
+          "id": "minecraft:end_gateway",
+          "exit_portal": [
+            -433,
+            68,
+            862
+          ],
+          "Age": 355328
+        }
+      },
+      {
+        "source": [
+          2,
+          60,
+          -1
+        ],
+        "exitPortal": [
+          943,
+          72,
+          -448
+        ],
+        "exactTeleport": false,
+        "nativeBlockEntity": {
+          "components": {},
+          "keepPacked": 0,
+          "x": 2,
+          "y": 60,
+          "z": -1,
+          "id": "minecraft:end_gateway",
+          "exit_portal": [
+            943,
+            72,
+            -448
+          ],
+          "Age": 355559
+        }
+      },
+      {
+        "source": [
+          1,
+          60,
+          -2
+        ],
+        "exitPortal": [
+          491,
+          68,
+          -961
+        ],
+        "exactTeleport": false,
+        "nativeBlockEntity": {
+          "components": {},
+          "keepPacked": 0,
+          "x": 1,
+          "y": 60,
+          "z": -2,
+          "id": "minecraft:end_gateway",
+          "exit_portal": [
+            491,
+            68,
+            -961
+          ],
+          "Age": 355559
+        }
+      },
+      {
+        "source": [
+          0,
+          60,
+          -2
+        ],
+        "exitPortal": [
+          0,
+          89,
+          -1070
+        ],
+        "exactTeleport": false,
+        "nativeBlockEntity": {
+          "components": {},
+          "keepPacked": 0,
+          "x": 0,
+          "y": 60,
+          "z": -2,
+          "id": "minecraft:end_gateway",
+          "exit_portal": [
+            0,
+            89,
+            -1070
+          ],
+          "Age": 355559
+        }
+      },
+      {
+        "source": [
+          2,
+          60,
+          0
+        ],
+        "exitPortal": [
+          1090,
+          78,
+          24
+        ],
+        "exactTeleport": false,
+        "nativeBlockEntity": {
+          "components": {},
+          "keepPacked": 0,
+          "x": 2,
+          "y": 60,
+          "z": 0,
+          "id": "minecraft:end_gateway",
+          "exit_portal": [
+            1090,
+            78,
+            24
+          ],
+          "Age": 360359
+        }
+      },
+      {
+        "source": [
+          1,
+          60,
+          2
+        ],
+        "exitPortal": [
+          481,
+          76,
+          966
+        ],
+        "exactTeleport": false,
+        "nativeBlockEntity": {
+          "components": {},
+          "keepPacked": 0,
+          "x": 1,
+          "y": 60,
+          "z": 2,
+          "id": "minecraft:end_gateway",
+          "exit_portal": [
+            481,
+            76,
+            966
+          ],
+          "Age": 360359
+        }
+      }
+    ],
+    "procedure": [
+      "Verify official Piston1.21.10 metadata SHA1, download official server jar and verify publishedSHA1.",
+      "Create fresh world seed69420 with vanilla End generator; copy all177 sourceDIM1 files only, no originallevel.dat/datapacks; source remains read-only.",
+      "Bind127.0.0.1:25676, --safeMode, enable-command-block=false, onlyvanilla enabled (confirmedtwice by native datapack list enabled).",
+      "Native EnderPearl entities were summoned at actual missing-gateway block centersY60.5 with Motion[0,-0.1,0]/NoGravity; native end-gateway collision generated each missingexit and remote native terrain. No ExitPortal NBT or target terrain was assigned manually.",
+      "First native pearl used100 sprintticks; remaining9 used200 sprintticks. Read each actual block entityvia native data get; save-all flush.",
+      "Remove four temporary central chunk force-loads; no test pearls remain; save-all flush and normal stop exit0.",
+      "Read savedAnvil entries and compare all26 originally-known exit_portal links; hashverify original177sourceDIM1 files unchanged."
+    ],
+    "reportSha256": "ffb61c1706b0067651e1f2d7acb65ba563cc0bde53c515265750cebe4ccdd1f0"
+  }
+}

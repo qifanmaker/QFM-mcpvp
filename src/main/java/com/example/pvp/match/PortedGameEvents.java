@@ -18,6 +18,9 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.Direction;
 
 /** 将地图交互限定到对应会话；先于通用 TNT、指南针和其他模式回调注册。 */
 public final class PortedGameEvents {
@@ -34,6 +37,52 @@ public final class PortedGameEvents {
 
     private static boolean isPorted(Match match) {
         return match != null && match.portedSession() != null;
+    }
+
+    /** 原图以原生物品规则设计；竞技场珍珠等 PvP 兼容补丁不能改写移植玩法。 */
+    public static boolean usesNativeItemRules(Entity entity) {
+        return isPorted(matchOf(entity));
+    }
+
+    public static boolean pearlLanded(net.minecraft.entity.projectile.thrown.EnderPearlEntity pearl, ServerPlayerEntity player) {
+        if (PvPMod.MATCH == null) return false;
+        Match match = PvPMod.MATCH.getMatchFor(player);
+        return match != null && match.portedSession() instanceof MinecraftPartySession session
+                && session.onPearlLanded(pearl, player);
+    }
+
+    /** null 沿用原世界规则；只有 Party 所属区域的原生方块掉落使用当前回合规则。 */
+    public static Boolean blockDropOverride(World world, BlockPos pos) {
+        if (PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return null;
+        for (Match match : PvPMod.MATCH.getMatches()) {
+            if (match.ownsPortedPosition(pos) && match.portedSession() instanceof MinecraftPartySession session) {
+                return session.allowsBlockDrops();
+            }
+        }
+        return null;
+    }
+
+    public static void terrainChanged(World world, BlockPos pos, BlockState state) {
+        if (world.isClient || PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return;
+        MinecraftPartySession session = PvPMod.MATCH.partySceneSessionAt(pos);
+        if (session != null) session.onTerrainChanged(pos, state);
+    }
+
+    public static boolean freezesPartyFluid(World world, BlockPos pos) {
+        if (PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return false;
+        MinecraftPartySession session = PvPMod.MATCH.partySceneSessionAt(pos);
+        return session != null && !session.allowsFluidFlowAt(pos);
+    }
+
+    /** 原生水可以进入本场船舱，但不能穿越场地区域边界或侵入其他对局。 */
+    public static boolean allowsFluidFlow(WorldAccess access, BlockPos target, Direction direction) {
+        if (!(access instanceof World world) || PvPMod.MATCH == null
+                || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return true;
+        BlockPos source = target.offset(direction.getOpposite());
+        MinecraftPartySession from = PvPMod.MATCH.partySceneSessionAt(source);
+        MinecraftPartySession to = PvPMod.MATCH.partySceneSessionAt(target);
+        if (from == null && to == null) return true;
+        return from != null && from == to && from.allowsFluidFlowAt(source) && from.allowsFluidFlowAt(target);
     }
 
     /** 其他场次的玩家也不能进入移植区域拆图或使用容器。 */
@@ -74,6 +123,11 @@ public final class PortedGameEvents {
     public static void register() {
         // 原版 OITQ 在箭发出后立即设伤害；不能等 tick 扫描，否则近距离命中会抢先结算。
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            if (entity instanceof net.minecraft.entity.FallingBlockEntity block && PvPMod.MATCH != null
+                    && world.getRegistryKey() == ArenaWorldManager.ARENA_WORLD_KEY) {
+                MinecraftPartySession session = PvPMod.MATCH.partySceneSessionAt(block.getFallingBlockPos());
+                if (session != null) session.onTerrainEntityLoad(block);
+            }
             Match match = matchOf(entity);
             if (isPorted(match)) match.portedSession().onEntityLoad(entity);
         });
@@ -121,7 +175,12 @@ public final class PortedGameEvents {
                 session.useItem(sp, hand);
                 return ActionResult.FAIL;
             }
-            return isPorted(match) || isPorted(matchOf(entity)) ? ActionResult.FAIL : ActionResult.PASS;
+            Match owner = matchOf(entity);
+            if (!isPorted(match) && !isPorted(owner)) return ActionResult.PASS;
+            // 原生船必须保留登乘入口；目标、玩家和场次仍须一一对应，不能借载具跨场交互。
+            if (!(player instanceof ServerPlayerEntity sp) || !isPorted(match) || owner != match
+                    || match.getState() != MatchState.ACTIVE || match.isEliminated(sp.getUuid())) return ActionResult.FAIL;
+            return match.portedSession().useEntity(sp, hand, entity);
         });
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (player instanceof ServerPlayerEntity sp) {

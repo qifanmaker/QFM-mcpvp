@@ -762,7 +762,8 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
         f.hp = Math.max(0, f.hp - amount);
         // 虚拟 HP 不走原版伤害流程（allowsDamage 恒为 false），原版受击音不会触发；
         // 在受害者位置发声，本人和附近玩家都能听到，致死一击由阵亡流程接管，不重复播放。
-        if (f.hp > .0000001) this.match.arenaWorld().playSound(null, victim.getX(), victim.getY(), victim.getZ(),
+        // 练习房由 practice 提供宿主，match 为 null；受击音效也必须通过同一世界适配器。
+        if (f.hp > .0000001) world().playSound(null, victim.getX(), victim.getY(), victim.getZ(),
                 SoundEvents.ENTITY_PLAYER_HURT, SoundCategory.PLAYERS, 1, 1);
         if (f.hp <= .0000001) kill(victim, attacker, reason, killReward);
         else actionBar(victim, "§c受到 " + String.format(Locale.ROOT, "%.1f", amount) + " 伤害 · "

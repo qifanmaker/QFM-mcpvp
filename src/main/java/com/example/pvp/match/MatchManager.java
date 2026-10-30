@@ -56,7 +56,7 @@ public final class MatchManager {
 
     private final MinecraftServer server;
     private final List<Match> matches = new ArrayList<>();
-    private final Set<Integer> allocatedRegions = new HashSet<>();
+    private final com.example.pvp.arena.ArenaRegionAllocator regionAllocator = new com.example.pvp.arena.ArenaRegionAllocator();
 
     /**
      * 结算后延后执行的重活（竞技场清场 + 战绩落盘）。
@@ -581,7 +581,7 @@ public final class MatchManager {
             PvpGuiManager.removeQueueItem(player);
         }
 
-        int regionIndex = this.allocateRegion();
+        int regionIndex = this.regionAllocator.allocate(type == MatchType.MINECRAFT_PARTY);
         ArenaTemplate template = this.createTemplate(type);
         int id = this.nextMatchId;
         if (type == MatchType.LUCKY_PILLAR) {
@@ -603,7 +603,7 @@ public final class MatchManager {
         } catch (Exception e) {
             // 构造失败（如床战地图加载失败）：释放已分配的区域，避免泄漏与 tick 崩溃
             LOGGER.error("[PvP] 创建比赛失败（模式 {}），释放场地", type, e);
-            this.allocatedRegions.remove(regionIndex);
+            this.regionAllocator.release(regionIndex);
             return false;
         }
         if (id >= this.nextMatchId) {
@@ -632,6 +632,26 @@ public final class MatchManager {
 
     public List<Match> getMatches() {
         return List.copyOf(this.matches);
+    }
+
+    /** 热路径不复制比赛列表；这里只读查找场地区域对应的 Party 会话。 */
+    public MinecraftPartySession partySessionAt(BlockPos pos) {
+        for (int index = 0; index < this.matches.size(); index++) {
+            Match match = this.matches.get(index);
+            if (match.portedSession() instanceof MinecraftPartySession session && match.ownsPortedPosition(pos)) return session;
+        }
+        return null;
+    }
+
+    /** 等待最终清场的区域仍需停止原生随机生长和流体扩散。 */
+    public MinecraftPartySession partySceneSessionAt(BlockPos pos) {
+        MinecraftPartySession active = this.partySessionAt(pos);
+        if (active != null) return active;
+        for (int index = 0; index < this.pendingFinishes.size(); index++) {
+            Match match = this.pendingFinishes.get(index).match();
+            if (match.portedSession() instanceof MinecraftPartySession session && match.ownsPortedPosition(pos)) return session;
+        }
+        return null;
     }
 
     /** 装饰流体在等待清场的 5 秒内也必须保持静态，否则退出后才会向裁剪外扩散。 */
@@ -703,7 +723,7 @@ public final class MatchManager {
     /** 比赛结束后的清理：从列表移除并释放区域。 */
     public void cleanupMatch(Match match) {
         this.matches.remove(match);
-        this.allocatedRegions.remove(match.getRegionIndex());
+        this.regionAllocator.release(match.getRegionIndex());
     }
 
     /**
@@ -720,7 +740,7 @@ public final class MatchManager {
      * 当前占用该区域的<b>存活</b>对局；没有则返回 {@code null}（区域空着）。
      *
      * <p>用途：延迟清场（{@link Match#deferredFinish()}）在下手拆方块前先确认区域还是自己的。
-     * 区域在延迟窗口里本来一直占着（{@code allocatedRegions}），但这是"最后一道闸"——
+     * 区域在延迟窗口里本来一直占着（{@code regionAllocator}），但这是"最后一道闸"——
      * 万一将来有别的路径提前释放，也不会把新一局的场地当旧场地清掉。
      * 直接扫 {@code matches} 而不是维护一张 region→owner 映射，是为了不引入会和真实状态不一致的第二份数据。
      */
@@ -895,23 +915,6 @@ public final class MatchManager {
 
     // ---------- 内部 ----------
 
-    private int allocateRegion() {
-        int max = Math.max(1, PvPConfig.INSTANCE.maxConcurrentMatches);
-        for (int i = 0; i < max * 2; i++) {
-            if (!this.allocatedRegions.contains(i)) {
-                this.allocatedRegions.add(i);
-                return i;
-            }
-        }
-        // 极端情况下兜底分配一个未冲突区域
-        for (int i = 0; ; i++) {
-            if (!this.allocatedRegions.contains(i)) {
-                this.allocatedRegions.add(i);
-                return i;
-            }
-        }
-    }
-
     /**
      * 幸运之柱：从 baseId 起找第一个与上一局平台风格不同的 seed（最多试 20 个），
      * 保证连续两局地板不重复；记录本次风格供下一局跳过。
@@ -955,12 +958,12 @@ public final class MatchManager {
             case VILLAGE_DEFENSE -> PvPConfig.INSTANCE.villageDefenseSize;
             case COLORBLIND_PARTY -> PvPConfig.INSTANCE.colorblindSize;
             case DEATHMATCH -> PvPConfig.INSTANCE.deathmatchSize;
-            // 亦可赛艇：区域边长必须满足 size/2 + 16 <= REGION_SPACING/2 = 192（实体清扫盒不串场），
+            // 亦可赛艇：区域边长必须满足 size/2 + 16 <= REGION_SPACING/2（实体清扫盒不串场），
             // 且要容得下 RaceTrackValidator.MAX_BOUNDING_RADIUS 的赛道外沿
             case BOAT_RACE -> PvPConfig.INSTANCE.boatRaceSize;
             case ISLAND_SIEGE -> 160;
             case MINECRAFT_PARTY -> 176;
-            case MYGO -> 320; // 真实 Dust II 与独立阵亡室的实体清扫范围，仍小于 384 分区间距。
+            case MYGO -> 320; // 真实 Dust II 与独立阵亡室的实体清扫范围。
         };
         ArenaTemplate.Layout layout = switch (type) {
             case DUEL_1V1, SUMO -> ArenaTemplate.Layout.DUEL_1V1;

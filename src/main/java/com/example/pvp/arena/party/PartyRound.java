@@ -18,7 +18,21 @@ import java.util.UUID;
  * 继续迁移时不再把全部游戏状态堆入同一会话，避免互相污染复活、计分与交互规则。
  */
 public interface PartyRound {
+    default PartyArenaBounds arenaBounds() { return PartyArenaBounds.DEFAULT; }
     void stage(PartyRoundContext context) throws IOException;
+    /** 地图落盘并传送后为0，之后每个真实倒计时 tick 递增；用于有界的原生预生长。 */
+    default void introTick(PartyRoundContext context, int elapsed) { }
+    /** 部分原图入场先以原生漂浮展示场景，不能每tick传送抵消该运动。 */
+    default boolean locksIntroPosition() { return true; }
+    /** 原火箭项目在倒计时已可试飞、落地完成，不能强行等到PLAY才承认结果。 */
+    default boolean allowsIntroItemUse() { return false; }
+    default boolean allowsIntroCompletion() { return false; }
+    default boolean disableElytraMovementCheck() { return false; }
+    /** 原生门、活塞、作物与流体可能写入模板原先为空气的格，须纳入本轮清理。 */
+    default boolean tracksTerrainChanges() { return false; }
+    default boolean allowsFluidFlow() { return false; }
+    /** 维度平移后保留原世界底界等局部限制，不用额外铺可见的人工底板。 */
+    default boolean allowsFluidFlowAt(PartyRoundContext context, BlockPos pos) { return this.allowsFluidFlow(); }
     default GameMode gameMode() { return GameMode.ADVENTURE; }
     void start(PartyRoundContext context);
     void tick(PartyRoundContext context, int elapsed);
@@ -34,9 +48,23 @@ public interface PartyRound {
     default String status(PartyRoundContext context) { return null; }
     default boolean allowsDamage(PartyRoundContext context, LivingEntity victim, DamageSource source) { return false; }
     default void damaged(PartyRoundContext context, LivingEntity victim, DamageSource source, float taken) { }
+    /** 打靶游戏以原生实体死亡结算，不能靠伤害次数或场外击杀统计推算。 */
+    default void mobDied(PartyRoundContext context, LivingEntity victim, DamageSource source) { }
     default boolean ownsEntity(Entity entity) { return false; }
     default void entityLoaded(PartyRoundContext context, Entity entity) { }
+    /** 仅在原生珍珠确认成功传送后通知；用于保留源函数在实体tick之前的落点检查时序。 */
+    default void pearlLanded(PartyRoundContext context, ServerPlayerEntity player) { }
     default boolean allowsNaturalRegeneration() { return true; }
+    /** 原包合成任务不要求预先解锁配方，仅对声明该规则的当前回合放行。 */
+    default boolean allowsUndiscoveredRecipes() { return false; }
+    /** 原包默认 doTileDrops=false；采集任务单独启用，不能改动同服全局规则。 */
+    default boolean allowsBlockDrops() { return false; }
+    /** 原版打靶倒计时结束后仍需结清在场目标；由模块停止生成并等最后目标离场。 */
+    default boolean handlesTimeLimit() { return false; }
+    /** 原图 pvp=false 还影响原生箭的碰撞判断；只有战斗项目主动开启。 */
+    default boolean playerCombatEnabled() { return false; }
+    /** 筏艇赛使用原生载具；只由当前模块允许玩家登上自己所属的船。 */
+    default ActionResult useEntity(PartyRoundContext context, ServerPlayerEntity player, Hand hand, Entity entity) { return ActionResult.FAIL; }
     default ActionResult useItem(PartyRoundContext context, ServerPlayerEntity player, Hand hand) { return ActionResult.FAIL; }
     default ActionResult useBlock(PartyRoundContext context, ServerPlayerEntity player, Hand hand, BlockHitResult hit) { return ActionResult.FAIL; }
     default ActionResult attackBlock(PartyRoundContext context, ServerPlayerEntity player, BlockPos pos) { return ActionResult.FAIL; }

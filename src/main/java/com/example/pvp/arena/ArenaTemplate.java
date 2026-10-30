@@ -12,9 +12,9 @@ import java.util.List;
  */
 public class ArenaTemplate {
     public static final int PLATFORM_Y = 100;
-    /** 区域间距（x 方向偏移）。空岛战争地图放大后，相邻两场的最大半径需要留足空间：原 256 只容半径<128，
-     *  大图（中岛群+出生岛间距拉到 ~147）必须更宽，避免相邻场地/清场实体盒互相干扰。 */
-    public static final int REGION_SPACING = 384;
+    /** 原版 Party 2 筏艇赛长 383 格，须保留整张地图；512 间距容纳半径 200 的赛道及角落等候台，
+     *  使分帧铺图、实体清场和区域保护仍位于各自区域内。其他玩法的地形尺寸不随间距改变。 */
+    public static final int REGION_SPACING = 512;
     public static final int WALL_HEIGHT = 3;
 
     public enum Layout {

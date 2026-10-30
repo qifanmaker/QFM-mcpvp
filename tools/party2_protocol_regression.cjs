@@ -18,7 +18,14 @@ const GAMES = {
   spleef: { slot: 0, source: 408 }, tile: { slot: 1, source: 412 }, rlgl: { slot: 2, source: 424 },
   dropper: { slot: 3, source: 401 }, rainbow: { slot: 4, source: 413 },
   runner: { slot: 5, source: 415 }, memory: { slot: 6, source: 425 },
-  meat: { slot: 7, source: 409 }, oitq: { slot: 8, source: 428 }
+  meat: { slot: 7, source: 409 }, oitq: { slot: 8, source: 428 },
+  parkour: { source: 404 }, platforms: { source: 414, players: 4 },
+  whack: { source: 402 }, monster: { source: 403 },
+  raft: { source: 405 }, knockout: { source: 406 }, skyfly: { source: 407 },
+  weapon: { source: 410 }, tedious: { source: 411, players: 4, minimumPlayers: 2, maximumPlayers: 4 }, horse: { source: 416 },
+  speed: { source: 417 }, steve: { source: 418 }, power: { source: 419 },
+  farming: { source: 420 }, port: { source: 421 }, matchnot: { source: 422 },
+  rocket: { source: 423 }, pearl: { source: 426 }, takeflight: { source: 427 }
 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const json = value => JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item);
@@ -264,7 +271,10 @@ class PartyProbe extends EventEmitter {
   }
 
   async teleport(id, position) {
-    await this.console(`execute in pvp:arena run tp MyGoCheck${id} ${position.x} ${position.y} ${position.z}`);
+    // Vec3ArgumentType centers bare integer X/Z. These fixtures supply exact
+    // vectors, so spell decimals even when a component happens to be integral.
+    const exact = value => Number(value).toFixed(8);
+    await this.console(`execute in pvp:arena run tp MyGoCheck${id} ${exact(position.x)} ${exact(position.y)} ${exact(position.z)}`);
   }
 
   orbit(id, center, radius = 0.6) {

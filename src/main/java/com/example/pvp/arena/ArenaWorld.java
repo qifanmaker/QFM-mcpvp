@@ -1,6 +1,7 @@
 package com.example.pvp.arena;
 
 import com.example.pvp.mixin.MinecraftServerAccess;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -50,6 +51,14 @@ public class ArenaWorld extends ServerWorld {
     /** 当前正在暂存铺图的队列；null = 正常直写世界（对局中/清场时都是 null）。 */
     private MapBuildQueue staging;
     private Box dropSuppression;
+    /** Reused per-thread state avoids an allocation for each imported terrain cell. */
+    private final ThreadLocal<SnapshotWriteScope> snapshotWrites = ThreadLocal.withInitial(SnapshotWriteScope::new);
+
+    private static final class SnapshotWriteScope {
+        int depth;
+        long position;
+        BlockState state;
+    }
 
     /** Cleanup must not turn container contents or neighbour updates into new loot. */
     public void runWithoutDrops(Box bounds, Runnable cleanup) {
@@ -146,6 +155,7 @@ public class ArenaWorld extends ServerWorld {
             queue.stage(pos, state);
             return true;
         }
+        this.loadPatternNeighbors(pos, state);
         return super.setBlockState(pos, state, flags, maxUpdateDepth);
     }
 
@@ -193,7 +203,53 @@ public class ArenaWorld extends ServerWorld {
 
     /** 直写世界，不经过暂存层。 */
     public boolean setBlockStateDirect(BlockPos pos, BlockState state) {
+        this.loadPatternNeighbors(pos, state);
         return super.setBlockState(pos, state, 3, 512);
+    }
+
+    /**
+     * Import an already-saved static scene without replaying placement/removal
+     * effects. Replaying those callbacks makes suspended gravel fall, rewires
+     * neighbours and can spawn golems while a large snapshot is only half built.
+     *
+     * Native World/WorldChunk writes still maintain section counts, all four
+     * heightmaps, sky/block lighting, block entities and client listeners. Only
+     * this exact write's onStateReplaced/onBlockAdded callbacks are suppressed
+     * by PartySnapshotImportMixin; ordinary game writes keep their normal flags.
+     */
+    public boolean setBlockStateSnapshotDirect(BlockPos pos, BlockState state) {
+        SnapshotWriteScope scope = this.snapshotWrites.get();
+        int previousDepth = scope.depth;
+        long previousPosition = scope.position;
+        BlockState previousState = scope.state;
+        scope.depth = previousDepth + 1;
+        scope.position = pos.asLong();
+        scope.state = state;
+        try {
+            return super.setBlockState(pos, state, Block.NOTIFY_LISTENERS | Block.FORCE_STATE, 512);
+        } finally {
+            scope.depth = previousDepth;
+            scope.position = previousPosition;
+            scope.state = previousState;
+        }
+    }
+
+    /** The same server thread may perform unrelated writes while notifying listeners. */
+    public boolean isSnapshotImporting(BlockPos pos, BlockState state) {
+        SnapshotWriteScope scope = this.snapshotWrites.get();
+        return scope.depth > 0 && scope.position == pos.asLong() && scope.state == state;
+    }
+
+    /**
+     * 原图雕刻南瓜会触发原生傀儡模式搜索；分帧铺图时相邻区块可能尚未加载，
+     * vanilla '~' 判定直接读取其null状态会崩服。只在实际放置这两种方块的同一tick
+     * 加载搜索所需的邻区块，保留原方块、生成判定及物理，不挂永久强制加载票。
+     */
+    private void loadPatternNeighbors(BlockPos pos, BlockState state) {
+        if (!state.isOf(Blocks.CARVED_PUMPKIN) && !state.isOf(Blocks.JACK_O_LANTERN)) return;
+        for (int x = Math.floorDiv(pos.getX() - 4, 16); x <= Math.floorDiv(pos.getX() + 4, 16); x++) {
+            for (int z = Math.floorDiv(pos.getZ() - 4, 16); z <= Math.floorDiv(pos.getZ() + 4, 16); z++) this.getChunk(x, z);
+        }
     }
 
     /** 直接生成实体，不经过暂存层。 */

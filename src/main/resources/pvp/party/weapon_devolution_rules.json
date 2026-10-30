@@ -1,0 +1,799 @@
+{
+  "sourceId": 410,
+  "formatVersion": 1,
+  "sourceFunctionSha256": {
+    "data/mcp/function/weapon_devolution.mcfunction": "d738223dac81deea3baabe29aad45491969cc098cfa72a2f411815bea5cddbae",
+    "data/mcp/function/weapon_devolution_rules.mcfunction": "da4c7c79a4d35f18101a1ecc1b1a90c261c64f9c1d9b438d67ed8d503bce1887",
+    "data/mcp/function/weapon_devolution_start.mcfunction": "eee4de9c2276fb76ef0553d23f5cce79f7f086e6797aba2490816f763bb1f108",
+    "data/mcp/function/weapon_devolution_tick.mcfunction": "1b8fd405f682853f14d28ca0b1055e453dacadaeeae47933358712d0b6f86f22",
+    "data/mcp/function/weapon_devolution_set_up_bars.mcfunction": "72b0dad27dfb8b9c13a0d6b299f046b4942ab3be4dd80584f352a62f65af7ad4",
+    "data/mcp/function/weapon_devolution_release_players.mcfunction": "34bae25d57b56ea0a3ab3020b3201088558335f75a9da9419ef0c92bd9196c6c",
+    "data/mcp/function/end_gladiators.mcfunction": "b6894c162eef0e8bb31dc3dc1dab2b7f237d79db9d14544a772ab6eab03edbbc",
+    "data/mcp/function/checkpoint.mcfunction": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+    "data/mcp/function/checkpoint2.mcfunction": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+    "data/mcp/function/assign_finish_threshold.mcfunction": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+    "data/mcp/function/player_circle.mcfunction": "d18804d0981068e317e7ae65b9554a9168a024ef7a6dcf6c7ef1aa3dce546952",
+    "data/mcp/function/player_circle_place_player.mcfunction": "adc09ffba5a6620792dc12ca8a494a28a43bb92f653b2f903b743f480887ef88",
+    "data/mcp/function/rotate_entity.mcfunction": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801",
+    "data/sentry/function/shoot_arrow_1.mcfunction": "05559894a2d1cfcf421d1bd48752bf87608706637a8eb4f29e85a33899fd8177",
+    "data/sentry/function/add_proj_motion.mcfunction": "3d31ae28b07a2d6e5f2a364699bf414a668440e2560c26b4bf70909c7478481b",
+    "data/sentry/function/trig/cos_rx.mcfunction": "568d591b36d0e9155c6ca7777357b3b7902fc1cb4b36dc725b0616e8e07f3035",
+    "data/sentry/function/trig/sin_rx.mcfunction": "1d9ef25c9c7a2648e58a743a26caa35767913ce89f5ed84c0aa8a7ad37717ba7",
+    "data/sentry/function/trig/cos_ry.mcfunction": "dd24ca17a48e64b5f743ab4b67548dba39db9c8dce3a883d0c6ba80c527190fa",
+    "data/sentry/function/trig/sin_ry.mcfunction": "b2373019d64c815546716c5a24e5d061ffe1d8053e7f239e17fd6f26ae926b57"
+  },
+  "functions": {
+    "data/mcp/function/weapon_devolution.mcfunction": "scoreboard players set minigame variables 410\r\nscoreboard players set music variables 9\r\nscoreboard players set playingWeaponDevolution variables 1\r\ntitle @a title {fallback:\"Weapon Devolution\",translate:\"mcp.weapon_devolution\",bold:1b,color:\"dark_green\",type:\"translatable\"}\r\nexecute if score doubles_mode variables matches 1.. unless score gamemode variables matches 0 run function mcp:alternate_minigameplayer_scores\r\ntp @a -254 20 -377\r\nexecute if score players variables matches ..4 run tp @a[scores={minigameplayer=1}] -253.0 25 -345.0 180 0\r\nexecute if score players variables matches ..4 run tp @a[scores={minigameplayer=2}] -222.0 25 -376.0 90 0\r\nexecute if score players variables matches ..4 run tp @a[scores={minigameplayer=3}] -253.0 25 -407.0 0 0\r\nexecute if score players variables matches ..4 run tp @a[scores={minigameplayer=4}] -284.0 25 -376.0 -90 0\r\nexecute if score players variables matches ..4 run spawnpoint @a[scores={minigameplayer=1}] -253 25 -345 180 0\r\nexecute if score players variables matches ..4 run spawnpoint @a[scores={minigameplayer=2}] -222 25 -376 90 0\r\nexecute if score players variables matches ..4 run spawnpoint @a[scores={minigameplayer=3}] -253 25 -407 0 0\r\nexecute if score players variables matches ..4 run spawnpoint @a[scores={minigameplayer=4}] -284 25 -376 -90 0\r\ngamerule pvp true\r\nscoreboard players set @a[scores={Player=1..}] Points 0\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1\r\nscoreboard objectives add gladkills minecraft.custom:minecraft.player_kills\r\nscoreboard objectives add weapon dummy\r\nscoreboard objectives add weapon_minus_1 dummy\r\nscoreboard objectives add inventory_weapons dummy\r\nscoreboard objectives add giveSnowballTick dummy\r\nscoreboard objectives add giveSnowball dummy\r\nscoreboard objectives add right_click minecraft.used:minecraft.carrot_on_a_stick\r\nscoreboard objectives add thrower_uuid dummy\r\nexecute as @a[scores={minigameplayer=1..}] store result score @s thrower_uuid run data get entity @s UUID[1]\r\nscoreboard players set @a[scores={minigameplayer=1..}] weapon 0\r\ngamerule naturalRegeneration false\r\ngamerule showDeathMessages false\r\neffect clear @a minecraft:weakness\r\neffect give @a minecraft:weakness 3 99 true\r\neffect clear @a minecraft:regeneration\r\neffect give @a[scores={Player=1..}] minecraft:regeneration 999999 0 true\r\nscoreboard objectives add checkpoint_generic dummy {fallback:\"Kills\",color:\"dark_aqua\",bold:1b,translate:\"mcp.Kills\",type:\"translatable\"}\r\nscoreboard objectives add checkpoint dummy {fallback:\"Checkpoint\",bold:1b,color:\"dark_aqua\",translate:\"mcp.Checkpoint\",type:\"translatable\"}\r\nscoreboard objectives setdisplay sidebar checkpoint_generic\r\nscoreboard players set @a[scores={minigameplayer=1..}] checkpoint_generic 0\r\nscoreboard players set currentRule variables 0\r\nscoreboard players reset worldborder variables\r\nscoreboard players set players_finished variables 0\r\n\r\n#doubles mode kill prevention\r\nscoreboard players operation doubles_mode_wd variables = doubles_mode variables\r\nexecute if score gamemode variables matches 0 run scoreboard players set doubles_mode_wd variables 0\r\nscoreboard objectives add killed_by_blue killedByTeam.blue\r\nscoreboard objectives add killed_by_red killedByTeam.red\r\nscoreboard objectives add killed_by_green killedByTeam.green\r\nscoreboard objectives add killed_by_yellow killedByTeam.yellow\r\nscoreboard objectives add killed_by_dark_aqua killedByTeam.dark_aqua\r\nscoreboard objectives add killed_by_light_purple killedByTeam.light_purple\r\nscoreboard objectives add killed_by_dark_red killedByTeam.dark_red\r\nscoreboard objectives add killed_by_dark_green killedByTeam.dark_green\r\nscoreboard objectives add killed_by_dark_purple killedByTeam.dark_purple\r\nscoreboard objectives add killed_by_dark_blue killedByTeam.dark_blue\r\nexecute if score doubles_mode_wd variables matches 1.. run scoreboard objectives add oitq_team dummy\r\nscoreboard players set @a[tag=gold] oitq_team 1\r\nscoreboard players set @a[tag=aqua] oitq_team 2\r\nscoreboard players set @a[tag=purple] oitq_team 3\r\nscoreboard players set @a[tag=tan] oitq_team 4\r\nscoreboard players set @a[tag=teal] oitq_team 5\r\nscoreboard players set @a[tag=pink] oitq_team 6\r\ntellraw @a {fallback:\"Fight other players in a massive brawl with no life limit and instant respawning.\",translate:\"mcp.weapon_devolution.1\",color:\"dark_green\",type:\"translatable\"}\r\n\r\nfunction mcp:assign_finish_threshold\r\nschedule function mcp:weapon_devolution_rules 3s\r\nschedule function mcp:weapon_devolution_set_up_bars 10t",
+    "data/mcp/function/weapon_devolution_rules.mcfunction": "scoreboard players add currentRule variables 1\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 2 1\r\neffect give @a minecraft:regeneration 1 20 true\r\nexecute if score currentRule variables matches 1..2 run schedule function mcp:weapon_devolution_rules 3s\r\nexecute if score currentRule variables matches 1 run tellraw @a {fallback:\"For each kill you get, your weapon gets downgraded in the following order: Laser Gun, Mighty Axe, Trident, Weak Sword, Sharp Snowballs.\",translate:\"mcp.weapon_devolution_rules.1\",color:\"dark_aqua\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 2 run tellraw @a {fallback:\"The first player to get a kill with the final weapon (Sharp Snowballs) wins!\",translate:\"mcp.weapon_devolution_rules.2\",color:\"dark_green\",type:\"translatable\"}\r\nexecute if score currentRule variables matches 3 run function mcp:ready_up_tellraw\r\n\r\n\r\nexecute unless score currentRule variables matches 1 run return 0\r\n\r\n#MPM stuff\r\nscoreboard players set radius variables 24\r\nexecute if score players variables matches 5.. positioned -253.0 22 -376.0 run function mcp:player_circle\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=1}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp1\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=2}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp2\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=3}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp3\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=4}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp4\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=5}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp5\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=6}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp6\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=7}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp7\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=8}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp8\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=9}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp9\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. as @a[scores={minigameplayer=10}] at @s run summon minecraft:marker ~ ~ ~ {Tags:[\"mp10\",\"player_spawn\"]}\r\nexecute if score players variables matches 5.. run effect give @a[scores={minigameplayer=1..}] minecraft:resistance infinite 99 true\r\n\r\nexecute as @a[scores={minigameplayer=1}] at @s run data modify entity @n[type=marker,tag=mp1] Rotation set from entity @s Rotation\r\nexecute as @e[tag=mp1] at @s run spawnpoint @a[scores={minigameplayer=1}] ~ ~ ~ ~ 0\r\nexecute as @a[scores={minigameplayer=2}] at @s run data modify entity @n[type=marker,tag=mp2] Rotation set from entity @s Rotation\r\nexecute as @e[tag=mp2] at @s run spawnpoint @a[scores={minigameplayer=2}] ~ ~ ~ ~ 0\r\nexecute as @a[scores={minigameplayer=3}] at @s run data modify entity @n[type=marker,tag=mp3] Rotation set from entity @s Rotation\r\nexecute as @e[tag=mp3] at @s run spawnpoint @a[scores={minigameplayer=3}] ~ ~ ~ ~ 0\r\nexecute as @a[scores={minigameplayer=4}] at @s run data modify entity @n[type=marker,tag=mp4] Rotation set from entity @s Rotation\r\nexecute as @e[tag=mp4] at @s run spawnpoint @a[scores={minigameplayer=4}] ~ ~ ~ ~ 0\r\nexecute as @a[scores={minigameplayer=5}] at @s run data modify entity @n[type=marker,tag=mp5] Rotation set from entity @s Rotation\r\nexecute as @e[tag=mp5] at @s run spawnpoint @a[scores={minigameplayer=5}] ~ ~ ~ ~ 0\r\nexecute as @a[scores={minigameplayer=6}] at @s run data modify entity @n[type=marker,tag=mp6] Rotation set from entity @s Rotation\r\nexecute as @e[tag=mp6] at @s run spawnpoint @a[scores={minigameplayer=6}] ~ ~ ~ ~ 0\r\nexecute as @a[scores={minigameplayer=7}] at @s run data modify entity @n[type=marker,tag=mp7] Rotation set from entity @s Rotation\r\nexecute as @e[tag=mp7] at @s run spawnpoint @a[scores={minigameplayer=7}] ~ ~ ~ ~ 0\r\nexecute as @a[scores={minigameplayer=8}] at @s run data modify entity @n[type=marker,tag=mp8] Rotation set from entity @s Rotation\r\nexecute as @e[tag=mp8] at @s run spawnpoint @a[scores={minigameplayer=8}] ~ ~ ~ ~ 0\r\nexecute as @a[scores={minigameplayer=9}] at @s run data modify entity @n[type=marker,tag=mp9] Rotation set from entity @s Rotation\r\nexecute as @e[tag=mp9] at @s run spawnpoint @a[scores={minigameplayer=9}] ~ ~ ~ ~ 0\r\nexecute as @a[scores={minigameplayer=10}] at @s run data modify entity @n[type=marker,tag=mp10] Rotation set from entity @s Rotation\r\nexecute as @e[tag=mp10] at @s run spawnpoint @a[scores={minigameplayer=10}] ~ ~ ~ ~ 0\r\n\r\nfunction mcp:give_ready_ups",
+    "data/mcp/function/weapon_devolution_start.mcfunction": "title @a title {fallback:\"Fight!\",translate:\"mcp.weapon_devolution_start.1\",color:\"dark_red\",type:\"translatable\"}\r\nkill @e[type=minecraft:marker,tag=player_spawn]\r\nplaysound minecraft:entity.experience_orb.pickup master @a ~ ~ ~ 10 1 1\r\nplaysound minecraft:item.armor.equip_iron master @a ~ ~ ~ 10 0 1\r\neffect clear @a[scores={Player=1..}] minecraft:resistance\r\nscoreboard players set playingWeaponDevolution variables 2\r\neffect clear @a minecraft:weakness\r\nscoreboard players reset worldborder variables\r\nscoreboard players set @a[scores={minigameplayer=1..}] right_click 0\r\nscoreboard players set @a[scores={minigameplayer=1..}] weapon 1\r\nexecute if score players variables matches ..4 run schedule function mcp:weapon_devolution_release_players 16t\r\nscoreboard players set timeLeft variables 2400\r\n#worldborder set 10 140\r\n#worldborder damage amount 2",
+    "data/mcp/function/weapon_devolution_tick.mcfunction": "execute if score players variables matches 5.. if score playingWeaponDevolution variables matches 1 as @e[type=minecraft:marker,tag=mp1] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=1}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingWeaponDevolution variables matches 1 as @e[type=minecraft:marker,tag=mp2] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=2}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingWeaponDevolution variables matches 1 as @e[type=minecraft:marker,tag=mp3] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=3}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingWeaponDevolution variables matches 1 as @e[type=minecraft:marker,tag=mp4] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=4}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingWeaponDevolution variables matches 1 as @e[type=minecraft:marker,tag=mp5] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=5}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingWeaponDevolution variables matches 1 as @e[type=minecraft:marker,tag=mp6] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=6}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingWeaponDevolution variables matches 1 as @e[type=minecraft:marker,tag=mp7] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=7}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingWeaponDevolution variables matches 1 as @e[type=minecraft:marker,tag=mp8] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=8}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingWeaponDevolution variables matches 1 as @e[type=minecraft:marker,tag=mp9] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=9}] ~ ~ ~\r\nexecute if score players variables matches 5.. if score playingWeaponDevolution variables matches 1 as @e[type=minecraft:marker,tag=mp10] at @s run tp @a[gamemode=adventure,distance=0.2..,scores={minigameplayer=10}] ~ ~ ~\r\n\r\n#Keeping weapons in player inventory\r\n\r\nexecute as @a[scores={minigameplayer=1..,right_click=0,weapon=1}] unless entity @s[nbt={Inventory:[{id:\"minecraft:carrot_on_a_stick\",components:{\"minecraft:custom_data\":{laser_gun:1b}}}]}] run give @s carrot_on_a_stick[minecraft:custom_model_data={floats:[10.0f]},custom_name={\"bold\":true,\"color\":\"dark_red\",\"fallback\":\"Laser Gun\",\"translate\":\"mcp.LaserGun\"},custom_data={laser_gun:1b}] 1\r\nexecute as @a[scores={minigameplayer=1..,right_click=0,weapon=1}] store result score @s inventory_weapons run clear @s carrot_on_a_stick[minecraft:custom_model_data={floats:[10.0f]},custom_name={\"bold\":true,\"color\":\"dark_red\",\"fallback\":\"Laser Gun\",\"translate\":\"mcp.LaserGun\"},custom_data={laser_gun:1b}] 0\r\nclear @a[scores={minigameplayer=1..,right_click=0,weapon=1,inventory_weapons=2..}] carrot_on_a_stick[minecraft:custom_model_data={floats:[10.0f]},custom_name={\"bold\":true,\"color\":\"dark_red\",\"fallback\":\"Laser Gun\",\"translate\":\"mcp.LaserGun\"},custom_data={laser_gun:1b}]\r\n\r\nexecute as @a[scores={minigameplayer=1..,weapon=2}] unless entity @s[nbt={Inventory:[{id:\"minecraft:netherite_axe\"}]}] run give @s netherite_axe[custom_name={\"bold\":true,\"color\":\"dark_gray\",\"fallback\":\"Mighty Axe\",\"translate\":\"mcp.MightyAxe\"},unbreakable={}] 1\r\nexecute as @a[scores={minigameplayer=1..,weapon=2}] store result score @s inventory_weapons run clear @s netherite_axe 0\r\nclear @a[scores={minigameplayer=1..,weapon=2,inventory_weapons=2..}] netherite_axe\r\n\r\nexecute as @a[scores={minigameplayer=1..,weapon=3}] unless entity @s[nbt={Inventory:[{id:\"minecraft:trident\"}]}] run give @s trident[custom_name={\"color\":\"#26FFCC\",\"fallback\":\"Trident\",\"translate\":\"item.minecraft.trident\"},unbreakable={}] 1\r\nexecute as @a[scores={minigameplayer=1..,weapon=3}] store result score @s inventory_weapons run clear @s trident 0\r\nclear @a[scores={minigameplayer=1..,weapon=3,inventory_weapons=2..}] trident\r\n\r\n#Wooden Sword\r\nexecute as @a[scores={minigameplayer=1..,weapon=4}] unless entity @s[nbt={Inventory:[{id:\"minecraft:wooden_sword\"}]}] run give @s wooden_sword[custom_name={\"bold\":true,\"color\":\"#75390B\",\"fallback\":\"Weak Sword\",\"translate\":\"mcp.WeakSword\"},unbreakable={}] 1\r\nexecute as @a[scores={minigameplayer=1..,weapon=4}] store result score @s inventory_weapons run clear @s wooden_sword 0\r\nclear @a[scores={minigameplayer=1..,weapon=4,inventory_weapons=2..}] wooden_sword\r\n\r\nexecute as @a[scores={minigameplayer=1..}] unless entity @s[nbt={Inventory:[{id:\"minecraft:structure_void\"}]}] run item replace entity @s inventory.0 with minecraft:structure_void[custom_data={void_minigame:1b},minecraft:custom_name={bold:1b,color:\"green\",fallback:\"End Minigame\",translate:mcp.EndMinigame},minecraft:enchantments={\"minecraft:vanishing_curse\":1},tooltip_display={hidden_components:[\"enchantments\"]},enchantment_glint_override=false,minecraft:lore=[{fallback:\"Drop to end current minigame in progress\",translate:mcp.DropToEndMinigame}]]\r\n\r\n#Shooting Lasers\r\nexecute as @a[scores={minigameplayer=1..,weapon=1,right_click=1}] at @s anchored eyes positioned ^ ^-0.1 ^ run summon minecraft:block_display ~ ~ ~ {Tags:[\"laser\",\"new_shot\"],Glowing:1b,teleport_duration:0,Passengers:[{id:\"minecraft:block_display\",Tags:[\"laser\",\"new_shot\"],block_state:{Name:\"minecraft:red_stained_glass_pane\",Properties:{north:\"false\",east:\"false\",south:\"false\",west:\"false\"}},teleport_duration:1,transformation:[1.0000f,0.0000f,0.0000f,-0.5000f,0.0000f,-0.0000f,-1.0000f,0.5000f,0.0000f,45.0000f,-0.0000f,0.0000f,0.0000f,0.0000f,0.0000f,1.0000f],Glowing:1b}]}\r\nexecute as @a[scores={minigameplayer=1..,weapon=1,right_click=1}] at @s run playsound mcp:laser master @s ~ ~ ~ 1 1 1\r\nexecute as @a[scores={minigameplayer=1..,weapon=1,right_click=1}] at @s anchored eyes positioned ^ ^-0.1 ^ run function sentry:shoot_arrow_1\r\nexecute as @a[scores={minigameplayer=1..,weapon=1,right_click=1}] run clear @s carrot_on_a_stick\r\nexecute as @a[scores={minigameplayer=1..,weapon=1,right_click=1}] run item replace entity @s weapon.mainhand with carrot_on_a_stick[minecraft:custom_model_data={floats:[11.0f]},custom_name={\"bold\":true,\"color\":\"dark_red\",\"fallback\":\"Laser Gun\",\"translate\":\"mcp.LaserGun\"},custom_data={laser_gun:1b}] 1\r\nexecute as @e[tag=new_shot] at @s run data modify entity @s Rotation set from entity @p[scores={weapon=1}] Rotation\r\nteam join dark_red @e[tag=laser]\r\nscoreboard players add @e[tag=laser] inventory_weapons 1\r\nkill @e[tag=laser,scores={inventory_weapons=4..}]\r\n\r\n#Charge delay here for laser gun\r\nexecute as @a[scores={minigameplayer=1..,weapon=1,right_click=1..}] run scoreboard players add @s right_click 1\r\nclear @a[scores={weapon=1,right_click=20..}] carrot_on_a_stick\r\nexecute as @a[scores={minigameplayer=1..,weapon=1,right_click=20..}] run item replace entity @s weapon.mainhand with carrot_on_a_stick[minecraft:custom_model_data={floats:[10.0f]},custom_name={\"bold\":true,\"color\":\"dark_red\",\"fallback\":\"Laser Gun\",\"translate\":\"mcp.LaserGun\"},custom_data={laser_gun:1b}] 1\r\nscoreboard players set @a[scores={minigameplayer=1..,weapon=1,right_click=20..}] right_click 0\r\nkill @e[type=item,nbt={Item:{id:\"minecraft:carrot_on_a_stick\",components:{\"minecraft:custom_data\":{laser_gun:1b}}}}]\r\n\r\n#Giving Snowballs\r\nscoreboard players remove @a[scores={weapon=5}] giveSnowballTick 1\r\nscoreboard players add @a[scores={giveSnowballTick=0,giveSnowball=2..,weapon=5}] giveSnowballTick 1\r\nscoreboard players add @a[scores={giveSnowballTick=..0,weapon=5}] giveSnowball 1\r\nscoreboard players add @a[scores={giveSnowballTick=..0,weapon=5}] giveSnowballTick 30\r\nclear @a[scores={giveSnowball=0}] minecraft:snowball\r\nitem replace entity @a[scores={giveSnowball=1,weapon=5}] hotbar.0 with minecraft:snowball 1\r\nitem replace entity @a[scores={giveSnowball=2,weapon=5}] hotbar.0 with minecraft:snowball 2\r\n\r\n#Snowball damage logic\r\nexecute as @e[type=minecraft:snowball,tag=!thrown] at @s run summon minecraft:arrow ~ ~ ~ {Silent:1b,Invisible:1b,Tags:[\"snowball\"],PierceLevel:100b}\r\nexecute at @e[type=minecraft:snowball,tag=!thrown] run scoreboard players remove @a[scores={minigameplayer=1..},sort=nearest,limit=1] giveSnowball 1\r\nexecute at @e[type=minecraft:snowball,tag=!thrown] as @e[type=minecraft:arrow,tag=snowball,sort=nearest,limit=1] run data modify entity @s Owner set from entity @e[type=minecraft:snowball,sort=nearest,limit=1] Owner\r\ntag @e[type=minecraft:snowball] add thrown\r\nexecute as @e[type=minecraft:arrow,tag=snowball,sort=nearest,limit=1] run tp @s @e[type=minecraft:snowball,sort=nearest,limit=1]\r\nexecute as @e[type=minecraft:snowball] at @s as @e[type=minecraft:arrow,tag=snowball,sort=nearest,limit=1] at @s run data modify entity @s Motion set from entity @e[type=minecraft:snowball,sort=nearest,limit=1] Motion\r\n\r\nkill @e[type=minecraft:trident,nbt={inGround:1b}]\r\nkill @e[type=minecraft:arrow,nbt={inGround:1b}]\r\nexecute as @e[x=-254,y=20,z=-376,type=item,distance=..50] unless entity @s[nbt={Item:{id:\"minecraft:structure_void\"}}] run kill @s\r\nstopsound @a * minecraft:entity.arrow.hit\r\n\r\n#doubles/pairs mode team killing score incrementing prevention\r\nexecute if score doubles_mode_wd variables matches 1.. as @a[scores={killed_by_blue=1}] if score @s oitq_team = @a[team=blue,scores={Player=1..},limit=1] oitq_team run scoreboard players remove @a[team=blue,scores={Player=1..},limit=1] gladkills 1\r\nexecute if score doubles_mode_wd variables matches 1.. as @a[scores={killed_by_red=1}] if score @s oitq_team = @a[team=red,scores={Player=1..},limit=1] oitq_team run scoreboard players remove @a[team=red,scores={Player=1..},limit=1] gladkills 1\r\nexecute if score doubles_mode_wd variables matches 1.. as @a[scores={killed_by_green=1}] if score @s oitq_team = @a[team=green,scores={Player=1..},limit=1] oitq_team run scoreboard players remove @a[team=green,scores={Player=1..},limit=1] gladkills 1\r\nexecute if score doubles_mode_wd variables matches 1.. as @a[scores={killed_by_yellow=1}] if score @s oitq_team = @a[team=yellow,scores={Player=1..},limit=1] oitq_team run scoreboard players remove @a[team=yellow,scores={Player=1..},limit=1] gladkills 1\r\nexecute if score doubles_mode_wd variables matches 1.. as @a[scores={killed_by_dark_aqua=1}] if score @s oitq_team = @a[team=dark_aqua,scores={Player=1..},limit=1] oitq_team run scoreboard players remove @a[team=dark_aqua,scores={Player=1..},limit=1] gladkills 1\r\nexecute if score doubles_mode_wd variables matches 1.. as @a[scores={killed_by_light_purple=1}] if score @s oitq_team = @a[team=light_purple,scores={Player=1..},limit=1] oitq_team run scoreboard players remove @a[team=light_purple,scores={Player=1..},limit=1] gladkills 1\r\nexecute if score doubles_mode_wd variables matches 1.. as @a[scores={killed_by_dark_red=1}] if score @s oitq_team = @a[team=dark_red,scores={Player=1..},limit=1] oitq_team run scoreboard players remove @a[team=dark_red,scores={Player=1..},limit=1] gladkills 1\r\nexecute if score doubles_mode_wd variables matches 1.. as @a[scores={killed_by_dark_green=1}] if score @s oitq_team = @a[team=dark_green,scores={Player=1..},limit=1] oitq_team run scoreboard players remove @a[team=dark_green,scores={Player=1..},limit=1] gladkills 1\r\nexecute if score doubles_mode_wd variables matches 1.. as @a[scores={killed_by_dark_purple=1}] if score @s oitq_team = @a[team=dark_purple,scores={Player=1..},limit=1] oitq_team run scoreboard players remove @a[team=dark_purple,scores={Player=1..},limit=1] gladkills 1\r\nexecute if score doubles_mode_wd variables matches 1.. as @a[scores={killed_by_dark_blue=1}] if score @s oitq_team = @a[team=dark_blue,scores={Player=1..},limit=1] oitq_team run scoreboard players remove @a[team=dark_blue,scores={Player=1..},limit=1] gladkills 1\r\nscoreboard players reset @a killed_by_blue\r\nscoreboard players reset @a killed_by_red\r\nscoreboard players reset @a killed_by_green\r\nscoreboard players reset @a killed_by_yellow\r\nscoreboard players reset @a killed_by_dark_aqua\r\nscoreboard players reset @a killed_by_light_purple\r\nscoreboard players reset @a killed_by_dark_red\r\nscoreboard players reset @a killed_by_dark_green\r\nscoreboard players reset @a killed_by_dark_purple\r\nscoreboard players reset @a killed_by_dark_blue\r\n\r\n#Logic for getting a kill\r\nexecute as @a[scores={gladkills=1..}] run playsound minecraft:entity.zombie.attack_iron_door master @s ~ ~ ~ 10 0.5 1\r\nexecute as @a[scores={gladkills=1..}] run clear @s\r\nexecute as @a[scores={gladkills=1..}] run function mcp:checkpoint\r\nexecute as @a[scores={gladkills=1..}] run scoreboard players operation @s weapon_minus_1 = @s weapon\r\nexecute as @a[scores={gladkills=1..}] run scoreboard players add @s weapon 1\r\nexecute as @a[scores={gladkills=1..,weapon=3}] run item replace entity @s weapon.mainhand with trident[custom_name={\"color\":\"#26FFCC\",\"fallback\":\"Trident\",\"translate\":\"item.minecraft.trident\"},unbreakable={}] 1\r\nexecute as @a[scores={gladkills=1..,weapon=2}] run tellraw @s {color:\"dark_green\",fallback:\"You got a kill! Your new weapon is a %1$s.\",translate:\"mcp.weapon_devolution_tick.1\",with:[{translate:\"mcp.MightyAxe\",color:\"dark_gray\",fallback:\"Mighty Axe\"}]}\r\nexecute as @a[scores={gladkills=1..,weapon=3}] run tellraw @s {color:\"dark_green\",fallback:\"You got a kill! Your new weapon is a %1$s.\",translate:\"mcp.weapon_devolution_tick.1\",with:[{translate:\"item.minecraft.trident\",color:\"#26FFCC\",fallback:\"Trident\"}]}\r\nexecute as @a[scores={gladkills=1..,weapon=4}] run tellraw @s {color:\"dark_green\",fallback:\"You got a kill! Your new weapon is a %1$s.\",translate:\"mcp.weapon_devolution_tick.1\",with:[{translate:\"mcp.WeakSword\",color:\"#75390B\",fallback:\"Weak Sword\"}]}\r\nexecute as @a[scores={gladkills=1..,weapon=5}] run tellraw @s {color:\"dark_green\",fallback:\"You got a kill! Your new weapon is a %1$s.\",translate:\"mcp.weapon_devolution_tick.1\",with:[{translate:\"mcp.SharpSnowball\",color:\"white\",fallback:\"Sharp Snowball\"}]}\r\nexecute as @a[scores={weapon=6..},gamemode=adventure] run tellraw @a {translate:\"weapon_devolution_tick.2\",color:\"gray\",fallback:\"%1$s got a kill with the last weapon!\",with:[{selector:\"@s\"}]}\r\nexecute as @a[scores={weapon=6..},gamemode=adventure] run scoreboard players add players_finished variables 1\r\nexecute as @a[scores={weapon=6..},gamemode=adventure] run gamemode spectator @s\r\nexecute if score players_finished variables >= finishThreshold variables run schedule function mcp:end_gladiators 2t\r\nexecute if score players_finished variables >= finishThreshold variables run scoreboard players set players_finished variables 0\r\nscoreboard players set @a[scores={minigameplayer=1..}] gladkills 0\r\n\r\n#weakness\r\neffect give @a[scores={weapon=1}] weakness 1 99 true\r\neffect clear @a[scores={weapon=2}] weakness\r\neffect give @a[scores={weapon=3}] weakness 1 1 true\r\neffect clear @a[scores={weapon=4}] weakness\r\neffect give @a[scores={weapon=5}] weakness 1 99 true\r\n\r\nexecute if score playingWeaponDevolution variables matches 2 run function mcp:timer_decrement\r\nexecute if score playingWeaponDevolution variables matches 2 if score timeLeft variables matches ..0 run function mcp:end_gladiators",
+    "data/mcp/function/weapon_devolution_set_up_bars.mcfunction": "fill -283 25 -373 -283 27 -380 minecraft:barrier replace minecraft:light[level=0]\r\nfill -257 25 -347 -250 27 -347 minecraft:barrier replace minecraft:light[level=0]\r\nfill -224 25 -373 -224 27 -380 minecraft:barrier replace minecraft:light[level=0]\r\nfill -250 27 -406 -257 25 -406 minecraft:barrier replace minecraft:light[level=0]\r\n\r\nsummon block_display -250 25 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -251 25 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -250 26 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -251 26 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -250 27 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -251 27 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -256 25 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -257 25 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -256 26 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -257 26 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -256 27 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -257 27 -406 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -250 25 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -251 25 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -250 26 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -251 26 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -250 27 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -251 27 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -256 25 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -257 25 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -256 26 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -257 26 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -256 27 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\nsummon block_display -257 27 -347 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"false\",south:\"false\",east:\"true\",west:\"true\"}}}\r\n\r\nsummon block_display -283 25 -373 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 25 -374 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 26 -373 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 26 -374 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 27 -373 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 27 -374 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 25 -379 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 25 -380 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 26 -379 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 26 -380 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 27 -379 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -283 27 -380 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 25 -373 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 25 -374 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 26 -373 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 26 -374 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 27 -373 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 27 -374 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 25 -379 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 25 -380 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 26 -379 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 26 -380 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 27 -379 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\nsummon block_display -224 27 -380 {Tags:[\"gladiators_bars\"],teleport_duration:48,transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[-0.5f,0.f,-0.5f],scale:[1f,1f,1f]},block_state:{Name:\"minecraft:iron_bars\",Properties:{north:\"true\",south:\"true\",east:\"false\",west:\"false\"}}}\r\n\r\nclone -275 17 -398 -291 -21 -414 -291 51 -414\r\nclone -216 15 -398 -232 -21 -414 -232 51 -414\r\nclone -232 -21 -355 -216 15 -339 -232 51 -355\r\nclone -275 15 -339 -291 -21 -355 -291 51 -355",
+    "data/mcp/function/weapon_devolution_release_players.mcfunction": "scoreboard players add iron_bars variables 1\r\nexecute at @a run playsound minecraft:block.piston.contract master @a ~ ~ ~ 10 0.5 1\r\nexecute if score iron_bars variables matches 1 as @e[type=block_display,tag=gladiators_bars] at @s run tp @s ~ ~2.95 ~\r\nexecute if score iron_bars variables matches 1 run fill -220 25 -343 -288 25 -411 minecraft:light[level=0] replace minecraft:barrier\r\nexecute if score iron_bars variables matches 2 run fill -220 26 -343 -288 26 -411 minecraft:light[level=0] replace minecraft:barrier\r\nexecute if score iron_bars variables matches 3 run fill -220 27 -343 -288 27 -411 minecraft:light[level=0] replace minecraft:barrier\r\nexecute if score iron_bars variables matches 1..2 run schedule function mcp:weapon_devolution_release_players 16t\r\nexecute if score iron_bars variables matches 3 run scoreboard players reset iron_bars variables",
+    "data/mcp/function/end_gladiators.mcfunction": "scoreboard players reset playingWeaponDevolution variables\r\nexecute store result score playersOnline variables if entity @a[scores={Player=1..}]\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run title @a actionbar {fallback:\"All players must be online to continue\",translate:\"mcp.MissingPlayerActionBarAlert\",type:\"translatable\"}\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run schedule function mcp:end_gladiators 1t\r\nexecute unless score void_minigame variables matches 1 if score playersOnline variables < players variables run return 0\r\nscoreboard players reset playersOnline variables\r\n\r\ntitle @a actionbar [{fallback:\"Time Left: \",translate:\"mcp.Time_Left_\",color:\"#FF0000\",type:\"translatable\"},{fallback:\"0:00\",translate:\"mcp.zero_time_left\",color:\"#FF0000\",type:\"translatable\"}]\r\nexecute as @a[scores={minigameplayer=1..}] run scoreboard players operation @s checkpoint *= players variables\r\nexecute as @a[scores={minigameplayer=1..}] run scoreboard players operation @s Points += @s checkpoint\r\neffect clear @a[scores={Player=1..}] minecraft:resistance\r\nkill @e[type=minecraft:marker,tag=player_spawn]\r\nkill @e[type=block_display,tag=gladiators_bars]\r\nclear @a\r\nfill -283 25 -373 -283 27 -380 minecraft:barrier replace minecraft:light[level=0]\r\nfill -257 25 -347 -250 27 -347 minecraft:barrier replace minecraft:light[level=0]\r\nfill -224 25 -373 -224 27 -380 minecraft:barrier replace minecraft:light[level=0]\r\nfill -250 27 -406 -257 25 -406 minecraft:barrier replace minecraft:light[level=0]\r\nfill -291 51 -355 -275 87 -339 minecraft:air\r\nfill -216 87 -339 -232 51 -355 minecraft:air\r\nfill -232 51 -414 -216 88 -398 minecraft:air\r\nfill -291 51 -414 -275 89 -398 minecraft:air\r\nscoreboard players set inbattle variables -1\r\nscoreboard players set @a minigame 0\r\nscoreboard players reset inbattle variables\r\ngamerule showDeathMessages false\r\ngamerule pvp false\r\ngamerule naturalRegeneration true\r\nscoreboard objectives remove death\r\nscoreboard objectives remove weapon\r\nscoreboard objectives remove weapon_minus_1\r\nscoreboard objectives remove inventory_weapons\r\nscoreboard objectives remove right_click\r\nscoreboard objectives remove checkpoint\r\nscoreboard objectives remove checkpoint_generic\r\nscoreboard objectives remove thrower_uuid\r\nscoreboard objectives remove oitq_team\r\n\r\nscoreboard objectives remove killed_by_blue\r\nscoreboard objectives remove killed_by_red\r\nscoreboard objectives remove killed_by_green\r\nscoreboard objectives remove killed_by_yellow\r\nscoreboard objectives remove killed_by_dark_aqua\r\nscoreboard objectives remove killed_by_light_purple\r\nscoreboard objectives remove killed_by_dark_red\r\nscoreboard objectives remove killed_by_dark_green\r\nscoreboard objectives remove killed_by_dark_purple\r\nscoreboard objectives remove killed_by_dark_blue\r\nscoreboard players reset doubles_mode_wd variables\r\n\r\nscoreboard players reset worldborder variables\r\nscoreboard players reset game_timer variables\r\nexecute unless score void_minigame variables matches 1 run schedule function mcp:placements 3s\r\nexecute unless score void_minigame variables matches 1 as @a at @s run playsound mcp:finish voice @s ~ ~ ~ 1 1 1",
+    "data/mcp/function/checkpoint.mcfunction": "scoreboard players add @a[scores={Player=1..}] Points 1\r\nscoreboard players set @s Points 0\r\nscoreboard players set @a[scores={Player=1..}] CheckpointPoints 0\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=1},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=2},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=3},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=4},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=5},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=6},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=7},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=8},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=9},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nexecute as @a[scores={Player=1..}] if score @s Points > @a[scores={Player=10},limit=1] Points run scoreboard players add @s CheckpointPoints 1\r\nscoreboard players set @a[scores={CheckpointPoints=0,Player=1..}] Points 0\r\nscoreboard players set @a[scores={CheckpointPoints=1,Player=1..}] Points 1\r\nscoreboard players set @a[scores={CheckpointPoints=2,Player=1..}] Points 2\r\nscoreboard players set @a[scores={CheckpointPoints=3,Player=1..}] Points 3\r\nscoreboard players set @a[scores={CheckpointPoints=4,Player=1..}] Points 4\r\nscoreboard players set @a[scores={CheckpointPoints=5,Player=1..}] Points 5\r\nscoreboard players set @a[scores={CheckpointPoints=6,Player=1..}] Points 6\r\nscoreboard players set @a[scores={CheckpointPoints=7,Player=1..}] Points 7\r\nscoreboard players set @a[scores={CheckpointPoints=8,Player=1..}] Points 8\r\nscoreboard players set @a[scores={CheckpointPoints=9,Player=1..}] Points 9\r\ntag @s add temp_checkpoint_tie\r\nexecute if score temp_checkpoint_tie variables = timer dice run scoreboard players set @a[tag=temp_checkpoint_tie] Points 0\r\nscoreboard players operation temp_checkpoint_tie variables = timer dice\r\n\r\nschedule function mcp:checkpoint2 1t",
+    "data/mcp/function/checkpoint2.mcfunction": "scoreboard players set @a[scores={Player=1..}] checkpoint_generic 0\r\nexecute if score minigame variables matches 401 as @a run scoreboard players operation @s checkpoint = @s max_blocks_fallen\r\nexecute if score minigame variables matches 405 as @a run scoreboard players operation @s checkpoint = @s lapscompleted\r\nexecute if score minigame variables matches 410 as @a run scoreboard players operation @s checkpoint = @s weapon_minus_1\r\nexecute if score minigame variables matches 411 as @a run scoreboard players operation @s checkpoint = @s taskscompleted\r\nexecute if score minigame variables matches 291 as @a run scoreboard players operation @s checkpoint = @s taskscompleted\r\nexecute if score minigame variables matches 416 as @a run scoreboard players operation @s checkpoint = @s totalcheckpoints\r\nexecute if score minigame variables matches 417 as @a run scoreboard players operation @s checkpoint = @s buildsCopied\r\nexecute if score minigame variables matches 421 as @a run scoreboard players operation @s checkpoint = @s ItemsFound\r\nexecute if score minigame variables matches 425 as @a run scoreboard players operation @s checkpoint = @s wall\r\nexecute if score minigame variables matches 427 as @a run scoreboard players operation @s checkpoint = @s lapscompleted\r\nexecute if score minigame variables matches 435 as @a run scoreboard players operation @s checkpoint = @s hog_riders_place\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic += @s checkpoint\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic *= players variables\r\nexecute as @a[scores={Player=1..}] run scoreboard players operation @s checkpoint_generic += @s Points\r\nscoreboard players display numberformat @a[scores={checkpoint=0}] checkpoint_generic fixed {text:\"0\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=1}] checkpoint_generic fixed {text:\"1\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=2}] checkpoint_generic fixed {text:\"2\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=3}] checkpoint_generic fixed {text:\"3\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=4}] checkpoint_generic fixed {text:\"4\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=5}] checkpoint_generic fixed {text:\"5\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=6}] checkpoint_generic fixed {text:\"6\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=7}] checkpoint_generic fixed {text:\"7\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=8}] checkpoint_generic fixed {text:\"8\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=9}] checkpoint_generic fixed {text:\"9\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=10}] checkpoint_generic fixed {text:\"10\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=11}] checkpoint_generic fixed {text:\"11\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=12}] checkpoint_generic fixed {text:\"12\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=13}] checkpoint_generic fixed {text:\"13\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=14}] checkpoint_generic fixed {text:\"14\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=15}] checkpoint_generic fixed {text:\"15\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=16}] checkpoint_generic fixed {text:\"16\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=17}] checkpoint_generic fixed {text:\"17\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=18}] checkpoint_generic fixed {text:\"18\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=19}] checkpoint_generic fixed {text:\"19\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=20}] checkpoint_generic fixed {text:\"20\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=21}] checkpoint_generic fixed {text:\"21\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=22}] checkpoint_generic fixed {text:\"22\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=23}] checkpoint_generic fixed {text:\"23\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=24}] checkpoint_generic fixed {text:\"24\",color:\"red\"}\r\nscoreboard players display numberformat @a[scores={checkpoint=25}] checkpoint_generic fixed {text:\"25\",color:\"red\"}\r\n\r\nexecute as @a[gamemode=spectator] unless score @s Player matches 1.. run scoreboard players reset @s checkpoint_generic\r\nexecute unless score minigame variables matches 101..199 run scoreboard players display numberformat @a[gamemode=spectator,scores={Player=1..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 401 run scoreboard players display numberformat @a[gamemode=adventure,scores={Player=1..,max_blocks_fallen=382..},tag=1st_attempt] checkpoint_generic fixed {text:\"☑\",color:\"gold\"}\r\nexecute if score minigame variables matches 401 run scoreboard players display numberformat @a[gamemode=adventure,scores={Player=1..,max_blocks_fallen=382..},tag=!1st_attempt] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 417 run scoreboard players display numberformat @a[scores={Player=1..,buildsCopied=4..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 425 run scoreboard players display numberformat @a[scores={Player=1..,wall=15..}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\nexecute if score minigame variables matches 101..199 as @a unless score @s duelplayer matches 1..2 run scoreboard players reset @s checkpoint_generic\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=0}] checkpoint_generic fixed {text:\"0\",color:\"red\"}\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=1}] checkpoint_generic fixed {text:\"1\",color:\"red\"}\r\nexecute if score minigame variables matches 435 run scoreboard players display numberformat @a[scores={Player=1..,lapscompleted=2}] checkpoint_generic fixed {text:\"☑\",color:\"green\"}\r\n\r\nscoreboard players reset temp_checkpoint_tie variables\r\ntag @a remove temp_checkpoint_tie",
+    "data/mcp/function/assign_finish_threshold.mcfunction": "scoreboard players operation finishThreshold variables = players_minus_1 variables\r\nexecute if score gamemode variables matches 3 if score modified variables matches 1 run scoreboard players set finishThreshold variables 1\r\nexecute if score gamemode variables matches 1..2 if score players variables matches ..4 if score coin_distribution variables matches 1 run scoreboard players set finishThreshold variables 1\r\nexecute unless score gamemode variables matches 0 if score doubles_mode variables matches 1 run scoreboard players operation finishThreshold variables = half_players variables\r\nexecute unless score gamemode variables matches 0 unless score doubles_mode variables matches 1 if score players variables matches 8.. run scoreboard players remove finishThreshold variables 1\r\n\r\nscoreboard players set remainingThreshold variables 1\r\nexecute if score gamemode variables matches 3 if score modified variables matches 1 run scoreboard players operation remainingThreshold variables = players_minus_1 variables\r\nexecute if score doubles_mode variables matches 1 unless score gamemode variables matches 0 run scoreboard players operation remainingThreshold variables = half_players variables",
+    "data/mcp/function/player_circle.mcfunction": "# Function prerequisites:\r\n# 1. radius variables is set to the desired radius of the player circle\r\n# 2. All players getting place in the circle are online and have a minigameplayer score of at least 1 with no duplicates. The scores should be one big straight\r\n# 3. This function is getting executed at the position of the center of the circle\r\n# 4. The players will get teleported(At Yaw=0 by default unless a rotation offset paramter is specified) and will get teleported in order of their minigameplayer score. The exception to this is in a 2v2 minigame where minigameplayer 2 and 3 are switched\r\n\r\nkill @e[tag=rotationOffset]\r\nexecute unless entity @e[tag=center] store result score playersInCircle variables if entity @a[scores={minigameplayer=1..}]\r\nexecute unless entity @e[tag=center] run summon minecraft:marker ^ ^ ^1 {Tags:[\"rotationOffset\"]}\r\nexecute unless entity @e[tag=center] run summon minecraft:marker ~ ~ ~ {Tags:[\"center\"]}\r\nexecute as @e[tag=center,limit=1] at @s facing entity @e[tag=rotationOffset,limit=1] feet run tp @s ~ ~ ~ ~ ~\r\nkill @e[tag=rotationOffset]\r\nexecute unless score gametype variables matches 2 run scoreboard players add minigameplayer variables 1\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 4.. run scoreboard players add minigameplayer variables 1\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 2 run scoreboard players set minigameplayer variables 4\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 3 run scoreboard players set minigameplayer variables 2\r\nexecute if score gametype variables matches 2 if score minigameplayer variables matches 1 run scoreboard players set minigameplayer variables 3\r\nexecute if score gametype variables matches 2 unless score minigameplayer variables matches 1.. run scoreboard players set minigameplayer variables 1\r\nexecute as @a[scores={minigameplayer=1..}] if score @s minigameplayer = minigameplayer variables at @e[tag=center] run function mcp:player_circle_place_player\r\nscoreboard players operation rotationChange variables = 360 constants\r\nscoreboard players operation rotationChange variables /= playersInCircle variables\r\nexecute as @e[tag=center,limit=1] run function mcp:rotate_entity\r\nexecute unless score minigameplayer variables >= playersInCircle variables run function mcp:player_circle\r\nkill @e[tag=center]\r\nscoreboard players reset radius variables\r\nscoreboard players reset rotationChange variables\r\nscoreboard players reset rotation variables\r\nscoreboard players reset playersInCircle variables\r\nscoreboard players reset minigameplayer variables",
+    "data/mcp/function/player_circle_place_player.mcfunction": "execute unless entity @e[tag=playerPosition] run summon minecraft:marker ~ ~ ~ {Tags:[\"playerPosition\"]}\r\nscoreboard players add playerRadius variables 1\r\nexecute as @e[tag=playerPosition] at @s rotated as @e[tag=center] run tp @s ^ ^ ^1\r\nexecute if score playerRadius variables < radius variables run function mcp:player_circle_place_player\r\nexecute unless score playerRadius variables < radius variables at @e[tag=playerPosition,limit=1] run tp @s ~ ~ ~ facing entity @e[tag=center,limit=1]\r\nexecute unless score playerRadius variables < radius variables run kill @e[tag=playerPosition]\r\nexecute unless score playerRadius variables < radius variables run scoreboard players reset playerRadius variables",
+    "data/mcp/function/rotate_entity.mcfunction": "# rotationChange variables must be set and reset outside of this function. rotation variables needs to be reset outside of this function\r\nexecute if score rotationChange variables matches 0 run scoreboard players set rotationChange variables 36\r\nexecute store result score rotation variables run data get entity @s Rotation[0]\r\nscoreboard players operation rotation variables += rotationChange variables\r\nexecute store result storage mcp:variables rotation float 1 run scoreboard players get rotation variables\r\ndata modify entity @s Rotation[0] set from storage mcp:variables rotation",
+    "data/sentry/function/shoot_arrow_1.mcfunction": "#===Trajectory Calculation===\r\n#calculate vertical multiplier\r\nfunction sentry:trig/cos_rx\r\nscoreboard players operation @s vert_mult = @s math_out\r\nexecute store result storage sentry:sentry vert_mult double 0.001 run scoreboard players get @s vert_mult\r\n#execute store result score @s vert_mult run data get storage sentry:sentry vert_mult\r\n#calculate x motion\r\n#formula is (x rotation * vertical multiplier) / 1000000\r\nfunction sentry:trig/sin_ry\r\nscoreboard players operation @s math_out *= @s vert_mult\r\n#\t\t\t\t\tMaximum is   0.00001\r\nexecute store result storage sentry:sentry rx double 0.00001 run scoreboard players get @s math_out\r\n#calculate z motion\r\n#formula is (z rotation * vertical multiplier) / 1000000\r\nfunction sentry:trig/cos_ry\r\nscoreboard players operation @s math_out *= @s vert_mult\r\n#\t\t\t\t\tMaximum is   0.00001\r\nexecute store result storage sentry:sentry rz double 0.00001 run scoreboard players get @s math_out\r\n#calculate y motion\r\n#formula is y rotation / 1000\r\nfunction sentry:trig/sin_rx\r\n#\t\t\t\t\t  Maximum is 0.01\r\nexecute store result storage sentry:sentry ry double 0.01 run scoreboard players get @s math_out\r\n\r\n#===Arrow Shooting Part===\r\n# if shooting non-arrow entities, change all instances of 'arrow' below to the desired entity, as well as the target selectors as appropriate.\r\nexecute at @s anchored eyes run summon minecraft:arrow ^ ^ ^0.5 {Tags:[\"init\"]}\r\nexecute at @s run data modify entity @e[type=minecraft:arrow,tag=init,sort=nearest,limit=1,nbt={life:0s}] Owner set from entity @e[type=!minecraft:arrow,sort=nearest,limit=1] UUID\r\nexecute at @s as @e[type=minecraft:arrow,tag=init,sort=nearest,limit=1] run function sentry:add_proj_motion\r\nexecute if score minigame variables matches 435 run data modify entity @n[type=minecraft:arrow] item.components.\"minecraft:potion_contents\" set value {potion:\"minecraft:fire_resistance\"}\r\nexecute if score minigame variables matches 410 run data modify entity @n[type=minecraft:arrow] damage set value 1.25d\r\ntag @e[tag=init] remove init",
+    "data/sentry/function/add_proj_motion.mcfunction": "execute at @s run data modify entity @s Motion[0] set from storage sentry:sentry rx\r\nexecute at @s run data modify entity @s Motion[2] set from storage sentry:sentry rz\r\nexecute unless entity @s[nbt={active_effects:[{id:\"minecraft:levitation\"}]}] at @s run data modify entity @s Motion[1] set from storage sentry:sentry ry",
+    "data/sentry/function/trig/cos_rx.mcfunction": "execute at @s rotated 0 ~ run summon minecraft:area_effect_cloud ^ ^ ^1 {Tags:[\"trig\"],Radius:0.0f}\r\nexecute store result score @s math_out run data get entity @s Pos[2] -1000\r\nexecute store result score @s math_temp run data get entity @e[type=minecraft:area_effect_cloud,tag=trig,limit=1] Pos[2] -1000\r\nscoreboard players operation @s math_out -= @s math_temp\r\nkill @e[type=minecraft:area_effect_cloud,tag=trig]",
+    "data/sentry/function/trig/sin_rx.mcfunction": "execute at @s rotated 0 ~ run summon minecraft:area_effect_cloud ^ ^ ^1 {Tags:[\"trig\"],Radius:0.0f}\r\nexecute store result score @s math_out run data get entity @s Pos[1] -1000\r\nexecute store result score @s math_temp run data get entity @e[type=minecraft:area_effect_cloud,tag=trig,limit=1] Pos[1] -1000\r\nscoreboard players operation @s math_out -= @s math_temp\r\nkill @e[type=minecraft:area_effect_cloud,tag=trig]",
+    "data/sentry/function/trig/cos_ry.mcfunction": "execute unless score playingWhatTheCluck variables matches 1.. at @s rotated ~ 0 run summon minecraft:area_effect_cloud ^ ^ ^1 {Tags:[\"trig\"],Radius:0.0f}\r\nexecute unless score playingWhatTheCluck variables matches 1.. store result score @s math_out run data get entity @s Pos[2] -1000\r\nexecute if score playingWhatTheCluck variables matches 1.. rotated ~ 0 run summon minecraft:area_effect_cloud ^ ^ ^1 {Tags:[\"trig\"],Radius:0.0f}\r\nexecute if score playingWhatTheCluck variables matches 1.. store result score @s math_temp run data get entity @s Pos[2] -1000\r\nexecute if score playingWhatTheCluck variables matches 1.. run scoreboard players operation @s math_out += @s math_temp\r\nexecute store result score @s math_temp run data get entity @e[type=minecraft:area_effect_cloud,tag=trig,limit=1] Pos[2] -1000\r\nscoreboard players operation @s math_out -= @s math_temp\r\nkill @e[type=minecraft:area_effect_cloud,tag=trig]",
+    "data/sentry/function/trig/sin_ry.mcfunction": "execute unless score playingWhatTheCluck variables matches 1.. at @s rotated ~ 0 run summon minecraft:area_effect_cloud ^ ^ ^1 {Tags:[\"trig\"],Radius:0.0f}\r\nexecute unless score playingWhatTheCluck variables matches 1.. store result score @s math_out run data get entity @s Pos[0] -1000\r\nexecute if score playingWhatTheCluck variables matches 1.. rotated ~ 0 run summon minecraft:area_effect_cloud ^ ^ ^1 {Tags:[\"trig\"],Radius:0.0f}\r\nexecute if score playingWhatTheCluck variables matches 1.. store result score @s math_temp run data get entity @s Pos[0] -1000\r\nexecute if score playingWhatTheCluck variables matches 1.. run scoreboard players operation @s math_out += @s math_temp\r\nexecute store result score @s math_temp run data get entity @e[type=minecraft:area_effect_cloud,tag=trig,limit=1] Pos[0] -1000\r\nscoreboard players operation @s math_out -= @s math_temp\r\nkill @e[type=minecraft:area_effect_cloud,tag=trig]"
+  },
+  "bars": [
+    {
+      "position": [
+        -249.5,
+        25,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -250.5,
+        25,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -249.5,
+        26,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -250.5,
+        26,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -249.5,
+        27,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -250.5,
+        27,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -255.5,
+        25,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -256.5,
+        25,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -255.5,
+        26,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -256.5,
+        26,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -255.5,
+        27,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -256.5,
+        27,
+        -405.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -249.5,
+        25,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -250.5,
+        25,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -249.5,
+        26,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -250.5,
+        26,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -249.5,
+        27,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -250.5,
+        27,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -255.5,
+        25,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -256.5,
+        25,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -255.5,
+        26,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -256.5,
+        26,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -255.5,
+        27,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -256.5,
+        27,
+        -346.5
+      ],
+      "properties": {
+        "north": "false",
+        "south": "false",
+        "east": "true",
+        "west": "true"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        25,
+        -372.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        25,
+        -373.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        26,
+        -372.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        26,
+        -373.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        27,
+        -372.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        27,
+        -373.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        25,
+        -378.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        25,
+        -379.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        26,
+        -378.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        26,
+        -379.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        27,
+        -378.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -282.5,
+        27,
+        -379.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        25,
+        -372.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        25,
+        -373.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        26,
+        -372.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        26,
+        -373.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        27,
+        -372.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        27,
+        -373.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        25,
+        -378.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        25,
+        -379.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        26,
+        -378.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        26,
+        -379.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        27,
+        -378.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    },
+    {
+      "position": [
+        -223.5,
+        27,
+        -379.5
+      ],
+      "properties": {
+        "north": "true",
+        "south": "true",
+        "east": "false",
+        "west": "false"
+      }
+    }
+  ],
+  "rules": {
+    "durationTicks": 2400,
+    "weaponStages": [
+      "laser",
+      "netherite_axe",
+      "trident",
+      "wooden_sword",
+      "sharp_snowballs"
+    ],
+    "maximumUpgradesPerTick": 1,
+    "laserCooldownTicks": 19,
+    "laserSpeed": 10,
+    "laserArrowDamage": 1.25,
+    "snowballSupplyTicks": 30,
+    "snowballMaximum": 2,
+    "snowArrowPierceLevel": 100,
+    "gateLayerTicks": [
+      16,
+      32,
+      48
+    ],
+    "towerTranslation": [
+      0,
+      72,
+      0
+    ]
+  },
+  "adaptations": [
+    "Only native entities and players belonging to this match are affected.",
+    "Source global nearest snowball/arrow ownership is replaced by an exact one-to-one projectile pair.",
+    "Source trig floor differences and native arrow damage/motion are preserved; original global command blocks are not run.",
+    "Free-for-all five-round server series; source Doubles remains unexposed."
+  ],
+  "geometry": {
+    "weapon_devolution_arena": {
+      "bounds": {
+        "min": [
+          -295,
+          17,
+          -418
+        ],
+        "max": [
+          -212,
+          50,
+          -335
+        ]
+      },
+      "blocks": 42492,
+      "replacements": {
+        "minecraft:iron_chain -> minecraft:chain": 1
+      },
+      "omittedBlockEntityNbt": {
+        "minecraft:hopper": 16,
+        "minecraft:skull": 9,
+        "minecraft:banner": 12,
+        "minecraft:sign": 5
+      }
+    },
+    "weapon_devolution_tower_1": {
+      "bounds": {
+        "min": [
+          -291,
+          -21,
+          -414
+        ],
+        "max": [
+          -275,
+          17,
+          -398
+        ]
+      },
+      "blocks": 923,
+      "replacements": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "weapon_devolution_tower_2": {
+      "bounds": {
+        "min": [
+          -232,
+          -21,
+          -414
+        ],
+        "max": [
+          -216,
+          15,
+          -398
+        ]
+      },
+      "blocks": 924,
+      "replacements": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "weapon_devolution_tower_3": {
+      "bounds": {
+        "min": [
+          -232,
+          -21,
+          -355
+        ],
+        "max": [
+          -216,
+          15,
+          -339
+        ]
+      },
+      "blocks": 923,
+      "replacements": {},
+      "omittedBlockEntityNbt": {}
+    },
+    "weapon_devolution_tower_4": {
+      "bounds": {
+        "min": [
+          -291,
+          -21,
+          -355
+        ],
+        "max": [
+          -275,
+          15,
+          -339
+        ]
+      },
+      "blocks": 914,
+      "replacements": {},
+      "omittedBlockEntityNbt": {}
+    }
+  }
+}

@@ -2,10 +2,14 @@ package com.example.pvp.arena;
 
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Direction;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -44,17 +48,24 @@ public final class MapBuildQueue {
     private static final int INITIAL_CAPACITY = 1 << 13;
 
     private final ArenaWorld world;
-    private final int centerX;
-    private final int centerZ;
-    private final int halfExtent;
+    private final int minimumX, minimumY, minimumZ;
+    private final int maximumX, maximumY, maximumZ;
 
     private long[] positions = new long[INITIAL_CAPACITY];
     private BlockState[] states = new BlockState[INITIAL_CAPACITY];
     private int size;
     private int cursor;
+    private int cursorOffset;
+    private int totalBlocks;
+    private int pointOperations;
+    // Zero means one ordinary point. Otherwise upper bits encode length-1,
+    // lower two bits encode positive X/Y/Z. Allocate only when a run is used.
+    private int[] spans;
+    private java.util.BitSet snapshotOperations;
 
-    /** 懒建的读取叠加层（只有生成器真的回读时才存在）。 */
-    private Long2ObjectOpenHashMap<BlockState> overlay;
+    /** RLE回读只索引原始操作，不把一千多万格展开成坐标对象。 */
+    private Long2IntOpenHashMap overlay;
+    private Long2ObjectOpenHashMap<IntArrayList> overlayRuns;
 
     private final List<BlockEntity> blockEntities = new ArrayList<>();
     private final List<Entity> entities = new ArrayList<>();
@@ -72,33 +83,68 @@ public final class MapBuildQueue {
      * @param halfExtent 区域半宽（必须 &lt; REGION_SPACING/2，否则会误判到相邻竞技场的方块）
      */
     public MapBuildQueue(ArenaWorld world, BlockPos center, int halfExtent) {
+        this(world, new BlockPos(center.getX() - halfExtent, Integer.MIN_VALUE, center.getZ() - halfExtent),
+                new BlockPos(center.getX() + halfExtent, Integer.MAX_VALUE, center.getZ() + halfExtent));
+    }
+
+    /** 非正方形原图仍保持一段真实坐标，不通过扩大半径侵入相邻对局。 */
+    public MapBuildQueue(ArenaWorld world, BlockPos absoluteMin, BlockPos absoluteMax) {
+        if (absoluteMin.getX() > absoluteMax.getX() || absoluteMin.getY() > absoluteMax.getY()
+                || absoluteMin.getZ() > absoluteMax.getZ()) throw new IllegalArgumentException("Inverted map queue bounds");
         this.world = world;
-        this.centerX = center.getX();
-        this.centerZ = center.getZ();
-        this.halfExtent = halfExtent;
+        this.minimumX = absoluteMin.getX(); this.minimumY = absoluteMin.getY(); this.minimumZ = absoluteMin.getZ();
+        this.maximumX = absoluteMax.getX(); this.maximumY = absoluteMax.getY(); this.maximumZ = absoluteMax.getZ();
     }
 
     // ==================== 生成阶段（staging） ====================
 
     /** 暂存一次方块写入。 */
     public void stage(BlockPos pos, BlockState state) {
+        this.stageRun(pos, state, Direction.Axis.X, 1);
+    }
+
+    /**
+     * 精确保留连续段及其与普通stage的相对顺序；只在flush预算内逐格落盘。
+     * 423原图约1293万格，提前展开会额外占用百万级数组/哈希坐标。
+     */
+    public void stageRun(BlockPos start, BlockState state, Direction.Axis axis, int length) {
+        if (length <= 0 || length > 0x1fffffff || axis == null) throw new IllegalArgumentException("Invalid map run");
+        int x = start.getX(), y = start.getY(), z = start.getZ();
+        switch (axis) {
+            case X -> x = Math.addExact(x, length - 1);
+            case Y -> y = Math.addExact(y, length - 1);
+            case Z -> z = Math.addExact(z, length - 1);
+        }
+        long end = BlockPos.asLong(x, y, z);
+        if (BlockPos.unpackLongX(end) != x || BlockPos.unpackLongY(end) != y || BlockPos.unpackLongZ(end) != z)
+            throw new IllegalArgumentException("Map run exceeds packed block coordinates");
+        int nextTotal = Math.addExact(this.totalBlocks, length);
         if (this.size == this.positions.length) {
             int next = this.size << 1;
-            long[] np = new long[next];
-            BlockState[] ns = new BlockState[next];
-            System.arraycopy(this.positions, 0, np, 0, this.size);
-            System.arraycopy(this.states, 0, ns, 0, this.size);
-            this.positions = np;
-            this.states = ns;
+            this.positions = java.util.Arrays.copyOf(this.positions, next);
+            this.states = java.util.Arrays.copyOf(this.states, next);
+            if (this.spans != null) this.spans = java.util.Arrays.copyOf(this.spans, next);
         }
-        long packed = pos.asLong();
-        this.positions[this.size] = packed;
+        if (length > 1 && this.spans == null) this.spans = new int[this.positions.length];
+        this.positions[this.size] = start.asLong();
         this.states[this.size] = state;
+        if (this.spans != null) this.spans[this.size] = length == 1 ? 0 : ((length - 1) << 2) | axis.ordinal();
+        if (this.overlay != null) this.indexOverlay(this.size);
         this.size++;
-        if (this.overlay != null) {
-            this.overlay.put(packed, state);
-        }
+        if (length == 1) this.pointOperations++;
+        this.totalBlocks = nextTotal;
     }
+
+    /** Static saved terrain imports/cleanup bypass native creation physics only when explicitly requested. */
+    public void stageSnapshotRun(BlockPos start, BlockState state, Direction.Axis axis, int length) {
+        int index = this.size;
+        this.stageRun(start, state, axis, length);
+        if (this.snapshotOperations == null) this.snapshotOperations = new java.util.BitSet();
+        this.snapshotOperations.set(index);
+    }
+
+    private int runLength(int index) { return this.spans == null ? 1 : (this.spans[index] >>> 2) + 1; }
+    private int runAxis(int index) { return this.spans == null ? 0 : this.spans[index] & 3; }
 
     /**
      * 回读暂存内容。第一次调用会建立叠加层并回填已暂存的写入 ——
@@ -108,19 +154,46 @@ public final class MapBuildQueue {
      */
     public BlockState peek(BlockPos pos) {
         if (this.overlay == null) {
-            this.overlay = new Long2ObjectOpenHashMap<>(Math.max(16, this.size * 2));
-            for (int i = 0; i < this.size; i++) {
-                // 同一格被写多次时后面的覆盖前面的 —— 与"直接写世界"的最终结果一致
-                this.overlay.put(this.positions[i], this.states[i]);
-            }
+            this.overlay = new Long2IntOpenHashMap(Math.max(16, this.pointOperations));
+            this.overlay.defaultReturnValue(-1);
+            this.overlayRuns = new Long2ObjectOpenHashMap<>();
+            for (int index = 0; index < this.size; index++) this.indexOverlay(index);
         }
-        return this.overlay.get(pos.asLong());
+        int point = this.overlay.get(pos.asLong());
+        IntArrayList runs = this.overlayRuns.get(ChunkPos.toLong(pos.getX() >> 4, pos.getZ() >> 4));
+        if (runs != null) for (int cursor = runs.size() - 1; cursor >= 0; cursor--) {
+            int index = runs.getInt(cursor);
+            if (index <= point) break;
+            long packed = this.positions[index];
+            int dx = pos.getX() - BlockPos.unpackLongX(packed), dy = pos.getY() - BlockPos.unpackLongY(packed), dz = pos.getZ() - BlockPos.unpackLongZ(packed);
+            int length = this.runLength(index);
+            boolean contains = switch (this.runAxis(index)) {
+                case 0 -> dy == 0 && dz == 0 && dx >= 0 && dx < length;
+                case 1 -> dx == 0 && dz == 0 && dy >= 0 && dy < length;
+                case 2 -> dx == 0 && dy == 0 && dz >= 0 && dz < length;
+                default -> throw new IllegalStateException("Invalid map run axis");
+            };
+            if (contains) return this.states[index];
+        }
+        return point < 0 ? null : this.states[point];
+    }
+
+    private void indexOverlay(int index) {
+        int length = this.runLength(index);
+        long packed = this.positions[index];
+        if (length == 1) { this.overlay.put(packed, index); return; }
+        int x = BlockPos.unpackLongX(packed), z = BlockPos.unpackLongZ(packed);
+        int maxX = this.runAxis(index) == 0 ? x + length - 1 : x;
+        int maxZ = this.runAxis(index) == 2 ? z + length - 1 : z;
+        for (int cx = x >> 4; cx <= maxX >> 4; cx++) for (int cz = z >> 4; cz <= maxZ >> 4; cz++)
+            this.overlayRuns.computeIfAbsent(ChunkPos.toLong(cx, cz), ignored -> new IntArrayList()).add(index);
     }
 
     /** 该位置是否落在本场区域内（区域外不做"未暂存即空气"的推断）。 */
     public boolean inRegion(BlockPos pos) {
-        return Math.abs(pos.getX() - this.centerX) <= this.halfExtent
-                && Math.abs(pos.getZ() - this.centerZ) <= this.halfExtent;
+        return pos.getX() >= this.minimumX && pos.getX() <= this.maximumX
+                && pos.getY() >= this.minimumY && pos.getY() <= this.maximumY
+                && pos.getZ() >= this.minimumZ && pos.getZ() <= this.maximumZ;
     }
 
     /**
@@ -159,10 +232,11 @@ public final class MapBuildQueue {
         this.closed = true;
         // 生成阶段结束后不再需要回读叠加层
         this.overlay = null;
+        this.overlayRuns = null;
     }
 
     public int totalStaged() {
-        return this.size;
+        return this.totalBlocks;
     }
 
     /** 已落盘方块数（进度显示用）。 */
@@ -172,11 +246,11 @@ public final class MapBuildQueue {
 
     /** 铺图进度 0..1（方块 + 实体 + 方块实体）。 */
     public double progress() {
-        int total = this.size + this.blockEntities.size() + this.entities.size();
+        long total = (long) this.totalBlocks + this.blockEntities.size() + this.entities.size();
         if (total == 0) {
             return 1.0;
         }
-        int done = this.cursor + this.blockEntityCursor + this.entityCursor;
+        long done = (long) this.placed + this.blockEntityCursor + this.entityCursor;
         return Math.min(1.0, done / (double) total);
     }
 
@@ -196,12 +270,23 @@ public final class MapBuildQueue {
             long deadline = started + budgetMillis * 1_000_000L;
             int batch = 0;
             while (this.cursor < this.size) {
-                this.world.setBlockStateDirect(
-                        BlockPos.fromLong(this.positions[this.cursor]), this.states[this.cursor]);
-                this.cursor++;
+                long start = this.positions[this.cursor];
+                int x = BlockPos.unpackLongX(start), y = BlockPos.unpackLongY(start), z = BlockPos.unpackLongZ(start);
+                switch (this.runAxis(this.cursor)) {
+                    case 0 -> x += this.cursorOffset;
+                    case 1 -> y += this.cursorOffset;
+                    case 2 -> z += this.cursorOffset;
+                    default -> throw new IllegalStateException("Invalid map run axis");
+                }
+                BlockPos position = new BlockPos(x, y, z);
+                if (this.snapshotOperations != null && this.snapshotOperations.get(this.cursor))
+                    this.world.setBlockStateSnapshotDirect(position, this.states[this.cursor]);
+                else this.world.setBlockStateDirect(position, this.states[this.cursor]);
                 this.placed++;
-                if (++batch >= TIME_CHECK_BATCH && System.nanoTime() >= deadline) {
-                    break;
+                if (++this.cursorOffset == this.runLength(this.cursor)) { this.cursor++; this.cursorOffset = 0; }
+                if (++batch >= TIME_CHECK_BATCH) {
+                    batch = 0;
+                    if (System.nanoTime() >= deadline) break;
                 }
             }
             if (this.cursor < this.size) {
@@ -275,5 +360,7 @@ public final class MapBuildQueue {
         this.storageReleased = true;
         this.positions = null;
         this.states = null;
+        this.spans = null;
+        this.snapshotOperations = null;
     }
 }

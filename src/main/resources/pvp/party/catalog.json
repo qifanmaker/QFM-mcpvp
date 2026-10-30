@@ -11,17 +11,36 @@
       "assets/minecraft/lang/zh_cn.json"
     ]
   },
-  "scope": "Native port with 9 of 102 catalogued games implemented. Further minigame migration is paused by request; the server runs a five-minigame ranked series. Remaining games, boards and original Party modes are not implemented.",
+  "scope": "Native port with 28 of 102 catalogued games implemented. Migration continues in source-audited batches; the server runs a five-minigame ranked series. Remaining 74 games, boards and original Party modes are not implemented.",
   "entryCount": 102,
   "implementedGameIds": [
     401,
+    402,
+    403,
+    404,
+    405,
+    406,
+    407,
     408,
     409,
+    410,
+    411,
     412,
     413,
+    414,
     415,
+    416,
+    417,
+    418,
+    419,
+    420,
+    421,
+    422,
+    423,
     424,
     425,
+    426,
+    427,
     428
   ],
   "sessionBehavior": "Server-adapted series of five distinct implemented minigames. Each round votes among unplayed games. Rank points are original player count minus competition rank plus one; equal raw scores get equal rank/points. The final ranking uses the five-round sum, with one match result recorded. Original Quick Play is a single minigame.",
@@ -68,8 +87,8 @@
     },
     {
       "name": "Remaining minigames",
-      "status": "paused",
-      "remainingCount": 93
+      "status": "in_progress",
+      "remainingCount": 74
     },
     {
       "name": "Custom resource-pack audiovisuals",
@@ -78,17 +97,36 @@
     {
       "name": "Achievements",
       "status": "planned"
+    },
+    {
+      "name": "Difficulty selection and original variants",
+      "status": "planned"
+    },
+    {
+      "name": "Original dimension atmosphere",
+      "status": "planned"
+    },
+    {
+      "name": "Scoped native block-drop rules",
+      "status": "implemented"
     }
   ],
   "knownDifferences": [
     "Difficulty selection is not exposed. Normal difficulty is used where source difficulty branches apply: Dropper ring spacing 10+2*min(level,5), red-light reaction window 19 ticks; multiplayer time limits are used.",
     "Same-tick finishes or falls are tied rather than resolved by selector order.",
-    "Scene extraction excludes entities and block-entity NBT; original decorative barrel inventories, custom skull textures, banner patterns, sign text and campfire contents are not reproduced.",
+    "Scene extraction itself excludes entities and block-entity NBT. Some modules separately restore safe literal sign text and banner patterns; remaining decorative barrel inventories, custom skull textures, campfire contents and other original decorative NBT are still incomplete.",
     "Nine newer decorative plants in Tile Capture medium are replaced by 1.21.1 counterparts; resource metadata records exact replacements. The 11 phase-2 crops require no additional block substitutions.",
-    "Decorative water and lava remain static inside Party scenes to prevent cropped channels from flowing into other arenas.",
+    "Decorative water and lava remain static in ordinary cropped Party scenes. Port Priority opts into native local flooding for ship navigation, with scoped terrain tracking and the original world-bottom limit; fluid cannot cross match boundaries.",
     "Disconnecting or leaving before results forfeits this server's match: remove the player from pending rankings and continue, ending when fewer than two remain. Published results are frozen. Original end functions sometimes wait for every participant to reconnect; this port does not.",
     "Runner follows the active source functions: falling colored blocks can damage lower-floor players and are removed after landing; lower oak-plank floors are not destroyed by the falling blocks. The normal 10-tick stillness check is used; the source high-ping 20-tick setting is not exposed.",
-    "The new crops omit original NBT for 10 banners in Memory Lane first, 20 signs in Memory Lane second, and 8 banners, 12 signs and 4 campfires in Meat Slap. Generated gameplay labels do not restore these original decorative contents."
+    "The new crops omit original NBT for 10 banners in Memory Lane first, 20 signs in Memory Lane second, and 8 banners, 12 signs and 4 campfires in Meat Slap. Generated gameplay labels do not restore these original decorative contents.",
+    "Platforms retains the original exactly-four-player constraint and six internal gem rounds; it is offered only while four participants remain eligible. Hidden-round signs are generated with native scoped callbacks instead of copying source run-command click events.",
+    "Cave Parkour retains the complete 1,031,051-block cave terrain, 39 checkpoint anchors and a linked random route graph with 22 branches across 11 nodes. Its 28 iron_chain blocks use the 1.21.1 chain name with the same axis and waterlogged properties.",
+    "Whack-A-Mob and Monster Shoot use scoped native target subclasses to retain targets on a Peaceful host and suppress original-map-disabled loot and XP, without changing shared-world difficulty, gamerules or ordinary mobs. Scoped explosion and silverfish protections reproduce the original mobGriefing=false behavior.",
+    "Native PvP collision is selected per Party round: noncombat games keep the original pvp=false arrow pass-through, while Meat Slap, One Shot Wonder, Knockout, Weapon Devolution and Tedious Tasks retain player combat. This does not change the shared server PvP setting.",
+    "End/Nether scenes are rebased into the shared arena dimension. Original dimension atmosphere remains pending. Source tile-drop rules are scoped to each Party region, including native items and XP: disabled by default and enabled for Tedious Tasks, without modifying the shared world gamerule.",
+    "Source default randomTickSpeed=0 is scoped to Party chunks, including pending cleanup. Farming Frenzy performs native uniform16-cubed-section sampling only in its own scene, after its source tick processing; ordinary worlds retain their gamerules. Native terrain/piston/fluid changes are tracked through actual WorldChunk writes and cleaned without retaining late falling blocks.",
+    "Pearl Hurl retains native1.21.1 projectile simulation. Official1.21.10 bytecode has a different gravity/drag/collision order and early entity-hit margin; exact trajectory parity remains pending. The confirmed source pre-world versus server END-tick landing guard difference is adapted only after a successful owned native teleport."
   ],
   "games": [
     {
@@ -457,45 +495,184 @@
       "name": "Whack-A-Mob (WAM)",
       "category": "free_for_all",
       "sourceFunction": "whack_a_mob",
-      "status": "planned",
-      "nameZhSource": "怪物打地鼠"
+      "status": "implemented_phase_2",
+      "nameZhSource": "怪物打地鼠",
+      "implementationBatch": 4,
+      "geometryResources": [
+        "whack_a_mob"
+      ],
+      "sourceFunctionSha256": {
+        "wam_enderman_reappear": "319cc419c7f829c1db71f4f4717fbd2f98c40facf8b62c308b9ad58892b42b55",
+        "wam_enderman_teleport": "7bbcec74b61eec27c07c83d7ea374e9da5ffed002078951ad75d7d96d384847b",
+        "wam_summon_mob": "10de5affc00d4f8818c2107f6e61a90769e1d7c57be7cd69674268e8f9303615",
+        "wam_summon_mob2": "97420e1633186044dd8d167e6f1e40356b91102b005b008a59d4db09cab97bad",
+        "whack_a_mob": "360663cacda8c2a39febc7fb75297273e05a8ed938165097784d0a16fc3a0e83",
+        "whack_a_mob_end": "d1a6d4aa7f4102ea0a305904df1d075d67d9156d33953ca0f8b685c62a5c2561",
+        "whack_a_mob_rules": "49d9d2792417c52d07562102c846927ef2576e5f56d9136039c12213c0fa9dad",
+        "whack_a_mob_start": "6ff305bf82c4df4750b726f7a733371c19eecf098b907567f0439b78c00e7fbb",
+        "whack_a_mob_tick": "15fc136f74279605273dd2376ff2885ade01a688de450fee6c9a3b6eb4f0613a"
+      },
+      "sourceAuditResource": "mob_games_rules.json",
+      "implementationNotes": [
+        "Original 90-second normal-difficulty Whack-A-Mob; whack_a_mob_start overrides the entry function's preliminary 1200-tick value with 1800 ticks. A shared 20-tick spawn cycle chooses a weighted type and an empty one of nine holes, mirrored into max(4, initial player count) source rooms.",
+        "Native netherite-axe cooldown and damage, iron armor mitigation, health values 10/10/10/9/4/10, Enderman NoAI/hide/reappear and source movement/life rules are retained. Source type weights are zombie 4, wither skeleton 1, armored zombie villager 1, enderman 1, blaze 2 and zombified piglin 2.",
+        "Per-type killed statistics award each type once per source tick, even for multiple same-type kills. Points flush before the final alive-target drain check. Retraction /kill does not award specific killed-type statistics without a direct player damage source.",
+        "The source keeps the previous hole when all nine are occupied, and excludes Blazes from the ordinary low-Y retraction kill. Unhit Blazes may continue descending until source-world void damage; the game waits for these live targets rather than applying a new timeout. Source Y<-128 void behavior is retained despite arena translation.",
+        "The complete ten-room geometry is preserved. Twenty iron_chain blocks use the original 1.21.1 chain name with unchanged axis/waterlogged properties. Fifty decorative pipe signs, twenty decorative skull profiles and nine banner patterns are not reconstructed.",
+        "Player environmental damage and generic-kill retries remain enabled; damage from other players is disabled. Retries reset health, fire, hit state and equipment, and apply native respawn protection. Fall damage follows the arena default for this server's five-round adaptation rather than inheriting the original map's preceding mode state."
+      ]
     },
     {
       "id": 403,
       "name": "Monster Shoot (MSh)",
       "category": "free_for_all",
       "sourceFunction": "monster_shoot",
-      "status": "planned",
-      "nameZhSource": "狙击怪物"
+      "status": "implemented_phase_2",
+      "nameZhSource": "狙击怪物",
+      "implementationBatch": 4,
+      "geometryResources": [
+        "monster_shoot"
+      ],
+      "sourceFunctionSha256": {
+        "end_monster_shoot": "c6ffcdc60b1825ddca00d0d21628c8fc15f153142ab006d0c7a773db165d1d4e",
+        "monster_shoot": "09e3d454e8cea69d36830583d84a3ac5d0baee5e14053d21ca86a7cf0063cf95",
+        "monster_shoot_rules": "d059ef746bc036e29eb7c9eccaa843a348f2648cc1185d2eba614252313eb574",
+        "monster_shoot_start": "25def69a98595139025a2fe4c24f46cf0df666b3581df9f6436888d9a009aa1d",
+        "monster_shoot_tick": "66a1b1d25cb709640cb57b01913c7ab1dcf5db851fabc6708a14209ea6aaf3cc",
+        "ms_spawn_monster": "b01a674e841673b6dd0278158a5d0ba460127d4e76cb4d8b4f62f51213e008cb"
+      },
+      "sourceAuditResource": "mob_games_rules.json",
+      "implementationNotes": [
+        "Original 60-second Monster Shoot with 25 random spawn markers, source type weights zombie 5, creeper 3, silverfish 2 and skeleton 2, and player-count spawn delays 20/17/14/12/10/9/8 ticks for <=4/5/6/7/8/9/10 players.",
+        "All targets have five health. Zombies ride invisible five-health chickens; skeletons/zombies wear stone buttons as helmets. Native AI, gravity, slow falling, chicken gliding, passenger motion, collision and ground/orphan cleanup are retained.",
+        "The bow retains Power V and Infinity. Actual arrows receive PierceLevel 1, following the source tick rather than the decorative Piercing V enchantment. Points are zombie 1, creeper 2, skeleton 3, silverfish 5 and chicken 1, coalesced once per player/type/source tick.",
+        "After 1200 ticks spawning stops and the game waits for no alive monster-tagged target. The source end test runs before pending-stat flush and removes objectives before placements, so pending points on the final drain tick are discarded; corpses do not delay this condition.",
+        "Five or more players use the original radius-12 player_circle with integer floor(360/N) yaw increments and centered execute-position coordinates. The complete pit, ledges, bottom introduction position and spawn-height terrain are preserved; twelve decorative banner patterns are omitted."
+      ]
     },
     {
       "id": 404,
       "name": "Cave Parkour (ACP)",
       "category": "free_for_all",
       "sourceFunction": "parkour",
-      "status": "planned"
+      "status": "implemented_phase_2",
+      "implementationBatch": 3,
+      "geometryResources": [
+        "cave_parkour",
+        "cave_parkour_templates"
+      ],
+      "sourceFunctionSha256": {
+        "end_parkour": "7292d7dcb23f7fd62664450463523ff3e55032c9c9134bf9530a91a64470061d",
+        "parkour": "a7ac1910f2819f2260f0cc1b2393c7762a10e1486e8c3a764dd31811093453bc",
+        "parkour_randomize_path": "5e2600ce62634ea87b3ad1b5efae534b96ed2534cefda2573a958055517c7dd3",
+        "parkour_randomize_path2": "120b6066366f245dc82fa524412141da6d907aed71c17e659f7fbaa4fa5695d1",
+        "parkour_randomize_path3": "16846b307eb88d117da4d8e41251ae76e378b5dfb088e95b45617dcce9d0edf9",
+        "parkour_rules": "b6f8fe2c7985fb51032a868faebc1acb79571bec402b3c19bd029bbb3ce0cf2b",
+        "parkour_start": "f8032c735fdf6bd79bffacd2f1d072a661a981e0f74f5823f69502a6a66ce09b",
+        "parkour_tick": "3a033d5215b525c0aba8ec4d5c37ca134734e90ad113b431bb8f182a096f3c8d"
+      },
+      "sourceAuditResource": "phase3_source_audit.json",
+      "implementationNotes": [
+        "Original 200-second multiplayer parkour with 15 progression stages and 39 possible checkpoint anchors. A checkpoint requires the original radius and redstone-lamp check; the finish requires the original beacon check.",
+        "The 22 original command-block branch chains are converted into ordered typed set/fill/clone data in cave_parkour_routes.json. Only the selected branch successor is visited, preserving linked random routes and terminal shortcuts.",
+        "Right-clicking the checkpoint reset item or dying retries from the last saved checkpoint. Source environmental damage, hunger saturation and invisibility are scoped to participants. Ranking combines checkpoint progress with order of reaching that progress.",
+        "The 64 original arrow signs and 14 clone-source sign texts are extracted as whitelisted literal strings; native text updates preserve wayfinding without copying click events or arbitrary block-entity NBT."
+      ]
     },
     {
       "id": 405,
       "name": "Raft Racers (RRs)",
       "category": "free_for_all",
       "sourceFunction": "boat_race",
-      "status": "planned"
+      "status": "implemented_phase_2",
+      "implementationBatch": 5,
+      "geometryResources": [
+        "raft_racers"
+      ],
+      "implementationNotes": [
+        "Current source entry uses boat_race_generate_mpm in the End, with four routes 11..14; the obsolete six Overworld routes are preserved only as source hashes. Complete active course is 313x71x383 and is never compressed or folded.",
+        "Native bamboo raft, packed-ice physics and bubble columns; sequential source light markers at player Y+10, finish coral at Y-1.5, two laps, 3600 ticks and N-1 finish threshold. Unfinished racers rank by laps times initial count plus original last-lap recency order; intermediate waypoints do not add points.",
+        "Owner-scoped recall item works by right-click or drop, with 200-tick cooldown. Native boat/player leash, packed-ice safe marker and below-Y44 replacement follow the source; all boats, rabbits, arrows and tagged drops are scoped and removed on close.",
+        "1.21.1 steering requires player as first passenger and invisible source rabbit second. Invulnerable source rafts also suppress legacy 1.21.1 fall destruction while retaining native movement. The source player-10 reset-token mismatch is adapted to UUID ownership."
+      ],
+      "sourceAuditResource": "raft_racers_rules.json",
+      "sourceFunctionSha256": {
+        "boat_race": "2f55a0fc9f8591ebb7e7844b46899ecc19685a9ff5802187e68d5f4d77ae78c4",
+        "boat_race_generate": "2942d4e04bff1ec3f2dad59022c426101ab38b8f84a33b930478bdd201fbd357",
+        "boat_race_generate2": "ae26ed149477aa54e8218601202ea9fdf104b54352586f319c74ba8dc635a3ac",
+        "boat_race_generate3": "3236976d5aee96d3bd590fbf6745778019c155006fc4f0f85d7869903bfdf09a",
+        "boat_race_generate4": "e1e92961832e4a4f984b7e6dbb86236c0055338455881ea06bad3f624de81882",
+        "boat_race_generate_mpm": "f51e5e53864490ed6813deefb6f08449452c8cc1a564419d0a1b6e7c2ba5c436",
+        "boat_race_item_tick": "293342782b6334706e4fcbb7eb5b1bf0cab706200a2365270e3e469b06f9b9c0",
+        "boat_race_new_boat": "8cc148ef400be220c0a1da946d333d36f4722c5a702befd2799f9e9620cb2e9d",
+        "boat_race_rules": "112cfaa654240f09d0340f727c08fe80bc8fe209c9771ec36a2d733e3124f71f",
+        "boat_race_start": "d9da03f2c9419285c99622fa52803712a38f37d1cc9c04fca89f56351ea957e4",
+        "boat_race_tick": "a33e3d3bf43b1e98f031b328268a0923050f6b1ea2ac47a4384bfe2b2ede3305",
+        "end_boat_race": "9bfc28965bdd27484ee48da2cc8dd7c72829843424ad4d4c38e28dd495db72eb"
+      }
     },
     {
       "id": 406,
       "name": "Knockout (KO)",
       "category": "free_for_all",
       "sourceFunction": "knockout",
-      "status": "planned",
-      "nameZhSource": "击退大乱战"
+      "status": "implemented_phase_2",
+      "nameZhSource": "击退大乱战",
+      "implementationBatch": 5,
+      "geometryResources": [
+        "knockout",
+        "knockout_upper"
+      ],
+      "implementationNotes": [
+        "Original multi-level volcanic arena and separate 11x10x11 upper clone, including clone air. Each player has three lives, native Knockback I stick and immediate first-playerKillCount upgrade to Knockback II.",
+        "Native getPrimeAdversary supplies kill attribution including recent knockoffs; recycled player entities clear both attacker references on each new life. Feet-in-lava forces death; native environmental damage remains enabled. One randomly chosen pending player respawns per tick at one of nine original markers.",
+        "Regeneration amplifier44 refreshes every tick; 300 ticks with no actual damage dealt or taken enables glowing, reset on actual damage. Native 60-tick respawn protection excludes fall and invulnerability-bypassing damage. There is no timer; the final surviving player ends the round.",
+        "Death interception reuses the player entity instead of executing original global scoreboard, spawnpoint, team or game-rule commands. Doubles is not exposed in this server free-for-all series."
+      ],
+      "sourceAuditResource": "knockout_source_audit.json",
+      "sourceFunctionSha256": {
+        "knockout": "30fa380511bb4459b8fd26eeaf81326f6bd287242306d0272428d539a9c0cd13",
+        "knockout2": "e056d624411f64f8389b968a5018e92e989af5f91b93e70288158453fed47f2a",
+        "knockout3": "690c5e4be93da47cd8bbdd239d20b5008f4cfcaea880e3a0c22e5f4fb30f8561",
+        "knockout4": "cf5ffb82eeaa92a23d7975bd03c3368a521901bda9e5a4abcdd7be3f61abb51e",
+        "knockout_respawn": "1c36c1832578e22fd470665b9f8348db1e29c1a9699a0dd71b1eec7518319f9a",
+        "knockout_tick": "947d0627a2d186b7e86bfdaf5f390ac3170362de593e594868978d395bfb5d33",
+        "knockout_end": "8a4261727e734bb6c1d1470fa0e4c187011551c461b37e7cf016b1c5c60c05a8"
+      }
     },
     {
       "id": 407,
       "name": "Hoopin' n' Swoopin' (SF)",
       "category": "free_for_all",
       "sourceFunction": "sky_fly",
-      "status": "planned"
+      "status": "implemented_phase_2",
+      "implementationBatch": 5,
+      "geometryResources": [
+        "sky_fly_base",
+        "sky_fly_ring_large",
+        "sky_fly_ring_medium",
+        "sky_fly_ring_medium_chain",
+        "sky_fly_ring_small",
+        "sky_fly_ring_small_chain"
+      ],
+      "implementationNotes": [
+        "Original 36-ring descending spiral is rebuilt from literal fill/clone geometry and five air-inclusive ring templates, with exact corner turns, template changes and random offset ranges; saved random holes are not copied.",
+        "Native unbreakable Binding Elytra, one attempt, source resistance99 and weakness99. Landing on iron bars or descending to source Y<=-32 removes the Elytra; cached previous-tick Y=-40..-32 suppresses jumping.",
+        "Score reads the 37 original floor materials at source Y=-42 under current X/Z, retaining prior score when no material matches. There is no timer; all remaining players must reach the dead-bubble-coral floor detector, and final scores freeze before observer/lobby teleport.",
+        "The 1.21.10 iron_chain state is translated to 1.21.1 chain with the same axis and waterlogged properties. Original global schedules, selectors and rules are not executed."
+      ],
+      "sourceAuditResource": "sky_fly_source_audit.json",
+      "sourceFunctionSha256": {
+        "sky_fly": "21d651069fa3a1741de1ed85cef09e0dab77e1d53e00999964bbf7bbccbe2434",
+        "sky_fly_generate": "2e66c10534871aaafa7ef58c6b930903b79c2564f501af0251f776fba779c8dc",
+        "sky_fly_generate2": "4c9c0b51e0adb52149a0aa26dc81adcf269b5bda65adc7d9ce335fe9925d6768",
+        "sky_fly_rules": "7fadd72bdfebfdbb22b537722586cf1a50ca2498debf21ab86cb31260e25dabc",
+        "sky_fly_start": "2d505fd456ccffc819150a9a892d080d559fc4e7b4b452c1eb6adeb1e9b0da6e",
+        "sky_fly_tick": "c0344f2191b9fa2a2414599c93f6323da44d479c30f6df96e8e8964c4d942dd0",
+        "sky_fly_score": "e350783afc6fc4feb9bb2022309127b7fe7ce86f7eaa3cf88e6e66fc37e8c070",
+        "end_sky_fly": "e0b98e09fc62d3beeed1316fc82b3bfd9a265050e4f5c1c153f0e78f217df9ec",
+        "cleanup_skyfly": "57ccb16b6cb003175aa623d95c827a016babfc3c151b08f3671a98fccfacb7e0"
+      }
     },
     {
       "id": 408,
@@ -538,16 +715,106 @@
       "name": "Weapon Devolution (Gl)",
       "category": "free_for_all",
       "sourceFunction": "weapon_devolution",
-      "status": "planned",
-      "nameZhSource": "全能武器王"
+      "status": "implemented_phase_2",
+      "nameZhSource": "全能武器王",
+      "implementationBatch": 6,
+      "geometryResources": [
+        "weapon_devolution_arena",
+        "weapon_devolution_tower_1",
+        "weapon_devolution_tower_2",
+        "weapon_devolution_tower_3",
+        "weapon_devolution_tower_4"
+      ],
+      "implementationNotes": [
+        "Authoritative Weapon Devolution entry, with five sequential weapons: laser gun, netherite axe, trident, wooden sword, sharp snowballs. The obsolete gladiators entry is not used. Native playerKillCount attribution advances at most one stage per source tick; death retries retain the stage and apply native new-life protection.",
+        "Original 2400-tick limit, N-1 finish threshold with a two-tick ending delay, no natural regeneration, initial Regeneration I and stage-specific Weakness. Finite laser and snowball supply, native modern melee/trident combat and native cooldowns are retained.",
+        "Laser uses original eye offset, quantized direction, velocity 10 and arrow damage coefficient 1.25; damage remains native speed-dependent arrow damage. Sharp snowballs each own an independently paired invisible native PierceLevel100 arrow. Global nearest-projectile pairing is adapted to exact UUIDs to prevent cross-player attribution.",
+        "Complete source arena and four full air-inclusive tower clones are preserved. Gate light/barrier cells release in three layers at ticks16/32/48 without overwriting stone gate frames; original block-display bars and four-tick laser beams are scoped and cleaned."
+      ],
+      "sourceAuditResource": "weapon_devolution_rules.json",
+      "sourceFunctionSha256": {
+        "data/mcp/function/weapon_devolution.mcfunction": "d738223dac81deea3baabe29aad45491969cc098cfa72a2f411815bea5cddbae",
+        "data/mcp/function/weapon_devolution_rules.mcfunction": "da4c7c79a4d35f18101a1ecc1b1a90c261c64f9c1d9b438d67ed8d503bce1887",
+        "data/mcp/function/weapon_devolution_start.mcfunction": "eee4de9c2276fb76ef0553d23f5cce79f7f086e6797aba2490816f763bb1f108",
+        "data/mcp/function/weapon_devolution_tick.mcfunction": "1b8fd405f682853f14d28ca0b1055e453dacadaeeae47933358712d0b6f86f22",
+        "data/mcp/function/weapon_devolution_set_up_bars.mcfunction": "72b0dad27dfb8b9c13a0d6b299f046b4942ab3be4dd80584f352a62f65af7ad4",
+        "data/mcp/function/weapon_devolution_release_players.mcfunction": "34bae25d57b56ea0a3ab3020b3201088558335f75a9da9419ef0c92bd9196c6c",
+        "data/mcp/function/end_gladiators.mcfunction": "b6894c162eef0e8bb31dc3dc1dab2b7f237d79db9d14544a772ab6eab03edbbc",
+        "data/mcp/function/checkpoint.mcfunction": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "data/mcp/function/checkpoint2.mcfunction": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "data/mcp/function/assign_finish_threshold.mcfunction": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+        "data/mcp/function/player_circle.mcfunction": "d18804d0981068e317e7ae65b9554a9168a024ef7a6dcf6c7ef1aa3dce546952",
+        "data/mcp/function/player_circle_place_player.mcfunction": "adc09ffba5a6620792dc12ca8a494a28a43bb92f653b2f903b743f480887ef88",
+        "data/mcp/function/rotate_entity.mcfunction": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801",
+        "data/sentry/function/shoot_arrow_1.mcfunction": "05559894a2d1cfcf421d1bd48752bf87608706637a8eb4f29e85a33899fd8177",
+        "data/sentry/function/add_proj_motion.mcfunction": "3d31ae28b07a2d6e5f2a364699bf414a668440e2560c26b4bf70909c7478481b",
+        "data/sentry/function/trig/cos_rx.mcfunction": "568d591b36d0e9155c6ca7777357b3b7902fc1cb4b36dc725b0616e8e07f3035",
+        "data/sentry/function/trig/sin_rx.mcfunction": "1d9ef25c9c7a2648e58a743a26caa35767913ce89f5ed84c0aa8a7ad37717ba7",
+        "data/sentry/function/trig/cos_ry.mcfunction": "dd24ca17a48e64b5f743ab4b67548dba39db9c8dce3a883d0c6ba80c527190fa",
+        "data/sentry/function/trig/sin_ry.mcfunction": "b2373019d64c815546716c5a24e5d061ffe1d8053e7f239e17fd6f26ae926b57"
+      },
+      "sourceHashKeyFormat": "ZIP entry path"
     },
     {
       "id": 411,
       "name": "Tedious Tasks (TT)",
       "category": "free_for_all",
       "sourceFunction": "tedious_tasks",
-      "status": "planned",
-      "nameZhSource": "繁琐任务"
+      "status": "implemented_phase_2",
+      "nameZhSource": "繁琐任务",
+      "implementationBatch": 6,
+      "geometryResources": [
+        "tedious_tasks",
+        "tedious_tree",
+        "tedious_notes_horizontal",
+        "tedious_notes_vertical",
+        "tedious_goal_horizontal",
+        "tedious_goal_vertical"
+      ],
+      "implementationNotes": [
+        "Original 2-4 player free-for-all Tedious Tasks: eight independent random tasks without replacement, 4800 ticks and N-1 completion threshold. The separate team variant291 is not enabled.",
+        "All eight tasks use native mechanics: a player kill, pearl teleport to central gold roof, exactly30 bell rings checked after20 ticks, harvesting warped stems and crafting a wooden axe, eight villager trade steps to a nether star, visiting all four spawn pads and returning, tuning three note blocks from note1 to note0, and InstantDamageII followed by RegenerationII healing.",
+        "Players may interfere with other participants through the same owned targets; world coordinates and entity UUIDs still isolate the match. Native pearl20-tick cooldown and5-point fall damage are preserved. Unknown recipes are permitted only for this round through the original native crafting workflow, without changing shared world rules.",
+        "Death resets only the current task and returns to the original seat. No natural regeneration; RegenerationII/SaturationII, grace Weakness255, original stat checks and fixed four-times-completed checkpoint scoring are retained.",
+        "Original P1 checkpoint mistakenly targets P2 and reset functions call missing player_regen; these references are corrected for the actual participant. The source taskplayer completion bonus references no created objective and remains ineffective. Decorative block-entity contents are not executed.",
+        "The source evaluates completed goals before death reset. Real axe/star/kill/note goals survive a same-tick lethal hit, while unfulfilled goals and a30-ring check before its20-tick deadline do not. The reused-entity adaptation deterministically checks positional goals at the first home respawn tick and saves pre-revival health to avoid artificial task8 completion."
+      ],
+      "sourceAuditResource": "tedious_tasks_rules.json",
+      "sourceFunctionSha256": {
+        "tedious_tasks": "9ce38cf46c6c28730bd1b86ba88672afe9c10dc6d79b9e446fc0de47e2f5c1d7",
+        "tedious_tasks_start": "486e739e52fb61f5dd1861b6c1e65250dc163c0c6eca4f6fc39f7d8bc79a02e4",
+        "tedious_tasks_tick": "30e35d7b1541ee25f6017f65fc793dbad004e01fed1780c605f581a7b0f3ae56",
+        "tedious_tasks_end": "2da06a9d70fd4a41f58240bddb8e101199a2fc3a936814d966ff0d3236543dbc",
+        "finish_tasks": "9be2a7671e6aae25e12c49de9196c19d12e32ecce63fa8a066f3a63103ab751a",
+        "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+        "player_1_next_task": "5ff5405c2fcdd73a906e07d7d4f8bb00f73f0ced5eb6de96815258ea1c20916d",
+        "player_1_reset_task": "a4cad74cdf8c5ec935b7f78c0493b7b6fef0c56cc8b4a14cc545eaae77463ea2",
+        "player_1_ring_task": "be562a8c4d4b486477bdf157f8042d5cd83c34db87921944c0f84f83b0cfbd62",
+        "player_1_regen": "7f942221f88c56fb4dc83d90a8632b1000de357bc5c5f6f9a585c29dda2a7c78",
+        "player_2_next_task": "e39f74b29a0f990748a7d72c2d930a25a9ae38f9db0af5951970f58cfe5be83e",
+        "player_2_reset_task": "19bc9fe32129b4eb64edf40c8960a9816f9a18a3b95099e5bc779a6c8599a534",
+        "player_2_ring_task": "d240e15cc7e30068e3fe142c0eb38a94ea75bdb47ee265d98f0f93ade26e001c",
+        "player_2_regen": "46e278cd5ed8691497bcef23369d32458c4b9691c555f02624caf4cd68e34767",
+        "player_3_next_task": "84c71a42efaf78685435f7285a11ffc4986feca37359ace5375815ba87a84f20",
+        "player_3_reset_task": "62c6a8a6fdf822629b0224f312dd8b084b4b360819b9b5cf902a9b8d4a4fb58d",
+        "player_3_ring_task": "d40426bc4fa000cd229ec2928e763a1ede82e487e1fa5e2da8c3d52ab5c6eb58",
+        "player_3_regen": "c2a03d660440cdda9cfb291b923e47447686e964798216c65add27985ef99e66",
+        "player_4_next_task": "d698453f80fb15bbdea48aedfea08d9a19ba8ed6fba2e7e9ef3b185fe9e3bd89",
+        "player_4_reset_task": "a5dc2f0ed1584cf9899571dbd3126834ee2e5bfbfbc3985920345f0759cf89ab",
+        "player_4_ring_task": "a1e56a75c35cb19ed992e87588c2f367bf23074234ab2a747da0dc1aeb78dffa",
+        "player_4_regen": "a74357faf2513fb5d5b7344ff0b84e90080dc54bb3a8e2e8a12565e900495c04",
+        "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+        "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+        "last_timer_title": "2c967d524c537de08bf4ceab74493197d214295ccc7589c0af1b20ac2af191fa",
+        "placements": "784cb9dc86bd733c3215f44477b5d464e2bda6fdc5ed5fc859761ea663353494",
+        "team_placements": "a50d015ff965d214998a55175fc92724eccf5bafc40b66e9e9f798e3698fbb99"
+      },
+      "playerRequirement": {
+        "minimum": 2,
+        "maximum": 4
+      }
     },
     {
       "id": 412,
@@ -593,8 +860,54 @@
       "name": "Platforms (Pl)",
       "category": "free_for_all",
       "sourceFunction": "platforms",
-      "status": "planned",
-      "nameZhSource": "抉择平台"
+      "status": "implemented_phase_2",
+      "nameZhSource": "抉择平台",
+      "implementationBatch": 3,
+      "geometryResources": [
+        "platforms",
+        "platforms_hidden"
+      ],
+      "sourceFunctionSha256": {
+        "end_platforms": "1c17afb6af0336671a252323a309e806ade94131eb61c0d8f54ee08f74e382b8",
+        "platforms": "98d72639636681f83ccfac90c96306339f8974e6c244f8c3155a258a91f43d75",
+        "platforms2": "115a03aa19737c49cb1acd0e64e9a65d410aa0697742c4395127dc6d3591e092",
+        "platforms3": "ceb73acb1e0fa1d0bda60d32ea443800d3172330a44e7afaea89822ba3a42e67",
+        "platforms4": "7bec55c4f0cdafb8b4cb3f1bec1ee2677701016fabe2108c79de5c4aec2f7483",
+        "platforms_a_left": "4434def544ce878addefd0b3ba3b1fc13e43f967d784586fa3f0c1d0aa735526",
+        "platforms_a_mid": "63af633000dc2782a1e31b27813d3894215d2938e9b77c03d2f1dc09f0fd1e11",
+        "platforms_a_right": "dfb8f12089aaf9d59fdb4d438c54a1a3937742a6ab5f5d193b724691be8cc8bf",
+        "platforms_b_left": "95a2ea464d9a4741f7a00dfb4df140a417cafb2607122f2bc29eb20f5c598c78",
+        "platforms_b_mid": "7fd7b16abe630fd19696472107c2b2aa6b5cbf8176b691eaf719e714724770b2",
+        "platforms_b_right": "8862d23565d14f4429b4a94fd2e0e4eeaad4094805cec5b28c7a9d7fd643594a",
+        "platforms_c_left": "eacae5a33c39f0853e93e2a0253260dae9873206d87f9e4dd3d9988f14f7f24f",
+        "platforms_c_mid": "6d19d0fcbe849249d6d405c2d16d175d0d6c0929f38266daab8fb568f2e57e81",
+        "platforms_c_right": "37e66598a3b9cba09d564ca4958af870d025988f8718be7511057be6f4ba74e9",
+        "platforms_d_left": "c4804249f4517813310e74f9eaad9c8b47b167055c7b26878df70500450d9f12",
+        "platforms_d_mid": "9de09c65f92d01017cf21121356d601d85d2aea3fcd964999fc02622fe49d7c5",
+        "platforms_d_right": "cc52f2e755f43e4ea13b2c75763c3774705ceee9470888a137b6f8c731d4e498",
+        "platforms_jump": "415e36c2697d502f5c0cba9f6ccb352ee3b8d2e088be1e9d6a07c6a7457d4fed",
+        "platforms_jump2": "feb167c5474af58315f81ffa0b9ebce08a56a4e976379cadd2bd791d1e8f76c1",
+        "platforms_jump3": "a2ca88b0a5e06e3e10eca316f8238271c27b397379e5fb4dfb65d29b1331948e",
+        "platforms_jump4": "142c92ac69d7f9b95781438f377164c426d020f2765543c6d1f27f137970289f",
+        "platforms_round_start": "68441dd075f0f028409ee444004b1d79ba5b622887bc4ba78328fe22cab1ca33",
+        "platforms_round_start2": "14655698af729d9223740772b18c4927ecfc9f652e4d621ef2ee8e183e9a27a5",
+        "platforms_round_start3": "91c94facb73e2531074217d927cb00688cb98ad14e8685d13ae19f000b7ff747",
+        "platforms_round_start4": "2c283c8e8ac8e394cdb580e4b8ed04c59d783fd0e087ba91720982fb6ca172f8",
+        "platforms_rules": "35b5fe64156a97edeadf07b68f9919ed7516a1fc9a4dca2afe33bbb167acdb9e",
+        "platforms_start": "7bc8eee4796d67a692df7bf7d5af00be5922d919697e3684d41dc622682f4cab",
+        "platforms_tick": "5fffa169f4d2a2b2b6a8b5907fa9dbdb4866a3eeed7a3ec2d4c49bd33dace262"
+      },
+      "sourceAuditResource": "phase3_source_audit.json",
+      "playerCount": {
+        "min": 4,
+        "max": 4
+      },
+      "implementationNotes": [
+        "Original exactly-four-player game of six internal rounds. Each player chooses left/middle/right, then armor-stand motion carries the player to a target platform. Players reaching the same platform receive no gems.",
+        "Outer-platform gem count ranges by internal round: [1,2], [1,2,3], [2,3,4], [2,3,4,5], [3,4,5], [4,5]. The central platform ranges are [3,4], [4,5,6], [5,6,7], [6,7,8], [7,8,9], [8,9]. Each diamond uses one of the original nine markers for that platform.",
+        "The last two internal rounds hide players while choosing and use the original twelve sign positions. Native sign text and callbacks replace source command events. Raw minigame score is total gems multiplied by two; the outer five-round series converts the resulting rank to tournament points.",
+        "Gem tally preserves platforms_jump3's full-Inventory queries, including offhand: each stack count from 1 through 9 is awarded once when present. Manually splitting gems into duplicate equal-sized stacks does not award that count twice. Dropped diamonds within the original 11-block sphere are cleared between internal rounds."
+      ]
     },
     {
       "id": 415,
@@ -630,64 +943,319 @@
       "name": "Horse Race (HR)",
       "category": "free_for_all",
       "sourceFunction": "horse_race",
-      "status": "planned",
-      "nameZhSource": "马术大赛"
+      "status": "implemented_phase_2",
+      "nameZhSource": "马术大赛",
+      "implementationBatch": 6,
+      "geometryResources": [
+        "horse_race"
+      ],
+      "implementationNotes": [
+        "Original three Nether-fortress routes with complete 178x97x183 scenery, 2241582 blocks, source gate and wall clones, all checkpoint alternatives and all route heights. Static natural terrain outside the playable/cosmetic crop is not ported; track geometry is not compressed or folded.",
+        "Native alternating zombie/skeleton horses are tame and saddled with movement speed0.23 and jump strength0.85. Native horse movement, charged jumping, saddle inventory and horse collisions are retained; the source no-collision team selected ordinary horses and therefore did not apply to the actual undead racers.",
+        "Two laps; routes1/2 use4200 ticks and route3 uses3500 ticks. Checkpoints read the player feet, preserve source skip/alternative detection order, return positions, five-tick remount, five-block tether and no-cooldown right-click/drop reset. Original progress and recent checkpoint order determine ranking.",
+        "1.21.1 negative Fire values are a non-burning cooldown, so only actual burning triggers checkpoint reset. Native horse loot and experience remain disabled per the source world rule without changing shared difficulty or game rules; all horses, display and reset drops are individually scoped.",
+        "All86 static sign faces and route-dependent cloned navigation arrows are restored as safe literal text, color, glow and waxing. Route sign counts86/86/87, source block orientation and current-player ownership labels are preserved; selectors/click/run_command actions are stripped. Decorative chest/skull data remains deferred.",
+        "The complete original foundation down to sourceY0 is preserved: cropping atY18 cuts849 gravity columns, and successively lower cuts still sever supporting gravel. Bedrock/netherrack support prevents original ownership/navigation signs from falling; no artificial support or gravity override is used."
+      ],
+      "sourceAuditResource": "horse_race_rules.json",
+      "sourceFunctionSha256": {
+        "horse_race": "2d03cfabdb01985100e269cd20e1e416c5499ea84ec2ccb233c9a28240c572a0",
+        "horse_race1": "6fc753ad908295dc56a98ad0206e09e229b6eebcca3b471396b70478686faf79",
+        "horse_race2": "f8fb7e0c462521d52620f9747dd20ad6f255f02ef3c06add4afbe6454e0ee366",
+        "horse_race_generate": "1b99e22e28db0b1e416c32f4bee26592016486a3bf676ef261d7d73e0ad8f4d6",
+        "horse_race_generate2": "f255b92b1202250311bde8de66f08015e8c63c03aa1c6ad6e2cc471a00e056dd",
+        "horse_race_rules": "da3b9a03f037154041cfdde518c975cca3c432e3a5b1e0bed48084941e2fd213",
+        "horse_race_start": "102ed5b5952a228822c406ddd0168bcea59ab3533625ff845f8647ee034e014c",
+        "horse_race_tick": "75140041bcba0fe672cb6ee3369e6f969d70eefb96afda5e2edacfddf0bea111",
+        "end_horse_race": "2b66737e6c8d576eae344e316ecd94e968426a27005ed692755635d0a1569d82",
+        "hr_reset_to_checkpoint": "e2b8ebefc44028edb32e28143cb9f361268c61bd2e4baba10b16f6597fa505cb",
+        "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "assign_finish_threshold": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c"
+      }
     },
     {
       "id": 417,
       "name": "Speed Builders (SB)",
       "category": "free_for_all",
       "sourceFunction": "speed_builders",
-      "status": "planned",
-      "nameZhSource": "速建专家"
+      "status": "implemented_phase_2",
+      "nameZhSource": "速建专家",
+      "implementationBatch": 7,
+      "geometryResources": [
+        "speed_builders_arena",
+        "speed_builders_pattern_1",
+        "speed_builders_pattern_2",
+        "speed_builders_pattern_3",
+        "speed_builders_pattern_4",
+        "speed_builders_pattern_5",
+        "speed_builders_pattern_6",
+        "speed_builders_pattern_7",
+        "speed_builders_pattern_8",
+        "speed_builders_pattern_9",
+        "speed_builders_pattern_10",
+        "speed_builders_pattern_11",
+        "speed_builders_pattern_12",
+        "speed_builders_pattern_13",
+        "speed_builders_pattern_14",
+        "speed_builders_pattern_15",
+        "speed_builders_pattern_16",
+        "speed_builders_pattern_17",
+        "speed_builders_pattern_18",
+        "speed_builders_pattern_19",
+        "speed_builders_pattern_20",
+        "speed_builders_pattern_21",
+        "speed_builders_pattern_22",
+        "speed_builders_pattern_23",
+        "speed_builders_pattern_24",
+        "speed_builders_pattern_25",
+        "speed_builders_pattern_26",
+        "speed_builders_pattern_27",
+        "speed_builders_pattern_28"
+      ],
+      "implementationNotes": [
+        "Four distinct builds sampled from28 original six-by-four-by-six patterns with independently shuffled eight-color palettes. Native adventure can_place_on/can_break components, golden-pickaxe mining and per-tick real supplies preserve editing both preview and target. Preview restore precedes complete144-cell air-inclusive comparisons;3600ticks and source progress ordering are retained.",
+        "Ten original oak reset buttons keep native30tick power, sound and main-hand/sneaking restrictions. A successful rising edge queues the original fill one tick later, clearing preview and target before preview restore.40 original FlowerBlocker summons retain per-seat conditions; the older50-entity audit count was incorrect.",
+        "The full source scene retains26511 non-command blocks,37 safe literal signs and12 banner patterns. Command blocks are data-only witnesses, never executable. At eight or more players the original finish threshold is N-2; otherwise N-1."
+      ],
+      "sourceAuditResource": "speed_builders_rules.json",
+      "sourceFunctionSha256": {
+        "speed_builders": "0c260e533165dbf2fa863c948ed8aaaaa2929c1d8b07cb626eca9f8319e32162",
+        "speed_builders_start": "841fa37bc4d5829fef8aea3123e797804a6ec9d1da76c439a853d17e161d3c9c",
+        "speed_builders_tick": "d693253d9b75e057222f74d24b8669f8646b9111d0d0a7374c7ecb68489137f4",
+        "speed_builders_end": "a8be10e987776191ab8b99c49924baa4d3e60c1ae1789f6cb660408cc0ef5c4c",
+        "speed_builders_make_builds": "15ed86eed89578288765ba3775e15a5df07cd8e53712c5c99b8ddba2dd544b44",
+        "speed_builders_build_maker": "31dbea8b4e111ba41207ca63b8768358f168b648226ba9ebd1822dbadfe21fda",
+        "speed_builders_move_paint_brush": "65c4c360f5fa64677c590493b7af6efda57e6da24decd89247f3b100da173f0b",
+        "speed_builders_summon_colors": "25a2e7bf9ecafd2bb189cc205f655a7d5b5bd1b62045bedc39751f2db35214b7",
+        "speed_builders_next_build": "d420ddf98f5c2d6b28ef369e7c4752ab8468e493200fb86e7cf11a87f920e98d",
+        "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "assign_finish_threshold": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706"
+      }
     },
     {
       "id": 418,
       "name": "Steve Says (SS)",
       "category": "free_for_all",
       "sourceFunction": "steve_says",
-      "status": "planned",
-      "nameZhSource": "史蒂夫说——"
+      "status": "implemented_phase_2",
+      "nameZhSource": "史蒂夫说——",
+      "implementationBatch": 7,
+      "geometryResources": [
+        "steve_says"
+      ],
+      "implementationNotes": [
+        "Eleven original actions are independently shuffled twice for22 instructions, preserving valid/fake weighting and the extra wrong-item type only on action12. Real jump/sneak/tune statistics, sign opens, drops, player position/rotation and sixteen native interaction desks drive deadline scoring and elimination.",
+        "The full4547-block classroom and79 original banner payloads are retained. A match-scoped packet PLAYER presents the original visible Steve host with native book/apple equipment; the1.21.1 default wide-Steve UUID is selected without adding a real online player or fetching external skins. Client-list/spawn/equipment/removal packets are independently validated; headless tests do not prove rendered pixels.",
+        "Original surprising rules are retained: ignoring most fake instructions earns3points; fake stay-still requires movement, tiny displacement can earn0without elimination, and the stone action can award points before its later wrong-drop elimination. Tables consume clicks rather than opening the wooden trapdoors. All host/entity/team/player-state cleanup is scoped."
+      ],
+      "sourceAuditResource": "steve_says_rules.json",
+      "sourceFunctionSha256": {
+        "endss": "6b48b8f46f337406ca11b04f317fbbb69a80406ab4adcb4a0b37cf94d0774a0b",
+        "ssarmorputon": "8cd8a3009f008f67334ac2934b011b886d080e47b5ac72a00254e4c045202b6e",
+        "ssclickchat": "40b24af94e40a14fb112510c6c64982fb8523b4bf875701c89ef5b87be2e5c6e",
+        "ssendceiling": "b12b573ce3d08ce1d0e03fa18efe1cf5591245338f253b2f2df51aa31fa982ed",
+        "ssendclickchat": "85388def2ccba2c7a2e10375eab3666295286c39e68e9656461b88e867fe4ecf",
+        "ssendcrouch": "514711f9e71068882e1c5fec68f5ba9ad3676ae87fbfccd0164b389d9130c93d",
+        "ssenddesk": "64fe58c6dcce38ecd7e8e813b52dbd6b670b8883c4e114f5e78e8510515a22d4",
+        "ssenddrop": "63212aa25b5c8e85915c07cdee1896d8cb40b5ea6794d67c4ad7ae47701672be",
+        "ssenddropconcrete": "c9908c206304c9417387a0d01e40170b9b925fcfd069e56e34f5a6d2dfe79950",
+        "ssendjump": "f662dc3332cf4c0982c828aca2a8751f08807dc023c9fd80835e85698c82a354",
+        "ssendnoteblocks": "8fc57f2664ee91c46c0cadc2e2a9dcf874d0552cdd98f3a381d11be65f3ee611",
+        "ssendpunch": "5a176d6516e10cc40707f1b339493e87c4cc0e30313a07277283a6835afe3215",
+        "ssendstaystill": "ef24e7d4cb41383b7fabd5353953de06d60b3060e4ad2ae1599a31372bc0c04c",
+        "ssnexttask": "94c1ff0ca3f22a8d72f3a02d3adee7cb0099b0b39ff1db7f46bb62cf2d50445b",
+        "ssnexttask2": "8e2a45a18836aab92b7129d0f65a965c69eefc96242405cb39fbf2e73ccc1276",
+        "steve_says": "a8a6fb08c80c5c94b98a0327dbbfd962dd8fe7625b8cb169134a9dc1e878b144",
+        "steve_says_rules": "a951399fd99a2fdc8cf0a68ac670721fc944ff75d6fea746bdaf644c981ba3db",
+        "steve_says_start": "699d05a742b897b3679ea9377f739ef1fd9c9a11c6026589186d8e9ccbe50ce0",
+        "steve_says_tick": "3bf853efa12bd2fd02e86b0d8e2dd320483410ffee0de43691e6d92ed0423ff1"
+      }
     },
     {
       "id": 419,
       "name": "Power Towers (PT)",
       "category": "free_for_all",
       "sourceFunction": "power_towers",
-      "status": "planned",
-      "nameZhSource": "速度之巅"
+      "status": "implemented_phase_2",
+      "nameZhSource": "速度之巅",
+      "implementationBatch": 7,
+      "geometryResources": [
+        "power_towers",
+        "power_towers_east",
+        "power_towers_west"
+      ],
+      "implementationNotes": [
+        "Ten seconds of native tune_noteblock statistics move original colored-powder tower markers only for per-tick deltas1..7. A delta greater than7 updates the previous counter but moves no marker; it is not clamped. Seats, eight-player outer remap, zero-click baseline and original source End height rejection are preserved.",
+        "Score comes from actual scoped native falling-block entities passing the original height threshold, plus the source min(total tuning, 2) compensation. A click-total shortcut would count rejected growth and is deliberately not used. Native falling physics and tripwire destruction are retained with per-entity dropItem=false; no shared game rule is changed.",
+        "The complete258-by243-by229 source End scene contains68871 nonair blocks, including distant scenery, plus two complete4-by3-by3 seat templates. End markers are removed before the dependent barrier commands exactly as in the source. The empty-falling counter accumulates15ticks before final scoring and does not reset."
+      ],
+      "sourceAuditResource": "power_towers_rules.json",
+      "sourceFunctionSha256": {
+        "power_towers": "f91dd1ae7cd3a140a31b211cda0822f6872e73f896ed9dbb9142e825a4068f9a",
+        "power_towers_start": "d1ab9bec467122f87d908ba186d8f8cae8c0b6f7ff641e046b7c4fa0bb338927",
+        "power_towers_tick": "59fe08842504e52956ffb026bdfc9781273de116a76248f77ac9aa4526a3a5f3",
+        "power_towers_end": "2f729b910c2625e214ae3673469fc857dae8dfaa9a0d0b208b76a1b122eee887",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+        "minigame_points_ranking": "694f723546973a88f3b6d617525719872f02eb3ce1faeca0b975d19753e5d78a",
+        "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+        "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+        "last_timer_title": "2c967d524c537de08bf4ceab74493197d214295ccc7589c0af1b20ac2af191fa"
+      }
     },
     {
       "id": 420,
       "name": "Farming Frenzy (FF)",
       "category": "free_for_all",
       "sourceFunction": "farming_frenzy",
-      "status": "planned",
-      "nameZhSource": "农场狂欢"
+      "status": "implemented_phase_2",
+      "nameZhSource": "农场狂欢",
+      "implementationBatch": 8,
+      "geometryResources": [
+        "farming_frenzy",
+        "farming_frenzy_template"
+      ],
+      "implementationNotes": [
+        "Complete50x43x40 farm with9606 nonair blocks, original barn/roof/ladder/ridges,13 banner patterns and the full24x4x26 reset template including air.154 source barrier blocks atY56..69 are retained above the climbable southwest ridge; the original farm contains no water, so no artificial irrigation is added.",
+        "Native adventure iron-hoe maturity predicates and eight MINED statistics drive1/1/2/2/2/4/6/6 base points. Exact source per-tick count matches govern manually given produce; item drops are not used to count harvests.59 source replant operations, foot dirt-to-farmland repair and reachable native fence gates remain real.",
+        "Exactly60 intro ticks use population-scaled max(1800,450*N) native per-section random sampling, then freeze until PLAY. Live sampling is200 after harvest/replant/season/foot-repair processing, without changing shared randomTickSpeed or directly aging each plant. The source ends on processed tick1799; eight random double-yield seasons may repeat."
+      ],
+      "sourceAuditResource": "farming_frenzy_rules.json",
+      "sourceFunctionSha256": {
+        "farming_frenzy": "b0820d9d38a2939d1c016bc785666adb8dc7ac7285ea08bea2c3580e1d8cfb28",
+        "farming_frenzy_start": "79e294338efdd76187cb461de94f5408e95e60fe91c271727703007ce6b04973",
+        "farming_frenzy_tick": "85436cfd10c24282e5a587ab6ca5e7a922c1c118734c0f06fc31c7eff6b9cada",
+        "farming_frenzy_end": "15a3f1b5a4649c250316bec669550c3d9b7850975a281842e021cf3583990b75",
+        "4_4_all_tick": "55d4b9bf6af746e15759559c48d4257a893e77e85f66371d2cadf97de085d014",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+        "last_timer_title": "2c967d524c537de08bf4ceab74493197d214295ccc7589c0af1b20ac2af191fa",
+        "scoreboard_data": "bf0cb1a938ab95b0bc0f45d0cff37585df419ebe09073daf8500e4d74a321655",
+        "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+        "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+        "placements": "784cb9dc86bd733c3215f44477b5d464e2bda6fdc5ed5fc859761ea663353494",
+        "end_minigame": "654d060221991fb8419eba9ea164f2ea6c435c474176585213f14b4d69d753f3",
+        "start_minigame": "4f95931dc88991e97d098a517467293bf823ba9e8a23e34cc5a305c11cb6f474",
+        "quickplayminigame": "d1dd940dfccb67b3cd8d41176910b6126f824ba2e02f9713d3d6996cde21fb7a",
+        "replay_minigame": "6d975a84d28f9e0197f51666ab839202c24022ff6eb0bd29f20fce5d189132bc",
+        "set_up_minigame": "40fdbde5ab627abaf9d1c1203292c79006946788979f246721b1cfe4872a7295"
+      }
     },
     {
       "id": 421,
       "name": "Port Priority (PPy)",
       "category": "free_for_all",
       "sourceFunction": "port_priority",
-      "status": "planned",
-      "nameZhSource": "繁忙货港"
+      "status": "implemented_phase_2",
+      "nameZhSource": "繁忙货港",
+      "implementationBatch": 8,
+      "geometryResources": [
+        "port_priority"
+      ],
+      "implementationNotes": [
+        "Complete228x133x275 source harbor through its originalY-64 bottom,1741484 nonair blocks, all12 candidate sites, ship interiors and submerged routes. Seven sites and seven distinct cargo types are randomized; all players receive the same three distinct goals in different orders, with the source permutation-duplication rules.",
+        "Native locked27-slot chests keep real slot13 inventory and live GUI references; source1.21.10 component locks become exact literal1.21.1 Lock strings. Native clear handles player inventory,2x2 crafting input and mouse cursor. All78 allowlisted source containers are restored, including four unlocked quest-goods chests and six cobweb pots, preserving actual source shortcuts.",
+        "Restore361 banner patterns,28 safe literal signs,one custom skull,28 real fixed item frames and all beacon/iron-base/pane structures. Native doors,buttons,levers,pistons and local flooding remain enabled and tracked. The source ocean bottom is enforced by a positional fluid bound rather than an artificial stone floor; transparent outer isolation stays beyond all ships and quest sites.",
+        "Below-seabed compatibility retains shape and properties:1267 pale_moss_block become moss_block,372 pale_oak_log and67 pale_oak_wood become birch counterparts,653 pale_oak_leaves become birch_leaves;33 iron_chain names become chain. No deep source layer is discarded.240second completion and progress/recency ranking use the original source rules."
+      ],
+      "sourceAuditResource": "port_priority_rules.json",
+      "sourceFunctionSha256": {
+        "port_priority": "8aa174d8b10a89c3ce90c22162c584daa0b35379a9e09fd9e467479870e19daa",
+        "port_priority_assign_item_order": "d7d072f879fe9af767dd7fa7e70dd38dd5c411ac0a3b7aa9b433cbe28ed4cb51",
+        "port_priority_end": "7a25a030ed74f6ab5f8319fbada5bd6070d2acaeeaf7018999093a227f0a9496",
+        "port_priority_next_item": "34aaa08417966af8dddee6bba62f0bb7a644bee387b3f4fd499a04426390d39a",
+        "port_priority_set_chest": "e99fa83531bfbff3f13272ec3174becce665b1a9d53dac2b37c46328bf688626",
+        "port_priority_set_independent_chest": "b70cdf3bbaf2973cc69248165db1a4ddca3cfb2cba76e84426133a88385e857b",
+        "port_priority_start": "fa5dbcc696d26d5a5bf97fdc6d74443ee7176612ffe188b09801715144392bb1",
+        "port_priority_summon_armor_stands": "3133ff1af1b80b1a1af826d03cebe66f78ff5fa8fb4cb4cf555e1ffc42d4b9a0",
+        "port_priority_tick": "84aca7be66c92dcba38b26cf415c4b62a3759c1eea18facb9091ce076b5ad7bf",
+        "assign_finish_threshold": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+        "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+        "player_circle": "d18804d0981068e317e7ae65b9554a9168a024ef7a6dcf6c7ef1aa3dce546952",
+        "player_circle_place_player": "adc09ffba5a6620792dc12ca8a494a28a43bb92f653b2f903b743f480887ef88",
+        "rotate_entity": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801"
+      }
     },
     {
       "id": 422,
       "name": "Match Me Not (MMN)",
       "category": "free_for_all",
       "sourceFunction": "match_me_not",
-      "status": "planned",
-      "nameZhSource": "禁止匹配"
+      "status": "implemented_phase_2",
+      "nameZhSource": "禁止匹配",
+      "implementationBatch": 8,
+      "geometryResources": [
+        "match_me_not_arena",
+        "match_me_not_chip_1",
+        "match_me_not_chip_2",
+        "match_me_not_chip_3",
+        "match_me_not_chip_4",
+        "match_me_not_chip_5",
+        "match_me_not_chip_6",
+        "match_me_not_chip_7",
+        "match_me_not_chip_8",
+        "match_me_not_chip_9",
+        "match_me_not_chip_10"
+      ],
+      "implementationNotes": [
+        "Preserve the full53x18x67 source scene,4654 nonair blocks,33 banner patterns and ten7x3x7 air-inclusive chip clones. Entry uses real80tick levitation from the source center, circle/platform/frame creation at intro tick60,and native motion until effect expiry; PLAY does not replay the entry effect.",
+        "Eight internal rounds offer4/5/6/7 materials for2-4/5-6/7-8/9-10 players. Real Q or Ctrl-Q item entities choose the nearest local player,processed in source material order1..7; same-tick later material wins. Preparation tick5 is also the first choice tick,all-chosen skips its final time decrement,200ticks with no choice remains0 rather than choosing randomly.",
+        "Only an unshared choice scores1. Native21-piston platforms and49-block redstone pulses physically raise the colored floor and player; source integer-angle/radius10or12 positioning,native frames/reveal drops,player-count-specific reveal timing,ticks500/510 and final40tick wait remain intact. Complete owned cleanup also removes the source topY17 layer omitted by its end command."
+      ],
+      "sourceAuditResource": "match_me_not_rules.json",
+      "sourceFunctionSha256": {
+        "match_me_not": "489de3b62966949341e667102b0602234bc7a64e41bc3e1a1c586c188658e9da",
+        "match_me_not_rules": "51035b9513789293bd2914e98d40ed3c3b4cfe8e451f5f148c95cdcf8e8c03b6",
+        "match_me_not_start": "9abdb13abf3d8f0c721531d3ce64c5eb331e46791f44f52f561f848559a945f9",
+        "match_me_not_tick": "11eabe300c7312221c17730967cdf2a52010863f19033a4b7234e36a0e1185cc",
+        "match_me_not_end": "36517567f0f1fc75cb1d1d2777ccfe85a3befe551d4e9b6559f1a0e611a2150b",
+        "player_circle": "d18804d0981068e317e7ae65b9554a9168a024ef7a6dcf6c7ef1aa3dce546952",
+        "player_circle_place_player": "adc09ffba5a6620792dc12ca8a494a28a43bb92f653b2f903b743f480887ef88",
+        "rotate_entity": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+        "last_timer_title": "2c967d524c537de08bf4ceab74493197d214295ccc7589c0af1b20ac2af191fa",
+        "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+        "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+        "placements": "784cb9dc86bd733c3215f44477b5d464e2bda6fdc5ed5fc859761ea663353494"
+      }
     },
     {
       "id": 423,
       "name": "Rocket Launch (RL)",
       "category": "free_for_all",
       "sourceFunction": "rocket_launch",
-      "status": "planned",
-      "nameZhSource": "火箭发射"
+      "status": "implemented_phase_2",
+      "nameZhSource": "火箭发射",
+      "implementationBatch": 9,
+      "geometryResources": [
+        "rocket_launch"
+      ],
+      "implementationNotes": [
+        "Complete43x320x2188 source terrain,12933322 nonair cells stored as1618692 exact Y runs. Preserve the2160-block course, originalY-64 ground and all reviewed chest/spawner/cart data; no course scaling or hollow shell.",
+        "Native binding Elytra and exactly one flight2 rocket; source-start clear includes inventory,2x2 crafting and cursor. Full source distance including beyond2160 plus Y-196 finish reward; old-marker backward order, red-sandstone/light ground exceptions, all-player finish threshold and same-tick ties remain.",
+        "INTRO can finish before PLAY; finished spectators and absolute finish order survive shared preparation. Original relative teleport axes preserve client momentum correctly; Elytra speed-check exemption is scoped to current participants."
+      ],
+      "sourceAuditResource": "rocket_launch_rules.json",
+      "sourceFunctionSha256": {
+        "rocket_launch": "354e33db885968b511456ba18d072d0a6bbb0314f2a765d10fd71385618674fc",
+        "rocket_launch_rules": "7090c9916deac83cb43ea440af1320730db02a464ad99b16792ef324e9cd7ed8",
+        "rocket_launch_start": "86fcae362aa21e7162789ee5c2255c3bedef5046e17b355fd3f65be6c88174d3",
+        "rocket_launch_tick": "55caa55cfb989adfb30dfb02d11b9e27b1a9b51ee2a7cedaced4c8f17417ffed",
+        "rocket_launch_finish": "8c31f1eef12508ce81299ecb35d969ed2e8c5558445e6e0243889f8532826111",
+        "rocket_launch_end": "bd0bc1f85415160cc9c198ca3cb4949155ed4ce9fdbbc51df2b7e3f7c06590af",
+        "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+        "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+        "minigame_points_ranking": "694f723546973a88f3b6d617525719872f02eb3ce1faeca0b975d19753e5d78a",
+        "4_4_all_tick": "55d4b9bf6af746e15759559c48d4257a893e77e85f66371d2cadf97de085d014",
+        "start_minigame": "4f95931dc88991e97d098a517467293bf823ba9e8a23e34cc5a305c11cb6f474",
+        "void_minigame": "b6b190e7af56bca8f48154e94e8394f24bfb99ece5146b32600c84d0b72f0c7f",
+        "end_minigame": "654d060221991fb8419eba9ea164f2ea6c435c474176585213f14b4d69d753f3"
+      }
     },
     {
       "id": 424,
@@ -731,16 +1299,103 @@
       "name": "Pearl Hurl (PH)",
       "category": "free_for_all",
       "sourceFunction": "pearl_hurl",
-      "status": "planned",
-      "nameZhSource": "珍珠投手"
+      "status": "implemented_phase_2",
+      "nameZhSource": "珍珠投手",
+      "implementationBatch": 9,
+      "geometryResources": [
+        "pearl_hurl",
+        "pearl_hurl_remote_0",
+        "pearl_hurl_remote_1",
+        "pearl_hurl_remote_2",
+        "pearl_hurl_remote_3",
+        "pearl_hurl_remote_4",
+        "pearl_hurl_remote_5",
+        "pearl_hurl_remote_6",
+        "pearl_hurl_remote_7",
+        "pearl_hurl_remote_8",
+        "pearl_hurl_remote_9",
+        "pearl_hurl_remote_10",
+        "pearl_hurl_remote_11",
+        "pearl_hurl_remote_12",
+        "pearl_hurl_remote_13",
+        "pearl_hurl_remote_14",
+        "pearl_hurl_remote_15",
+        "pearl_hurl_remote_16",
+        "pearl_hurl_remote_17"
+      ],
+      "implementationNotes": [
+        "Complete938098-cell main island and18 exact remote3x3-chunk scenes containing751805 cells. Preserve all three source routes,56 ordered CP predicates,30 generation operations and43 safe literal signs.",
+        "Restore22 main and24 remote gateway NBT entries. Ten missing source exits were generated by native pearls on an isolated verified official1.21.10 server with original seed69420/vanilla-only datapack; original177 End files and26 known links remained unchanged. Import original relative exit positions rather than folding islands next to the course.",
+        "Native pearl flight,20tick cooldown/25tick reload, actual LIGHT feet/safe positions, original2..4 and5..10 lineups,180seconds and N-1 finish threshold. Only confirmed successful owned native teleport defers its identical same-tick AIR check; next-tick AIR and LIGHT0 retain the source guard. Geometry/projectile temporary tickets leave permanent force-load flags unchanged."
+      ],
+      "sourceAuditResource": "pearl_hurl_rules.json",
+      "sourceFunctionSha256": {
+        "pearl_hurl": "62744f1b4d289a1d753f9be7c1edf5cab5d08e269df8293ef0606945443f4d7a",
+        "pearl_hurl_end": "3c6151949c8140b37253d0931240405fd4d0d4f733facc01bfa32a2caced62cb",
+        "pearl_hurl_finish": "31a562e89894414f0f4578de1c7a30bc2bd4ce55b84200a2ff994bd9b0b462c1",
+        "pearl_hurl_generate": "ce819af1887c7b2d2ee0e1600c697d56f85fcf873fa9dd8551b682f22319ec9e",
+        "pearl_hurl_generate2": "5aa00e55814f4f3143647bfc42ac010b67e586d47d7600e9e5a333e641186685",
+        "pearl_hurl_rules": "133ac6178dbcbf18889859deb4d72f2017b810d2bd2cb6bb51357e54a5bceefe",
+        "pearl_hurl_start": "09623c7e0c7d3f5976f49a4f777c751a698fd706a1d735f9b10139223d4616a6",
+        "pearl_hurl_tick": "67d47d81ec3b54b80fd995f78b2f3f5b9fc937b4a48212eb0ab4af39ffe9a6a0",
+        "pearl_hurl_tick2": "4c5d40d242c6c342e5d6ca76c264fb262230d383b74c1a4b6c53985249eee670",
+        "assign_finish_threshold": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+        "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+        "last_timer_title": "2c967d524c537de08bf4ceab74493197d214295ccc7589c0af1b20ac2af191fa",
+        "player_line": "34c29fee7a7a209da45cc8293860e0269b522dbfe48d71e3a4ec79f2935457c0",
+        "rotate_entity": "963aa2287caae0fb2a7f0aba1c5fe8bdeccd5bee80108626be5bf1cb68a7c801",
+        "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+        "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+        "placements": "784cb9dc86bd733c3215f44477b5d464e2bda6fdc5ed5fc859761ea663353494"
+      }
     },
     {
       "id": 427,
       "name": "Take Flight (TF)",
       "category": "free_for_all",
       "sourceFunction": "take_flight",
-      "status": "planned",
-      "nameZhSource": "空中飞驰"
+      "status": "implemented_phase_2",
+      "nameZhSource": "空中飞驰",
+      "implementationBatch": 9,
+      "geometryResources": [
+        "take_flight"
+      ],
+      "implementationNotes": [
+        "Complete211x129x261 bounded natural cave domain,6038297 nonair cells in1002534 exact X runs. Preserve original Y-64 bottom, four fixed material-plane waypoints and16 randomized yellow boost candidates; no synthetic course walls or forced return.",
+        "Native binding Elytra and flight0 rockets replenish after10 empty ticks. Three laps,120second multiplayer limit, source lap/recency scores, actual local forward teleport boosts and original boost81-minus21 repeat-contact rule.",
+        "Half-heart maximum health, in-place noneliminating recovery with cleared inertia and40tick protection; preserve source108-cell cage clones at setup and intro120,compact <=4 and shared >=5 launch cages."
+      ],
+      "sourceAuditResource": "take_flight_rules.json",
+      "sourceFunctionSha256": {
+        "take_flight": "43e9246e9f221d232e2b8b3e9408f68a56da674e3aeb83cc83d1a6f965dfbd72",
+        "take_flight_rules": "bc1eed0a51d1d11e85e3bf2311a4dff476a803718c0574ec756be36fe306474b",
+        "take_flight_start": "f7a1a9fbb10c384b831e4a91586833bcd1dd530091b29130fbd9a79e00da51b6",
+        "take_flight_tick": "27afb72afc3a43e77f739f21f73db3197d951d18313191e57e034fcd043e9eb4",
+        "take_flight_new_boost": "b2e5b758611fedaab44a6e4b8a24f6e354bd6dd82f12413a1dbdbb1db77a297b",
+        "take_flight_end": "3af442eac8e2b15312110b98c146b3a73d1877ad14d14f7fa209ba7a238ca8a0",
+        "checkpoint": "b3c851a0a18f4a3e9b3523b1e8b0c0d94f433e22d53612fb3a83cec2d25c6464",
+        "checkpoint2": "b23bb5662372b4acd3174bc53cc12fe1764a239652156c829a2ed33368d282fe",
+        "assign_finish_threshold": "4e4ab712483a06a5981e30df7379d4d4a90932f48325f825675861dfb3c8df3c",
+        "timer_decrement": "adf2973bc3c173e6423b1d6f7d0dae33567794837ce9e2ee9c6556c786417706",
+        "last_timer_title": "2c967d524c537de08bf4ceab74493197d214295ccc7589c0af1b20ac2af191fa",
+        "give_ready_ups": "2407d1e73fbd459e76febb26865938da80025a8c96a22b68eda99461a5b97354",
+        "ready_up_tellraw": "ccfa3e99f26dd435dbdd72963d20d6db668a14d36bbf1ade8ea2427495fe29e0",
+        "start_minigame": "4f95931dc88991e97d098a517467293bf823ba9e8a23e34cc5a305c11cb6f474",
+        "scoreboard_data": "bf0cb1a938ab95b0bc0f45d0cff37585df419ebe09073daf8500e4d74a321655",
+        "default_settings": "d822e97f2de245d1216df9311b403e5f03a54a393710ccc825ccc10ad8ff1943",
+        "tick": "b993c3b4e59690dfab230b3e03be70f5af037f5553018c538adf73cd22ef2486",
+        "4_4_all_tick": "55d4b9bf6af746e15759559c48d4257a893e77e85f66371d2cadf97de085d014",
+        "quickplayminigame": "d1dd940dfccb67b3cd8d41176910b6126f824ba2e02f9713d3d6996cde21fb7a",
+        "replay_minigame": "6d975a84d28f9e0197f51666ab839202c24022ff6eb0bd29f20fce5d189132bc",
+        "set_up_minigame": "40fdbde5ab627abaf9d1c1203292c79006946788979f246721b1cfe4872a7295",
+        "schedule_clear_rules": "e2911e4c2208efbbbb2432b5ecacaf66df08ddb993f0ed2fcab8d463311ffff2",
+        "schedule_clear_start": "961e411faa3e0c3b2cbc8f0e1e9089d592b83704dcd9dae639413dd5171395dd",
+        "placements": "784cb9dc86bd733c3215f44477b5d464e2bda6fdc5ed5fc859761ea663353494",
+        "end_minigame": "654d060221991fb8419eba9ea164f2ea6c435c474176585213f14b4d69d753f3",
+        "void_minigame": "b6b190e7af56bca8f48154e94e8394f24bfb99ece5146b32600c84d0b72f0c7f"
+      }
     },
     {
       "id": 428,
@@ -1023,9 +1678,9 @@
     }
   ],
   "progress": {
-    "implementedGames": 9,
-    "remainingGames": 93,
-    "geometryResources": 18,
+    "implementedGames": 28,
+    "remainingGames": 74,
+    "geometryResources": 113,
     "phase2": "in_progress"
   },
   "tournamentRules": {
