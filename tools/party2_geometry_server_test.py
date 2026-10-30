@@ -43,9 +43,25 @@ def main():
             properties = ",".join(f"{key}={value}" for key, value in sorted((defaults | state.get("Properties", {})).items()))
             suffixes.append(f"|{state['Name']}|{properties}\n")
         digest = hashlib.sha256()
-        for x, y, z, state in geometry["blocks"]:
+        # Independently expand exact positive-axis runs. Keep no expanded cell list:
+        # the Rocket Launch source alone contains nearly thirteen million cells.
+        count = 0
+        if geometry["formatVersion"] == 1:
+            cells = geometry["blocks"]
+        elif geometry["formatVersion"] == 2:
+            axis = {"x": 0, "y": 1, "z": 2}[geometry["runAxis"]]
+            def expand_runs():
+                for x, y, z, length, state in geometry["runs"]:
+                    for step in range(length):
+                        yield (x + (step if axis == 0 else 0), y + (step if axis == 1 else 0),
+                               z + (step if axis == 2 else 0), state)
+            cells = expand_runs()
+        else:
+            raise SystemExit(f"Unsupported reference format: {source}")
+        for x, y, z, state in cells:
             digest.update(f"{x+minimum[0]+601},{y+minimum[1]+47},{z+minimum[2]-777}{suffixes[state]}".encode())
-        references.append({"name": source.name.removesuffix(".json.gz"), "count": len(geometry["blocks"]),
+            count += 1
+        references.append({"name": source.name.removesuffix(".json.gz"), "count": count,
                            "sha256": digest.hexdigest()})
     (run_dir / "party-geometry-expected.json").write_text(json.dumps(references) + "\n")
     environment = json.loads((run_dir / "validation-environment.json").read_text())

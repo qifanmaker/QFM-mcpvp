@@ -3681,9 +3681,10 @@ public final class Match {
 
     /** Keep the region reserved while previously hidden entities load asynchronously. */
     boolean prepareDeferredFinish() {
-        if (!this.isSkyWars()) return true;
         Match owner = this.manager.regionOwner(this.regionIndex);
         if (owner != null && owner != this) return true; // cleanupArenaAndRelease handles ownership
+        if (this.portedSession instanceof MinecraftPartySession party) return party.prepareFinalCleanup();
+        if (!this.isSkyWars()) return true;
         ArenaWorldManager arenaManager = this.manager.getArenaManager();
         ArenaWorld arena = arenaManager.getWorld();
         if (arena == null) return true;
@@ -3888,7 +3889,8 @@ public final class Match {
             if (arenaManager == null) {
                 return;
             }
-            int removed = arenaManager.clearRegionEntities(this.regionIndex, this.template, this.arenaClearRadius());
+            int removed = this.portedSession instanceof MinecraftPartySession party ? party.discardSceneEntities()
+                    : arenaManager.clearRegionEntities(this.regionIndex, this.template, this.arenaClearRadius());
             if (removed > 0) {
                 LOGGER.info("[PvP] 比赛 #{} 清掉了 {} 个区域实体（掉落物等）", this.id, removed);
             }
@@ -5461,6 +5463,7 @@ public final class Match {
     /** 保护移植场地的静态目标和原图；爆炸不允许破坏原图机制承载的方块。 */
     public boolean ownsPortedPosition(BlockPos pos) {
         if (this.portedSession == null) return false;
+        if (this.portedSession instanceof MinecraftPartySession party) return party.ownsPosition(pos);
         BlockPos center = this.template.getCenter(this.regionIndex);
         int half = ArenaTemplate.REGION_SPACING / 2 - 16;
         return Math.abs(pos.getX() - center.getX()) <= half

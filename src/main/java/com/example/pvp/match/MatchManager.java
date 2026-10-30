@@ -56,7 +56,7 @@ public final class MatchManager {
 
     private final MinecraftServer server;
     private final List<Match> matches = new ArrayList<>();
-    private final Set<Integer> allocatedRegions = new HashSet<>();
+    private final com.example.pvp.arena.ArenaRegionAllocator regionAllocator = new com.example.pvp.arena.ArenaRegionAllocator();
 
     /**
      * 结算后延后执行的重活（竞技场清场 + 战绩落盘）。
@@ -581,7 +581,7 @@ public final class MatchManager {
             PvpGuiManager.removeQueueItem(player);
         }
 
-        int regionIndex = this.allocateRegion();
+        int regionIndex = this.regionAllocator.allocate(type == MatchType.MINECRAFT_PARTY);
         ArenaTemplate template = this.createTemplate(type);
         int id = this.nextMatchId;
         if (type == MatchType.LUCKY_PILLAR) {
@@ -603,7 +603,7 @@ public final class MatchManager {
         } catch (Exception e) {
             // 构造失败（如床战地图加载失败）：释放已分配的区域，避免泄漏与 tick 崩溃
             LOGGER.error("[PvP] 创建比赛失败（模式 {}），释放场地", type, e);
-            this.allocatedRegions.remove(regionIndex);
+            this.regionAllocator.release(regionIndex);
             return false;
         }
         if (id >= this.nextMatchId) {
@@ -723,7 +723,7 @@ public final class MatchManager {
     /** 比赛结束后的清理：从列表移除并释放区域。 */
     public void cleanupMatch(Match match) {
         this.matches.remove(match);
-        this.allocatedRegions.remove(match.getRegionIndex());
+        this.regionAllocator.release(match.getRegionIndex());
     }
 
     /**
@@ -740,7 +740,7 @@ public final class MatchManager {
      * 当前占用该区域的<b>存活</b>对局；没有则返回 {@code null}（区域空着）。
      *
      * <p>用途：延迟清场（{@link Match#deferredFinish()}）在下手拆方块前先确认区域还是自己的。
-     * 区域在延迟窗口里本来一直占着（{@code allocatedRegions}），但这是"最后一道闸"——
+     * 区域在延迟窗口里本来一直占着（{@code regionAllocator}），但这是"最后一道闸"——
      * 万一将来有别的路径提前释放，也不会把新一局的场地当旧场地清掉。
      * 直接扫 {@code matches} 而不是维护一张 region→owner 映射，是为了不引入会和真实状态不一致的第二份数据。
      */
@@ -914,23 +914,6 @@ public final class MatchManager {
     }
 
     // ---------- 内部 ----------
-
-    private int allocateRegion() {
-        int max = Math.max(1, PvPConfig.INSTANCE.maxConcurrentMatches);
-        for (int i = 0; i < max * 2; i++) {
-            if (!this.allocatedRegions.contains(i)) {
-                this.allocatedRegions.add(i);
-                return i;
-            }
-        }
-        // 极端情况下兜底分配一个未冲突区域
-        for (int i = 0; ; i++) {
-            if (!this.allocatedRegions.contains(i)) {
-                this.allocatedRegions.add(i);
-                return i;
-            }
-        }
-    }
 
     /**
      * 幸运之柱：从 baseId 起找第一个与上一局平台风格不同的 seed（最多试 20 个），

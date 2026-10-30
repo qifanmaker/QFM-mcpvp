@@ -44,6 +44,13 @@ public final class PortedGameEvents {
         return isPorted(matchOf(entity));
     }
 
+    public static boolean pearlLanded(net.minecraft.entity.projectile.thrown.EnderPearlEntity pearl, ServerPlayerEntity player) {
+        if (PvPMod.MATCH == null) return false;
+        Match match = PvPMod.MATCH.getMatchFor(player);
+        return match != null && match.portedSession() instanceof MinecraftPartySession session
+                && session.onPearlLanded(pearl, player);
+    }
+
     /** null 沿用原世界规则；只有 Party 所属区域的原生方块掉落使用当前回合规则。 */
     public static Boolean blockDropOverride(World world, BlockPos pos) {
         if (PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return null;
@@ -57,7 +64,7 @@ public final class PortedGameEvents {
 
     public static void terrainChanged(World world, BlockPos pos, BlockState state) {
         if (world.isClient || PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return;
-        MinecraftPartySession session = PvPMod.MATCH.partySessionAt(pos);
+        MinecraftPartySession session = PvPMod.MATCH.partySceneSessionAt(pos);
         if (session != null) session.onTerrainChanged(pos, state);
     }
 

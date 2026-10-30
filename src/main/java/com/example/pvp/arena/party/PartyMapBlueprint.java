@@ -13,6 +13,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,16 +37,27 @@ public final class PartyMapBlueprint {
     private final long[] relativePositions;
     private final int[] stateIndices;
     private final List<BlockState> palette;
+    private final int[] runLengths;
+    private final Direction.Axis runAxis;
+    private final long blockCount;
+
+    @FunctionalInterface
+    public interface RunConsumer {
+        void accept(BlockPos start, BlockState state, Direction.Axis axis, int length);
+    }
     private final BlockPos minimum;
     private final BlockPos maximum;
 
     private PartyMapBlueprint(long[] relativePositions, int[] stateIndices, List<BlockState> palette,
-                              BlockPos minimum, BlockPos maximum) {
+                              BlockPos minimum, BlockPos maximum, int[] runLengths, Direction.Axis runAxis, long blockCount) {
         this.relativePositions = relativePositions;
         this.stateIndices = stateIndices;
         this.palette = List.copyOf(palette);
         this.minimum = minimum;
         this.maximum = maximum;
+        this.runLengths = runLengths;
+        this.runAxis = runAxis;
+        this.blockCount = blockCount;
     }
 
     public static PartyMapBlueprint load(String name) throws IOException {
@@ -71,11 +83,16 @@ public final class PartyMapBlueprint {
                 List<BlockState> palette = null;
                 LongArrayList positions = new LongArrayList();
                 IntArrayList indices = new IntArrayList();
-                boolean sawBlocks = false;
+                boolean sawBlocks = false, sawRuns = false;
+                IntArrayList lengths = new IntArrayList();
+                String axisName = null;
+                long declaredBlocks = -1;
                 reader.beginObject();
                 while (reader.hasNext()) {
                     switch (reader.nextName()) {
                         case "formatVersion" -> version = reader.nextInt();
+                        case "runAxis" -> axisName = reader.nextString();
+                        case "nonAirBlocks" -> declaredBlocks = reader.nextLong();
                         case "bounds" -> {
                             JsonObject bounds = JsonParser.parseReader(reader).getAsJsonObject();
                             sourceMin = position(bounds.getAsJsonArray("min"));
@@ -100,31 +117,57 @@ public final class PartyMapBlueprint {
                             }
                             reader.endArray();
                         }
+                        case "runs" -> {
+                            // Exact full-height terrain is stored as1.6M native
+                            // runs, not expanded into12.9M cached positions.
+                            sawRuns = true;
+                            reader.beginArray();
+                            while (reader.hasNext()) {
+                                reader.beginArray();
+                                int x = reader.nextInt(), y = reader.nextInt(), z = reader.nextInt();
+                                int length = reader.nextInt(), index = reader.nextInt();
+                                reader.endArray();
+                                long packed = BlockPos.asLong(x, y, z);
+                                if (x < 0 || y < 0 || z < 0 || length <= 0 || BlockPos.unpackLongX(packed) != x
+                                        || BlockPos.unpackLongY(packed) != y || BlockPos.unpackLongZ(packed) != z)
+                                    throw new IOException("Invalid relative Party 2 run");
+                                positions.add(packed); indices.add(index); lengths.add(length);
+                            }
+                            reader.endArray();
+                        }
                         default -> reader.skipValue();
                     }
                 }
                 reader.endObject();
-                if (version != 1) {
-                    throw new IOException("Unsupported Party 2 geometry format");
-                }
-                if (sourceMin == null || sourceMax == null || palette == null || !sawBlocks) {
+                if (version != 1 && version != 2) throw new IOException("Unsupported Party 2 geometry format");
+                if (sourceMin == null || sourceMax == null || palette == null || (version == 1 ? !sawBlocks || sawRuns : !sawRuns || sawBlocks))
                     throw new IOException("Incomplete Party 2 geometry metadata");
-                }
-                if (sourceMax.getX() < sourceMin.getX() || sourceMax.getY() < sourceMin.getY()
-                        || sourceMax.getZ() < sourceMin.getZ()) {
+                if (sourceMax.getX() < sourceMin.getX() || sourceMax.getY() < sourceMin.getY() || sourceMax.getZ() < sourceMin.getZ())
                     throw new IOException("Inverted Party 2 geometry bounds");
+                Direction.Axis axis = Direction.Axis.X;
+                if (version == 2) {
+                    if (axisName == null) throw new IOException("Missing Party 2 run axis");
+                    axis = switch (axisName) {
+                        case "x" -> Direction.Axis.X;
+                        case "y" -> Direction.Axis.Y;
+                        case "z" -> Direction.Axis.Z;
+                        default -> throw new IOException("Invalid Party 2 run axis");
+                    };
                 }
+                long count = 0;
                 for (int i = 0; i < positions.size(); i++) {
                     long packed = positions.getLong(i);
-                    if (BlockPos.unpackLongX(packed) > (long) sourceMax.getX() - sourceMin.getX()
-                            || BlockPos.unpackLongY(packed) > (long) sourceMax.getY() - sourceMin.getY()
-                            || BlockPos.unpackLongZ(packed) > (long) sourceMax.getZ() - sourceMin.getZ()
-                            || indices.getInt(i) < 0 || indices.getInt(i) >= palette.size()) {
-                        throw new IOException("Party 2 geometry block outside bounds or palette");
-                    }
+                    long x = BlockPos.unpackLongX(packed), y = BlockPos.unpackLongY(packed), z = BlockPos.unpackLongZ(packed);
+                    int length = version == 2 ? lengths.getInt(i) : 1;
+                    switch (axis) { case X -> x += length - 1L; case Y -> y += length - 1L; case Z -> z += length - 1L; }
+                    if (x > (long) sourceMax.getX() - sourceMin.getX() || y > (long) sourceMax.getY() - sourceMin.getY()
+                            || z > (long) sourceMax.getZ() - sourceMin.getZ() || indices.getInt(i) < 0 || indices.getInt(i) >= palette.size())
+                        throw new IOException("Party 2 geometry block/run outside bounds or palette");
+                    count = Math.addExact(count, length);
                 }
+                if (declaredBlocks >= 0 && declaredBlocks != count) throw new IOException("Party 2 geometry block count mismatch");
                 PartyMapBlueprint result = new PartyMapBlueprint(positions.toLongArray(), indices.toIntArray(), palette,
-                        sourceMin, sourceMax);
+                        sourceMin, sourceMax, version == 2 ? lengths.toIntArray() : null, axis, count);
                 CACHE.put(name, result);
                 return result;
             }
@@ -169,11 +212,27 @@ public final class PartyMapBlueprint {
 
     /** 接收者可以直接写入 Match 的 MapBuildQueue，避免在主线程同步粘贴整张图。 */
     public void forEachTranslated(BlockPos sourceOffset, BiConsumer<BlockPos, BlockState> writer) {
-        BlockPos translatedMinimum = this.minimum.add(sourceOffset);
-        for (int i = 0; i < this.relativePositions.length; i++) {
-            writer.accept(BlockPos.fromLong(this.relativePositions[i]).add(translatedMinimum),
-                    this.palette.get(this.stateIndices[i]));
-        }
+        // Existing callers still receive every original cell in the same order;
+        // only streaming consumers opt into the compressed run representation.
+        this.forEachRun(sourceOffset, (start, state, axis, length) -> {
+            for (int offset = 0; offset < length; offset++) writer.accept(switch (axis) {
+                case X -> start.add(offset, 0, 0);
+                case Y -> start.add(0, offset, 0);
+                case Z -> start.add(0, 0, offset);
+            }, state);
+        });
+    }
+
+    public boolean runEncoded() { return this.runLengths != null; }
+    public long blockCount() { return this.blockCount; }
+    public BlockPos minimum() { return this.minimum; }
+    public BlockPos maximum() { return this.maximum; }
+
+    public void forEachRun(BlockPos translation, RunConsumer writer) {
+        BlockPos translatedMinimum = this.minimum.add(translation);
+        for (int index = 0; index < this.relativePositions.length; index++)
+            writer.accept(BlockPos.fromLong(this.relativePositions[index]).add(translatedMinimum), this.palette.get(this.stateIndices[index]),
+                    this.runAxis, this.runLengths == null ? 1 : this.runLengths[index]);
     }
 
     public long volume() {

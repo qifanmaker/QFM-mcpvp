@@ -1,6 +1,10 @@
 package com.example.pvp.mixin;
 
 import com.example.pvp.PvPMod;
+import com.example.pvp.match.MinecraftPartySession;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.world.GameRules;
 import net.minecraft.network.packet.c2s.play.PlayerInputC2SPacket;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -25,6 +29,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(ServerPlayNetworkHandler.class)
 public abstract class ServerPlayNetworkHandlerMixin {
+    /** Source423 disables only Elytra speed validation; preserve the host gamerule and all other players. */
+    @WrapOperation(method = "onPlayerMove", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/GameRules;getBoolean(Lnet/minecraft/world/GameRules$Key;)Z"))
+    private boolean pvp$scopedElytraCheck(GameRules rules, GameRules.Key<GameRules.BooleanRule> key, Operation<Boolean> original) {
+        ServerPlayerEntity player = ((ServerPlayNetworkHandler) (Object) this).player;
+        if (key == GameRules.DISABLE_ELYTRA_MOVEMENT_CHECK && player != null && PvPMod.MATCH != null) {
+            var match = PvPMod.MATCH.getMatchFor(player);
+            if (match != null && match.portedSession() instanceof MinecraftPartySession party
+                    && party.disableElytraMovementCheck(player)) return true;
+        }
+        return original.call(rules, key);
+    }
+
     @Inject(method = "onPlayerInput", at = @At("TAIL"))
     private void pvp$forwardRiderInput(PlayerInputC2SPacket packet, CallbackInfo ci) {
         ServerPlayerEntity player = ((ServerPlayNetworkHandler) (Object) this).player;

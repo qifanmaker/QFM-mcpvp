@@ -1,6 +1,7 @@
 package com.example.pvp.arena;
 
 import com.example.pvp.mixin.MinecraftServerAccess;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -50,6 +51,14 @@ public class ArenaWorld extends ServerWorld {
     /** 当前正在暂存铺图的队列；null = 正常直写世界（对局中/清场时都是 null）。 */
     private MapBuildQueue staging;
     private Box dropSuppression;
+    /** Reused per-thread state avoids an allocation for each imported terrain cell. */
+    private final ThreadLocal<SnapshotWriteScope> snapshotWrites = ThreadLocal.withInitial(SnapshotWriteScope::new);
+
+    private static final class SnapshotWriteScope {
+        int depth;
+        long position;
+        BlockState state;
+    }
 
     /** Cleanup must not turn container contents or neighbour updates into new loot. */
     public void runWithoutDrops(Box bounds, Runnable cleanup) {
@@ -196,6 +205,39 @@ public class ArenaWorld extends ServerWorld {
     public boolean setBlockStateDirect(BlockPos pos, BlockState state) {
         this.loadPatternNeighbors(pos, state);
         return super.setBlockState(pos, state, 3, 512);
+    }
+
+    /**
+     * Import an already-saved static scene without replaying placement/removal
+     * effects. Replaying those callbacks makes suspended gravel fall, rewires
+     * neighbours and can spawn golems while a large snapshot is only half built.
+     *
+     * Native World/WorldChunk writes still maintain section counts, all four
+     * heightmaps, sky/block lighting, block entities and client listeners. Only
+     * this exact write's onStateReplaced/onBlockAdded callbacks are suppressed
+     * by PartySnapshotImportMixin; ordinary game writes keep their normal flags.
+     */
+    public boolean setBlockStateSnapshotDirect(BlockPos pos, BlockState state) {
+        SnapshotWriteScope scope = this.snapshotWrites.get();
+        int previousDepth = scope.depth;
+        long previousPosition = scope.position;
+        BlockState previousState = scope.state;
+        scope.depth = previousDepth + 1;
+        scope.position = pos.asLong();
+        scope.state = state;
+        try {
+            return super.setBlockState(pos, state, Block.NOTIFY_LISTENERS | Block.FORCE_STATE, 512);
+        } finally {
+            scope.depth = previousDepth;
+            scope.position = previousPosition;
+            scope.state = previousState;
+        }
+    }
+
+    /** The same server thread may perform unrelated writes while notifying listeners. */
+    public boolean isSnapshotImporting(BlockPos pos, BlockState state) {
+        SnapshotWriteScope scope = this.snapshotWrites.get();
+        return scope.depth > 0 && scope.position == pos.asLong() && scope.state == state;
     }
 
     /**
