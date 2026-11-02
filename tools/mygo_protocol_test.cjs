@@ -460,15 +460,15 @@ async function menu() {
   await chat('A', '/pvp');
   check('main menu follows requested nine-game order', mainNames.every((name, i) => contains('A', 9 + i, name)),
     mainNames.map((_, i) => itemInfo(menuItem('A', 9 + i))), mainNames);
-  check('other games and utility buttons have separate slots', contains('A', 22, '其他游戏')
+  check('practice, other games and utility buttons have separate slots', contains('A', 21, '练习模式') && contains('A', 22, '其他游戏')
     && contains('A', 27, '向玩家发起决斗') && contains('A', 28, '我的战绩') && contains('A', 29, '查看套件列表'),
-    [22, 27, 28, 29].map(slot => itemInfo(menuItem('A', slot))), 'other games / duel / stats / kits');
+    [21, 22, 27, 28, 29].map(slot => itemInfo(menuItem('A', slot))), 'practice / other games / duel / stats / kits');
   await click('A', 22);
-  const otherNames = ['战桥', '起床战争', '心跳水立方', '烫手山芋', '村庄保卫战', '选择村庄保卫战职业', '色盲派对', '练习模式'];
+  const otherNames = ['战桥', '起床战争', '心跳水立方', '烫手山芋', '村庄保卫战', '选择村庄保卫战职业', '色盲派对'];
   check('other games preserves all remaining entries', title('A').includes('其他游戏') && otherNames.every((name, i) => contains('A', 9 + i, name))
-    && [17, 18, 19, 20].every(slot => menuItem('A', slot)?.name === 'gray_stained_glass_pane'),
+    && [16, 17, 18, 19, 20].every(slot => menuItem('A', slot)?.name === 'gray_stained_glass_pane'),
     bots.A.currentWindow?.slots.slice(9, 21).map(itemInfo), otherNames);
-  for (const [slot, name] of [[9, '战桥'], [10, '起床战争'], [16, '练习模式']]) {
+  for (const [slot, name] of [[9, '战桥'], [10, '起床战争']]) {
     await click('A', slot);
     check(`${name} opens its category`, title('A').includes(name), title('A'), name);
     await click('A', 26);
@@ -476,6 +476,11 @@ async function menu() {
   }
   await click('A', 26);
   check('other games returns to main', contains('A', 17, 'Island Siege'), title('A'), 'main menu');
+  // Practice moved to the first level, so its category must return directly to main.
+  await click('A', 21);
+  check('practice opens directly from main', title('A').includes('练习模式'), title('A'), '练习模式');
+  await click('A', 26);
+  check('practice returns to main', contains('A', 21, '练习模式') && contains('A', 22, '其他游戏'), title('A'), 'main menu');
   await click('A', 13); await click('A', 13);
   check('PVP deathmatch opens kit selection', title('A').includes('选择套件') && title('A').includes('死斗'), title('A'), 'deathmatch kits');
   await click('A', 26); await click('A', 26);

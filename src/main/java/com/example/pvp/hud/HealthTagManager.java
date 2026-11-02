@@ -276,8 +276,7 @@ public final class HealthTagManager {
                 scoreboard.removeTeam(hiddenTeam);
             }
             for (ServerPlayerEntity player : this.server.getPlayerManager().getPlayerList()) {
-                var match = com.example.pvp.PvPMod.MATCH == null ? null : com.example.pvp.PvPMod.MATCH.getMatchFor(player);
-                if (match != null && match.getType() == com.example.pvp.match.MatchType.MYGO) continue;
+                if (isMyGoPlayer(player)) continue;
                 var team = scoreboard.getScoreHolderTeam(player.getGameProfile().getName());
                 if (team != null && team.getName().startsWith("pvp_")
                         && !team.getName().equals(HIDDEN_NAME_TEAM)
@@ -294,9 +293,8 @@ public final class HealthTagManager {
 
         this.hideVanillaName(player);
 
-        // 枪战的信息博弈不能被通用头顶血量标签泄露；赛后自然恢复原有显示。
-        var match = com.example.pvp.PvPMod.MATCH == null ? null : com.example.pvp.PvPMod.MATCH.getMatchFor(player);
-        if (match != null && match.getType() == com.example.pvp.match.MatchType.MYGO) {
+        // 练习与正式枪战同样隐藏姓名/血量，不能用通用 text_display 标签泄露位置。
+        if (isMyGoPlayer(player)) {
             this.remove(uuid);
             return;
         }
@@ -348,6 +346,13 @@ public final class HealthTagManager {
             this.lastText.put(uuid, text);
             ((TextDisplayEntityInvoker) display).pvp$setText(text);
         }
+    }
+
+    private static boolean isMyGoPlayer(ServerPlayerEntity player) {
+        var match = com.example.pvp.PvPMod.MATCH == null ? null : com.example.pvp.PvPMod.MATCH.getMatchFor(player);
+        var practice = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+        return match != null && match.getType() == com.example.pvp.match.MatchType.MYGO
+                || practice != null && practice.session(player) != null;
     }
 
     private void hideVanillaName(ServerPlayerEntity player) {

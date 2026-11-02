@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -160,6 +161,7 @@ public final class MyGoPracticeManager {
     private boolean leave(ServerPlayerEntity player, boolean disconnected) {
         Room room = humans.remove(player.getUuid());
         if (room == null) return false;
+        room.pendingTakeovers.remove(player.getUuid());
         Seat seat = room.humanSeat(player.getUuid());
         if (seat != null) {
             if (seat.pending != null) seat.pending = null;
@@ -275,6 +277,9 @@ public final class MyGoPracticeManager {
                     for (Seat seat : room.seats) if (seat.controller != null) seat.controller.tick();
                     room.session.tick();
                 }
+                room.takeOverAfterDeaths();
+                // beginRound 会在半场切换 T/CT；名称颜色应随实际阵营更新，而不是固定席位编号。
+                for (Seat seat : room.seats) room.teamPresentation.assign(seat.actor, room.side(seat));
             } catch (RuntimeException error) { room.fail(error); }
         }
     }
@@ -289,7 +294,9 @@ public final class MyGoPracticeManager {
         final Key key;
         final int region;
         final ArenaTemplate template;
+        final MyGoTeamPresentation teamPresentation;
         final Seat[] seats = new Seat[SEATS];
+        final LinkedHashSet<UUID> pendingTakeovers = new LinkedHashSet<>();
         MyGoSession session;
         MapBuildQueue build;
         boolean ready, closing;
@@ -297,6 +304,7 @@ public final class MyGoPracticeManager {
         Room(Key key, int region) {
             this.key = key; this.region = region;
             this.template = PvPMod.MATCH.createTemplate(MatchType.MYGO);
+            this.teamPresentation = new MyGoTeamPresentation(server, region);
             try {
                 for (int i = 0; i < SEATS; i++) {
                     seats[i] = new Seat(i);
@@ -323,6 +331,7 @@ public final class MyGoPracticeManager {
             for (Seat seat : seats) {
                 MyGoBotPlayer bot = (MyGoBotPlayer) seat.actor;
                 boolean attack = seat.index < 5;
+                this.teamPresentation.assign(bot, session.attackerSide(bot));
                 bot.spawn(session.arena().spawn(attack, seat.index % 5), session.arena().spawnYaw(attack, seat.index % 5));
                 ArenaWorldManager.getOrNull().addVisitor(bot, 3600);
                 seat.controller = new MyGoBot(session, bot, key.difficulty, seat.index);
@@ -352,23 +361,56 @@ public final class MyGoPracticeManager {
             return Arrays.stream(seats).filter(seat -> side(seat) == attack && !human(seat)).findFirst().orElse(null);
         }
         void admit(Seat seat, ServerPlayerEntity player) {
+            admit(seat, player, true);
+        }
+        void admit(Seat seat, ServerPlayerEntity player, boolean announceAdmission) {
             snapshots.computeIfAbsent(player.getUuid(), ignored -> InventorySnapshot.capture(player));
             for (Seat member : seats) if (member.actor instanceof MyGoBotPlayer bot) bot.sendProfile(player);
             ArenaWorldManager.getOrNull().addVisitor(player, 3600);
             replace(seat, player);
             seat.pending = null;
             humans.put(player.getUuid(), this);
+            if (!announceAdmission) return;
             player.sendMessage(Messages.gold("已进入 MyGO 5v5 人机练习 · " + key.difficulty.getDisplayName()
                     + " · " + (side(seat) ? "T" : "CT")), false);
             player.sendMessage(Messages.info("接管人机当前血量、弹药和存活状态；每队固定 5 人，不计正式战绩。"), false);
+            player.sendMessage(Messages.info("作战中阵亡后自动接管同队存活人机；没有可接管的人机时观战等待下一回合。"), false);
             player.sendMessage(Messages.info("/pvp practice leave 或 /hub 退出；/pvp practice mygo team <t|ct|auto> 在购买阶段选队。"), false);
         }
         void backfill(Seat seat) {
             MyGoBotPlayer bot = createBot(seat.index);
             actors.put(bot.getUuid(), this);
+            this.teamPresentation.assign(bot, side(seat));
             bot.spawn(session.arena().spawn(side(seat), seat.index % 5), session.arena().spawnYaw(side(seat), seat.index % 5));
             ArenaWorldManager.getOrNull().addVisitor(bot, 3600);
             replace(seat, bot);
+        }
+        /**
+         * 真人死亡后继续使用同队剩余生命，不能复活旧席位或增加队伍存活人数。
+         * 必须等整次会话 tick 的枪弹、手雷、C4 和胜负结算结束，不能在伤害遍历中换操作者。
+         */
+        void takeOverAfterDeaths() {
+            List<UUID> deaths = List.copyOf(pendingTakeovers);
+            pendingTakeovers.clear();
+            if (closing || !ready || restartAt > 0) return;
+            for (UUID id : deaths) {
+                ServerPlayerEntity player = server.getPlayerManager().getPlayer(id);
+                if (player == null || humans.get(id) != this || player.getWorld() != world()) continue;
+                Seat dead = humanSeat(id);
+                if (dead == null || dead.pending != null || dead.actor != player) continue;
+                MyGoSession.BotView state = session.botView(player);
+                if (state == null || state.alive() || !state.phase().equals("LIVE")) continue;
+                Seat target = Arrays.stream(seats).filter(seat -> seat.pending == null && seat.actor instanceof MyGoBotPlayer)
+                        .filter(seat -> {
+                            MyGoSession.BotView bot = session.botView(seat.actor);
+                            return bot != null && bot.alive() && bot.team() == state.team();
+                        }).findFirst().orElse(null);
+                if (target == null) continue;
+                String botName = target.actor.getGameProfile().getName();
+                backfill(dead);
+                admit(target, player, false);
+                player.sendMessage(Messages.gold("阵亡后已自动接管同队人机 " + botName + "，继承其当前血量、装备和弹药。"), false);
+            }
         }
         void replace(Seat seat, ServerPlayerEntity incoming) {
             ServerPlayerEntity old = seat.actor;
@@ -378,6 +420,8 @@ public final class MyGoPracticeManager {
                 if (incoming instanceof MyGoBotPlayer bot) bot.discardBot();
                 throw new IllegalStateException("Cannot replace MyGO practice seat " + seat.index);
             }
+            this.teamPresentation.release(old);
+            this.teamPresentation.assign(incoming, session.attackerSide(incoming));
             actors.remove(old.getUuid());
             seat.actor = incoming;
             seat.controller = incoming instanceof MyGoBotPlayer bot ? new MyGoBot(session, bot, key.difficulty, seat.index) : null;
@@ -394,7 +438,9 @@ public final class MyGoPracticeManager {
         void close() {
             if (closing) return;
             closing = true;
+            pendingTakeovers.clear();
             if (session != null) session.onEnd();
+            this.teamPresentation.close();
             // 换队失败时真人可能暂时不属于任何席位；按房间登记回收，不能只遍历当前十个操作者。
             for (var entry : List.copyOf(humans.entrySet())) {
                 if (entry.getValue() != this) continue;
@@ -427,6 +473,10 @@ public final class MyGoPracticeManager {
         @Override public List<ServerPlayerEntity> participants() { return Arrays.stream(seats).filter(java.util.Objects::nonNull).map(seat -> seat.actor).toList(); }
         @Override public ServerPlayerEntity player(UUID id) { return participants().stream().filter(actor -> actor.getUuid().equals(id)).findFirst().orElse(null); }
         @Override public boolean contains(UUID id) { return player(id) != null; }
+        @Override public void onFighterDeath(ServerPlayerEntity player) {
+            if (!closing && !(player instanceof MyGoBotPlayer) && humans.get(player.getUuid()) == this)
+                pendingTakeovers.add(player.getUuid());
+        }
         @Override public void broadcast(Text message) {
             for (Seat seat : seats) if (seat != null && seat.actor != null && !(seat.actor instanceof MyGoBotPlayer)) seat.actor.sendMessage(message, false);
         }

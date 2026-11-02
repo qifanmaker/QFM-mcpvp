@@ -146,7 +146,8 @@ async function click(bot, slot) {
 async function gui(a) {
   await command(a, '/pvp');
   await waitFor(() => a.currentWindow, 'main GUI');
-  await click(a, 22); await click(a, 16); await click(a, 17);
+  // Practice now opens directly from the first-level main menu.
+  await click(a, 21); await click(a, 17);
   check('GUI shows all five gun bot difficulties', [11, 12, 13, 14, 15]
     .every(slot => a.currentWindow.slots[slot]?.name.endsWith('_sword')));
   await click(a, 13);
@@ -443,8 +444,158 @@ async function handover() {
   for (const player of players.slice(0, 5)) if (player !== departing) await leave(player);
 }
 
+async function takeover() {
+  // Reason: a human death must consume one existing team life, then transfer
+  // control without healing a bot or reusing it for two simultaneous victims.
+  // The first death is a real gun kill; the snapshot-only probe invokes the
+  // existing public onDeath path for deterministic same-tick batches only.
+  const a = connect('A'), b = connect('B'), c = connect('C');
+  for (const player of [a, b, c]) await ready(player);
+  await command(a, '/give @s minecraft:diamond 5');
+  await command(a, '/item replace entity @s armor.head with minecraft:iron_helmet');
+  await command(c, '/give @s minecraft:emerald 7');
+  await command(c, '/item replace entity @s armor.feet with minecraft:iron_boots');
+  const statsBefore = await message(a, '/pvp mygo stats', /MyGO 战绩/);
+  const map = process.env.MYGO_PRACTICE_TAKEOVER_MAP || 'dust2';
+  await join(a, 't', 'beginner', map);
+  await join(c, 't', 'beginner', map);
+  await join(b, 'ct', 'beginner', map);
+  const actor = (state, player) => state.roster.find(row => row.uuid === player.player.uuid);
+  const count = (state, side) => state.roster.filter(row => row.team === side && row.alive).length;
+  const targets = state => state.roster.filter(row => row.bot && row.team === 'T' && row.alive);
+  async function poll(predicate, label, timeout = 12000) {
+    const end = Date.now() + timeout;
+    let state;
+    do {
+      state = await info(b);
+      if (predicate(state)) return state;
+      await sleep(100);
+    } while (Date.now() < end);
+    throw new Error(`Timeout: ${label}; last=${JSON.stringify(state)}`);
+  }
+  async function holdBots() {
+    await command(b, '/effect give @e[tag=pvp_mygo_practice_bot,distance=0..] minecraft:blindness 180 0 true');
+    await command(b, '/effect give @e[tag=pvp_mygo_practice_bot,distance=0..] minecraft:slowness 180 255 true');
+  }
+  async function batch(ids) {
+    await command(b, '/tag @e[tag=mygo_takeover_batch,distance=0..] remove mygo_takeover_batch', 40);
+    for (const id of ids) await command(b, `/tag ${id} add mygo_takeover_batch`, 40);
+    await message(b, '/mygo_takeover_test kill @e[tag=mygo_takeover_batch,distance=0..]', /MyGoTakeoverProbe tick=/);
+    await command(b, '/tag @e[tag=mygo_takeover_batch,distance=0..] remove mygo_takeover_batch', 40);
+  }
+  async function aimAndFire(point) {
+    await b.lookAt(point, true);
+    // Mineflayer's forced look only changes local state; explicitly send the
+    // normal look packet before attack so both arrive in the intended order.
+    b._client.write('look', { yaw: (Math.PI - b.entity.yaw) * 180 / Math.PI,
+      pitch: -b.entity.pitch * 180 / Math.PI, onGround: true });
+    b._client.write('arm_animation', { hand: 0 });
+    await sleep(450);
+  }
+  function inherited(before, after, expected, old, label) {
+    const incoming = actor(after, a), retired = after.roster.find(row => row.seat === old.seat);
+    verifyRoom(after, 3, label);
+    check(label + ': human controls the surviving same-team bot seat', incoming.alive && incoming.seat === expected.seat
+      && incoming.team === old.team && after.round === before.round, { expected, incoming });
+    check(label + ': inherits current HP gun ammo economy and C4', ['hp', 'gun', 'ammo', 'reserve', 'cash', 'bomb']
+      .every(key => incoming[key] === expected[key]), { expected, incoming });
+    check(label + ': original dead seat is backfilled without revival', retired.bot && !retired.alive && retired.hp === 0, retired);
+    check(label + ': actual team lives decrease by exactly one', count(after, 'T') === count(before, 'T') - 1,
+      { before: count(before, 'T'), after: count(after, 'T') });
+    check(label + ': client resumes adventure control', a.game.gameMode === 'adventure', a.game.gameMode);
+  }
+  await holdBots();
+  let state = await poll(value => value.phase === 'LIVE', 'first live round', 25000);
+  verifyRoom(state, 3, 'takeover setup');
+  const status = await message(b, '/pvp mygo status', /MyGO round=/);
+  const range = status.match(/range=(-?\d+),(-?\d+),(-?\d+)/);
+  if (!range) throw new Error('Missing established clear shooting range');
+  const x = Number(range[1]), y = Number(range[2]), z = Number(range[3]);
+  const target = targets(state)[0];
+  await command(b, `/tp ${target.uuid} ${x + .5} ${y} ${z + .5}`);
+  await command(b, `/tp @s ${x + 6.5} ${y} ${z + .5}`);
+  b.setQuickBarSlot(1);
+  await sleep(600);
+  await aimAndFire(new Vec3(x + .5, y + 1.0, z + .5));
+  state = await info(b);
+  const injured = state.roster.find(row => row.seat === target.seat);
+  check('real pistol shot injures the bot selected for takeover', injured.alive && injured.hp > 0 && injured.hp < 100, injured);
+  await command(b, `/tp ${a.username} ${x + 12.5} ${y} ${z + .5}`);
+  const beforeGunDeath = await info(b), old = actor(beforeGunDeath, a);
+  const expected = beforeGunDeath.roster.find(row => row.seat === target.seat);
+  for (let shot = 0; shot < 6; shot++) {
+    await aimAndFire(new Vec3(x + 12.5, y + 1.62, z + .5));
+    state = await info(b);
+    if (actor(state, a).seat !== old.seat) break;
+  }
+  check('ordinary firearm kill triggers automatic takeover', actor(state, a).seat !== old.seat
+    && chats.some(row => row.message.includes(`${a.username} 阵亡 ← ${b.username}`)), actor(state, a));
+  inherited(beforeGunDeath, state, expected, old, 'real gun death');
+  check('injured bot takeover cannot heal to 100 HP', actor(state, a).hp === injured.hp && actor(state, a).hp < 100, actor(state, a));
+
+  while (targets(state).length > 0) {
+    const before = state, previous = actor(before, a), next = targets(before)[0];
+    await batch([a.player.uuid]);
+    state = await poll(value => actor(value, a).seat !== previous.seat, 'next surviving bot takeover');
+    inherited(before, state, next, previous, 'repeated death');
+  }
+  const noBotBefore = state, noBotSeat = actor(state, a).seat;
+  await batch([a.player.uuid]);
+  state = await poll(value => !actor(value, a).alive, 'no same-team bot spectator');
+  check('no surviving same-team bot leaves human in original dead seat', actor(state, a).seat === noBotSeat
+    && a.game.gameMode === 'spectator', actor(state, a));
+  check('living human teammate and enemy bots cannot be taken over', actor(state, c).alive && count(state, 'T') === 1
+    && count(state, 'CT') === count(noBotBefore, 'CT') && state.phase === 'LIVE', state);
+  await batch([c.player.uuid]);
+  const firstRound = state.round;
+  state = await poll(value => value.round > firstRound && value.phase === 'BUY', 'next-round ordinary reset', 18000);
+  check('new round resets both sides to five original lives', count(state, 'T') === 5 && count(state, 'CT') === 5
+    && actor(state, a).alive && actor(state, c).alive, state);
+  await holdBots();
+  state = await poll(value => value.phase === 'LIVE', 'competition live round', 25000);
+  await batch(targets(state).slice(0, -1).map(row => row.uuid));
+  state = await info(b);
+  const lastBot = targets(state)[0];
+  check('competition fixture leaves exactly one living team bot', targets(state).length === 1, targets(state));
+  await batch([a.player.uuid, c.player.uuid]);
+  state = await info(b);
+  verifyRoom(state, 3, 'simultaneous human deaths');
+  const pair = [actor(state, a), actor(state, c)];
+  check('simultaneous dead humans cannot claim one bot twice', pair.filter(row => row.alive).length === 1
+    && pair.find(row => row.alive).seat === lastBot.seat && count(state, 'T') === 1, pair);
+  check('human without an available bot remains spectator', [a, c].filter(player => !actor(state, player).alive)
+    .every(player => player.game.gameMode === 'spectator'), pair);
+  await batch(pair.filter(row => row.alive).map(row => row.uuid));
+  const competitionRound = state.round;
+  state = await poll(value => value.round > competitionRound && value.phase === 'BUY', 'batch-safety round reset', 18000);
+  await holdBots();
+  state = await poll(value => value.phase === 'LIVE', 'batch-safety live round', 25000);
+  await batch(targets(state).slice(0, -1).map(row => row.uuid));
+  state = await info(b);
+  const batchRound = state.round;
+  await batch([a.player.uuid, c.player.uuid, ...targets(state).map(row => row.uuid)]);
+  state = await info(b);
+  check('death batch including the last bot creates no extra life', count(state, 'T') === 0
+    && !actor(state, a).alive && !actor(state, c).alive && state.phase === 'POST' && state.round === batchRound, state);
+  await batch([a.player.uuid]);
+  state = await info(b);
+  check('duplicate/post-round death callback cannot revive a human', !actor(state, a).alive && count(state, 'T') === 0, actor(state, a));
+  const statsAfter = await message(a, '/pvp mygo stats', /MyGO 战绩/);
+  check('automatic takeovers never write formal MyGO statistics', statsBefore === statsAfter, { statsBefore, statsAfter });
+  await leave(a);
+  check('exit after several takeovers restores original inventory and helmet', a.inventory.items().some(item => item.name === 'diamond' && item.count === 5)
+    && a.inventory.slots[5]?.name === 'iron_helmet');
+  c.quit();
+  await sleep(300);
+  const reconnect = connect('C');
+  await ready(reconnect);
+  check('disconnect after competing for a bot restores original inventory and boots', reconnect.inventory.items().some(item => item.name === 'emerald' && item.count === 7)
+    && reconnect.inventory.slots[8]?.name === 'iron_boots');
+  await leave(b);
+}
+
 const mode = process.env.MYGO_PRACTICE_MODE || 'core';
-(mode === 'observe' ? observe() : mode === 'objective' ? objective() : mode === 'handover' ? handover() : core()).then(() => emit('complete', { mode, checks: checks.length })).catch(error => {
+(mode === 'observe' ? observe() : mode === 'objective' ? objective() : mode === 'handover' ? handover() : mode === 'takeover' ? takeover() : core()).then(() => emit('complete', { mode, checks: checks.length })).catch(error => {
   emit('failure', { error: error.stack }); process.exitCode = 1;
 }).finally(async () => {
   fs.writeFileSync(path.join(runDir, `mygo-practice-${mode}-results.json`), JSON.stringify({ checks, chats, observations, packLoads, shots }, null, 2));

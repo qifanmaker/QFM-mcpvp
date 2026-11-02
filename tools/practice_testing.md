@@ -32,7 +32,7 @@ PRACTICE_TEST_PORT=25637 PRACTICE_TEST_SUPPLEMENTAL=1 node tools/practice_regres
 
 结果保存在隔离目录的 `practice-protocol-results.json`、`practice-supplemental-results.json`，服务端日志在 `logs/latest.log`。检查日志中是否有异常堆栈。测试客户端可能输出非致命的 `SlotComponent` 解码警告，补给验证通过服务端原生 `/data get` 查询，不能把客户端警告当作 Mod 异常。
 
-这组测试通过原版协议操作容器和战斗，覆盖服务端行为；不验证客户端实际渲染、人物皮肤或真人主观操作手感。实际游戏还可通过「其他游戏 → 练习模式 → PvP 人机 1v1」体验难度差异，使用 `/pvp practice leave`、`/hub` 或 `/pvp tpout` 离开。
+这组测试通过原版协议操作容器和战斗，覆盖服务端行为；不验证客户端实际渲染、人物皮肤或真人主观操作手感。实际游戏还可通过「主菜单 → 练习模式 → PvP 人机 1v1」体验难度差异，使用 `/pvp practice leave`、`/hub` 或 `/pvp tpout` 离开。
 
 ## 近战伤害与真实暴击回归
 
