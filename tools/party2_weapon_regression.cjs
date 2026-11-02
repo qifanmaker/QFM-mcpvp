@@ -103,7 +103,7 @@ class WeaponProbe extends PartyProbe {
    if(i<6){this.check(`Sharp snowball${i+1} applies native damage`,this.bots.B.health<20,this.snapshot('B'));await this.sprint(30);}
   }
   await this.wait(()=>a.game.gameMode==='spectator','five real-weapon kills finish A',3000);
-  this.check('One finisher does not end four-player source round',!this.chats.some(r=>r.id==='A'&&r.at>=started&&/第\s+1\/5\s+轮排名/.test(r.text)));
+  this.check('One finisher does not end four-player source round',!this.chats.some(r=>r.id==='A'&&r.at>=started&&/第\s+1\/10\s+轮排名/.test(r.text)));
   // Explicit damage fixtures isolate source stat coalescing and N-1 termination from native weapon tests above.
   await this.fixtureDamage('C',200,'D');await this.equip('D','netherite_axe');
   await this.sprint(65);
@@ -118,13 +118,13 @@ class WeaponProbe extends PartyProbe {
   this.check('Native snow arrow uses Pierce100 when present',!await this.condition('in pvp:arena if entity @e[type=minecraft:arrow,tag=party_wd_snow_arrow,nbt={PierceLevel:0b}]'));
   await this.console(`execute in pvp:arena run fill ${low.x} ${low.y} ${low.z} ${high.x} ${high.y} ${high.z} air`);
   for(const [killer,count] of [['D',3],['C',5]])for(let i=0;i<count;i++) {await this.sprint(65);await this.fixtureDamage('B',200,killer);await sleep(100);}
-  await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=started&&/第\s+1\/5\s+轮排名/.test(r.text)),'third finisher triggers N-1 source end',3000);
+  await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=started&&/第\s+1\/10\s+轮排名/.test(r.text)),'third finisher triggers N-1 source end',3000);
   this.check('Three finishers rank by source recent-kill order',[['A',1,4],['D',2,3],['C',3,2],['B',4,1]].every(([id,place,points])=>this.chats.some(r=>r.id==='A'&&r.at>=started&&new RegExp(`第\\s+${place}\\s+名\\s+${name(id)}.*本轮\\s+\\+${points}`).test(r.text))));
   this.check('Completed A outranks unfinished weapon stages',this.chats.some(r=>r.id==='A'&&r.at>=started&&/第\s+1\s+名\s+MyGoCheckA/.test(r.text)));
   this.check('All owned native projectiles removed on round close',!await this.condition('in pvp:arena if entity @e[tag=party_wd_projectile]'));
   this.check('All private laser teams removed on close',this.teamPackets.some(x=>x.mode===0)&&this.teamPackets.filter(x=>x.mode===0).every(x=>this.teamPackets.some(y=>y.team===x.team&&y.mode===1)));
   for(const id of IDS)this.check(`${id} source effects cleared`,!await this.effect(id,'weakness')&&!await this.effect(id,'regeneration'));
-  await this.wait(()=>IDS.every(id=>!!this.bots[id].currentWindow),'next five-round selection resumes',30000);
+  await this.wait(()=>IDS.every(id=>!!this.bots[id].currentWindow),'next ten-round selection resumes',30000);
   this.check('Source410 cannot repeat in same tournament',IDS.every(id=>!this.menuChoices(this.bots[id].currentWindow).some(x=>x.source===410)));
   this.check('Pinned arena actually clears',await this.waitServerBlock(arena,'air'));
   this.check('Pinned original tower clone actually clears',await this.waitServerBlock(tower,'air'));
@@ -153,8 +153,8 @@ class WeaponProbe extends PartyProbe {
   this.check('Five-player source branch uses exact radius24 circle',expected.every(p=>points.some(q=>p.distanceTo(q)<.006)),{points,center,expected});
   for(const id of ids)this.check(`${id} source circle has native laser`,this.bots[id].inventory.items().some(x=>x.name==='carrot_on_a_stick'),this.snapshot(id));
   await this.sprint(2300);
-  this.check('Source410 does not finish before120seconds',!this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮排名/.test(r.text)));
-  await this.sprint(101);await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮排名/.test(r.text)),'five-player deadline settles',3000);
+  this.check('Source410 does not finish before120seconds',!this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮排名/.test(r.text)));
+  await this.sprint(101);await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮排名/.test(r.text)),'five-player deadline settles',3000);
   this.check('Equal unplayed stages retain tied first-place scores',ids.every(id=>this.chats.some(r=>r.id==='A'&&r.at>=since&&new RegExp(`第\\s+1\\s+名\\s+${name(id)}.*本轮\\s+\\+5`).test(r.text))));
   await this.leaveAll();
  }
@@ -162,7 +162,7 @@ class WeaponProbe extends PartyProbe {
   const since=await this.joinSubset(['A','B']);const points=['A','B'].map(id=>pos(this.bots[id]));
   this.check('Two-player branch selects two cardinal source gates',Math.abs(points[0].x-points[1].x)>30&&Math.abs(points[0].z-points[1].z)>30&&points.every(p=>p.y===104),points);
   for(let i=0;i<5;i++){await this.sprint(65);await this.fixtureDamage('B',200,'A');await sleep(120);}
-  await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮排名/.test(r.text)),'one finisher ends two-player source branch',3000);
+  await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮排名/.test(r.text)),'one finisher ends two-player source branch',3000);
   this.check('N-1 threshold is one in the actual two-player match',this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\s+名\s+MyGoCheckA.*本轮\s+\+2/.test(r.text)));
   await this.leaveAll();
  }

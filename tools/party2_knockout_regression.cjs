@@ -160,11 +160,11 @@ class KnockoutProbe extends PartyProbe {
     // Restore the explicitly-owned console fixture before testing production cleanup.
     await this.console(`execute in pvp:arena run fill ${low.x} ${low.y} ${low.z} ${high.x} ${high.y} ${high.z} air`);
     await this.lose('D'); await this.lose('D');
-    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text)),'round1 result',4000);
+    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text)),'round1 result',4000);
     const rows=this.chats.filter(row=>row.id==='A'&&row.at>=since&&/第\s+\d+\s+名/.test(row.text));
     this.check('Source elimination order ranks A,D,B,C with4/3/2/1 points',[['A',1,4],['D',2,3],['B',3,2],['C',4,1]].every(([id,place,points])=>rows.some(row=>new RegExp(`第\\s+${place}\\s+名\\s+${name(id)}.*本轮\\s+\\+${points}`).test(row.text))),rows);
     for (const id of IDS) this.check(`${id} regeneration/glow cleared after round`,!await this.effect(id,'regeneration')&&!await this.effect(id,'glowing'));
-    await this.wait(()=>IDS.every(id=>!!this.bots[id].currentWindow),'five-round next selection resumes',30000);
+    await this.wait(()=>IDS.every(id=>!!this.bots[id].currentWindow),'ten-round next selection resumes',30000);
     this.check('Knockout result continues tournament with source406 excluded',IDS.every(id=>!this.menuChoices(this.bots[id].currentWindow).some(choice=>choice.source===406)),IDS.map(id=>this.menuChoices(this.bots[id].currentWindow)));
     this.check('Upper structure cleanup is confirmed in its pinned live chunk',await this.waitServerBlock(upper,'air'),{upper});
     this.check('Lava cleanup is confirmed in its pinned live chunk',await this.waitServerBlock(lava,'air'),{lava});

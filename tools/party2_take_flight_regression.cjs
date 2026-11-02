@@ -20,7 +20,7 @@ class TakeFlightProbe extends PartyProbe {
     bot.on('messagestr',message=>{
       const text=String(message).replace(/§./g,'');
       const lap=text.match(/已完成 (\d)\/3 圈/);if(lap)this.laps[id]=Number(lap[1]);
-      if(id==='A'&&/第\s+1\/5\s+轮排名/.test(text))this.round=1;
+      if(id==='A'&&/第\s+1\/10\s+轮排名/.test(text))this.round=1;
       if(id==='A'&&/第 \d+ 名.*本轮/.test(text))this.rows.push(text);
     });return bot;
   }
@@ -33,7 +33,7 @@ class TakeFlightProbe extends PartyProbe {
     await this.wait(()=>ids.every(id=>this.bots[id].probeWorld==='minecraft:overworld'),'clean hub baseline',15000);
     const since=Date.now();for(const id of ids){this.bots[id].probeStartedAt=0;await this.console(`tag ${name(id)} add p2_tf_join`);}
     await this.console('execute as @a[tag=p2_tf_join] run pvp join minecraftparty');await this.console('tag @a remove p2_tf_join');if(ids.length<4)await this.chat(ids[0],'/pvp start');
-    await this.wait(()=>{if(this.voteError)throw this.voteError;return this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮选择：.*原版编号\s+427/.test(row.text));},'427 selected through real votes',90000);
+    await this.wait(()=>{if(this.voteError)throw this.voteError;return this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮选择：.*原版编号\s+427/.test(row.text));},'427 selected through real votes',90000);
     const selected=Date.now();for(const id of ids)this.bots[id].probeStartedAt=0;
     await this.wait(()=>ids.every(id=>this.bots[id].probeStartedAt>=selected),'six-million-cell source cave and native intro enter PLAY',240000);
     this.game=null;

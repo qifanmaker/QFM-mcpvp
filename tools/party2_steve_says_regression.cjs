@@ -111,8 +111,8 @@ class SteveProbe extends PartyProbe {
     const since=await this.start('steve');await this.baseline(since);
     for(let i=0;i<22;i++){await this.wait(()=>this.actions.length>i,`source instruction${i+1}`,12000);await this.perform(this.actions[i]);}
     this.check('Twenty-two instructions contain each native task exactly once per eleven-action cycle',[0,11].every(start=>new Set(this.actions.slice(start,start+11).map(a=>a.task)).size===11),this.actions.map(a=>a.task));
-    await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮排名/.test(r.text)),'source22-action ranking',5000);
-    await this.wait(()=>!!this.bots.A.currentWindow,'five-round series continues',20000);
+    await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮排名/.test(r.text)),'source22-action ranking',5000);
+    await this.wait(()=>!!this.bots.A.currentWindow,'ten-round series continues',20000);
     this.check('Five-round selection excludes the completed418 module',!this.menuChoices(this.bots.A.currentWindow).some(c=>c.source===418));
     this.check('Classroom is actually removed in its pinned loaded chunk',await this.waitServerBlock(this.marker,'air'));
     this.check('Host native player entity is removed at settlement',this.destroyed.some(r=>r.id==='A'&&r.entityIds.includes(this.host.entityId)));

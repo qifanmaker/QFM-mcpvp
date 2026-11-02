@@ -240,10 +240,10 @@ class RaftProbe extends PartyProbe {
     this.check('Out-of-order light3 keeps source waypoint0', this.chats.some(row => row.id === 'A' && row.at >= wrongAt && row.text.includes('路标 0/3')));
     await this.lap('A', 1); await this.lap('A', 2);
     this.check('One finisher does not prematurely end four-player race', this.bots.B.game.gameMode === 'adventure'
-      && !this.chats.some(row => row.id === 'A' && row.at >= since && /第\s+1\/5\s+轮排名/.test(row.text)));
+      && !this.chats.some(row => row.id === 'A' && row.at >= since && /第\s+1\/10\s+轮排名/.test(row.text)));
     await this.lap('B', 1); await this.lap('B', 2);
     await this.lap('C', 1); await this.lap('C', 2);
-    await this.wait(() => this.chats.some(row => row.id === 'A' && row.at >= since && /第\s+1\/5\s+轮排名/.test(row.text)), 'third finisher leaves one racer and closes source round', 3000);
+    await this.wait(() => this.chats.some(row => row.id === 'A' && row.at >= since && /第\s+1\/10\s+轮排名/.test(row.text)), 'third finisher leaves one racer and closes source round', 3000);
     for (const [index, id] of IDS.entries()) {
       this.check(`Source two-lap order ranks ${id} at${index + 1}`, this.chats.some(row => row.id === 'A' && row.at >= since
         && new RegExp(`第 ${index + 1} 名.*${name(id)}`).test(row.text)), this.chats.filter(row => row.id === 'A' && row.at >= since && /第 \d+ 名/.test(row.text)).map(row => row.text));
@@ -251,7 +251,7 @@ class RaftProbe extends PartyProbe {
     this.check('All owned rafts are removed on round close', !await this.condition('in pvp:arena if entity @e[type=minecraft:boat,tag=party_raft]'));
     this.check('Round weakness is restored before next round', !await this.condition('if entity @a[name=MyGoCheckA,nbt={active_effects:[{id:"minecraft:weakness"}]}]'));
     await this.wait(() => IDS.every(id => this.bots[id].currentWindow && this.menuChoices(this.bots[id].currentWindow).length > 0), 'next round menu after source geometry cleanup', 30000);
-    this.check('405 result remains in five-round tournament and cannot repeat', IDS.every(id => !this.menuChoices(this.bots[id].currentWindow).some(choice => choice.source === 405)));
+    this.check('405 result remains in ten-round tournament and cannot repeat', IDS.every(id => !this.menuChoices(this.bots[id].currentWindow).some(choice => choice.source === 405)));
     for (const p of witnesses) this.check('Live-loaded complete-course extremity is cleaned', await this.serverBlockIs(p, 'air'), { p });
     await this.leaveAll(); await this.unpinChunks();
     if (this.bubbleFailure) throw this.bubbleFailure;

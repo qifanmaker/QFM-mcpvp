@@ -20,20 +20,23 @@ class PartyTournamentScoresTest {
         assertEquals(Set.of(A, B), scores.leaders(Set.of(A, B, C, D)));
     }
 
-    @Test void fiveDifferentScoreScalesProduceRankPointsAndSharedOverallWinners() {
+    @Test void tenRoundsProduceRankPointsAndSharedOverallWinners() {
         PartyTournamentScores scores = new PartyTournamentScores(List.of(A, B, C, D));
-        scores.recordRound(Map.of(A, 3, B, 2, C, 1, D, 0));
-        scores.recordRound(Map.of(A, 100, B, 900, C, 500, D, 700));
-        scores.recordRound(Map.of(A, 2000, B, 1000, C, 3000, D, 500));
-        scores.recordRound(Map.of(A, 0, B, 0, C, 0, D, 0));
-        scores.recordRound(Map.of(A, 15, B, 14, C, 13, D, 12));
-        assertEquals(Map.of(A, 16, B, 16, C, 14, D, 10), scores.totals());
-        assertEquals(5, scores.roundsPlayed());
+        // 两组不同分数尺度跨过旧的第五轮边界，仍只按名次累计积分。
+        for (int group = 0; group < 2; group++) {
+            scores.recordRound(Map.of(A, 3, B, 2, C, 1, D, 0));
+            scores.recordRound(Map.of(A, 100, B, 900, C, 500, D, 700));
+            scores.recordRound(Map.of(A, 2000, B, 1000, C, 3000, D, 500));
+            scores.recordRound(Map.of(A, 0, B, 0, C, 0, D, 0));
+            scores.recordRound(Map.of(A, 15, B, 14, C, 13, D, 12));
+        }
+        assertEquals(Map.of(A, 32, B, 32, C, 28, D, 20), scores.totals());
+        assertEquals(10, scores.roundsPlayed());
         assertEquals(Set.of(A, B), scores.leaders(Set.of(A, B, C, D)));
         assertEquals(List.of(1, 1, 3, 4), scores.standings(Set.of(A, B, C, D)).stream()
                 .map(PartyTournamentScores.Result::place).toList());
         assertThrows(IllegalStateException.class, () -> scores.recordRound(Map.of(A, 999)));
-        assertEquals(16, scores.total(A));
+        assertEquals(32, scores.total(A));
     }
 
     @Test void leavingRetainsEarnedPointsButCannotWinOrReceiveLaterAwards() {

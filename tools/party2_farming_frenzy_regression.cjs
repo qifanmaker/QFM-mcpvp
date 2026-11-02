@@ -69,7 +69,7 @@ class FarmingFrenzyProbe extends PartyProbe {
     if(ids.length<4)await this.chat(ids[0],'/pvp start');
     await this.wait(()=>{
       if(this.voteError)throw this.voteError;
-      return this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮选择：.*原版编号\s+420/.test(row.text));
+      return this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮选择：.*原版编号\s+420/.test(row.text));
     },'420 selected through actual votes',90000);
     const selected=Date.now();for(const id of ids)this.bots[id].probeStartedAt=0;
     const slow=packet=>{if(JSON.stringify(packet).includes('开始'))this.rawConsole('tick rate 5');};
@@ -156,13 +156,13 @@ class FarmingFrenzyProbe extends PartyProbe {
     }
     this.check('PLAY uses native random crop growth after age-zero setup',!!grown&&await this.serverBlockIs(grown,'nether_wart')&&!await this.serverBlockIs(grown,'nether_wart[age=0]'));
     await this.console('tick rate 20');
-    for(let batch=0;batch<9&&!this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text));batch++)await this.sprint(200);
-    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text)),'1799-tick source harvest contest finishes',10000);
+    for(let batch=0;batch<9&&!this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text));batch++)await this.sprint(200);
+    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text)),'1799-tick source harvest contest finishes',10000);
     this.check('Exactly eight independent seasons occur',this.seasons.length===8,this.seasons);
     this.check('Native crop material points reach the tournament ranking',this.chats.some(row=>row.id==='A'&&row.at>=since&&row.text.includes(`${name('A')} ${this.expected} 采收积分`)),{expected:this.expected,rows:this.chats.filter(row=>row.id==='A'&&row.at>=since&&row.text.includes('本轮'))});
     this.check('Harvested player beats the idle player without elimination',this.chats.some(row=>row.id==='A'&&row.at>=since&&new RegExp(`第 1 名 ${name('A')}`).test(row.text)));
     await this.wait(()=>!!this.bots.A.currentWindow,'next outer-round vote after cleanup',30000);
-    this.check('The five-round catalog removes played Farming Frenzy',!this.menuChoices(this.bots.A.currentWindow).some(choice=>choice.source===420));
+    this.check('The ten-round catalog removes played Farming Frenzy',!this.menuChoices(this.bots.A.currentWindow).some(choice=>choice.source===420));
     this.check('Native growing cells outside the static non-air map clear with the round',await this.serverBlockIs(stray,'air'));
     this.check('High original barrier cells clear with the farm',await this.serverBlockIs(this.source(-190,69,-255),'air'));
     this.check('The loyal hoe is removed at round completion',!this.bots.A.inventory.items().some(item=>item.name==='iron_hoe'));

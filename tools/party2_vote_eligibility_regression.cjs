@@ -23,7 +23,7 @@ async function run() {
     ['A', 'B', 'C'].map(id => ({ id, window: windows[id], choices: probe.menuChoices(probe.bots[id].currentWindow).map(item => item.source) })));
   for (const id of ['A', 'B', 'C']) await probe.vote(id, 'dropper');
   await probe.wait(() => probe.chats.some(row => row.id === 'A' && row.at >= start
-    && /第\s+1\/5\s+轮选择：.*原版编号\s+401/.test(row.text)), 'three-player votes launch an eligible game', 30000);
+    && /第\s+1\/10\s+轮选择：.*原版编号\s+401/.test(row.text)), 'three-player votes launch an eligible game', 30000);
   probe.check('Selection does not launch an ineligible Platforms round', !probe.chats.some(row => row.at >= start
     && /轮选择：.*原版编号\s+414/.test(row.text)));
   await probe.leaveAll();

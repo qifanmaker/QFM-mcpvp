@@ -232,7 +232,7 @@ class PartyProbe extends EventEmitter {
     }
     await this.wait(() => {
       if (this.voteError) throw this.voteError;
-      return this.chats.some(row => row.at >= since && /第\s+\d+\/5\s+轮选择：/.test(row.text)
+      return this.chats.some(row => row.at >= since && /第\s+\d+\/10\s+轮选择：/.test(row.text)
         && row.text.includes(`编号 ${GAMES[game].source}`));
     }, `${game} selected via real menu votes`, 90000);
     // Match may also send a generic start title before the voting phase. Only
@@ -453,7 +453,7 @@ class PartyProbe extends EventEmitter {
     this.check('Memory completed player death restores observation without elimination', this.bots.A.game.gameMode === 'adventure'
       && this.bots.A.health > 0 && vec(this.bots.A.probePosition).distanceTo(afterSwitch) < 0.2, this.snapshot('A'));
     await complete('B'); await complete('C');
-    await this.wait(() => this.chats.some(row => row.at >= since && /第\s+\d+\/5\s+轮排名/.test(row.text)), 'N-1 completed ends Memory round');
+    await this.wait(() => this.chats.some(row => row.at >= since && /第\s+\d+\/10\s+轮排名/.test(row.text)), 'N-1 completed ends Memory round');
     this.check('Memory first finisher ranks first', this.chats.some(row => row.at >= since && /第 1 名.*MyGoCheckA/.test(row.text)),
       this.chats.filter(row => row.at >= since && row.id === 'A' && /第 \d+ 名/.test(row.text)));
     await this.leaveAll(); await sleep(6000);
@@ -501,7 +501,7 @@ class PartyProbe extends EventEmitter {
     await this.wait(() => this.chats.some(row => row.at >= since && row.text.includes('MyGoCheckD 因落块或摔落伤害出局')),
       'original falling block lethally hits lower-floor player', 3500);
     this.stopOrbits();
-    await this.wait(() => this.chats.some(row => row.at >= since && /第\s+\d+\/5\s+轮排名/.test(row.text)), 'Runner last survivor ends round');
+    await this.wait(() => this.chats.some(row => row.at >= since && /第\s+\d+\/10\s+轮排名/.test(row.text)), 'Runner last survivor ends round');
     this.check('Runner surviving player ranks first', this.chats.some(row => row.at >= since && /第 1 名.*MyGoCheckC/.test(row.text)),
       this.chats.filter(row => row.at >= since && row.id === 'C' && /第 \d+ 名/.test(row.text)));
     this.check('Runner owned falling entities are gone after finish', await this.noFallingBlocks());

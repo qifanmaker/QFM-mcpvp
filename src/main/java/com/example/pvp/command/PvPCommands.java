@@ -407,7 +407,7 @@ public final class PvPCommands {
                         + "§e/pvp join racing§r 加入亦可赛艇（无需套件，原版船 + 随机冰面赛道竞速）\n"
                         + "§e/pvp join mygo§r 加入 MyGO 枪战爆破（先加载资源包，再次加入）\n"
                         + "§e/pvp mygo [shop|buy <商品>|team <t|ct|auto>|map <dust2|mirage|inferno>|reload|stats]§r 枪战商店、选队、选图、换弹与独立战绩\n"
-                        + "§e/pvp join minecraftparty§r 加入 Minecraft Party 2（移植中：" + PartyMinigame.values().length + " 个可选小游戏，每局五轮累计积分）\n"
+                        + "§e/pvp join minecraftparty§r 加入 Minecraft Party 2（移植中：" + PartyMinigame.values().length + " 个可选小游戏，每局十轮累计积分）\n"
                         + "§e/pvp join islandsiege§r 加入海岛攻防（无需套件，红队进攻、蓝队防守）\n"
                         + "§e/pvp leave§r 离开队列\n"
                         + "§e/pvp practice <bridge|pearl>§r 进入搭路或珍珠练习\n"
@@ -523,7 +523,7 @@ public final class PvPCommands {
                         + " 人等待 " + MatchType.PORTED_FILL_SECONDS + " 秒也可开始"), false);
                 if (type == MatchType.MINECRAFT_PARTY) {
                     player.sendMessage(Messages.info("分阶段移植：已实现 " + PartyMinigame.values().length
-                            + " 个可选小游戏；每局五轮不重复，按累计积分排名"), false);
+                            + " 个可选小游戏；每局十轮不重复，按累计积分排名"), false);
                 }
             } else if (type.isBedWars()) {
                 player.sendMessage(Messages.info("已加入起床战争（" + (type == MatchType.BED_WARS_DOUBLES ? "双人" : "Solo")

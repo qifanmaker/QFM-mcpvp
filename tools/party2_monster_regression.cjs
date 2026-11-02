@@ -255,7 +255,7 @@ class MonsterProbe extends PartyProbe {
       { before, rows: Object.fromEntries(this.rows) });
     this.check('Forfeited player is absent from pending round rankings', !this.rows.has('D'));
     this.check('First minigame does not prematurely produce whole-match feedback', !this.chats.some(row => row.at >= this.caseStart
-      && (row.text.includes('五轮总排名') || row.text.includes('qfmaker.com/blackboard/mcserverfb'))));
+      && (row.text.includes('十轮总排名') || row.text.includes('qfmaker.com/blackboard/mcserverfb'))));
     this.check('Owned mobs, arrows and native explosion clouds are discarded after the round', !await this.condition(
       'in pvp:arena if entity @e[tag=pvp_party_monster_shoot]') && !await this.condition('in pvp:arena if entity @e[tag=pvp_party_ms_cloud]'));
     this.check('Pinned original pit floor is removed before next game', await this.waitServerBlock(this.floor, 'air', 35000), { floor: this.floor });

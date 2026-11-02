@@ -87,11 +87,11 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Minecraft Party 2 原生小游戏与本服五轮积分赛。
+ * Minecraft Party 2 原生小游戏与本服十轮积分赛。
  * 原地图要求 1.21.10 且使用全服选择器，所以将规则改为仅作用于本场玩家的 Java 状态机，
- * 并使用从原图提取的静态场景与原版生成规则。按本服要求连续玩五个不重复项目，
+ * 并使用从原图提取的静态场景与原版生成规则。按本服要求连续玩十个不重复项目，
  * 每轮先按各自规则排名，再转换为累计积分，避免把击杀数、下落深度和持肉时间直接相加。
- * 原版 Quick Play 是单小游戏；五轮累计与每轮 10 秒投票属于本服适配。
+ * 原版 Quick Play 是单小游戏；十轮累计与每轮 10 秒投票属于本服适配。
  *
  * <p>规则依据：spleef{,2,3,_tick}.mcfunction、tile_capture{,_rules,_start,_tick}.mcfunction、
  * rlgl{,_rules,_start,_tick,_finish}.mcfunction、redlight{,2}.mcfunction、endrlgl.mcfunction。
@@ -236,7 +236,7 @@ public final class MinecraftPartySession implements PortedGameSession {
             PartyGameSelector.open(player, this);
         }
         this.say("§6Party 2 · 第 " + this.roundNumber() + "/" + PartyTournamentScores.ROUNDS
-                + " 轮§7：从剩余 " + choices.size() + " 个项目中投票。\n§e每轮按开局人数 − 名次 + 1 积分，并列同分；五轮累计分决定最终排名。\n§e10 秒后取最高票，同票随机，已玩项目不会再次出现。");
+                + " 轮§7：从剩余 " + choices.size() + " 个项目中投票。\n§e每轮按开局人数 − 名次 + 1 积分，并列同分；十轮累计分决定最终排名。\n§e10 秒后取最高票，同票随机，已玩项目不会再次出现。");
         this.title("§6第 " + this.roundNumber() + "/" + PartyTournamentScores.ROUNDS + " 轮 · 选择小游戏",
                 "§f点击菜单投票，右键指南针重新打开");
     }
@@ -842,7 +842,7 @@ public final class MinecraftPartySession implements PortedGameSession {
         if (this.hasFinalResult() || this.ended) return;
         Set<UUID> eligible = this.eligiblePlayers();
         if (eligible.isEmpty()) return;
-        // 只有最终榜冻结后 Match 才将离场视为普通退出；前四轮结果页仍属于未结束比赛。
+        // 只有最终榜冻结后 Match 才将离场视为普通退出；中途各轮结果页仍属于未结束比赛。
         this.finalStandings = this.tournamentScores.standings(eligible);
         this.finalWinners = this.tournamentScores.leaders(eligible);
         this.phase = Phase.FINAL_RESULTS;
@@ -850,7 +850,7 @@ public final class MinecraftPartySession implements PortedGameSession {
         this.buildQueue = null;
         this.closeRoundResources();
         this.returnToLobby();
-        this.say("§6§lParty 2 五轮总排名");
+        this.say("§6§lParty 2 十轮总排名");
         if (this.tournamentScores.roundsPlayed() < PartyTournamentScores.ROUNDS) {
             this.say("§7剩余参赛人数不足，按已完成的 " + this.tournamentScores.roundsPlayed() + " 轮提前结算。");
         }
@@ -858,9 +858,9 @@ public final class MinecraftPartySession implements PortedGameSession {
             this.say("§e第 " + result.place() + " 名 §f" + this.names.get(result.player())
                     + " §a累计 " + result.total() + " 分");
         }
-        this.bossBar.setName(Text.literal("§6Party 2 五轮总排名 · 随后结算并返回大厅"));
+        this.bossBar.setName(Text.literal("§6Party 2 十轮总排名 · 随后结算并返回大厅"));
         this.bossBar.setPercent(1);
-        this.title("§6Party 2 五轮赛结束", "§f按累计积分排名，随后返回大厅");
+        this.title("§6Party 2 十轮赛结束", "§f按累计积分排名，随后返回大厅");
     }
 
     private void closeRoundResources() {
@@ -881,7 +881,7 @@ public final class MinecraftPartySession implements PortedGameSession {
     private void clearDroppedItems() {
         ArenaWorld world = this.arena();
         if (world == null) return;
-        // 单小游戏以前由 Match 最终清场回收掉落；五轮中途也要清理，但只限本区域物品实体。
+        // 单小游戏以前由 Match 最终清场回收掉落；十轮中途也要清理，但只限本区域物品实体。
         for (Box bounds : this.ownedEntityBounds())
             for (ItemEntity item : world.getEntitiesByClass(ItemEntity.class, bounds, entity -> true)) item.discard();
     }
@@ -1176,7 +1176,7 @@ public final class MinecraftPartySession implements PortedGameSession {
     @Override
     public List<String> scoreboardLines() {
         List<String> lines = new ArrayList<>();
-        lines.add("§6Party 2 · 五轮积分赛");
+        lines.add("§6Party 2 · 十轮积分赛");
         lines.add(this.hasFinalResult() ? "§f已完成 " + this.tournamentScores.roundsPlayed() + "/" + PartyTournamentScores.ROUNDS + " 轮"
                 : "§f第 " + this.roundNumber() + "/" + PartyTournamentScores.ROUNDS + " 轮 · 不重复项目");
         if (this.game != null && !this.hasFinalResult()) lines.add("§b" + this.game.title());

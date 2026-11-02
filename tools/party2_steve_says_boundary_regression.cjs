@@ -41,7 +41,7 @@ class BoundaryProbe extends SteveProbe {
     let since=await this.startBoundary();
     for(const id of ['B','C','D'])await this.lethal(id);
     await this.wait(()=>this.actions.length>0,'sole tied survivor still receives an instruction',5000);
-    this.check('A sole survivor tied with retained zero scores does not finish early',this.bots.A.game.gameMode==='adventure'&&!this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮排名/.test(r.text)));
+    this.check('A sole survivor tied with retained zero scores does not finish early',this.bots.A.game.gameMode==='adventure'&&!this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮排名/.test(r.text)));
     for(let i=0;i<22;i++){
       await this.wait(()=>this.actions.length>i,'next instruction for sole survivor',12000);
       const act=this.actions[i],canEarn=await this.oneNativeAction(act);
@@ -50,14 +50,14 @@ class BoundaryProbe extends SteveProbe {
       this.check('Sole survivor native goal/refraining earns points without elimination',!result.out&&(canEarn?result.points>=3:result.points===0),result);
       if(result.total>0)break;
     }
-    await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮排名/.test(r.text)),'strictly leading survivor ends between instructions',5000);
+    await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮排名/.test(r.text)),'strictly leading survivor ends between instructions',5000);
     this.check('A sole strictly leading survivor ends before twenty-two actions',this.actions.length<22&&this.results.A.at(-1).total>0,{actions:this.actions.length,result:this.results.A.at(-1)});
-    await this.wait(()=>!!this.bots.A.currentWindow,'early-end continues five-round match',20000);
+    await this.wait(()=>!!this.bots.A.currentWindow,'early-end continues ten-round match',20000);
     this.check('Early-end removes the loaded classroom',await this.waitServerBlock(this.marker,'air'));
     await this.leaveAll();await this.unpinChunks();await sleep(5500);
     since=await this.startBoundary();
     for(const id of ['B','C','D','A'])await this.lethal(id);
-    await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮排名/.test(r.text)),'all eliminated source ends',5000);
+    await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮排名/.test(r.text)),'all eliminated source ends',5000);
     this.check('All eliminated participants settle without waiting for twenty-two actions',this.actions.length<22,{actions:this.actions.length});
     this.check('All-out keeps zero raw scores rather than inventing a surviving winner',!Object.values(this.results).some(rows=>rows.some(r=>r.total>0)));
     await this.wait(()=>!!this.bots.A.currentWindow,'all-out continues series',20000);

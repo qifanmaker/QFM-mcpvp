@@ -27,7 +27,7 @@ class PortProbe extends PartyProbe {
     for(const id of Object.keys(this.bots))this.check(`${id} server-side baseline is Overworld`,await this.condition(`as ${name(id)} at @s if dimension minecraft:overworld`));}
   async startPort(){this.game='port';for(const id of Object.keys(this.bots)){this.found[id]=0;this.history[id]=[];}const since=Date.now();for(const b of Object.values(this.bots))b.probeStartedAt=0;
     for(const id of Object.keys(this.bots))await this.chat(id,'/pvp join minecraftparty');
-    await this.wait(()=>{if(this.voteError)throw this.voteError;return this.chats.some(r=>r.at>=since&&/第\s+\d+\/5\s+轮选择：/.test(r.text)&&r.text.includes('编号 421'));},'real421 menu selection',90000);
+    await this.wait(()=>{if(this.voteError)throw this.voteError;return this.chats.some(r=>r.at>=since&&/第\s+\d+\/10\s+轮选择：/.test(r.text)&&r.text.includes('编号 421'));},'real421 menu selection',90000);
     for(const b of Object.values(this.bots))b.probeStartedAt=0;const selected=Date.now();
     await this.wait(()=>Object.values(this.bots).every(b=>b.probeStartedAt>=selected),'full1.74m harbor reaches PLAY',120000);
     this.game=null;const center=Object.values(this.bots).reduce((sum,b)=>sum.plus(b.probePosition),new Vec3(0,0,0)).scaled(1/Object.keys(this.bots).length);const offset=center.minus(new Vec3(-367.5,36,-307.5));this.source=(x,y,z)=>offset.offset(x,y,z);
@@ -91,12 +91,12 @@ class PortProbe extends PartyProbe {
     this.log('fixtureNote',{description:'Native generic_kill death observes the source central respawn and retained items/progress; no objective or score is changed.'});await this.console('damage MyGoCheckA 100 minecraft:generic_kill');await sleep(160);
     this.check('Death retains found count and returns to the source center',this.found.A===completed&&this.bots.A.probePosition.distanceTo(this.source(-367.5,36,-307.5))<.3,{found:this.found.A,position:this.bots.A.probePosition});
     this.check('Already-collected goods remain available after death',this.bots.A.inventory.items().some(s=>s.name===ITEMS[firstType]));
-    await this.take('A');await this.take('A');this.check('One of four finishers does not end the source round',!this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮排名/.test(r.text)));
+    await this.take('A');await this.take('A');this.check('One of four finishers does not end the source round',!this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮排名/.test(r.text)));
     for(let i=0;i<3;i++)await this.take('B');for(let i=0;i<2;i++)await this.take('D');for(let i=0;i<3;i++)await this.take('C');
-    await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮排名/.test(r.text)),'N-1 native finishers settle',5000);
+    await this.wait(()=>this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮排名/.test(r.text)),'N-1 native finishers settle',5000);
     this.check('Exactly N-1 finishes leave the last participant unfinished',this.found.A===3&&this.found.B===3&&this.found.C===3&&this.found.D===2,this.found);
     this.check('All players receive the same3 targets in distinct source orders',new Set(Object.values(this.history).map(h=>h.join(','))).size===4&&Object.values(this.history).every(h=>h.length===3&&new Set(h).size===3&&h.every(i=>this.history.A.includes(i))),this.history);
-    await this.wait(()=>!!this.bots.A.currentWindow,'cleanup finishes and five-round voting returns',120000);
+    await this.wait(()=>!!this.bots.A.currentWindow,'cleanup finishes and ten-round voting returns',120000);
     this.check('Next-round menu excludes source421',!this.menuChoices(this.bots.A.currentWindow).some(c=>c.source===421));
     this.check('Deep original seafloor is removed in a pinned loaded chunk',await this.waitServerBlock(this.marker,'air'));
     this.check('Native piston destination leaves no residual block',await this.waitServerBlock(this.pushed,'air'));

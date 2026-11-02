@@ -196,13 +196,13 @@ class ParkourProbe extends PartyProbe {
     await this.wait(()=>['A','B'].every(id=>this.bots[id].game.gameMode==='spectator'),'A/B source beacon complete into spectator');
     this.check('Two same-tick finishers spectate while others continue',this.bots.C.game.gameMode==='adventure' && this.bots.D.game.gameMode==='adventure');
     await sleep(200); await this.teleport('C',finish);
-    await this.wait(()=>this.chats.some(row=>row.id==='A' && row.at>=since && row.text.includes('第 1/5 轮排名')),'N-1 finishes settle round');
+    await this.wait(()=>this.chats.some(row=>row.id==='A' && row.at>=since && row.text.includes('第 1/10 轮排名')),'N-1 finishes settle round');
     const rows=this.chats.filter(row=>row.id==='A' && row.at>=since && /第\s+\d+\s+名\s+MyGoCheck/.test(row.text));
     for (const [id,place] of Object.entries({A:1,B:1,C:3,D:4})) {
       this.check(`Final source progress/recency converts ${id} to tournament rank${place}`, rows.some(row=>new RegExp(`第\\s+${place}\\s+名\\s+${who(id)}(?:\\s|$)`).test(row.text)),rows);
     }
-    this.check('First round does not produce final five-round standings or feedback',!this.chats.some(row=>row.at>=since
-      && (row.text.includes('Party 2 五轮总排名') || row.text.includes('qfmaker.com/blackboard/mcserverfb'))));
+    this.check('First round does not produce final ten-round standings or feedback',!this.chats.some(row=>row.at>=since
+      && (row.text.includes('Party 2 十轮总排名') || row.text.includes('qfmaker.com/blackboard/mcserverfb'))));
     this.check('Pinned original gold platform is cleared before next round',
       await this.waitServerBlock(cleanPoint,'air',50000),cleanPoint);
     for(const id of IDS) {

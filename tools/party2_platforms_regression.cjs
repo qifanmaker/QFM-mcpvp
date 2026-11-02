@@ -157,7 +157,7 @@ class PlatformsProbe extends PartyProbe {
       if (round === 1 || round === 4 || round === 6) await this.verifyRound(round, [1, 1, 1, 1], [0, 1, 2, 3]);
       else if (round === 3) await this.verifyRound(round, [0, 0, 0, 2], [0, 3]);
       else await this.verifyRound(round, [0, 0, 0, 0], []);
-      this.check(`Internal round ${round} has no premature outer ranking`, !this.chats.some(row => row.at >= since && /第\s+1\/5\s+轮排名/.test(row.text)));
+      this.check(`Internal round ${round} has no premature outer ranking`, !this.chats.some(row => row.at >= since && /第\s+1\/10\s+轮排名/.test(row.text)));
       if (round === 2) {
         const diamond = this.bots.B.inventory.items().find(item => item.name === 'diamond');
         this.log('realPostTallyDiamondDrop', { id: 'B', count: diamond?.count, position: position(this.bots.B) });
@@ -173,7 +173,7 @@ class PlatformsProbe extends PartyProbe {
           await this.condition(`in pvp:arena if entity @e[type=minecraft:item,tag=${this.dropTag}]`));
       }
     }
-    await this.wait(() => this.chats.some(row => row.at >= since && /第\s+1\/5\s+轮排名/.test(row.text)), 'sixth internal round ends one outer round', 5000);
+    await this.wait(() => this.chats.some(row => row.at >= since && /第\s+1\/10\s+轮排名/.test(row.text)), 'sixth internal round ends one outer round', 5000);
     this.check('All six source rounds completed exactly once', this.tallies.size === 6 && [...this.tallies.values()].every(rows => rows.size === 4));
     for (const id of IDS) this.check(`${id} invisibility restored at minigame end`, !await this.condition(
       `if entity @a[name=MyGoCheck${id},nbt={active_effects:[{id:"minecraft:invisibility"}]}]`));

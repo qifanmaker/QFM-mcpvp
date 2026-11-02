@@ -16,6 +16,7 @@ import com.example.pvp.arena.heartbeat.HeartbeatLayout;
 import com.example.pvp.arena.hotpotato.HotPotatoLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLayout;
 import com.example.pvp.arena.luckypillar.LuckyPillarLoot;
+import com.example.pvp.arena.party.PartyTournamentScores;
 import com.example.pvp.arena.race.BoatRaceSession;
 import com.example.pvp.arena.race.RaceProgressTracker;
 import com.example.pvp.arena.skywars.SkyWarsLayout;
@@ -756,7 +757,10 @@ public final class Match {
         int activeTimeout;
         if (this.type.usesGameSession()) {
             // 会话自行计时；兜底只处理运行时卡死，不擅自把第一队判为胜者。
-            activeTimeout = 20 * 60 * (this.type == MatchType.MYGO ? 120 : 30);
+            // 十轮长局的总兜底随轮数扩展，沿用原五轮三十分钟的每轮余量。
+            int timeoutMinutes = this.type == MatchType.MYGO ? 120
+                    : this.type == MatchType.MINECRAFT_PARTY ? PartyTournamentScores.ROUNDS * 6 : 30;
+            activeTimeout = 20 * 60 * timeoutMinutes;
         } else if (this.isSkyWars()) {
             activeTimeout = Math.max(100, PvPConfig.INSTANCE.skywarsTimeoutSeconds * 20);
         } else if (this.type.isBridge()) {

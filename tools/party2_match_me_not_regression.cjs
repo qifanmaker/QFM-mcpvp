@@ -53,7 +53,7 @@ class MatchMeNotProbe extends PartyProbe {
     await this.hub(ids);this.game='matchnot';this.voteError=null;this.settled=0;this.activeIds=[...ids];this.slowPlay=slow;const since=Date.now();
     for(const id of ids){this.internal[id]=0;this.chosen[id]=0;this.points[id]=0;this.bots[id].probeStartedAt=0;await this.console(`tag ${name(id)} add p2_mmn_join`);}
     await this.console('execute as @a[tag=p2_mmn_join] run pvp join minecraftparty');await this.console('tag @a remove p2_mmn_join');if(ids.length<4)await this.chat(ids[0],'/pvp start');
-    await this.wait(()=>{if(this.voteError)throw this.voteError;return this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮选择：.*原版编号\s+422/.test(r.text));},'422 chosen by native menu',90000);
+    await this.wait(()=>{if(this.voteError)throw this.voteError;return this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮选择：.*原版编号\s+422/.test(r.text));},'422 chosen by native menu',90000);
     const selected=Date.now();for(const id of ids)this.bots[id].probeStartedAt=0;
     if(slow)await this.auditIntro(ids,since);
     if(slow){for(const id of ids)this.bots[id]._client.once('set_title_text',()=>{});this.startSlowListener=packet=>{if(JSON.stringify(packet).includes('开始'))this.rawConsole('tick rate 2');};this.bots.A._client.on('set_title_text',this.startSlowListener);}
@@ -140,11 +140,11 @@ class MatchMeNotProbe extends PartyProbe {
     for(let round=4;round<=8;round++){
       await this.inventory(['A','B'],round);await this.allChoose({A:3,B:4});await this.sprint(140);
     }
-    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text)),'eight internal rounds settle one outer round',5000);
+    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text)),'eight internal rounds settle one outer round',5000);
     this.check('Eight source rounds produce6 and7 unique choices',this.points.A===6&&this.points.B===7,{points:{...this.points}});
     this.check('Source raw scores become correct tournament placements',this.chats.some(row=>row.id==='A'&&row.at>=since&&/第 1 名 MyGoCheckB 7 \/ 8 次独选 本轮 \+2/.test(row.text))&&this.chats.some(row=>row.id==='A'&&row.at>=since&&/第 2 名 MyGoCheckA 6 \/ 8 次独选 本轮 \+1/.test(row.text)));
     await this.wait(()=>!!this.bots.A.currentWindow,'next outer-round menu after cleanup',30000);
-    this.check('Eight internal rounds consume only one five-round tournament entry',!this.menuChoices(this.bots.A.currentWindow).some(c=>c.source===422)&&this.chats.filter(row=>row.id==='A'&&row.at>=since&&/第\s+\d+\/5\s+轮排名/.test(row.text)).length===1);
+    this.check('Eight internal rounds consume only one ten-round tournament entry',!this.menuChoices(this.bots.A.currentWindow).some(c=>c.source===422)&&this.chats.filter(row=>row.id==='A'&&row.at>=since&&/第\s+\d+\/10\s+轮排名/.test(row.text)).length===1);
     this.check('Native moved floor and piston region actually clear',await this.serverBlockIs(this.floor('A',6),'air')&&await this.serverBlockIs(this.spawns.A.floored().offset(0,-3,0),'air'));
     this.check('All reveal items and fixed frames are removed',!await this.condition('in pvp:arena if entity @e[tag=party_mmn_display]')&&!await this.condition('in pvp:arena if entity @e[tag=party_mmn_frame]'));
     await this.leaveAll();await this.unpinChunks();await sleep(5500);

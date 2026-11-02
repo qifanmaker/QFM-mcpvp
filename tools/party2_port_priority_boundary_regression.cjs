@@ -9,7 +9,7 @@ const {PortProbe}=require('./party2_port_priority_regression.cjs');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 class BoundaryProbe extends PortProbe {
   constructor(){super({runDir:path.join(__dirname,'../build/mygo-party2-port-priority-boundary')});}
-  ranked(since){return this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/5\s+轮排名/.test(r.text));}
+  ranked(since){return this.chats.some(r=>r.id==='A'&&r.at>=since&&/第\s+1\/10\s+轮排名/.test(r.text));}
   async bed(){
     this.log('fixtureNote',{description:'Seed disposable A permanent Overworld spawn and teleport next to an original orange source bed. Actual player bed use, then native damage, must preserve the permanent spawn and use the round-local bed.'});
     await this.console('execute in minecraft:overworld run spawnpoint MyGoCheckA 202 70 202');
@@ -28,7 +28,7 @@ class BoundaryProbe extends PortProbe {
     await this.sprint(600);await this.wait(()=>this.ranked(since),'native240-second timeout ranks partial progress',5000);
     this.check('Timeout settles both unfinished participants',this.found.A===0&&this.found.B===0);
     await this.wait(()=>!!this.bots.A.currentWindow,'timeout cleanup returns to tournament vote',120000);
-    this.check('Timeout keeps five-round series and excludes421',!this.menuChoices(this.bots.A.currentWindow).some(c=>c.source===421));
+    this.check('Timeout keeps ten-round series and excludes421',!this.menuChoices(this.bots.A.currentWindow).some(c=>c.source===421));
     this.check('Timeout clears original deep seafloor in the loaded witness',await this.waitServerBlock(this.marker,'air'));
     await this.leaveAll();await this.unpinChunks();await sleep(5500);
     await this.resetLobby();since=await this.startPort();await this.discover();for(let i=0;i<3;i++)await this.take('A');

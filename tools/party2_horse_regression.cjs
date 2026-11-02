@@ -189,7 +189,7 @@ class HorseProbe extends PartyProbe {
     if (this.timeoutCase) {
       for (const id of IDS) await this.stable(id);
       const ticks = rules.routes[this.routeNumber].ticks;
-      const ended = () => this.chats.some(row => row.id === 'A' && row.at >= since && /第\s+1\/5\s+轮排名/.test(row.text));
+      const ended = () => this.chats.some(row => row.id === 'A' && row.at >= since && /第\s+1\/10\s+轮排名/.test(row.text));
       // Native sign inspections consume real ticks too. Keep the last part in
       // small pulses, so a full-limit sprint cannot run into the next vote.
       await this.sprint(ticks - 600);
@@ -247,10 +247,10 @@ class HorseProbe extends PartyProbe {
       await this.fixture('A', this.source(50.5, 35, -1101.5));
       this.check('Crossing source gold finish alone does not count a lap', !this.chats.some(row => row.id === 'A' && row.at >= since && row.text.includes('第一圈完成')));
       await this.lap('A', 1); await this.lap('A', 2);
-      this.check('One of four finishing does not end the source race early', !this.chats.some(row => row.id === 'A' && row.at >= since && /第\s+1\/5\s+轮排名/.test(row.text)));
+      this.check('One of four finishing does not end the source race early', !this.chats.some(row => row.id === 'A' && row.at >= since && /第\s+1\/10\s+轮排名/.test(row.text)));
       await this.lap('B', 1); await this.lap('B', 2);
       await this.lap('C', 1); await this.lap('C', 2);
-      await this.wait(() => this.chats.some(row => row.id === 'A' && row.at >= since && /第\s+1\/5\s+轮排名/.test(row.text)), 'N-1 source finish threshold', 5000);
+      await this.wait(() => this.chats.some(row => row.id === 'A' && row.at >= since && /第\s+1\/10\s+轮排名/.test(row.text)), 'N-1 source finish threshold', 5000);
       for (const [index, id] of IDS.entries()) this.check(`Source two-lap ordering gives ${id} place${index + 1}`, this.chats.some(row => row.id === 'A' && row.at >= since
         && row.text.includes(`第 ${index + 1} 名 ${name(id)}`) && row.text.includes(`本轮 +${4 - index}`)));
     }
@@ -258,7 +258,7 @@ class HorseProbe extends PartyProbe {
     this.check('Native horse statuses are restored before the next game', !await this.condition('if entity @a[name=MyGoCheckA,nbt={active_effects:[{id:"minecraft:night_vision"}]}]')
       && !await this.condition('if entity @a[name=MyGoCheckA,nbt={active_effects:[{id:"minecraft:weakness"}]}]'));
     await this.wait(() => IDS.every(id => this.bots[id].currentWindow && this.menuChoices(this.bots[id].currentWindow).length), 'next round after full native scene cleanup', 90000);
-    this.check('416 cannot repeat within the five-game series', IDS.every(id => !this.menuChoices(this.bots[id].currentWindow).some(choice => choice.source === 416)));
+    this.check('416 cannot repeat within the ten-game series', IDS.every(id => !this.menuChoices(this.bots[id].currentWindow).some(choice => choice.source === 416)));
     for (const p of witnesses) this.check('Pinned original scene witness is actually cleaned', await this.serverBlockIs(p, 'air'), { p });
     const cleanupAt = this.serverLines.length;
     await this.leaveAll(); await this.unpinChunks();

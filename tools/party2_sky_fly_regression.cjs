@@ -5,16 +5,17 @@
 // only; flight launch/landing and later game completion are declared fixtures.
 // This checks protocol/server behavior, not rendered client/resource-pack art.
 const { PartyProbe, GAMES } = require('./party2_protocol_regression.cjs');
+const { EXTRA_GAMES, completeTimedRound, verifyTenRoundTotals } = require('./party2_tournament_extra_rounds.cjs');
 const path = require('node:path');
 const { Vec3 } = require('vec3');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const IDS = ['A', 'B', 'C', 'D'];
-const PLAN = ['skyfly', 'rlgl', 'rainbow', 'runner', 'dropper'];
+const PLAN = ['skyfly', 'rlgl', 'rainbow', 'runner', 'dropper', ...EXTRA_GAMES];
 
 class SkyFlyProbe extends PartyProbe {
   constructor() {
     super({port:25624,runDir:path.join(__dirname,'../build/mygo-party2-skyfly')});
-    this.round = 0; this.rows = new Map(); this.finalCount = 0; this.votes = new Set();
+    this.round = 0; this.rows = new Map(); this.finalCount = 0; this.finalRows = []; this.votes = new Set();
   }
   connect(id) {
     const bot = super.connect(id);
@@ -26,10 +27,11 @@ class SkyFlyProbe extends PartyProbe {
     bot.on('messagestr', message => {
       if (id !== 'A') return;
       const text=String(message).replace(/§./g,'');
-      const header=text.match(/第\s+(\d+)\/5\s+轮排名/);
+      const header=text.match(/第\s+(\d+)\/10\s+轮排名/);
       if(header) {this.round=Number(header[1]);this.rows.set(this.round,[]);}
       if(this.rows.has(this.round)&&/第 \d+ 名.*MyGoCheck.*本轮/.test(text))this.rows.get(this.round).push(text);
-      if(text.includes('Party 2 五轮总排名'))this.finalCount++;
+      if(text.includes('Party 2 十轮总排名'))this.finalCount++;
+      if(this.finalCount&&/第 \d+ 名.*MyGoCheck.*累计.*分/.test(text))this.finalRows.push(text);
     });
     return bot;
   }
@@ -48,7 +50,7 @@ class SkyFlyProbe extends PartyProbe {
   }
   async started(round) {
     const source=GAMES[PLAN[round-1]].source;
-    const selected=()=>this.chats.find(row=>row.id==='A'&&new RegExp(`第\\s+${round}/5\\s+轮选择：.*原版编号\\s+${source}`).test(row.text));
+    const selected=()=>this.chats.find(row=>row.id==='A'&&new RegExp(`第\\s+${round}/10\\s+轮选择：.*原版编号\\s+${source}`).test(row.text));
     await this.until(()=>selected(),`round ${round} selected`,90000);
     await this.until(()=>IDS.every(id=>this.bots[id].probeStartedAt>=selected().at),`round ${round} PLAY`,60000);
     this.log('sourceRoundStarted',{round,source,players:IDS.map(id=>this.snapshot(id))});
@@ -173,9 +175,15 @@ class SkyFlyProbe extends PartyProbe {
     const x=starts.reduce((sum,p)=>sum+p.x,0)/4,z=starts.reduce((sum,p)=>sum+p.z,0)/4;
     await this.tag(IDS);await this.console(`execute in pvp:arena as @a[tag=p2_skyfly_finish] run tp @s ${x} -62.75 ${z}`);
     await this.sprint(200);
-    await this.until(()=>this.rows.get(5)?.length===4&&this.finalCount===1,'exact five-round cumulative final',35000);
-    await this.until(()=>IDS.every(id=>this.bots[id].probeWorld==='minecraft:overworld'),'five-round return to hub',35000);
-    this.check('Exactly five distinct round results and one final table follow 407',this.rows.size===5&&this.finalCount===1,{rounds:[...this.rows.keys()],finalCount:this.finalCount});
+    await this.until(()=>this.rows.get(5)?.length===4,'original five-game flight lifecycle scenarios finish');
+    this.check('Round five does not finish the ten-round tournament',this.finalCount===0);
+    for(let round=6;round<=PLAN.length;round++) {
+      await this.started(round);await completeTimedRound(this,round,PLAN[round-1],IDS);
+    }
+    await this.until(()=>this.finalCount===1&&this.finalRows.length===4,'exact ten-round cumulative final',35000);
+    verifyTenRoundTotals(this,IDS);
+    await this.until(()=>IDS.every(id=>this.bots[id].probeWorld==='minecraft:overworld'),'ten-round return to hub',35000);
+    this.check('Exactly ten distinct round results and one final table follow 407',this.rows.size===PLAN.length&&this.finalCount===1,{rounds:[...this.rows.keys()],finalCount:this.finalCount});
     await this.until(()=>IDS.every(id=>this.bots[id].inventory.items().some(item=>item.name==='compass')),'hub compasses');
     this.check('All four restored to hub with compasses and no Elytra',IDS.every(id=>!this.bots[id].inventory.items().some(item=>item.name==='elytra')));
     this.check('Exactly one feedback hint per completed tournament player',IDS.every(id=>this.chats.filter(row=>row.id===id&&row.text.includes('qfmaker.com/blackboard/mcserverfb')).length===1));

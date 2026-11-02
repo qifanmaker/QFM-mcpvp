@@ -172,15 +172,15 @@ class WhackProbe extends PartyProbe {
     this.check('Translated source void kills a blaze at source Y below -128',await this.condition(`in pvp:arena unless entity @e[nbt={UUID:${this.uuidNbt(voidTarget.uuid)}}]`));
     this.check('Source-void retirement does not award a player kill',!this.scoreSince(voidAt).some(value=>value!==13),this.scoreSince(voidAt));
     const atLimit=Date.now();
-    const hasResult=()=>this.chats.some(row=>row.id==='A' && row.at>=this.started && row.text.includes('第 1/5 轮排名'));
+    const hasResult=()=>this.chats.some(row=>row.id==='A' && row.at>=this.started && row.text.includes('第 1/10 轮排名'));
     this.log('fixtureNote',{description:'Advance in 40-tick batches until all source targets retire. This permits the original drain without overshooting into another game.'});
     for(let advanced=0;!hasResult() && advanced<6000;advanced+=40) await this.sprint(40);
-    await this.wait(()=>this.chats.some(row=>row.id==='A' && row.at>=this.started && row.text.includes('第 1/5 轮排名')),'source last-mob drain produces round results',20000);
+    await this.wait(()=>this.chats.some(row=>row.id==='A' && row.at>=this.started && row.text.includes('第 1/10 轮排名')),'source last-mob drain produces round results',20000);
     const rows=this.chats.filter(row=>row.id==='A' && row.at>=this.started && /第\s+\d+\s+名\s+MyGoCheck/.test(row.text));
     this.check('Real scoped score ranks the active attacker first',rows.some(row=>/第\s+1\s+名\s+MyGoCheckA/.test(row.text)),rows);
     this.check('Non-attacking players remain tied on zero points', ['B','C','D'].every(id=>rows.some(row=>new RegExp(`第\\s+2\\s+名\\s+MyGoCheck${id}`).test(row.text))),rows);
-    this.check('Finishing Whack-A-Mob does not settle the entire five-round match',!this.chats.some(row=>row.at>=this.started
-      && (row.text.includes('Party 2 五轮总排名') || row.text.includes('qfmaker.com/blackboard/mcserverfb'))));
+    this.check('Finishing Whack-A-Mob does not settle the entire ten-round match',!this.chats.some(row=>row.at>=this.started
+      && (row.text.includes('Party 2 十轮总排名') || row.text.includes('qfmaker.com/blackboard/mcserverfb'))));
     this.check('Every source target has been removed at round close',await this.condition('in pvp:arena unless entity @e[tag=pvp_party_whack_target]'));
     this.check('Round close removes only its owned collision team from clients',IDS.every(id=>this.teamPackets.some(packet=>packet.id===id
       && packet.team===nativeTeam && packet.mode===1)));

@@ -44,7 +44,7 @@ class BoundaryProbe extends PartyProbe {
       && this.bots.A.health===20,'OP kill returns A to its own room at full health');
     this.check('Native lethal kill retries the lane and source loadout without elimination',this.bots.A.probeWorld==='pvp:arena'
       && this.bots.A.game.gameMode==='adventure'&&this.bots.A.inventory.items().some(item=>item.name==='netherite_axe'),this.snapshot('A'));
-    this.check('Player retry does not rank or end the round',!this.chats.some(row=>row.id==='A'&&row.at>=killedAt&&row.text.includes('第 1/5 轮排名')));
+    this.check('Player retry does not rank or end the round',!this.chats.some(row=>row.id==='A'&&row.at>=killedAt&&row.text.includes('第 1/10 轮排名')));
     const protectionAt=Date.now();
     await this.console('damage MyGoCheckA 2 minecraft:in_fire');
     await new Promise(resolve=>setTimeout(resolve,150));

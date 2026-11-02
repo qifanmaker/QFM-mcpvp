@@ -306,10 +306,10 @@ class TediousProbe extends PartyProbe {
     this.connect('E');await this.wait(()=>this.bots.E.probeSpawned,'outside control E connected',20000);
     await this.outsideCraft();
     await this.completeAll('A',true);
-    this.check('One finisher does not end a four-player source round',!this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text)));
+    this.check('One finisher does not end a four-player source round',!this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text)));
     await this.completeAll('B',false);
     await this.completeAll('C',false);
-    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text)),'N-1 source threshold ends round',4000);
+    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text)),'N-1 source threshold ends round',4000);
     this.check('Three finishers trigger original N-1 threshold',this.completed.A===8&&this.completed.B===8&&this.completed.C===8&&this.completed.D<8);
     this.check('Eight-task ranking gives earlier finisher highest placement',this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\s+名\s+MyGoCheckA.*本轮\s+\+4/.test(row.text)));
     await this.console('execute in pvp:arena store result score $limited p2_tt run gamerule doLimitedCrafting');
@@ -317,7 +317,7 @@ class TediousProbe extends PartyProbe {
     this.check('All native task villagers are removed on close',!await this.condition('in pvp:arena if entity @e[type=minecraft:villager,tag=party_tedious_villager]'));
     for(const id of IDS)this.check(`${id} task effects are restored`,!await this.condition(`if entity @a[name=${name(id)},nbt={active_effects:[{id:"minecraft:regeneration"}]}]`)
       &&!await this.condition(`if entity @a[name=${name(id)},nbt={active_effects:[{id:"minecraft:weakness"}]}]`));
-    await this.wait(()=>IDS.every(id=>!!this.bots[id].currentWindow),'next five-round selection',30000);
+    await this.wait(()=>IDS.every(id=>!!this.bots[id].currentWindow),'next ten-round selection',30000);
     this.check('Next round resumes and excludes source411',IDS.every(id=>!this.menuChoices(this.bots[id].currentWindow).some(choice=>choice.source===411)));
     this.check('Pinned source target is really cleared',await this.waitServerBlock(gold,'air'));
     await this.leaveAll();await this.unpinChunks();

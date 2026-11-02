@@ -49,19 +49,19 @@ class BoundaryProbe extends TediousProbe {
     const gold=this.source(34,6,-322);await this.pinChunk(gold);
     this.check('Source target exists before timeout observation',await this.serverBlockIs(gold,'gold_block'));
     await this.sprint(4200);
-    this.check('Source game remains open before its4800tick limit without a finisher',!this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text))&&this.completed.A<8&&this.completed.B<8,{completed:this.completed});
+    this.check('Source game remains open before its4800tick limit without a finisher',!this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text))&&this.completed.A<8&&this.completed.B<8,{completed:this.completed});
     await this.sprint(600);
-    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text)),'original240-second timeout produces ranking',2500);
+    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text)),'original240-second timeout produces ranking',2500);
     this.check('Timeout ranks partial progress while both are unfinished',this.completed.A<8&&this.completed.B<8,{completed:this.completed});
     await this.wait(()=>!!this.bots.A.currentWindow,'timeout returns to tournament selection',30000);
-    this.check('Timeout preserves the five-round series and excludes411',!this.menuChoices(this.bots.A.currentWindow).some(choice=>choice.source===411));
+    this.check('Timeout preserves the ten-round series and excludes411',!this.menuChoices(this.bots.A.currentWindow).some(choice=>choice.source===411));
     this.check('Timeout clears the real loaded source target',await this.waitServerBlock(gold,'air'));
     await this.leaveAll();await this.unpinChunks();await sleep(5500);
 
     since=await this.startTwo();
     const marker=this.source(34,-13,-341);await this.pinChunk(marker);
     await this.completeAll('A',false);
-    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text)),'one finisher is N-1 in a two-player game',2500);
+    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text)),'one finisher is N-1 in a two-player game',2500);
     this.check('One of two finishers ends the source round immediately',this.completed.A===8&&this.completed.B<8,{completed:this.completed});
     this.check('Two-player task order still visits all eight distinct tasks',new Set(this.history.A).size===8,{history:this.history.A});
     this.check('Empty third and fourth source pedestals remain part of the visit task',this.history.A.includes(6));

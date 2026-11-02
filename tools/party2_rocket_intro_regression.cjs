@@ -19,8 +19,8 @@ class RocketIntroProbe extends PartyProbe {
     bot.on('messagestr', message => {
       if (id !== 'A') return;
       const text = String(message).replace(/§./g, '');
-      if (/第\s+1\/5\s+轮排名/.test(text)) this.roundEnded = true;
-      if (/第\s+2\/5\s+轮.*投票/.test(text)) this.voting = true;
+      if (/第\s+1\/10\s+轮排名/.test(text)) this.roundEnded = true;
+      if (/第\s+2\/10\s+轮.*投票/.test(text)) this.voting = true;
       const row = text.match(/第\s+(\d+)\s+名\s+MyGoCheck([AB])\s+(\d+) 格.*本轮\s+\+(\d+)｜累计\s+(\d+)/);
       if (row) this.rows.set(row[2], { place: +row[1], distance: +row[3], points: +row[4], total: +row[5] });
     });

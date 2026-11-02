@@ -1,10 +1,10 @@
 'use strict';
 
-// Reason: five-round Party matches must accumulate placement points without
-// settling five separate matches, repeating games, or carrying player state.
+// Reason: Party now plays ten rounds; the former five-round driver could not
+// verify rounds6-10, the old finish boundary, or a single final match result.
 // Pre-review: use an isolated owned server; constructor options retain fresh
-// evidence when checking another runtime. Never modify the shared probe or
-// game implementation. Menu clicks and bow shots are real protocol actions;
+// evidence when checking another runtime. Never modify the live game
+// implementation. Menu clicks and bow shots are real protocol actions;
 // finish-zone teleports, fall damage and tick sprint are explicit fixtures.
 const { PartyProbe, GAMES } = require('./party2_protocol_regression.cjs');
 const fs = require('node:fs');
@@ -16,7 +16,8 @@ const clean = value => String(value).replace(/§./g, '');
 const json = value => JSON.stringify(value, (_, item) => typeof item === 'bigint' ? item.toString() : item);
 const name = id => `MyGoCheck${id}`;
 const pos = bot => new Vec3(bot.probePosition.x, bot.probePosition.y, bot.probePosition.z);
-const PLAN = [401, 428, 424, 415, 413];
+const TOTAL_ROUNDS = 10;
+const PLAN = [401, 428, 424, 415, 413, 408, 412, 409, 425, 420];
 const IDS = ['A', 'B', 'C', 'D'];
 
 function offlineUuid(username) {
@@ -45,6 +46,7 @@ class TournamentProbe extends PartyProbe {
     this.selected = [];
     this.menuHistory = [];
     this.roundRows = new Map();
+    this.roundHeaders = new Map();
     this.finalRows = new Map();
     this.totals = new Map(IDS.map(id => [id, 0]));
     this.header = null;
@@ -65,12 +67,13 @@ class TournamentProbe extends PartyProbe {
     bot.on('messagestr', message => {
       if (id !== 'A') return;
       const text = clean(message);
-      const round = text.match(/第\s+(\d+)\/5\s+轮排名/);
+      const round = text.match(/第\s+(\d+)\/10\s+轮排名/);
       if (round) {
         this.header = Number(round[1]);
+        this.roundHeaders.set(this.header,(this.roundHeaders.get(this.header)||0)+1);
         if (!this.roundRows.has(this.header)) this.roundRows.set(this.header, new Map());
       }
-      if (text.includes('Party 2 五轮总排名')) {
+      if (text.includes('Party 2 十轮总排名')) {
         this.header = 'final'; this.finalHeaders++;
       }
       const row = text.match(/第\s+(\d+)\s+名\s+MyGoCheck([A-F]).*本轮\s+\+(\d+)｜累计\s+(\d+)/);
@@ -133,14 +136,15 @@ class TournamentProbe extends PartyProbe {
 
   async roundStarted(round, source) {
     const selection = () => this.chats.find(row => row.id === 'A' && row.at >= this.caseStart
-      && new RegExp(`第\\s+${round}/5\\s+轮选择：.*原版编号\\s+${source}`).test(row.text));
+      && new RegExp(`第\\s+${round}/${TOTAL_ROUNDS}\\s+轮选择：.*原版编号\\s+${source}`).test(row.text));
     await this.until(() => !!selection(), `round ${round} selects source ${source}`, 90000);
     const at = selection().at;
     await this.until(() => this.activeIds.every(id => this.bots[id].probeStartedAt >= at), `round ${round} enters PLAY`, 50000);
     this.check(`Round ${round} plays a distinct game`, !this.played.has(source), { played: [...this.played], source });
     this.played.add(source); this.selected.push(source);
+    const mode = source===408 ? 'survival' : 'adventure';
     this.check(`Round ${round} restores every remaining player from prior elimination`, this.activeIds.every(id => this.bots[id].probeWorld === 'pvp:arena'
-      && this.bots[id].game.gameMode === 'adventure'), this.activeIds.map(id => this.snapshot(id)));
+      && this.bots[id].game.gameMode === mode), this.activeIds.map(id => this.snapshot(id)));
     this.log('tournamentRoundStarted', { round, source, participants: this.activeIds });
   }
 
@@ -184,7 +188,9 @@ class TournamentProbe extends PartyProbe {
 
   async oitq() {
     await this.jumpStrength('A', '419..421', 'Dropper jump suppression is restored before OITQ');
-    this.check('Previous Dropper tower cleared before next gameplay', await this.serverBlockIs(this.oldWall,'air'), { block: this.oldWall });
+    // The resident profile retains the pool/start; this y250 wall is generated
+    // per round, so returning the lease must restore its original AIR state.
+    this.check('Previous dynamic Dropper tower wall clears before next gameplay', await this.serverBlockIs(this.oldWall,'air'), { block: this.oldWall });
     const spawns = this.activeIds.map(id => pos(this.bots[id]));
     // Four shuffled original starts are symmetric. This source Y=35 corridor
     // is already air in the original map, so the test never modifies geometry.
@@ -230,6 +236,25 @@ class TournamentProbe extends PartyProbe {
     await this.console(`execute in pvp:arena as @a[tag=p2_tourney_finish] run tp @s ${p.x} ${p.y-27} ${p.z}`);
   }
 
+  async spleef() {
+    const p = pos(this.bots.A);
+    this.log('fixtureNote', { description:'Send B/C/D below the original Spleef elimination plane together; A survives. This checks the sixth-round transition, not shovel aiming.' });
+    await this.tag(['B','C','D']);
+    await this.console(`execute in pvp:arena as @a[tag=p2_tourney_finish] run tp @s ${p.x} ${p.y-40} ${p.z}`);
+  }
+
+  async timeoutRound(round, maximumTicks) {
+    // Keep batches small and wait for delivered rankings so acceleration cannot
+    // skip the next real menu. Every game uses its production time-limit path.
+    this.log('fixtureNote', { description:`Advance the actual source time limit for round${round}; no score, phase or round fields are changed.` });
+    for (let advanced=0; !this.roundRows.get(round)?.size && advanced<maximumTicks; advanced+=100) {
+      await this.sprint(100);
+      await sleep(70);
+    }
+    await this.until(()=>this.roundRows.get(round)?.size===this.activeIds.length,
+      `round ${round} production timeout produces all rankings`,5000);
+  }
+
   stats() {
     const file = path.join(this.runDir,'config/pvp/stats.json');
     return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file,'utf8')) : {};
@@ -239,21 +264,27 @@ class TournamentProbe extends PartyProbe {
 
   async verifyRound(round, expectedPlaces, baseline) {
     await this.until(() => this.roundRows.get(round)?.size===this.activeIds.length, `round ${round} complete result rows`);
+    this.check(`Round ${round} publishes one round-ranking header`,this.roundHeaders.get(round)===1,
+      { count:this.roundHeaders.get(round) });
     const rows = this.roundRows.get(round);
     for (const id of this.activeIds) {
-      const row = rows.get(id), points = 4-expectedPlaces[id]+1;
+      const row = rows.get(id), place = expectedPlaces?.[id] ?? row.place;
+      const points = IDS.length-place+1;
       const cumulative = this.totals.get(id)+points;
-      this.check(`Round ${round} ${id} placement conversion and accumulation`, row.place===expectedPlaces[id]
-        && row.points===points && row.total===cumulative, row, { place:expectedPlaces[id], points, total:cumulative });
+      this.check(`Round ${round} ${id} placement conversion and accumulation`, Number.isInteger(place) && place>=1 && place<=IDS.length && row.place===place
+        && row.points===points && row.total===cumulative, row, { place, points, total:cumulative });
       this.totals.set(id,cumulative);
     }
-    if (round<5) {
+    if (round<TOTAL_ROUNDS) {
       this.check(`Round ${round} result keeps players inside tournament`, this.activeIds.every(id=>this.bots[id].probeWorld==='pvp:arena'), this.activeIds.map(id=>this.snapshot(id)));
       this.check(`Round ${round} does not persist a separate match`, IDS.every(id=>this.matches(this.stats(),id)===this.matches(baseline,id)), this.stats());
       this.check(`Round ${round} has no final standings or feedback`, this.finalHeaders===0
         && !this.chats.some(row=>row.at>=this.caseStart && row.text.includes('qfmaker.com/blackboard/mcserverfb')),
       { finalHeaders:this.finalHeaders });
     }
+    if (round===5) this.check('The former five-round boundary keeps the ten-round match open',
+      this.roundRows.size===5 && this.finalHeaders===0 && this.finalRows.size===0,
+      { rounds:[...this.roundRows.keys()],finalHeaders:this.finalHeaders,finalRows:this.finalRows.size });
     this.nextRound = round+1; this.targetSource = PLAN[round];
   }
 
@@ -261,10 +292,15 @@ class TournamentProbe extends PartyProbe {
     this.resetCase();
     const baseline = this.stats();
     await this.joinTournament();
-    for (let round=1; round<=5; round++) {
+    this.check('The test plan has exactly ten different source games',PLAN.length===TOTAL_ROUNDS && new Set(PLAN).size===TOTAL_ROUNDS,PLAN);
+    const actions = [()=>this.dropper(),()=>this.oitq(),()=>this.trafficLights(),()=>this.runner(),()=>this.rainbow(),
+      ()=>this.spleef(),()=>this.timeoutRound(7,2000),()=>this.timeoutRound(8,2500),
+      ()=>this.timeoutRound(9,2100),()=>this.timeoutRound(10,1900)];
+    for (let round=1; round<=TOTAL_ROUNDS; round++) {
       await this.roundStarted(round,PLAN[round-1]);
-      await [null,()=>this.dropper(),()=>this.oitq(),()=>this.trafficLights(),()=>this.runner(),()=>this.rainbow()][round]();
-      const places = round===1 || round===3 ? {A:1,B:1,C:1,D:4} : {A:1,B:2,C:2,D:2};
+      await actions[round-1]();
+      const places = round===1 || round===3 ? {A:1,B:1,C:1,D:4}
+        : round<=6 ? {A:1,B:2,C:2,D:2} : null;
       await this.verifyRound(round,places,baseline);
     }
     await this.until(()=>this.finalRows.size===4,'one complete final cumulative table',30000);
@@ -274,18 +310,21 @@ class TournamentProbe extends PartyProbe {
       this.check(`${id} final place follows total points including ties`, this.finalRows.get(id)?.place===place
         && this.finalRows.get(id)?.total===total, this.finalRows.get(id), {place,total});
     }
-    this.check('Five selected games are distinct and match actual votes', this.selected.length===5 && new Set(this.selected).size===5
+    this.check('Ten selected games are distinct and match actual votes', this.selected.length===TOTAL_ROUNDS && new Set(this.selected).size===TOTAL_ROUNDS
       && this.selected.every((source,index)=>source===PLAN[index]),this.selected,PLAN);
-    await this.until(()=>IDS.every(id=>this.bots[id].probeWorld==='minecraft:overworld'),'five-round tournament returns everyone to lobby',30000);
+    this.check('Only the tenth round produces the complete final table',this.roundRows.size===TOTAL_ROUNDS && this.finalHeaders===1 && this.finalRows.size===IDS.length,
+      { rounds:[...this.roundRows.keys()],finalHeaders:this.finalHeaders,finalRows:[...this.finalRows] });
+    await this.until(()=>IDS.every(id=>this.bots[id].probeWorld==='minecraft:overworld'),'ten-round tournament returns everyone to lobby',30000);
     await this.until(()=>IDS.every(id=>this.matches(this.stats(),id)===this.matches(baseline,id)+1),'exactly one persisted match each',25000);
     await sleep(800);
     this.check('Final tournament header appears exactly once',this.finalHeaders===1,{count:this.finalHeaders});
     for (const id of IDS) {
+      const won = this.finalRows.get(id)?.place===1;
       const hints = this.chats.filter(row=>row.id===id && row.at>=this.caseStart && row.text.includes('qfmaker.com/blackboard/mcserverfb'));
       this.check(`${id} receives exactly one final feedback hint`,hints.length===1,{count:hints.length});
       this.check(`${id} receives one match and correct win/loss`, this.matches(this.stats(),id)===this.matches(baseline,id)+1
-        && (this.stats()[offlineUuid(name(id))]?.wins||0)===(baseline[offlineUuid(name(id))]?.wins||0)+(id==='A'?1:0)
-        && (this.stats()[offlineUuid(name(id))]?.losses||0)===(baseline[offlineUuid(name(id))]?.losses||0)+(id==='A'?0:1),
+        && (this.stats()[offlineUuid(name(id))]?.wins||0)===(baseline[offlineUuid(name(id))]?.wins||0)+Number(won)
+        && (this.stats()[offlineUuid(name(id))]?.losses||0)===(baseline[offlineUuid(name(id))]?.losses||0)+Number(!won),
       {before:baseline[offlineUuid(name(id))],after:this.stats()[offlineUuid(name(id))]});
     }
   }
@@ -307,13 +346,16 @@ class TournamentProbe extends PartyProbe {
     this.check('Other players continue the second round after a forfeit',this.activeIds.every(id=>this.bots[id].probeWorld==='pvp:arena'
       && this.bots[id].game.gameMode==='adventure'),this.activeIds.map(id=>this.snapshot(id)));
     // This second case deliberately ends here; it only audits round-boundary
-    // membership, while the first case verifies the complete five-round path.
+    // membership, while the first case verifies the complete ten-round path.
     await this.leaveAll();
   }
 }
 
 async function main() {
-  const probe = new TournamentProbe();
+  const probe = new TournamentProbe({
+    port:Number(process.env.MYGO_TEST_PORT||25598),
+    runDir:process.env.MYGO_TEST_RUN_DIR||path.join(__dirname,'../build/mygo-party2-tournament')
+  });
   let error;
   try {
     await probe.launch(); await probe.connectAll('ABCD');

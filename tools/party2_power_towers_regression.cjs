@@ -105,7 +105,7 @@ class PowerProbe extends PartyProbe {
       this.check('Full distant/tall source scenery is present at unchanged coordinates',await this.serverBlockIs(point,block),{point,block});
     }
   }
-  results(since) { return this.chats.find(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text)); }
+  results(since) { return this.chats.find(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text)); }
   release(since) { return this.chats.find(row=>row.id==='A'&&row.at>=since&&row.text.includes('停止调音')); }
   async finish(since, expected, label) {
     await this.wait(()=>this.results(since),`${label} actual native collapse is ranked`,30000);
@@ -141,7 +141,7 @@ class PowerProbe extends PartyProbe {
     this.check('Real native falling_block entities were transmitted during collapse',this.nativeFalling.some(row=>row.id==='A'&&row.at>=release.at));
     const turnYaw=this.seat('A').yaw+180;
     this.check('Source turn-around is a real native player rotation',this.rotations.some(row=>row.id==='A'&&row.at>=release.at-100&&Math.abs(((row.yaw-turnYaw)%360+360)%360)<.1));
-    for (const [index,id] of IDS.entries()) this.check('Final tower ordering produces the five-game round points',this.chats.some(row=>row.id==='A'&&row.at>=since
+    for (const [index,id] of IDS.entries()) this.check('Final tower ordering produces the ten-game round points',this.chats.some(row=>row.id==='A'&&row.at>=since
       &&row.text.includes(`第 ${index+1} 名 ${name(id)}`)&&row.text.includes(`本轮 +${4-index}`)));
   }
   async batch() {

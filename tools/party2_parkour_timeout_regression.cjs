@@ -1,7 +1,7 @@
 'use strict';
 
 // Reason: a cave race with no finisher must still settle at the source 4000tick
-// limit, rank checkpoint progress, and advance the five-round tournament once.
+// limit, rank checkpoint progress, and advance the ten-round tournament once.
 // Pre-review: own25602 only, use real GUI voting; teleports/time acceleration are
 // explicit fixtures. Start only after the other parkour server has stopped.
 const { PartyProbe } = require('./party2_protocol_regression.cjs');
@@ -35,8 +35,8 @@ class TimeoutProbe extends PartyProbe {
     for(const [id,rank] of Object.entries({A:1,B:2,C:3,D:4})) {
       this.check(`Timeout ranks ${id} by checkpoint progress`,rows().some(row=>new RegExp(`第\\s+${rank}\\s+名\\s+MyGoCheck${id}(?:\\s|$)`).test(row.text)),rows());
     }
-    this.check('Timeout settles one round and keeps five-round match open',this.chats.filter(row=>row.id==='A'&&row.at>=since&&row.text.includes('第 1/5 轮排名')).length===1
-      &&!this.chats.some(row=>row.at>=since&&(row.text.includes('Party 2 五轮总排名')||row.text.includes('qfmaker.com/blackboard/mcserverfb'))));
+    this.check('Timeout settles one round and keeps ten-round match open',this.chats.filter(row=>row.id==='A'&&row.at>=since&&row.text.includes('第 1/10 轮排名')).length===1
+      &&!this.chats.some(row=>row.at>=since&&(row.text.includes('Party 2 十轮总排名')||row.text.includes('qfmaker.com/blackboard/mcserverfb'))));
     this.check('Timeout map is removed before the next vote',await this.waitServerBlock(old,'air',50000),old);
     await this.leaveAll();
   }

@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 珍珠投手必须保留真实远端末地岛，单个512格槽位无法容纳；整场五轮持有相邻七槽。
+ * 珍珠投手必须保留真实远端末地岛，单个512格槽位无法容纳；整场对局持有相邻七槽。
  * 同时避开两个练习管理器的固定区域，构造失败和延迟清场均通过同一入口完整释放。
  */
 public final class ArenaRegionAllocator {

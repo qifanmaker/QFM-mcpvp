@@ -5,12 +5,13 @@
 // isolated immutable runtime; label accelerated time and elimination fixtures,
 // keep live chunks loaded before proving cleanup, never alter game Java code.
 const { PartyProbe, GAMES } = require('./party2_protocol_regression.cjs');
+const { INTERNAL_EXTRA_GAMES, completeTimedRound } = require('./party2_tournament_extra_rounds.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { Vec3 } = require('vec3');
 const IDS = ['A', 'B', 'C', 'D'];
-const PLAN = ['spleef', 'tile', 'meat', 'oitq', 'memory'];
+const PLAN = ['spleef', 'tile', 'meat', 'oitq', 'memory', ...INTERNAL_EXTRA_GAMES];
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const position = bot => new Vec3(bot.probePosition.x, bot.probePosition.y, bot.probePosition.z);
 const name = id => `MyGoCheck${id}`;
@@ -36,11 +37,11 @@ class InternalProbe extends PartyProbe {
     bot.on('messagestr', message => {
       if (id !== 'A') return;
       const text = String(message).replace(/§./g, '');
-      const header = text.match(/第\s+(\d+)\/5\s+轮排名/);
+      const header = text.match(/第\s+(\d+)\/10\s+轮排名/);
       if (header) {
         this.header = Number(header[1]); this.rounds.set(this.header, new Map());
       }
-      if (text.includes('Party 2 五轮总排名')) { this.header = 'final'; this.finalHeaders++; }
+      if (text.includes('Party 2 十轮总排名')) { this.header = 'final'; this.finalHeaders++; }
       const row = text.match(/第\s+(\d+)\s+名\s+MyGoCheck([A-F]).*本轮\s+\+(\d+)｜累计\s+(\d+)/);
       if (row && typeof this.header === 'number') this.rounds.get(this.header).set(row[2], {
         place: Number(row[1]), awarded: Number(row[3]), total: Number(row[4]), text
@@ -68,7 +69,7 @@ class InternalProbe extends PartyProbe {
 
   async nextStarted(round, game) {
     const selected = () => this.chats.find(row => row.id === 'A' && row.at >= this.started
-      && new RegExp(`第\\s+${round}/5\\s+轮选择：.*原版编号\\s+${GAMES[game].source}`).test(row.text));
+      && new RegExp(`第\\s+${round}/10\\s+轮选择：.*原版编号\\s+${GAMES[game].source}`).test(row.text));
     await this.until(() => !!selected(), `${game} selected in round ${round}`, 45000);
     await this.until(() => IDS.every(id => this.bots[id].probeStartedAt >= selected().at), `${game} entered PLAY`, 45000);
     this.game = null;
@@ -154,7 +155,7 @@ class InternalProbe extends PartyProbe {
     const lobbyFloor = position(this.bots.A).floored().offset(0, -1, 0);
     await this.pinChunk(lobbyFloor);
     this.check('Round cleanup preserves the waiting platform', await this.serverBlockIs(lobbyFloor, 'light_blue_stained_glass'), { lobbyFloor });
-    for (let round = 2; round <= 5; round++) {
+    for (let round = 2; round <= PLAN.length; round++) {
       const game = PLAN[round - 1];
       await this.nextStarted(round, game); this.game = PLAN[round] || null;
       if (game === 'tile') {
@@ -166,13 +167,14 @@ class InternalProbe extends PartyProbe {
         for (const id of IDS) await this.jumpStrength(id, '419..421', `${game} restores ${id} jump strength after Tile`);
       }
       if (game === 'memory') this.check('Memory starts a new viewing state for all four players', IDS.every(id => !this.bots[id].heldItem), IDS.map(id => this.snapshot(id)));
-      await this.timeoutRound(round, game === 'meat' ? 2500 : 2100);
+      if (round <= 5) await this.timeoutRound(round, game === 'meat' ? 2500 : 2100);
+      else await completeTimedRound(this, round, game, IDS);
       await this.verifyRound(round);
     }
-    await this.until(() => this.finalRows.size === 4, 'single final five-round ranking', 30000);
+    await this.until(() => this.finalRows.size === 4, 'single final ten-round ranking', 30000);
     for (const id of IDS) {
       const total = this.totals.get(id), place = 1 + [...this.totals.values()].filter(value => value > total).length;
-      this.check(`${id} final rank uses the five-round sum`, this.finalRows.get(id)?.total === total && this.finalRows.get(id)?.place === place,
+      this.check(`${id} final rank uses the ten-round sum`, this.finalRows.get(id)?.total === total && this.finalRows.get(id)?.place === place,
         this.finalRows.get(id), { place, total });
     }
     await this.until(() => IDS.every(id => this.bots[id].probeWorld === 'minecraft:overworld'), 'tournament returns players to main lobby', 30000);

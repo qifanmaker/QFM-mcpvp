@@ -11,12 +11,13 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 五轮赛按名次积分，避免把击杀数、下落深度和持肉 tick 直接相加。
+ * 十轮赛按名次积分，避免把击杀数、下落深度和持肉 tick 直接相加。
  * 每轮积分为开局人数 N - 名次 + 1；并列采用 1、1、3 的名次，得到相同积分。
  * 原始人数固定，退赛者已得积分保留，之后不再得分，也不能成为最终赢家。
  */
 public final class PartyTournamentScores {
-    public static final int ROUNDS = 5;
+    // 按服主要求将每局扩展到十轮，投票、进度与最终结算共用此上限。
+    public static final int ROUNDS = 10;
     public record Result(UUID player, int value, int place, int awarded, int total) { }
 
     private final List<UUID> players;
@@ -38,7 +39,7 @@ public final class PartyTournamentScores {
 
     /** 在一轮排名固定时调用一次；所有输入校验先于总分写入。 */
     public List<Result> recordRound(Map<UUID, Integer> values) {
-        if (this.roundsPlayed >= ROUNDS) throw new IllegalStateException("All five rounds are already scored");
+        if (this.roundsPlayed >= ROUNDS) throw new IllegalStateException("All " + ROUNDS + " rounds are already scored");
         if (values.isEmpty()) throw new IllegalArgumentException("An empty round cannot award points");
         this.validate(values.keySet());
         for (Integer value : values.values()) if (value == null) throw new IllegalArgumentException("Missing round score");

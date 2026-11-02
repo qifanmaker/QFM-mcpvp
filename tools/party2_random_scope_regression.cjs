@@ -48,7 +48,7 @@ class RandomScopeProbe extends PartyProbe {
     await this.console('execute as @a[tag=p2_scope_join] run pvp join minecraftparty');await this.console('tag @a remove p2_scope_join');await this.chat('A','/pvp start');
     await this.wait(()=>{
       if(this.voteError)throw this.voteError;
-      return this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮选择：.*原版编号\s+417/.test(row.text));
+      return this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮选择：.*原版编号\s+417/.test(row.text));
     },'417 selected through native two-player votes',90000);
     const selected=Date.now();for(const id of ['A','B'])this.bots[id].probeStartedAt=0;
     await this.wait(()=>['A','B'].every(id=>this.bots[id].probeStartedAt>=selected),'417 enters actual PLAY',45000);

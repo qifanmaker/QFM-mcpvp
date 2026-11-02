@@ -116,7 +116,7 @@ class DeathOrderProbe extends TediousProbe {
       observed.add(task);
     }
     this.check('Completion-before-reset preserves all eight task results',observed.size===8&&this.completed.A===8,{observed:[...observed],history:this.history.A});
-    this.check('One of four finishers still does not settle the whole round',!this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮排名/.test(row.text)));
+    this.check('One of four finishers still does not settle the whole round',!this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮排名/.test(row.text)));
     await this.leaveAll();
   }
 }

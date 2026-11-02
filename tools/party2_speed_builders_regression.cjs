@@ -8,12 +8,13 @@
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto');
 const mineflayer=require('mineflayer');
 const {PartyProbe,GAMES}=require('./party2_protocol_regression.cjs');
+const {EXTRA_GAMES,completeTimedRound,verifyTenRoundTotals}=require('./party2_tournament_extra_rounds.cjs');
 const {Vec3}=require('vec3');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const name=id=>`MyGoCheck${id}`;
 const pos=bot=>new Vec3(bot.probePosition.x,bot.probePosition.y,bot.probePosition.z);
 const COLORS=['red_concrete','orange_concrete','yellow_concrete','lime_concrete','light_blue_concrete','blue_concrete','magenta_concrete','gray_concrete'];
-const PLAN=['speed','rlgl','rainbow','runner','dropper'];
+const PLAN=['speed','rlgl','rainbow','runner','dropper',...EXTRA_GAMES];
 GAMES.speed={source:417,minimumPlayers:2,maximumPlayers:10};
 const uuid=id=>{const b=crypto.createHash('md5').update(`OfflinePlayer:${name(id)}`).digest();b[6]=(b[6]&15)|48;b[8]=(b[8]&63)|128;const h=b.toString('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;};
 
@@ -35,10 +36,10 @@ class SpeedBuildersProbe extends PartyProbe {
       const text=String(message).replace(/§./g,'');const build=text.match(/已复制建筑\s+(\d+)\/4/);
       if(build){this.completed[id]=Number(build[1]);this.log('buildCompleted',{id,count:this.completed[id]});}
       if(id!=='A')return;
-      const header=text.match(/第\s+(\d+)\/5\s+轮排名/);
+      const header=text.match(/第\s+(\d+)\/10\s+轮排名/);
       if(header){this.round=Number(header[1]);this.rows.set(this.round,[]);if(this.planned)this.game=PLAN[this.round]||null;}
       if(this.rows.has(this.round)&&/第 \d+ 名.*MyGoCheck.*本轮/.test(text))this.rows.get(this.round).push(text);
-      if(text.includes('Party 2 五轮总排名'))this.finalHeaders++;
+      if(text.includes('Party 2 十轮总排名'))this.finalHeaders++;
       if(this.finalHeaders&&/第 \d+ 名.*MyGoCheck.*累计.*分/.test(text))this.finalRows.push(text);
     });
     return bot;
@@ -94,7 +95,7 @@ class SpeedBuildersProbe extends PartyProbe {
     this.log('fixtureNote',{description:`A single native execute-as invokes real queue handlers for${ids.length} clients, preserving the actual source player-count branch.`});
     await this.console('execute as @a[tag=p2_sb_join] run pvp join minecraftparty');await this.console('tag @a remove p2_sb_join');
     if(ids.length<4)await this.chat(ids[0],'/pvp start');
-    await this.wait(()=>{if(this.voteError)throw this.voteError;return this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/5\s+轮选择：.*原版编号\s+417/.test(row.text));},'417 chosen by actual menu votes',90000);
+    await this.wait(()=>{if(this.voteError)throw this.voteError;return this.chats.some(row=>row.id==='A'&&row.at>=since&&/第\s+1\/10\s+轮选择：.*原版编号\s+417/.test(row.text));},'417 chosen by actual menu votes',90000);
     const selected=Date.now();for(const id of ids)this.bots[id].probeStartedAt=0;
     await this.wait(()=>ids.every(id=>this.bots[id].probeStartedAt>=selected),'417 enters actual PLAY',60000);
     await this.wait(()=>ids.every(id=>this.bots[id].inventory.items().some(item=>item.name==='golden_pickaxe')),'native full inventory received',2500);
@@ -321,7 +322,7 @@ class SpeedBuildersProbe extends PartyProbe {
   async waitRound(round){await this.wait(()=>this.rows.get(round)?.length===4,`round${round} result rows`,5000);}
   async started(round){
     const source=GAMES[PLAN[round-1]].source;
-    const selected=()=>this.chats.find(row=>row.id==='A'&&new RegExp(`第\\s+${round}/5\\s+轮选择：.*原版编号\\s+${source}`).test(row.text));
+    const selected=()=>this.chats.find(row=>row.id==='A'&&new RegExp(`第\\s+${round}/10\\s+轮选择：.*原版编号\\s+${source}`).test(row.text));
     await this.wait(()=>{if(this.voteError)throw this.voteError;return selected();},`round${round} selects next distinct game`,90000);
     await this.wait(()=>['A','B','C','D'].every(id=>this.bots[id].probeStartedAt>=selected().at),`round${round} actual PLAY`,60000);
   }
@@ -329,7 +330,7 @@ class SpeedBuildersProbe extends PartyProbe {
   async continueTournament(since,baseline,placed){
     // SELECT follows cleanup but precedes the next map's BUILD. Checking after
     // RLGL has spawned can observe its legitimate geometry at the same cell.
-    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/Party 2 · 第 2\/5 轮：/.test(row.text)),'second-round selection after417 cleanup',40000);
+    await this.wait(()=>this.chats.some(row=>row.id==='A'&&row.at>=since&&/Party 2 · 第 2\/10 轮：/.test(row.text)),'second-round selection after417 cleanup',40000);
     this.check('A newly placed initially-air cell clears before the next map is built',await this.serverBlockIs(placed,'air'));
     await this.started(2);
     let p=pos(this.bots.A);await this.tag(['A','B','C','D']);await this.console(`execute in pvp:arena as @a[tag=p2_sb_finish] run tp @s ${p.x.toFixed(8)} ${p.y.toFixed(8)} ${(p.z-145.5).toFixed(8)}`);await this.waitRound(2);
@@ -337,16 +338,18 @@ class SpeedBuildersProbe extends PartyProbe {
     await this.started(4);await this.tag(['B','C','D']);await this.console('execute as @a[tag=p2_sb_finish] run damage @s 1000 minecraft:fall');await this.waitRound(4);
     await this.started(5);const starts=['A','B','C','D'].map(id=>pos(this.bots[id])),x=starts.reduce((n,p)=>n+p.x,0)/4,z=starts.reduce((n,p)=>n+p.z,0)/4;
     await this.tag(['A','B','C','D']);await this.console(`execute in pvp:arena as @a[tag=p2_sb_finish] run tp @s ${x.toFixed(8)} -62.75 ${z.toFixed(8)}`);await this.sprint(200);await this.waitRound(5);
-    await this.wait(()=>this.finalHeaders===1&&this.finalRows.length===4,'five-round final ranking',35000);
-    const totals={A:20,B:17,C:16,D:15};for(const [index,id]of ['A','B','C','D'].entries())this.check(`${id} cumulative total includes417 plus four later modes`,this.finalRows.some(t=>new RegExp(`第 ${index+1} 名.*${name(id)}.*累计 ${totals[id]} 分`).test(t)),this.finalRows);
+    this.check('Round five does not finish the ten-round tournament',this.finalHeaders===0);
+    for(let round=6;round<=PLAN.length;round++){await this.started(round);await completeTimedRound(this,round,PLAN[round-1],['A','B','C','D']);}
+    await this.wait(()=>this.finalHeaders===1&&this.finalRows.length===4,'ten-round final ranking',35000);
+    verifyTenRoundTotals(this,['A','B','C','D'],{A:20,B:17,C:16,D:15});
     await this.wait(()=>['A','B','C','D'].every(id=>this.bots[id].probeWorld==='minecraft:overworld'),'actual final hub return',35000);
     await this.wait(()=>['A','B','C','D'].every(id=>this.bots[id].inventory.items().some(item=>item.name==='compass')),'hub compass restored',12000);
     const deadline=Date.now()+25000;let stats;do{stats=await this.stats();if(['A','B','C','D'].every(id=>(stats[uuid(id)]?.matches||0)===(baseline[uuid(id)]?.matches||0)+1))break;await sleep(100);}while(Date.now()<deadline);
     for(const id of ['A','B','C','D']){
-      this.check(`${id} persists exactly one match across five rounds`,stats[uuid(id)]?.matches===(baseline[uuid(id)]?.matches||0)+1);
+      this.check(`${id} persists exactly one match across ten rounds`,stats[uuid(id)]?.matches===(baseline[uuid(id)]?.matches||0)+1);
       this.check(`${id} receives one final feedback link`,this.chats.filter(row=>row.id===id&&row.at>=since&&row.text.includes('qfmaker.com/blackboard/mcserverfb')).length===1);
     }
-    this.check('Five-round series produces one final result',this.rows.size===5&&this.finalHeaders===1);
+    this.check('Ten-round series produces one final result',this.rows.size===PLAN.length&&this.finalHeaders===1);
     this.planned=false;await this.unpinChunks();
   }
   async fixtureTournament(){
