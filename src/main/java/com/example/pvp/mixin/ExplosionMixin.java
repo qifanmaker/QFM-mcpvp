@@ -1,6 +1,7 @@
 package com.example.pvp.mixin;
 
 import com.example.pvp.PvPMod;
+import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import com.example.pvp.config.PvPConfig;
 import com.example.pvp.arena.party.PartySourceMobs;
@@ -72,8 +73,11 @@ public abstract class ExplosionMixin {
         if (world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) {
             return;
         }
+        // Resident scenes also exist without an active Match. Protect their
+        // baseline before the legacy active-match filter and TNT loot pass.
+        if (world instanceof ArenaWorld arena) self.getAffectedBlocks().removeIf(arena.residentMaps()::contains);
         MatchManager manager = PvPMod.MATCH;
-        if (manager == null) {
+        if (manager == null || manager.getArenaManager().getWorld() != world) {
             return;
         }
         // 移植地图的目标/原版小游戏地形只能由本场会话修改，不能被邻场爆炸拆掉。

@@ -1,0 +1,1031 @@
+{
+  "schemaVersion": 1,
+  "referenceCenterY": 101,
+  "description": "Complete fixed source terrain for resident Party slots. Every source geometry is decoded, but random routes, per-player platforms and runtime templates stay actual-session operations and are restored through the lease journal. Profiles use source positions plus center plus translationRelativeToCenter; fixed clone offsets are included exactly.",
+  "geometryNames": [
+    "cave_parkour",
+    "cave_parkour_templates",
+    "dropper_pool",
+    "dropper_rings",
+    "dropper_start_platform",
+    "farming_frenzy",
+    "farming_frenzy_template",
+    "horse_race",
+    "knockout",
+    "knockout_upper",
+    "match_me_not_arena",
+    "match_me_not_chip_1",
+    "match_me_not_chip_10",
+    "match_me_not_chip_2",
+    "match_me_not_chip_3",
+    "match_me_not_chip_4",
+    "match_me_not_chip_5",
+    "match_me_not_chip_6",
+    "match_me_not_chip_7",
+    "match_me_not_chip_8",
+    "match_me_not_chip_9",
+    "meat_slap",
+    "memory_lane_first",
+    "memory_lane_second",
+    "monster_shoot",
+    "one_shot_wonder",
+    "pearl_hurl",
+    "pearl_hurl_remote_0",
+    "pearl_hurl_remote_1",
+    "pearl_hurl_remote_10",
+    "pearl_hurl_remote_11",
+    "pearl_hurl_remote_12",
+    "pearl_hurl_remote_13",
+    "pearl_hurl_remote_14",
+    "pearl_hurl_remote_15",
+    "pearl_hurl_remote_16",
+    "pearl_hurl_remote_17",
+    "pearl_hurl_remote_2",
+    "pearl_hurl_remote_3",
+    "pearl_hurl_remote_4",
+    "pearl_hurl_remote_5",
+    "pearl_hurl_remote_6",
+    "pearl_hurl_remote_7",
+    "pearl_hurl_remote_8",
+    "pearl_hurl_remote_9",
+    "platforms",
+    "platforms_hidden",
+    "port_priority",
+    "power_towers",
+    "power_towers_east",
+    "power_towers_west",
+    "raft_racers",
+    "rainbow_run",
+    "red_light_green_light",
+    "rocket_launch",
+    "runner_large",
+    "runner_shell",
+    "runner_small",
+    "sky_fly_base",
+    "sky_fly_ring_large",
+    "sky_fly_ring_medium",
+    "sky_fly_ring_medium_chain",
+    "sky_fly_ring_small",
+    "sky_fly_ring_small_chain",
+    "speed_builders_arena",
+    "speed_builders_pattern_1",
+    "speed_builders_pattern_10",
+    "speed_builders_pattern_11",
+    "speed_builders_pattern_12",
+    "speed_builders_pattern_13",
+    "speed_builders_pattern_14",
+    "speed_builders_pattern_15",
+    "speed_builders_pattern_16",
+    "speed_builders_pattern_17",
+    "speed_builders_pattern_18",
+    "speed_builders_pattern_19",
+    "speed_builders_pattern_2",
+    "speed_builders_pattern_20",
+    "speed_builders_pattern_21",
+    "speed_builders_pattern_22",
+    "speed_builders_pattern_23",
+    "speed_builders_pattern_24",
+    "speed_builders_pattern_25",
+    "speed_builders_pattern_26",
+    "speed_builders_pattern_27",
+    "speed_builders_pattern_28",
+    "speed_builders_pattern_3",
+    "speed_builders_pattern_4",
+    "speed_builders_pattern_5",
+    "speed_builders_pattern_6",
+    "speed_builders_pattern_7",
+    "speed_builders_pattern_8",
+    "speed_builders_pattern_9",
+    "spleef_large",
+    "spleef_small",
+    "steve_says",
+    "take_flight",
+    "tedious_goal_horizontal",
+    "tedious_goal_vertical",
+    "tedious_notes_horizontal",
+    "tedious_notes_vertical",
+    "tedious_tasks",
+    "tedious_tree",
+    "tile_capture_crowd",
+    "tile_capture_large",
+    "tile_capture_medium",
+    "tile_capture_small",
+    "weapon_devolution_arena",
+    "weapon_devolution_tower_1",
+    "weapon_devolution_tower_2",
+    "weapon_devolution_tower_3",
+    "weapon_devolution_tower_4",
+    "whack_a_mob"
+  ],
+  "profiles": [
+    {
+      "key": "dropper",
+      "sourceId": 401,
+      "game": "DROPPER",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "dropper_pool",
+          "translationRelativeToCenter": [
+            184,
+            -101,
+            41
+          ]
+        },
+        {
+          "geometry": "dropper_start_platform",
+          "translationRelativeToCenter": [
+            136,
+            209,
+            40
+          ]
+        }
+      ]
+    },
+    {
+      "key": "whack_a_mob",
+      "sourceId": 402,
+      "game": "WHACK_A_MOB",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "whack_a_mob",
+          "translationRelativeToCenter": [
+            217,
+            -39,
+            468
+          ]
+        }
+      ]
+    },
+    {
+      "key": "monster_shoot",
+      "sourceId": 403,
+      "game": "MONSTER_SHOOT",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "monster_shoot",
+          "translationRelativeToCenter": [
+            72,
+            -19,
+            262
+          ]
+        }
+      ]
+    },
+    {
+      "key": "cave_parkour",
+      "sourceId": 404,
+      "game": "CAVE_PARKOUR",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "cave_parkour",
+          "translationRelativeToCenter": [
+            -200,
+            0,
+            204
+          ]
+        }
+      ]
+    },
+    {
+      "key": "raft_racers",
+      "sourceId": 405,
+      "game": "RAFT_RACERS",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "raft_racers",
+          "translationRelativeToCenter": [
+            -850008,
+            -64,
+            56
+          ]
+        }
+      ]
+    },
+    {
+      "key": "knockout",
+      "sourceId": 406,
+      "game": "KNOCKOUT",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "knockout",
+          "translationRelativeToCenter": [
+            429,
+            -45,
+            110
+          ]
+        },
+        {
+          "geometry": "knockout_upper",
+          "translationRelativeToCenter": [
+            398,
+            -34,
+            158
+          ]
+        }
+      ]
+    },
+    {
+      "key": "sky_fly",
+      "sourceId": 407,
+      "game": "SKY_FLY",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "sky_fly_base",
+          "translationRelativeToCenter": [
+            103,
+            -36,
+            -67
+          ]
+        }
+      ]
+    },
+    {
+      "key": "spleef_small",
+      "sourceId": 408,
+      "game": "SPLEEF",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "spleef_small",
+          "translationRelativeToCenter": [
+            384,
+            9,
+            155
+          ]
+        }
+      ]
+    },
+    {
+      "key": "spleef_large",
+      "sourceId": 408,
+      "game": "SPLEEF",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "spleef_large",
+          "translationRelativeToCenter": [
+            245,
+            -11,
+            316
+          ]
+        }
+      ]
+    },
+    {
+      "key": "meat_slap",
+      "sourceId": 409,
+      "game": "MEAT_SLAP",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "meat_slap",
+          "translationRelativeToCenter": [
+            113,
+            -38,
+            284
+          ]
+        }
+      ]
+    },
+    {
+      "key": "weapon_devolution",
+      "sourceId": 410,
+      "game": "WEAPON_DEVOLUTION",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "weapon_devolution_arena",
+          "translationRelativeToCenter": [
+            253,
+            -22,
+            376
+          ]
+        },
+        {
+          "geometry": "weapon_devolution_tower_1",
+          "translationRelativeToCenter": [
+            253,
+            50,
+            376
+          ]
+        },
+        {
+          "geometry": "weapon_devolution_tower_2",
+          "translationRelativeToCenter": [
+            253,
+            50,
+            376
+          ]
+        },
+        {
+          "geometry": "weapon_devolution_tower_3",
+          "translationRelativeToCenter": [
+            253,
+            50,
+            376
+          ]
+        },
+        {
+          "geometry": "weapon_devolution_tower_4",
+          "translationRelativeToCenter": [
+            253,
+            50,
+            376
+          ]
+        }
+      ]
+    },
+    {
+      "key": "tedious_tasks",
+      "sourceId": 411,
+      "game": "TEDIOUS_TASKS",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "tedious_tasks",
+          "translationRelativeToCenter": [
+            -34,
+            12,
+            322
+          ]
+        }
+      ]
+    },
+    {
+      "key": "tile_capture_small",
+      "sourceId": 412,
+      "game": "TILE_CAPTURE",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "tile_capture_small",
+          "translationRelativeToCenter": [
+            124,
+            -6,
+            140
+          ]
+        }
+      ]
+    },
+    {
+      "key": "tile_capture_medium",
+      "sourceId": 412,
+      "game": "TILE_CAPTURE",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "tile_capture_medium",
+          "translationRelativeToCenter": [
+            124,
+            8,
+            140
+          ]
+        }
+      ]
+    },
+    {
+      "key": "tile_capture_large",
+      "sourceId": 412,
+      "game": "TILE_CAPTURE",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "tile_capture_large",
+          "translationRelativeToCenter": [
+            124,
+            22,
+            140
+          ]
+        }
+      ]
+    },
+    {
+      "key": "tile_capture_crowd",
+      "sourceId": 412,
+      "game": "TILE_CAPTURE",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "tile_capture_crowd",
+          "translationRelativeToCenter": [
+            124,
+            35,
+            140
+          ]
+        }
+      ]
+    },
+    {
+      "key": "rainbow_run",
+      "sourceId": 413,
+      "game": "RAINBOW_RUN",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "rainbow_run",
+          "translationRelativeToCenter": [
+            91,
+            38,
+            288
+          ]
+        }
+      ]
+    },
+    {
+      "key": "platforms",
+      "sourceId": 414,
+      "game": "PLATFORMS",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "platforms",
+          "translationRelativeToCenter": [
+            7,
+            -45,
+            47
+          ]
+        }
+      ]
+    },
+    {
+      "key": "runner_small",
+      "sourceId": 415,
+      "game": "RUNNER",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "runner_shell",
+          "translationRelativeToCenter": [
+            -184,
+            -12,
+            -8
+          ]
+        },
+        {
+          "geometry": "runner_small",
+          "translationRelativeToCenter": [
+            -184,
+            49,
+            24
+          ]
+        }
+      ]
+    },
+    {
+      "key": "runner_large",
+      "sourceId": 415,
+      "game": "RUNNER",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "runner_shell",
+          "translationRelativeToCenter": [
+            -184,
+            -12,
+            -8
+          ]
+        },
+        {
+          "geometry": "runner_large",
+          "translationRelativeToCenter": [
+            -184,
+            49,
+            -6
+          ]
+        }
+      ]
+    },
+    {
+      "key": "horse_race",
+      "sourceId": 416,
+      "game": "HORSE_RACE",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "horse_race",
+          "translationRelativeToCenter": [
+            -56,
+            -45,
+            1099
+          ]
+        }
+      ]
+    },
+    {
+      "key": "speed_builders",
+      "sourceId": 417,
+      "game": "SPEED_BUILDERS",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "speed_builders_arena",
+          "translationRelativeToCenter": [
+            361,
+            -34,
+            140
+          ]
+        }
+      ]
+    },
+    {
+      "key": "steve_says",
+      "sourceId": 418,
+      "game": "STEVE_SAYS",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "steve_says",
+          "translationRelativeToCenter": [
+            658,
+            -33,
+            23
+          ]
+        }
+      ]
+    },
+    {
+      "key": "power_towers",
+      "sourceId": 419,
+      "game": "POWER_TOWERS",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "power_towers",
+          "translationRelativeToCenter": [
+            498,
+            -52,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "key": "farming_frenzy",
+      "sourceId": 420,
+      "game": "FARMING_FRENZY",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "farming_frenzy",
+          "translationRelativeToCenter": [
+            166,
+            -36,
+            271
+          ]
+        }
+      ]
+    },
+    {
+      "key": "port_priority",
+      "sourceId": 421,
+      "game": "PORT_PRIORITY",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "port_priority",
+          "translationRelativeToCenter": [
+            410,
+            -36,
+            375
+          ]
+        }
+      ]
+    },
+    {
+      "key": "match_me_not",
+      "sourceId": 422,
+      "game": "MATCH_ME_NOT",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "match_me_not_arena",
+          "translationRelativeToCenter": [
+            324,
+            10,
+            352
+          ]
+        }
+      ]
+    },
+    {
+      "key": "rocket_launch",
+      "sourceId": 423,
+      "game": "ROCKET_LAUNCH",
+      "bounds": [
+        -200,
+        200,
+        -2250,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "rocket_launch",
+          "translationRelativeToCenter": [
+            62,
+            -101,
+            -120
+          ]
+        }
+      ]
+    },
+    {
+      "key": "red_light_green_light",
+      "sourceId": 424,
+      "game": "RED_LIGHT_GREEN_LIGHT",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "red_light_green_light",
+          "translationRelativeToCenter": [
+            503,
+            -26,
+            -16
+          ]
+        }
+      ]
+    },
+    {
+      "key": "memory_lane",
+      "sourceId": 425,
+      "game": "MEMORY_LANE",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "memory_lane_first",
+          "translationRelativeToCenter": [
+            47,
+            -40,
+            431
+          ]
+        },
+        {
+          "geometry": "memory_lane_second",
+          "translationRelativeToCenter": [
+            47,
+            -40,
+            431
+          ]
+        }
+      ]
+    },
+    {
+      "key": "pearl_hurl",
+      "sourceId": 426,
+      "game": "PEARL_HURL",
+      "bounds": [
+        -1536,
+        1536,
+        -1536,
+        1536
+      ],
+      "placements": [
+        {
+          "geometry": "pearl_hurl",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_0",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_1",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_2",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_3",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_4",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_5",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_6",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_7",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_8",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_9",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_10",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_11",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_12",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_13",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_14",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_15",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_16",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        },
+        {
+          "geometry": "pearl_hurl_remote_17",
+          "translationRelativeToCenter": [
+            -38,
+            -39,
+            24
+          ]
+        }
+      ]
+    },
+    {
+      "key": "take_flight",
+      "sourceId": 427,
+      "game": "TAKE_FLIGHT",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "take_flight",
+          "translationRelativeToCenter": [
+            305,
+            -101,
+            640
+          ]
+        }
+      ]
+    },
+    {
+      "key": "one_shot_wonder",
+      "sourceId": 428,
+      "game": "ONE_SHOT_WONDER",
+      "bounds": [
+        -200,
+        200,
+        -200,
+        200
+      ],
+      "placements": [
+        {
+          "geometry": "one_shot_wonder",
+          "translationRelativeToCenter": [
+            -125,
+            -21,
+            41
+          ]
+        }
+      ]
+    }
+  ]
+}

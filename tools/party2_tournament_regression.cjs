@@ -2,7 +2,8 @@
 
 // Reason: five-round Party matches must accumulate placement points without
 // settling five separate matches, repeating games, or carrying player state.
-// Pre-review: use only the owned 25598 server; never modify the shared probe or
+// Pre-review: use an isolated owned server; constructor options retain fresh
+// evidence when checking another runtime. Never modify the shared probe or
 // game implementation. Menu clicks and bow shots are real protocol actions;
 // finish-zone teleports, fall damage and tick sprint are explicit fixtures.
 const { PartyProbe, GAMES } = require('./party2_protocol_regression.cjs');
@@ -26,8 +27,8 @@ function offlineUuid(username) {
 }
 
 class TournamentProbe extends PartyProbe {
-  constructor() {
-    super({ port: 25598, runDir: path.join(__dirname, '../build/mygo-party2-tournament') });
+  constructor(options = {}) {
+    super({ port: 25598, runDir: path.join(__dirname, '../build/mygo-party2-tournament'), ...options });
     this.caseNumber = 0;
     this.game = null; // The base probe's fixed-slot voter is intentionally unused.
     this.voteRequests = new Set();
@@ -210,6 +211,13 @@ class TournamentProbe extends PartyProbe {
   }
 
   async runner() {
+    // Cached geometry must still overwrite the earlier queued AIR clear.
+    const starts = this.activeIds.map(id => pos(this.bots[id]));
+    const floor = new Vec3(starts.reduce((sum,p)=>sum+p.x,0)/starts.length,
+      starts[0].y-1,starts.reduce((sum,p)=>sum+p.z,0)/starts.length);
+    await this.pinChunk(floor);
+    this.check('Resident Runner floor survives its AIR-clear then cached-template order',
+      await this.serverBlockIs(floor,'oak_planks'),{floor});
     this.log('fixtureNote', { description:'Apply one batched fall-damage command to B/C/D; A is the sole survivor. Runner movement was separately tested by the protocol regression.' });
     await this.tag(['B','C','D']);
     await this.console('execute as @a[tag=p2_tourney_finish] run damage @s 1000 minecraft:fall');

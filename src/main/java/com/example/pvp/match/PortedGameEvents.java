@@ -1,6 +1,7 @@
 package com.example.pvp.match;
 
 import com.example.pvp.PvPMod;
+import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.arena.ArenaWorldManager;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
@@ -53,35 +54,51 @@ public final class PortedGameEvents {
 
     /** null 沿用原世界规则；只有 Party 所属区域的原生方块掉落使用当前回合规则。 */
     public static Boolean blockDropOverride(World world, BlockPos pos) {
-        if (PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return null;
-        for (Match match : PvPMod.MATCH.getMatches()) {
-            if (match.ownsPortedPosition(pos) && match.portedSession() instanceof MinecraftPartySession session) {
-                return session.allowsBlockDrops();
-            }
-        }
-        return null;
+        if (!(world instanceof ArenaWorld arena)) return null;
+        if (arena.residentMaps().isIdleAt(pos)) return false;
+        MinecraftPartySession session = partySceneSessionAt(arena, pos);
+        if (session != null) return session.allowsBlockDrops();
+        return arena.residentMaps().contains(pos) ? false : null;
     }
 
     public static void terrainChanged(World world, BlockPos pos, BlockState state) {
-        if (world.isClient || PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return;
-        MinecraftPartySession session = PvPMod.MATCH.partySceneSessionAt(pos);
+        if (!(world instanceof ArenaWorld arena)) return;
+        MinecraftPartySession session = partySceneSessionAt(arena, pos);
         if (session != null) session.onTerrainChanged(pos, state);
     }
 
+    /** Permanent scenes need protection even while their lease has no Match. */
+    public static boolean isPartyScenePosition(World world, BlockPos pos) {
+        return world instanceof ArenaWorld arena
+                && (arena.residentMaps().contains(pos) || partySceneSessionAt(arena, pos) != null);
+    }
+
+    private static MinecraftPartySession partySceneSessionAt(ArenaWorld world, BlockPos pos) {
+        Object owner = world.residentMaps().ownerAt(pos);
+        if (owner instanceof Match match && match.arenaWorld() == world
+                && match.portedSession() instanceof MinecraftPartySession session) return session;
+        // The dimension key alone does not identify a particular running world.
+        // In-process restarts/tests can keep an old ArenaWorld instance alive.
+        return PvPMod.MATCH != null && PvPMod.MATCH.getArenaManager().getWorld() == world
+                ? PvPMod.MATCH.partySceneSessionAt(pos) : null;
+    }
+
     public static boolean freezesPartyFluid(World world, BlockPos pos) {
-        if (PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return false;
-        MinecraftPartySession session = PvPMod.MATCH.partySceneSessionAt(pos);
-        return session != null && !session.allowsFluidFlowAt(pos);
+        if (!(world instanceof ArenaWorld arena)) return false;
+        if (arena.residentMaps().isIdleAt(pos)) return true;
+        MinecraftPartySession session = partySceneSessionAt(arena, pos);
+        return session != null ? !session.allowsFluidFlowAt(pos) : arena.residentMaps().contains(pos);
     }
 
     /** 原生水可以进入本场船舱，但不能穿越场地区域边界或侵入其他对局。 */
     public static boolean allowsFluidFlow(WorldAccess access, BlockPos target, Direction direction) {
-        if (!(access instanceof World world) || PvPMod.MATCH == null
-                || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return true;
+        if (!(access instanceof ArenaWorld arena)) return true;
         BlockPos source = target.offset(direction.getOpposite());
-        MinecraftPartySession from = PvPMod.MATCH.partySceneSessionAt(source);
-        MinecraftPartySession to = PvPMod.MATCH.partySceneSessionAt(target);
-        if (from == null && to == null) return true;
+        if (arena.residentMaps().isIdleAt(source) || arena.residentMaps().isIdleAt(target)) return false;
+        MinecraftPartySession from = partySceneSessionAt(arena, source);
+        MinecraftPartySession to = partySceneSessionAt(arena, target);
+        if (from == null && to == null)
+            return !arena.residentMaps().contains(source) && !arena.residentMaps().contains(target);
         return from != null && from == to && from.allowsFluidFlowAt(source) && from.allowsFluidFlowAt(target);
     }
 
@@ -89,8 +106,14 @@ public final class PortedGameEvents {
     public static boolean canAccessPosition(Entity player, World world, BlockPos pos) {
         var training = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
         if (training != null && !training.canAccessPosition(player, world, pos)) return false;
-        if (PvPMod.MATCH == null || world.getRegistryKey() != ArenaWorldManager.ARENA_WORLD_KEY) return true;
+        if (!(world instanceof ArenaWorld arena)) return true;
         Match current = matchOf(player);
+        if (arena.residentMaps().contains(pos)) {
+            Object owner = arena.residentMaps().ownerAt(pos);
+            if (arena.residentMaps().isIdleAt(pos) || !(owner instanceof Match match)
+                    || match != current || match.arenaWorld() != arena || player.getWorld() != world) return false;
+        }
+        if (PvPMod.MATCH == null || PvPMod.MATCH.getArenaManager().getWorld() != world) return true;
         for (Match owner : PvPMod.MATCH.getMatches()) {
             if (owner.ownsPortedPosition(pos) && owner != current) return false;
         }
@@ -163,6 +186,7 @@ public final class PortedGameEvents {
             return item != ActionResult.PASS ? item : match.portedSession().useBlock(sp, hand, hit);
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (!canAccessPosition(player, world, entity.getBlockPos())) return ActionResult.FAIL;
             if (player instanceof ServerPlayerEntity sp) {
                 var training = trainingSession(sp);
                 if (training != null) { training.useItem(sp, hand); return ActionResult.FAIL; }
@@ -183,6 +207,7 @@ public final class PortedGameEvents {
             return match.portedSession().useEntity(sp, hand, entity);
         });
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (!canAccessPosition(player, world, entity.getBlockPos())) return ActionResult.FAIL;
             if (player instanceof ServerPlayerEntity sp) {
                 var training = trainingSession(sp);
                 if (training != null) { training.attack(sp, entity); return ActionResult.FAIL; }

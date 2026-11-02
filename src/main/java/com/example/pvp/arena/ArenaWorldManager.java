@@ -148,6 +148,17 @@ public final class ArenaWorldManager {
 
         this.configureGameRules(arenaWorld);
 
+        // Build each Party scene once and retain its FULL chunks. Matches rent
+        // exclusive scenes and reset their changes instead of erasing the map.
+        try {
+            var catalogue = com.example.pvp.arena.party.PartyResidentCatalog.load();
+            for (String geometry : catalogue.geometryNames())
+                com.example.pvp.arena.party.PartyMapBlueprint.load(geometry);
+            arenaWorld.residentMaps().prewarm(catalogue.allProfiles());
+        } catch (IOException error) {
+            throw new IllegalStateException("Cannot load resident Party map catalogue", error);
+        }
+
         LOGGER.info("[PvP] 竞技场世界已创建: {}", ARENA_WORLD_KEY.getValue());
         this.world = arenaWorld;
         return arenaWorld;
@@ -159,6 +170,7 @@ public final class ArenaWorldManager {
 
     public void onServerStopping() {
         if (this.world != null) {
+            this.world.residentMaps().close();
             var serverAccess = (MinecraftServerAccess) this.server;
             this.deleteDirectory(serverAccess.getSession().getWorldDirectory(ARENA_WORLD_KEY));
             this.world = null;

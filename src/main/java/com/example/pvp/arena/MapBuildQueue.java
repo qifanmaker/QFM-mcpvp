@@ -245,6 +245,24 @@ public final class MapBuildQueue {
         return this.placed;
     }
 
+    /**
+     * A cached geometry still has to overwrite earlier queued clears/clones.
+     * Inspect compressed operations without expanding a saved terrain run.
+     */
+    public boolean hasWritesInBox(BlockPos minimum, BlockPos maximum) {
+        if (this.storageReleased) throw new IllegalStateException("Map queue was already flushed");
+        for (int index = 0; index < this.size; index++) {
+            long packed = this.positions[index];
+            int x = BlockPos.unpackLongX(packed), y = BlockPos.unpackLongY(packed), z = BlockPos.unpackLongZ(packed);
+            int span = this.runLength(index) - 1;
+            int axis = this.runAxis(index);
+            if (x <= maximum.getX() && x + (axis == 0 ? span : 0) >= minimum.getX()
+                    && y <= maximum.getY() && y + (axis == 1 ? span : 0) >= minimum.getY()
+                    && z <= maximum.getZ() && z + (axis == 2 ? span : 0) >= minimum.getZ()) return true;
+        }
+        return false;
+    }
+
     /** 铺图进度 0..1（方块 + 实体 + 方块实体）。 */
     public double progress() {
         long total = (long) this.totalBlocks + this.blockEntities.size() + this.entities.size();

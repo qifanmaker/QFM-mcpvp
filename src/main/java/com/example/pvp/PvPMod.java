@@ -275,6 +275,8 @@ public final class PvPMod implements ModInitializer {
                 DUEL.tick();
                 PRACTICE.tick();
                 com.example.pvp.mygo.practice.MyGoPracticeManager.get().tick();
+                var arenaWorld = MATCH.getArenaManager().getWorld();
+                if (arenaWorld != null) arenaWorld.residentMaps().tick();
             }
             PvpGuiManager.get().tick(); // 每秒刷新打开的 GUI，实时显示各模式排队人数
             BedWarsEditor.tickParticles(); // 持续显示床战标记粒子

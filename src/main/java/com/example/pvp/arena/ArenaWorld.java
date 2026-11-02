@@ -1,6 +1,7 @@
 package com.example.pvp.arena;
 
 import com.example.pvp.mixin.MinecraftServerAccess;
+import com.example.pvp.arena.party.PartyResidentMaps;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockState;
@@ -51,6 +52,7 @@ public class ArenaWorld extends ServerWorld {
     /** 当前正在暂存铺图的队列；null = 正常直写世界（对局中/清场时都是 null）。 */
     private MapBuildQueue staging;
     private final MapWorkBudget mapWorkBudget = new MapWorkBudget();
+    private PartyResidentMaps residentMaps;
     private Box dropSuppression;
     /** Reused per-thread state avoids an allocation for each imported terrain cell. */
     private final ThreadLocal<SnapshotWriteScope> snapshotWrites = ThreadLocal.withInitial(SnapshotWriteScope::new);
@@ -117,6 +119,12 @@ public class ArenaWorld extends ServerWorld {
 
     public MapWorkBudget mapWorkBudget() {
         return this.mapWorkBudget;
+    }
+
+    /** Bound to this actual world, including its server's full lifetime. */
+    public PartyResidentMaps residentMaps() {
+        if (this.residentMaps == null) this.residentMaps = new PartyResidentMaps(this);
+        return this.residentMaps;
     }
 
     // ==================== 世界读写拦截 ====================
