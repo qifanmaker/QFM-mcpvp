@@ -45,7 +45,7 @@ MYGO_PRACTICE_PORT=25657 MYGO_PRACTICE_RUN_DIR=build/mygo-practice-5v5 MYGO_PRAC
 ## 核心检查
 
 - 错误难度、队伍和地图不会入场；首次资源包加载前不能接管席位，下载 SHA-1 必须吻合。
-- 练习分类 → 五档难度 → 三张地图 → T / CT / 自动，实际通过 GUI 开局。
+- 主菜单直接进入练习分类 → 五档难度 → 三张地图 → T / CT / 自动，实际通过 GUI 开局。
 - 每个房间始终十席、每队五席；一真人对应九人机，两真人对应八人机。
 - 同一房间每个参赛 UUID 唯一，选队生效；冻结购买阶段接管保留生命和弹药。
 - 退出和断线重新补回人机；第五名 T 真人可加入，第六名必须被拒绝。
@@ -56,3 +56,34 @@ MYGO_PRACTICE_PORT=25657 MYGO_PRACTICE_RUN_DIR=build/mygo-practice-5v5 MYGO_PRAC
 测试通过仅限 OP 的 `/pvp mygo practiceinfo` 获取结构化房间及席位状态；普通输入仍走真实客户端协议。结果保存在隔离目录的 `mygo-practice-core-results.json`、`mygo-practice-observe-results.json`、`mygo-practice-objective-results.json`、`mygo-practice-handover-results.json`，服务端异常以 `logs/latest.log` 为准。协议客户端的物品组件解码警告不能替代服务端验证。
 
 这组检查不代表客户端资源包的画面、枪械音效或真人主观难度手感已经验收。测试结束退出全部测试客户端；使用测试 OP 的 `/stop` 正常关闭隔离服务器。
+
+## 队伍姓名与实时存活 HUD
+
+新建隔离服务端并加载最新构建后，运行：
+
+```bash
+MYGO_PRACTICE_PORT=25657 MYGO_PRACTICE_RUN_DIR=build/mygo-hud-test node tools/mygo_hud_regression.cjs
+```
+
+此驱动复用本地资源包握手，读取真实客户端收到的原版队伍、玩家列表、右侧积分榜与顶部 BossBar 数据包。检查 T 红色、CT 蓝色及 `nameTagVisibility=never`，本房人机实际以 `UPDATE_LISTED` 列入 Tab，大厅与他房不列出，退出用 `player_remove` 清理。还检查真人替换和离开补回后的成员一致性、不同房间的 HUD 隔离，以及退出后恢复玩家原有队伍。测试只修改隔离目录配置，将全局血量标签关闭、重载、再开启，确认两房姓名牌始终隐藏且竞技场没有额外血量文字实体，最后恢复原配置。随后等待人机使用正常枪械击杀，检查两处显示同时减少，并在下一回合恢复 5:5；不直接修改生命、阵亡或回合数据。自然交火观察上限默认 210 秒，可用 `MYGO_HUD_OBSERVE_MS` 调整。结果及实际协议包记录在 `mygo-hud-results.json`。
+
+协议验证确认服务端发送给客户端的姓名牌规则与颜色，不代表已人工验收真实游戏画面；半场换边可另在受控隔离快照中验证，不能通过改动生产会话或添加生产调试指令实现。
+
+## 阵亡后自动接管同队人机
+
+MyGO 屏蔽原版伤害，普通 `/kill` 不会进入本场的虚拟死亡结算。专项先用真实 CT 真人枪械打伤 T 人机、击杀 T 真人，验证实际枪战死亡能接管同队仍存活的人机且保留其当前生命、弹药、经济和 C4。随后仅在隔离快照中加载测试探针，OP 批量调用会话现有 `onDeath`，可在同一 tick 重现两名真人争抢最后一个人机、真人与最后人机同时阵亡的边界；不直接修改 HP、席位或回合字段。
+
+```bash
+./gradlew build -I tools/mygo_prepare_test.gradle mygoPrepareTestRuntime
+python3 tools/mygo_takeover_server_test.py --port 25677 --run-dir build/mygo-death-takeover
+```
+
+另一终端运行：
+
+```bash
+MYGO_PRACTICE_PORT=25677 MYGO_PRACTICE_RUN_DIR=build/mygo-death-takeover MYGO_PRACTICE_MODE=takeover node tools/mygo_practice_regression.cjs
+```
+
+测试需使用尚无该新手房间的隔离服务端，默认 Dust II，可用 `MYGO_PRACTICE_TAKEOVER_MAP` 选择地图。原版失明与缓慢只用于隔离无关 AI 交火；首次伤害与致死仍走正常枪械。检查每次死亡只减少一条原有队伍生命、旧席位补回已阵亡人机、每队固定五席、无可接管人机时不能抢占真人或敌方，以及新回合复位、POST 重复回调和退出/断线后的原物品归还。
+
+探针源码位于 `tools/mygo_death_takeover/`，启动器仅将它编译到本次 `mod-snapshot` 并修改该快照的入口列表，不会进入发布 JAR。结果分别写入 `mygo-practice-takeover-results.json` 和同 tick 的 `mygo-takeover-probe.jsonl`。完成后仍需使用测试 OP 的 `/stop` 正常关闭隔离服务端。

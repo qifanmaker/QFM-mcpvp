@@ -3,6 +3,7 @@ package com.example.pvp.mygo;
 import com.example.pvp.arena.ArenaTemplate;
 import com.example.pvp.arena.ArenaWorld;
 import com.example.pvp.mygo.practice.MyGoBotPlayer;
+import com.example.pvp.mygo.practice.MyGoPracticeSidebar;
 import com.example.pvp.match.Match;
 import com.example.pvp.match.MatchState;
 import com.example.pvp.match.PortedGameSession;
@@ -151,6 +152,7 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
 
     private final Match match;
     private final MyGoPracticeRuntime practice;
+    private final MyGoPracticeSidebar practiceSidebar;
     private final MyGoArena map;
     private final Map<UUID, Fighter> fighters = new LinkedHashMap<>();
     private final Set<UUID> active = new LinkedHashSet<>();
@@ -190,6 +192,7 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
     private MyGoSession(Match match, MyGoPracticeRuntime practice, ArenaTemplate template, int regionIndex, int seed, String forcedMapKey) {
         this.match = match;
         this.practice = practice;
+        this.practiceSidebar = practice == null ? null : new MyGoPracticeSidebar();
         String mapKey = forcedMapKey == null || forcedMapKey.isBlank()
                 ? MyGoMapBlueprint.randomKey(seed) : forcedMapKey;
         this.map = new MyGoArena(template, regionIndex, mapKey);
@@ -366,6 +369,7 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
         if (this.channel != null && this.channel.player().equals(oldId)) cancelChannel();
         if (oldId.equals(this.bombCarrier)) this.bombCarrier = newId;
         this.timer.removePlayer(oldActor);
+        this.practiceSidebar.remove(oldActor);
         oldActor.setCameraEntity(oldActor);
         oldActor.closeHandledScreen();
         oldActor.getInventory().clear();
@@ -420,6 +424,7 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
         newActor.sendMessage(Text.literal("§6已接管 " + (attackers(f) ? "T 进攻方" : "CT 防守方")
                 + " 席位 · " + (f.alive ? String.format(Locale.ROOT, "%.0f HP · $%d", f.hp, f.cash) : "本席位本回合已阵亡，等待下一回合")
                 + " · /pvp practice leave 或 /hub 退出"), false);
+        this.practiceSidebar.update(newActor, scoreboardLines());
         return true;
     }
 
@@ -798,6 +803,9 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
         }
         announce("§7" + victim.getName().getString() + " 阵亡" + (attacker == null ? "（" + reason + "）"
                 : " ← " + attacker.getName().getString() + "（" + reason + "）"));
+        updateBar();
+        if (this.practice != null && this.phase == Phase.LIVE && !MyGoBotPlayer.isBot(victim))
+            this.practice.onFighterDeath(victim);
         // 延迟到会话 tick 末检查队伍，防止一次攻击在死亡装备清理途中触发整场收尾。
     }
 
@@ -1390,10 +1398,11 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
             dropGun(f.primary, player == null ? this.map.center().up() : player.getBlockPos()); f.primary = null;
         }
         if (player != null) {
+            if (this.practiceSidebar != null) this.practiceSidebar.remove(player);
             this.timer.removePlayer(player); player.closeHandledScreen(); player.getInventory().clear();
             player.currentScreenHandler.setCursorStack(ItemStack.EMPTY); restoreHead(player, f); removeSpeed(player, f);
         }
-        f.alive = false; checkTeams();
+        f.alive = false; updateBar(); checkTeams();
     }
     @Override public void onEnd() {
         if (this.ended) return;
@@ -1405,17 +1414,16 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
             if (p != null && this.active.contains(f.id)) { p.closeHandledScreen(); restoreHead(p, f); removeSpeed(p, f); }
         }
         this.timer.clearPlayers(); clearRoundEntities();
+        if (this.practiceSidebar != null) this.practiceSidebar.close();
         for (ArmorStandEntity label : this.labels) label.discard();
         this.labels.clear(); this.ownedEntities.clear();
     }
     @Override public void clearArena() { this.map.clear(world()); }
     @Override public boolean ownsEntity(Entity entity) { return entity != null && (this.ownedEntities.containsKey(entity.getUuid()) || this.utilities.owns(entity)); }
     @Override public List<String> scoreboardLines() {
-        long attackAlive = this.fighters.values().stream().filter(f -> this.active.contains(f.id) && f.alive && attackers(f)).count();
-        long defendAlive = this.fighters.values().stream().filter(f -> this.active.contains(f.id) && f.alive && !attackers(f)).count();
         return List.of("§6MyGO · 经济爆破", "§f队伍1 §c" + this.scores[0] + " §7: §9" + this.scores[1] + " §f队伍2",
                 "§e第 " + Math.min(MyGoRules.MAX_ROUNDS, this.round) + " 回合 · " + phaseName(), "§f剩余 " + time(this.deadline - this.ticks),
-                "§cT 存活 " + attackAlive + " §7/ §9CT 存活 " + defendAlive,
+                aliveLine(),
                 this.bombPlanted ? "§cC4 已安装" : "§7C4 尚未安装", "§7左键点射 · F 换弹", "§7瞄具枪右键倍率 · /pvp mygo 商店");
     }
 
@@ -1557,9 +1565,23 @@ public final class MyGoSession implements PortedGameSession, WeaponSession {
     }
     private void updateBar() {
         int total = this.phase == Phase.BUY ? MyGoRules.FREEZE_TICKS : this.phase == Phase.POST ? MyGoRules.POST_TICKS : this.bombPlanted ? MyGoRules.BOMB_TICKS : MyGoRules.ROUND_TICKS;
-        this.timer.setName(Text.literal("MyGO " + this.scores[0] + ":" + this.scores[1] + " · " + phaseName() + " " + time(this.deadline - this.ticks)));
+        // 两处 HUD 必须用同一份真实存活状态，换边后按当前 T/CT 统计，阵亡与替补不能当作新生命。
+        this.timer.setName(Text.literal("MyGO " + this.scores[0] + ":" + this.scores[1] + " · " + aliveLine()
+                + "§r · " + phaseName() + " " + time(this.deadline - this.ticks)));
         this.timer.setColor(this.bombPlanted ? BossBar.Color.RED : this.phase == Phase.BUY ? BossBar.Color.BLUE : BossBar.Color.YELLOW);
         this.timer.setPercent(Math.max(0, Math.min(1, (float) (this.deadline - this.ticks) / total)));
+        if (this.practiceSidebar != null) {
+            List<String> lines = scoreboardLines();
+            for (ServerPlayerEntity player : participants()) this.practiceSidebar.update(player, lines);
+        }
+    }
+    private String aliveLine() {
+        int attackAlive = 0, defendAlive = 0;
+        for (Fighter fighter : this.fighters.values()) {
+            if (!this.active.contains(fighter.id) || !fighter.alive) continue;
+            if (attackers(fighter)) attackAlive++; else defendAlive++;
+        }
+        return "§cT 存活 " + attackAlive + " §7/ §9CT 存活 " + defendAlive;
     }
     private String phaseName() { return switch (this.phase) { case BUY -> "冻结购买"; case LIVE -> this.bombPlanted ? "C4 倒计时" : "作战"; case POST -> "回合结束"; case FINISHED -> "比赛结束"; }; }
     private static String time(int ticks) { int sec = Math.max(0, (ticks + 19) / 20); return String.format(Locale.ROOT, "%d:%02d", sec / 60, sec % 60); }

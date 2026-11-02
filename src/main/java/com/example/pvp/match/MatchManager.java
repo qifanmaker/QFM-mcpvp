@@ -264,14 +264,14 @@ public final class MatchManager {
         int total = online.size();
         int lobby = 0;
         for (ServerPlayerEntity p : online) {
-            if (!this.isInMatch(p.getUuid())) {
+            if (!this.hasGameSidebar(p)) {
                 lobby++;
             }
         }
         for (ServerPlayerEntity player : online) {
             UUID uuid = player.getUuid();
-            if (player.networkHandler == null || this.isInMatch(uuid)) {
-                continue; // 对局中由 Match 的对局计分板接管侧边栏
+            if (player.networkHandler == null || this.hasGameSidebar(player)) {
+                continue; // 正式对局和已经入场的 MyGO 练习各自管理侧边栏，防止大厅每秒覆盖。
             }
             // 首次发 ADD 包注册 objective（同会话只发一次，重复会让客户端崩溃）
             if (this.lobbyObjectiveKnown.add(uuid)) {
@@ -325,7 +325,7 @@ public final class MatchManager {
                 this.lobbyLines.remove(uuid);
                 continue;
             }
-            if (this.isInMatch(uuid)) {
+            if (this.hasGameSidebar(player)) {
                 if (player.networkHandler != null) {
                     for (String line : lines) {
                         player.networkHandler.sendPacket(new ScoreboardScoreResetS2CPacket(line, LOBBY_OBJECTIVE));
@@ -334,6 +334,11 @@ public final class MatchManager {
                 this.lobbyLines.remove(uuid);
             }
         }
+    }
+
+    private boolean hasGameSidebar(ServerPlayerEntity player) {
+        var practice = com.example.pvp.mygo.practice.MyGoPracticeManager.getOrNull();
+        return this.isInMatch(player.getUuid()) || practice != null && practice.session(player) != null;
     }
 
     /** 大厅保护：不在对局中的玩家 → 冒险模式 + 无敌 + 饱食度不掉，并强制解除幽灵状态。 */

@@ -318,9 +318,13 @@ public final class PvpGuiManager {
                 "进攻方完成三项目标中的两项获胜",
                 "装备由玩法统一发放，点击直接加入"));
 
+        // 练习入口提升到首页，避免每次训练都要先经过“其他游戏”二级菜单。
+        inv.setStack(21, makeButton(Items.WHITE_WOOL, "§a§l练习模式",
+                "MyGO 人机 5v5 / PvP 人机 1v1 / 搭桥 / 末影珍珠", "人机与操作练习，点击选择项目"));
+
         ItemStack otherGames = makeButton(Items.FIREWORK_ROCKET, "§d§l其他游戏",
                 "战桥 / 起床战争 / 心跳水立方 / 烫手山芋",
-                "村庄保卫战 / 色盲派对 / 练习模式",
+                "村庄保卫战 / 色盲派对",
                 "点击选择其他玩法");
         this.applyQueueIndicator(otherGames, player, PvPMod.QUEUE.countQueued(
                 MatchType.BRIDGE_1V1, MatchType.BRIDGE_1V1V1V1, MatchType.BRIDGE_2V2, MatchType.BRIDGE_TEAM,
@@ -442,7 +446,7 @@ public final class PvpGuiManager {
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
-    /** 其他游戏二级页：容纳首页以外的玩法与练习入口。 */
+    /** 其他游戏二级页：容纳首页以外的玩法。 */
     private void openOtherGames(ServerPlayerEntity player) {
         GuiContext ctx = getContext(player);
         ctx.page = Page.OTHER_GAMES;
@@ -493,37 +497,6 @@ public final class PvpGuiManager {
                 "站到「文字的颜色」上，别管它写的是什么！",
                 "非目标色方块全部消失，站错的掉进虚空淘汰",
                 "共 " + PvPConfig.INSTANCE.colorblindRounds + " 回合，最后存活者获胜，点击直接加入"));
-        inv.setStack(16, queueButton(Items.OAK_BOAT, "§b🏁 亦可赛艇", player, MatchType.BOAT_RACE,
-                "驾驶船只，在随机冰面赛道上竞速！",
-                "当前玩家：" + PvPMod.QUEUE.countQueued(MatchType.BOAT_RACE)
-                        + " / " + PvPConfig.INSTANCE.boatRaceMaxPlayers,
-                PvPConfig.INSTANCE.boatRaceMinPlayers + "~" + PvPConfig.INSTANCE.boatRaceMaxPlayers
-                        + " 人，凑齐 " + PvPConfig.INSTANCE.boatRaceStartPlayers + " 人开赛",
-                "驾驶原版船，在随机生成的冰面赛道上竞速",
-                "每场比赛的赛道都不一样（可复现的比赛 Seed）",
-                "赛道宽 " + PvPConfig.INSTANCE.boatRaceTrackWidth + " 格，"
-                        + PvPConfig.INSTANCE.boatRaceMinTrackLength + "~"
-                        + PvPConfig.INSTANCE.boatRaceMaxTrackLength + " 格长，"
-                        + PvPConfig.INSTANCE.boatRaceLaps + " 圈定胜负",
-                "按顺序穿过 Checkpoint，掉出赛道自动回位，点击直接加入"));
-        // 明确分阶段移植范围，避免入口名称让玩家误以为整张原版地图已经全部上线。
-        inv.setStack(17, queueButton(Items.FIREWORK_STAR, "§dMinecraft Party 2（移植中）",
-                player, MatchType.MINECRAFT_PARTY,
-                MatchType.PORTED_MIN_PLAYERS + "~" + MatchType.PORTED_MAX_PLAYERS + " 人，凑齐 "
-                        + MatchType.PORTED_START_PLAYERS + " 人立即开赛",
-                "人数不足 " + MatchType.PORTED_START_PLAYERS + " 人时等待 " + MatchType.PORTED_FILL_SECONDS + " 秒",
-                "分阶段移植：已实现 " + PartyMinigame.values().length + " 个可选小游戏，每局五轮累计积分",
-                "每轮菜单投票，已玩项目不再出现",
-                "五轮后公布总排名，点击直接加入"));
-        inv.setStack(18, queueButton(Items.RED_BANNER, "§c海岛攻防", player, MatchType.ISLAND_SIEGE,
-                MatchType.PORTED_MIN_PLAYERS + "~" + MatchType.PORTED_MAX_PLAYERS + " 人，凑齐 "
-                        + MatchType.PORTED_START_PLAYERS + " 人立即开赛",
-                "人数不足 " + MatchType.PORTED_START_PLAYERS + " 人时等待 " + MatchType.PORTED_FILL_SECONDS + " 秒",
-                "红队进攻、蓝队防守，先建防线再攻岛",
-                "进攻方完成三项目标中的两项获胜",
-                "装备由玩法统一发放，点击直接加入"));
-        inv.setStack(16, makeButton(Items.WHITE_WOOL, "§a§l练习模式",
-                "MyGO 人机 5v5 / PvP 人机 1v1 / 搭桥 / 末影珍珠", "人机与操作练习，点击选择项目"));
         inv.setStack(26, makeButton(Items.ARROW, "§c← 返回"));
     }
 
@@ -626,13 +599,13 @@ public final class PvpGuiManager {
                 "§7五档难度 · 真实地图 · 购买、爆破和拆包",
                 "§a点击选择练习房"));
 
-        inv.setStack(26, makeButton(Items.ARROW, "§c← 返回其他游戏"));
+        inv.setStack(26, makeButton(Items.ARROW, "§c← 返回主菜单"));
     }
 
     /** 练习模式分类页点击。 */
     private void onClickPracticeCategory(ServerPlayerEntity player, GuiContext ctx, int slot) {
         if (slot == 26) {
-            this.openOtherGames(player);
+            this.openMainMenu(player);
             return;
         }
         if (slot == 15) {
@@ -1161,6 +1134,7 @@ public final class PvpGuiManager {
             }
             case 16 -> this.joinQueue(player, MatchType.MINECRAFT_PARTY, KitManager.portedGameKit());
             case 17 -> this.joinQueue(player, MatchType.ISLAND_SIEGE, KitManager.portedGameKit());
+            case 21 -> this.openPracticeCategory(player);
             case 22 -> this.openOtherGames(player);
             case 27 -> this.openDuelTargetPage(player);
             case 28 -> this.openStatsPage(player);
@@ -1242,10 +1216,6 @@ public final class PvpGuiManager {
         }
         if (slot == 10) {
             this.openBedWarsCategory(player);
-            return;
-        }
-        if (slot == 16) {
-            this.openPracticeCategory(player);
             return;
         }
         if (slot == 14) {

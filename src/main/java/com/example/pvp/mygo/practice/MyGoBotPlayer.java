@@ -10,12 +10,14 @@ import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerRemoveS2CPacket;
+import net.minecraft.scoreboard.Team;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ConnectedClientData;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
@@ -56,6 +58,13 @@ public final class MyGoBotPlayer extends ServerPlayerEntity {
     /** Send profiles before a joining human starts tracking the existing bots. */
     public void sendProfile(ServerPlayerEntity viewer) { viewer.networkHandler.sendPacket(profilePacket()); }
 
+    /** ADD alone supplies the avatar but does not put it in Tab; list bots only for humans in their room. */
+    public void sendListedProfile(ServerPlayerEntity viewer) {
+        viewer.networkHandler.sendPacket(new PlayerListS2CPacket(EnumSet.of(PlayerListS2CPacket.Action.ADD_PLAYER,
+                PlayerListS2CPacket.Action.UPDATE_GAME_MODE, PlayerListS2CPacket.Action.UPDATE_DISPLAY_NAME,
+                PlayerListS2CPacket.Action.UPDATE_LISTED), List.of(this)));
+    }
+
     private PlayerListS2CPacket profilePacket() {
         return new PlayerListS2CPacket(EnumSet.of(PlayerListS2CPacket.Action.ADD_PLAYER,
                 PlayerListS2CPacket.Action.UPDATE_GAME_MODE, PlayerListS2CPacket.Action.UPDATE_DISPLAY_NAME), List.of(this));
@@ -80,7 +89,12 @@ public final class MyGoBotPlayer extends ServerPlayerEntity {
         this.getServerWorld().getChunkManager().updatePosition(this);
     }
 
-    @Override public Text getPlayerListName() { return Text.literal("§7" + getGameProfile().getName() + " §8[人机]"); }
+    @Override public Text getPlayerListName() {
+        // 列表名必须跟随当前阵营；固定灰色会覆盖 scoreboard 的队伍颜色，半场后也无法辨认。
+        Team team = this.getServer().getScoreboard().getScoreHolderTeam(this.getGameProfile().getName());
+        return Text.literal(this.getGameProfile().getName()).formatted(team == null ? Formatting.GRAY : team.getColor())
+                .append(Text.literal(" [人机]").formatted(Formatting.DARK_GRAY));
+    }
 
     public void discardBot() {
         if (discarded) return;

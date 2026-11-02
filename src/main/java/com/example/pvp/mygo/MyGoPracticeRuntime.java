@@ -16,6 +16,8 @@ public interface MyGoPracticeRuntime {
     List<ServerPlayerEntity> participants();
     ServerPlayerEntity player(UUID id);
     boolean contains(UUID id);
+    /** 只排队记录死亡；范围伤害和回合结算完成后，宿主再让真人接替同队存活人机。 */
+    void onFighterDeath(ServerPlayerEntity player);
     void broadcast(Text message);
     void finish(String reason);
 }

@@ -201,7 +201,8 @@ async function main() {
 
   await command(a, '/pvp');
   await waitFor(() => a.currentWindow, 'main menu');
-  await click(a, 22); await click(a, 16); await click(a, 15);
+  // Practice now opens directly from the first-level main menu.
+  await click(a, 21); await click(a, 15);
   check('GUI exposes all five difficulties', [11, 12, 13, 14, 15].every(slot => a.currentWindow.slots[slot]?.name.endsWith('_sword')),
     [11, 12, 13, 14, 15].map(slot => a.currentWindow.slots[slot]?.name));
   await click(a, 15);
