@@ -198,6 +198,15 @@ public final class PvPMod implements ModInitializer {
         PvpGuiManager.init();
         com.example.pvp.match.PortedGameEvents.register();
 
+        // A single shared map budget uses this tick's actual start, so spare
+        // time speeds up large scenes without multiplying cost per match.
+        ServerTickEvents.START_SERVER_TICK.register(server -> {
+            long started = System.nanoTime();
+            var manager = ArenaWorldManager.getOrNull();
+            if (manager != null && server == SERVER && manager.getWorld() != null)
+                manager.getWorld().mapWorkBudget().beginTick(server.getTicks(), started);
+        });
+
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SERVER = server;
             ArenaWorldManager.get(server).createWorld();

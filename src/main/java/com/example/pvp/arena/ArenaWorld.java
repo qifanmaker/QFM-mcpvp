@@ -50,6 +50,7 @@ public class ArenaWorld extends ServerWorld {
 
     /** 当前正在暂存铺图的队列；null = 正常直写世界（对局中/清场时都是 null）。 */
     private MapBuildQueue staging;
+    private final MapWorkBudget mapWorkBudget = new MapWorkBudget();
     private Box dropSuppression;
     /** Reused per-thread state avoids an allocation for each imported terrain cell. */
     private final ThreadLocal<SnapshotWriteScope> snapshotWrites = ThreadLocal.withInitial(SnapshotWriteScope::new);
@@ -112,6 +113,10 @@ public class ArenaWorld extends ServerWorld {
 
     public MapBuildQueue stagingQueue() {
         return this.staging;
+    }
+
+    public MapWorkBudget mapWorkBudget() {
+        return this.mapWorkBudget;
     }
 
     // ==================== 世界读写拦截 ====================

@@ -76,6 +76,7 @@ public final class MapBuildQueue {
     private boolean storageReleased;
     private int placed;
     private long lastFlushNanos;
+    private boolean complete;
 
     /**
      * @param world      竞技场世界
@@ -262,32 +263,67 @@ public final class MapBuildQueue {
      * @return 是否已经全部落盘完成
      */
     public boolean flush(int budgetMillis) {
+        return this.flushNanos(Math.max(0L, budgetMillis * 1_000_000L));
+    }
+
+    /** Use spare tick time, shared with every other build/cleanup in this world. */
+    public boolean flushAdaptive() {
+        if (!this.closed) throw new IllegalStateException("MapBuildQueue 必须先 close() 再 flush()");
+        if (this.complete) return true;
+        MapWorkBudget budget = this.world.mapWorkBudget();
+        long started = System.nanoTime();
+        long allowance = budget.allowance(this, started);
+        if (allowance <= 0) return false;
+        try {
+            return this.flushNanos(allowance);
+        } finally {
+            budget.spent(this, System.nanoTime() - started);
+            if (this.complete) budget.completed(this);
+        }
+    }
+
+    private boolean flushNanos(long budgetNanos) {
         if (!this.closed) {
             throw new IllegalStateException("MapBuildQueue 必须先 close() 再 flush()");
         }
+        if (this.complete) return true;
         long started = System.nanoTime();
+        // One deadline for blocks, block entities AND entities: resetting it at
+        // each phase could silently spend three times the caller's tick budget.
+        long deadline = started + budgetNanos;
         if (this.cursor < this.size) {
-            long deadline = started + budgetMillis * 1_000_000L;
             int batch = 0;
+            BlockPos.Mutable mutable = new BlockPos.Mutable();
+            boolean expired = false;
             while (this.cursor < this.size) {
                 long start = this.positions[this.cursor];
                 int x = BlockPos.unpackLongX(start), y = BlockPos.unpackLongY(start), z = BlockPos.unpackLongZ(start);
-                switch (this.runAxis(this.cursor)) {
+                int axis = this.runAxis(this.cursor);
+                int length = this.runLength(this.cursor);
+                BlockState state = this.states[this.cursor];
+                boolean snapshot = this.snapshotOperations != null && this.snapshotOperations.get(this.cursor);
+                switch (axis) {
                     case 0 -> x += this.cursorOffset;
                     case 1 -> y += this.cursorOffset;
                     case 2 -> z += this.cursorOffset;
                     default -> throw new IllegalStateException("Invalid map run axis");
                 }
-                BlockPos position = new BlockPos(x, y, z);
-                if (this.snapshotOperations != null && this.snapshotOperations.get(this.cursor))
-                    this.world.setBlockStateSnapshotDirect(position, this.states[this.cursor]);
-                else this.world.setBlockStateDirect(position, this.states[this.cursor]);
-                this.placed++;
-                if (++this.cursorOffset == this.runLength(this.cursor)) { this.cursor++; this.cursorOffset = 0; }
-                if (++batch >= TIME_CHECK_BATCH) {
-                    batch = 0;
-                    if (System.nanoTime() >= deadline) break;
+                // Decode each saved run once, rather than for all thirteen
+                // million cells. Native lighting/BE code copies mutable poses;
+                // ordinary placement callbacks retain immutable BlockPos input.
+                while (this.cursorOffset < length) {
+                    if (snapshot) this.world.setBlockStateSnapshotDirect(mutable.set(x, y, z), state);
+                    else this.world.setBlockStateDirect(new BlockPos(x, y, z), state);
+                    this.placed++;
+                    this.cursorOffset++;
+                    switch (axis) { case 0 -> x++; case 1 -> y++; case 2 -> z++; }
+                    if (++batch >= TIME_CHECK_BATCH) {
+                        batch = 0;
+                        if (System.nanoTime() >= deadline) { expired = true; break; }
+                    }
                 }
+                if (this.cursorOffset == length) { this.cursor++; this.cursorOffset = 0; }
+                if (expired) break;
             }
             if (this.cursor < this.size) {
                 this.lastFlushNanos = System.nanoTime() - started;
@@ -297,7 +333,10 @@ public final class MapBuildQueue {
         }
         // 方块实体必须先于实体（它们属于方块；而且方块实体要求区块已加载）
         if (this.blockEntityCursor < this.blockEntities.size()) {
-            long deadline = System.nanoTime() + budgetMillis * 1_000_000L;
+            if (System.nanoTime() >= deadline) {
+                this.lastFlushNanos = System.nanoTime() - started;
+                return false;
+            }
             int batch = 0;
             while (this.blockEntityCursor < this.blockEntities.size()) {
                 BlockEntity blockEntity = this.blockEntities.get(this.blockEntityCursor++);
@@ -305,8 +344,9 @@ public final class MapBuildQueue {
                 if (blockEntity.getType().supports(this.world.getBlockState(blockEntity.getPos()))) {
                     this.world.addBlockEntityDirect(blockEntity);
                 }
-                if (++batch >= TIME_CHECK_BATCH && System.nanoTime() >= deadline) {
-                    break;
+                if (++batch >= 32) {
+                    batch = 0;
+                    if (System.nanoTime() >= deadline) break;
                 }
             }
             if (this.blockEntityCursor < this.blockEntities.size()) {
@@ -316,7 +356,10 @@ public final class MapBuildQueue {
             this.blockEntities.clear();
         }
         if (this.entityCursor < this.entities.size()) {
-            long deadline = System.nanoTime() + budgetMillis * 1_000_000L;
+            if (System.nanoTime() >= deadline) {
+                this.lastFlushNanos = System.nanoTime() - started;
+                return false;
+            }
             while (this.entityCursor < this.entities.size()) {
                 Entity entity = this.entities.get(this.entityCursor++);
                 if (!this.world.spawnEntityDirect(entity)) {
@@ -334,6 +377,7 @@ public final class MapBuildQueue {
             this.entities.clear();
         }
         this.lastFlushNanos = System.nanoTime() - started;
+        this.complete = true;
         return true;
     }
 

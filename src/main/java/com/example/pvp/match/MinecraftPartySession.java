@@ -277,7 +277,10 @@ public final class MinecraftPartySession implements PortedGameSession {
                 this.keepInLobby();
                 this.bossBar.setName(Text.literal("§e载入原版场景 · " + (int) (this.buildQueue.progress() * 100) + "%"));
                 this.bossBar.setPercent((float) this.buildQueue.progress());
-                if (this.buildQueue.flush(4) && (this.sceneTickets == null || this.sceneTickets.ready())) {
+                // Tickets load full source chunks asynchronously. Writing first
+                // can synchronously wait for chunk generation inside one cell,
+                // exceeding any queue budget before its next time check.
+                if ((this.sceneTickets == null || this.sceneTickets.ready()) && this.buildQueue.flushAdaptive()) {
                     this.buildQueue = null;
                     this.beginIntro();
                 }
@@ -322,7 +325,7 @@ public final class MinecraftPartySession implements PortedGameSession {
                 this.bossBar.setName(Text.literal("§e清理第 " + this.roundNumber() + " 轮场景 · "
                         + (int) (this.buildQueue.progress() * 100) + "%"));
                 this.bossBar.setPercent((float) this.buildQueue.progress());
-                if (this.buildQueue.flush(4)) {
+                if (this.buildQueue.flushAdaptive()) {
                     if (!this.cleanupTerrainChanges.isEmpty()) {
                         // 清场引发的原生活塞回缩可能写入新格；下一帧清掉新增格，不能边迭代边改集合。
                         this.buildQueue = this.newRoundQueue();
@@ -1060,7 +1063,7 @@ public final class MinecraftPartySession implements PortedGameSession {
             this.finalCleanupQueue.close();
         }
         if (this.sceneTickets != null && !this.sceneTickets.ready()) return false;
-        if (!this.finalCleanupQueue.flush(4)) return false;
+        if (!this.finalCleanupQueue.flushAdaptive()) return false;
         if (!this.cleanupTerrainChanges.isEmpty()) {
             this.finalCleanupQueue = this.newCleanupQueue();
             var iterator = this.cleanupTerrainChanges.iterator();

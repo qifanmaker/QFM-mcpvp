@@ -311,13 +311,6 @@ public final class Match {
 
     // ---------- 铺图分帧（见 MapBuildQueue） ----------
 
-    /**
-     * 铺图每 tick 的时间预算（毫秒）。一个 tick 有 50 ms，拿出 10 ms 铺图不会影响 TPS；
-     * 几十万方块的床战地图因此会被摊成几十个 tick，而不是让服务端卡住一整秒。
-     */
-    private static final int BUILD_BUDGET_MS = 10;
-    /** 铺图超过这么久还没完就强制一次性写完（宁可卡一下，也不能让对局开不起来）。 */
-    private static final int BUILD_FORCE_FLUSH_TICKS = 20 * 20;
     /** 铺图期间额外放宽"倒计时卡死"看门狗，避免正常的大地图铺图被判定为异常。 */
     private static final int BUILD_STUCK_ALLOWANCE_TICKS = 20 * 45;
 
@@ -754,15 +747,12 @@ public final class Match {
         // 铺图阶段额外放宽：大地图（床战/空岛/竞速）铺图本身要花几十个 tick，
         // 那不是"倒计时异常"，所以按是否已铺完给不同的阈值。
         int countdownStuckThreshold = this.initialCountdownTicks + 20 * 10
-                + (this.setupFinished ? 0 : BUILD_STUCK_ALLOWANCE_TICKS);
-        if (this.state == MatchState.COUNTDOWN && !this.setupFinished && this.buildQueue != null
-                && this.buildTicks > BUILD_FORCE_FLUSH_TICKS) {
-            LOGGER.warn("[PvP] 比赛 #{} 铺图已超过 {} 秒，强制一次性写完（避免一直开不了赛）",
-                    this.id, BUILD_FORCE_FLUSH_TICKS / 20);
-            this.buildQueue.forceFlushAll();
-            this.buildQueue = null;
-            this.finishSetup();
-        }
+                + (this.setupFinished ? this.buildTicks : BUILD_STUCK_ALLOWANCE_TICKS);
+        // Even a slow build must respect the shared budget. The countdown
+        // watchdog below still cancels a stuck match; an unbounded force flush
+        // after 20 seconds would stall every active game on a busy server.
+        // Once setup finishes, subtract its elapsed ticks from the countdown
+        // watchdog instead of cancelling a successfully built slow map.
         int activeTimeout;
         if (this.type.usesGameSession()) {
             // 会话自行计时；兜底只处理运行时卡死，不擅自把第一队判为胜者。
@@ -4412,7 +4402,7 @@ public final class Match {
     }
 
     /**
-     * 每个倒计时 tick 用固定时间预算把暂存的地形落盘；全部写完就进入 {@link #finishSetup()}。
+     * 每个倒计时 tick 用共享空闲时间把暂存的地形落盘；全部写完就进入 {@link #finishSetup()}。
      * 这样一帧的工作量有上界，服务器 TPS 不会被铺图拖垮。
      */
     private void tickBuild() {
@@ -4421,7 +4411,7 @@ public final class Match {
             this.finishSetup();
             return;
         }
-        if (queue.flush(BUILD_BUDGET_MS)) {
+        if (queue.flushAdaptive()) {
             LOGGER.info("[PvP] 比赛 #{} 铺图完成：{} 个方块 / {} tick（最后一次 flush {} ms）",
                     this.id, queue.totalStaged(), this.buildTicks,
                     String.format(java.util.Locale.ROOT, "%.1f", queue.lastFlushMillis()));
